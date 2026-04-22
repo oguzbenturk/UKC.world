@@ -2,8 +2,10 @@ import PropTypes from 'prop-types';
 import { Avatar, Button, Carousel, Tag } from 'antd';
 import { StarIcon as StarOutline } from '@heroicons/react/24/outline';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 const ReminderSlide = ({ booking, onRate }) => {
+  const { t } = useTranslation(['student']);
   const completedText = booking.completedAt
     ? formatDistanceToNow(parseISO(booking.completedAt), { addSuffix: true })
     : booking.date ?? 'recently';
@@ -22,7 +24,7 @@ const ReminderSlide = ({ booking, onRate }) => {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Tag color="gold" className="rounded-full border-0 px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
-              Needs rating
+              {t('student:ratingBanner.needsRating')}
             </Tag>
             <Button
               type="primary"
@@ -30,7 +32,7 @@ const ReminderSlide = ({ booking, onRate }) => {
               className="rounded-full"
               onClick={() => onRate(booking)}
             >
-              Rate now
+              {t('student:ratingBanner.rateNow')}
             </Button>
           </div>
         </div>
@@ -56,6 +58,7 @@ ReminderSlide.propTypes = {
 };
 
 export const RatingReminderBanner = ({ reminders = [], onRate }) => {
+  const { t } = useTranslation(['student']);
   if (!reminders.length) {
     return null;
   }
@@ -69,13 +72,13 @@ export const RatingReminderBanner = ({ reminders = [], onRate }) => {
           </span>
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              You have {reminders.length} lesson{reminders.length > 1 ? 's' : ''} to rate
+              {t('student:ratingBanner.lessonsToRate', { count: reminders.length })}
             </p>
-            <p className="text-[11px] text-slate-500">Share your experience to help others</p>
+            <p className="text-[11px] text-slate-500">{t('student:ratingBanner.shareExperience')}</p>
           </div>
         </div>
         <Button type="link" size="small" className="text-sky-600" onClick={() => onRate(reminders[0])}>
-          Rate first lesson
+          {t('student:ratingBanner.rateFirstLesson')}
         </Button>
       </header>
       <Carousel dots={reminders.length > 1} autoplay autoplaySpeed={5000} className="w-full">

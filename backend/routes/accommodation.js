@@ -587,6 +587,7 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 			receipt_url,
 			bank_account_id,
 			voucher_id,
+			custom_price, // staff-only price override
 		} = req.body;
 		const isDeposit = !!(deposit_percent && deposit_amount);
 
@@ -664,7 +665,10 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 		const basePrice = parseFloat(unitData.price_per_night);
 		const priceCalc = calculateTotalPrice(checkIn, checkOut, basePrice, meta);
 		const nights = priceCalc.nights;
-		const total_price = priceCalc.total;
+		// Staff can override the calculated price via custom_price
+		const total_price = (isStaff && custom_price != null && !isNaN(parseFloat(custom_price)))
+			? parseFloat(custom_price)
+			: priceCalc.total;
 
 		const bookingId = uuidv4();
 		let walletTxId = null;

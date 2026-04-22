@@ -1,5 +1,6 @@
 // src/features/instructors/components/InstructorSkillsManager.jsx
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Switch, Select, Tag, Spin, Button, Typography, Tooltip, Empty } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { CheckOutlined } from '@ant-design/icons';
@@ -29,6 +30,7 @@ const LEVELS = [
 ];
 
 const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} }, ref) => {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
       setDirty(false);
     } catch (err) {
       console.error('Error fetching instructor skills:', err);
-      message.error('Failed to load teaching skills');
+      message.error(t('instructor:skills.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -76,11 +78,11 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
       const res = await apiClient.put(`/instructors/${instructorId}/skills`, { skills: payload });
       setSkills(res.data || []);
       setDirty(false);
-      message.success('Teaching skills saved');
+      message.success(t('instructor:skills.saved'));
       onSave();
     } catch (err) {
       console.error('Error saving instructor skills:', err);
-      message.error(err?.response?.data?.error || 'Failed to save teaching skills');
+      message.error(err?.response?.data?.error || t('instructor:skills.failedToSave'));
     } finally {
       setSaving(false);
     }
@@ -134,9 +136,9 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-gray-800">Teaching Skills</h3>
+            <h3 className="text-base font-semibold text-gray-800">{t('instructor:skills.teachingSkills')}</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Configure which disciplines and lesson types this instructor can teach
+              {t('instructor:skills.configureHint')}
             </p>
           </div>
           {dirty && (
@@ -147,7 +149,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
               loading={saving}
               onClick={handleSave}
             >
-              Save Changes
+              {t('instructor:skills.saveChanges')}
             </Button>
           )}
         </div>
@@ -188,7 +190,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
                     {/* Lesson categories */}
                     <div>
                       <Text className="text-xs text-gray-500 font-medium block mb-1.5">
-                        Lesson Types
+                        {t('instructor:skills.lessonTypes')}
                       </Text>
                       <div className="flex flex-wrap gap-1.5">
                         {LESSON_CATEGORIES.map((cat) => {
@@ -207,7 +209,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
                                   ? skill.lesson_categories.filter(c => c !== cat.key)
                                   : [...skill.lesson_categories, cat.key];
                                 if (next.length === 0) {
-                                  message.warning('At least one lesson type must be selected');
+                                  message.warning(t('instructor:skills.atLeastOneLessonType'));
                                   return;
                                 }
                                 updateCategories(disc.key, next);
@@ -224,7 +226,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
                     {/* Max level */}
                     <div>
                       <Text className="text-xs text-gray-500 font-medium block mb-1.5">
-                        Maximum Teaching Level
+                        {t('instructor:skills.maximumTeachingLevel')}
                       </Text>
                       <div className="flex flex-wrap gap-2">
                         {LEVELS.map((lvl) => {
@@ -256,8 +258,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
         {/* Info footer */}
         <div className="rounded-lg bg-blue-50/60 border border-blue-100 px-4 py-2.5">
           <Text className="text-[11px] text-blue-600/80">
-            Skills determine which instructors appear when booking a lesson.
-            Only instructors with matching discipline, lesson type, and level will be shown.
+            {t('instructor:skills.skillsInfo')}
           </Text>
         </div>
       </div>

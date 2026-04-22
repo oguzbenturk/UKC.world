@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PlusIcon, BookmarkIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -63,6 +64,7 @@ function saveToStorage(key, value) {
 
 // ── KaiQuickActions ──────────────────────────────────────────────────────────
 export default function KaiQuickActions({ onSend, disabled }) {
+  const { t } = useTranslation(['common']);
   const { user } = useAuth();
   const userId = user?.id || 'guest';
   const role = user?.role?.toLowerCase() || 'outsider';
@@ -130,10 +132,10 @@ export default function KaiQuickActions({ onSend, disabled }) {
       {showAddPanel && (
         <div ref={addPanelRef}
           className="absolute bottom-full left-0 right-0 z-10 bg-white border border-gray-200 shadow-lg rounded-t-xl p-3 mx-2 mb-0.5">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Add Quick Button</p>
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('common:chat.addQuickButton')}</p>
           <input
             type="text"
-            placeholder="Button label (e.g. My schedule)"
+            placeholder={t('common:chat.buttonLabel')}
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             maxLength={24}
@@ -141,7 +143,7 @@ export default function KaiQuickActions({ onSend, disabled }) {
           />
           <input
             type="text"
-            placeholder="Message to send (e.g. Show my full schedule)"
+            placeholder={t('common:chat.buttonMessage')}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             maxLength={200}
@@ -151,15 +153,15 @@ export default function KaiQuickActions({ onSend, disabled }) {
           <div className="flex gap-2">
             <button onClick={addCustomButton} disabled={!newLabel.trim() || !newMessage.trim() || customButtons.length >= MAX_CUSTOM}
               className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-duotone-blue text-white text-xs font-medium rounded-lg disabled:opacity-40 hover:bg-[#008da6] transition-colors">
-              <CheckIcon className="w-3.5 h-3.5" /> Save
+              <CheckIcon className="w-3.5 h-3.5" /> {t('common:buttons.save')}
             </button>
             <button onClick={() => setShowAddPanel(false)}
               className="px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              Cancel
+              {t('common:buttons.cancel')}
             </button>
           </div>
           {customButtons.length >= MAX_CUSTOM && (
-            <p className="text-[10px] text-gray-400 mt-1 text-center">Max {MAX_CUSTOM} custom buttons reached</p>
+            <p className="text-[10px] text-gray-400 mt-1 text-center">{t('common:chat.maxButtons', { count: MAX_CUSTOM })}</p>
           )}
         </div>
       )}
@@ -168,7 +170,7 @@ export default function KaiQuickActions({ onSend, disabled }) {
       {showSaved && hasSaved && (
         <div ref={savedRef}
           className="absolute bottom-full left-0 z-10 w-72 bg-white border border-gray-200 shadow-lg rounded-xl mb-0.5 ml-2 overflow-hidden max-h-52 overflow-y-auto">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-3 pt-2.5 pb-1">Saved Messages</p>
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-3 pt-2.5 pb-1">{t('common:chat.savedMessagesTitle')}</p>
           {savedMessages.map((msg, i) => (
             <div key={i} className="flex items-center group hover:bg-slate-50 border-t border-gray-100 first:border-t-0">
               <button onClick={() => send(msg)}
@@ -194,7 +196,7 @@ export default function KaiQuickActions({ onSend, disabled }) {
               ? 'text-duotone-blue hover:bg-slate-100'
               : 'text-gray-300 cursor-default'
           }`}
-          title="Saved messages"
+          title={t('common:chat.savedMessages')}
           disabled={!hasSaved}>
           {hasSaved
             ? <BookmarkSolid className="w-4 h-4" />
@@ -230,7 +232,7 @@ export default function KaiQuickActions({ onSend, disabled }) {
         {customButtons.length < MAX_CUSTOM && (
           <button onClick={() => { setShowAddPanel((v) => !v); setShowSaved(false); }}
             className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-duotone-blue hover:bg-slate-100 border border-dashed border-gray-300 hover:border-duotone-blue/40 transition-colors"
-            title="Add custom button">
+            title={t('common:chat.addCustomButton')}>
             <PlusIcon className="w-3.5 h-3.5" />
           </button>
         )}

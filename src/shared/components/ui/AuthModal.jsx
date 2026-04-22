@@ -1,5 +1,6 @@
 // src/shared/components/ui/AuthModal.jsx
 import { Modal, Button, Form, Input, Divider, Space, App } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -41,6 +42,7 @@ function AuthModalTitle({ title }) {
 }
 
 const AuthModal = () => {
+  const { t } = useTranslation(['common']);
   const { message } = App.useApp();
   const { isOpen, closeAuthModal, modalConfig } = useAuthModal();
   const { login } = useAuth();
@@ -54,21 +56,21 @@ const AuthModal = () => {
     try {
       const success = await login(values.email, values.password);
       if (success) {
-        message.success('Successfully signed in!');
+        message.success(t('common:auth.signedIn'));
         closeAuthModal();
-        
+
         // Redirect to return URL if specified
         if (modalConfig.returnUrl) {
           navigate(modalConfig.returnUrl);
         }
       } else {
-        message.error('Invalid email or password');
+        message.error(t('common:auth.invalidCredentials'));
       }
     } catch (error) {
       if (error?.message === SIGN_IN_DISABLED_USER_MESSAGE) {
         message.info(SIGN_IN_DISABLED_USER_MESSAGE);
       } else {
-        message.error(error.message || 'Sign in failed. Please try again.');
+        message.error(error.message || t('common:auth.signInFailed'));
       }
     } finally {
       setLoading(false);
@@ -131,13 +133,13 @@ const AuthModal = () => {
               name="email"
               className="mb-5"
               rules={[
-                { required: true, message: 'Email is required' },
-                { type: 'email', message: 'Enter a valid email' }
+                { required: true, message: t('common:auth.emailRequired') },
+                { type: 'email', message: t('common:validation.email') }
               ]}
             >
               <Input 
                 prefix={<MailOutlined className="text-[#00a8c4]" />}
-                placeholder="Email"
+                placeholder={t('common:userForm.email')}
                 size="large"
                 className="!bg-white/5 !border-white/10 hover:!border-[#00a8c4]/50 focus-within:!border-[#00a8c4] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60"
                 autoComplete="email"
@@ -147,11 +149,11 @@ const AuthModal = () => {
             <Form.Item
               name="password"
               className="mb-8"
-              rules={[{ required: true, message: 'Password is required' }]}
+              rules={[{ required: true, message: t('common:auth.passwordRequired') }]}
             >
               <Input.Password
                 prefix={<LockOutlined className="text-[#00a8c4]" />}
-                placeholder="Password"
+                placeholder={t('common:userForm.password')}
                 size="large"
                 className="!bg-white/5 !border-white/10 hover:!border-[#00a8c4]/50 focus-within:!border-[#00a8c4] !h-12 !rounded-xl transition-all [&_input]:!bg-transparent [&_input]:!text-white [&_input::placeholder]:!text-white/60 [&_.ant-input-password-icon]:!text-white/40 hover:[&_.ant-input-password-icon]:!text-white/80"
                 autoComplete="current-password"
@@ -167,7 +169,7 @@ const AuthModal = () => {
                 size="large"
                 className="!h-12 !rounded-xl !bg-[#00a8c4] !border-none !font-duotone-bold !text-sm hover:!opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-[#00a8c4]/20"
               >
-                Sign In
+                {t('common:nav.signIn')}
               </Button>
             </Form.Item>
           </Form>
@@ -177,7 +179,7 @@ const AuthModal = () => {
               <div className="w-full border-t border-white/5" />
             </div>
             <span className="relative z-10 px-4 bg-[#1a262b] text-[10px] sm:text-xs font-duotone-bold text-gray-500 uppercase tracking-[0.2em]">
-              Or connect with
+              {t('common:auth.orConnectWith')}
             </span>
           </div>
 
@@ -189,7 +191,7 @@ const AuthModal = () => {
               className="!h-12 !rounded-xl !bg-white/5 !border-white/10 !text-white !font-semibold !text-sm hover:!bg-white/10 hover:!border-white/20 transition-all"
               onClick={handleRegister}
             >
-              Create New Account
+              {t('common:auth.createNewAccount')}
             </Button>
             
             <div className="text-center pt-2">
@@ -198,7 +200,7 @@ const AuthModal = () => {
                 onClick={handleCancel}
                 className="!text-gray-500 hover:!text-[#00a8c4] !text-xs transition-colors"
               >
-                Continue as Guest
+                {t('common:auth.continueAsGuest')}
               </Button>
             </div>
           </Space>
@@ -206,8 +208,7 @@ const AuthModal = () => {
       ) : (
         <div className="text-center relative z-10 px-2">
           <p className="mb-8 text-gray-400 font-duotone-regular leading-relaxed text-sm">
-            To create a full account with access to all features,
-            we'll need a bit more information from you.
+            {t('common:auth.registerDescription')}
           </p>
           <Button 
             type="primary" 
@@ -216,7 +217,7 @@ const AuthModal = () => {
             className="!h-12 !rounded-xl !bg-emerald-600 !border-none !font-duotone-bold !text-sm hover:!bg-emerald-500 transition-all shadow-lg shadow-emerald-500/10"
             onClick={handleRegister}
           >
-            Go to Registration
+            {t('common:auth.goToRegistration')}
           </Button>
           
           <div className="relative my-8 text-center px-4">
@@ -233,7 +234,7 @@ const AuthModal = () => {
             onClick={switchMode}
             className="!text-[#00a8c4] hover:!text-[#00a8c4]/80 !text-sm transition-colors"
           >
-            Already have an account? Sign In
+            {t('common:auth.alreadyHaveAccount')}
           </Button>
         </div>
       )}

@@ -1,5 +1,6 @@
 // src/features/admin/components/UserRoleManager.jsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Select, Button, App, Space, Typography, Tag, Divider } from 'antd';
 import { UserOutlined, CrownOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -10,7 +11,7 @@ const { Text } = Typography;
 
 const ROLE_COLORS = {
   admin: 'red',
-  manager: 'orange', 
+  manager: 'orange',
   receptionist: 'blue',
   instructor: 'green',
   assistant: 'cyan',
@@ -18,23 +19,13 @@ const ROLE_COLORS = {
   student: 'default'
 };
 
-const ROLE_LABELS = {
-  [ROLE_IDS.admin]: 'Admin',
-  [ROLE_IDS.manager]: 'Manager',
-  [ROLE_IDS.receptionist]: 'Receptionist', 
-  [ROLE_IDS.instructor]: 'Instructor',
-  [ROLE_IDS.assistant]: 'Assistant',
-  [ROLE_IDS.freelancer]: 'Freelancer',
-  [ROLE_IDS.student]: 'Student'
-};
-
-const UserRoleManager = ({ 
-  visible, 
-  onCancel, 
-  userData, 
-  onRoleChanged 
+const UserRoleManager = ({
+  visible,
+  onCancel,
+  userData,
+  onRoleChanged
 }) => {
-  
+  const { t } = useTranslation(['admin']);
   const [selectedRole, setSelectedRole] = useState(userData?.role_id);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -54,7 +45,7 @@ const UserRoleManager = ({
 
   const handleRoleChange = async () => {
     if (selectedRole === userData.role_id) {
-      message.info('No changes made');
+      message.info(t('admin:userRoleManager.toast.noChanges'));
       onCancel();
       return;
     }
@@ -68,7 +59,7 @@ const UserRoleManager = ({
 
       if (response.data) {
         const newRoleLabel = ROLE_LABELS[selectedRole];
-        message.success(`Successfully changed ${userData.name}'s role to ${newRoleLabel}`);
+        message.success(t('admin:userRoleManager.toast.success', { name: userData.name, role: newRoleLabel }));
         onRoleChanged?.(userData.id, selectedRole, newRoleLabel);
         onCancel();
       }
@@ -85,7 +76,7 @@ const UserRoleManager = ({
       title={
         <Space>
           <UserOutlined />
-          Manage User Role
+          {t('admin:userRoleManager.title')}
         </Space>
       }
       open={visible}
@@ -111,11 +102,11 @@ const UserRoleManager = ({
           </div>
         </div>
 
-        <Divider orientation="left">Change Role</Divider>
+        <Divider orientation="left">{t('admin:userRoleManager.changeRole')}</Divider>
 
         {/* Role Selection */}
         <div>
-          <Text className="block mb-2">Select new role:</Text>
+          <Text className="block mb-2">{t('admin:userRoleManager.selectNewRole')}</Text>
           <Select
             value={selectedRole}
             onChange={setSelectedRole}
@@ -125,43 +116,43 @@ const UserRoleManager = ({
             <Option value={ROLE_IDS.student}>
               <Space>
                 <Tag color={ROLE_COLORS.student}>Student</Tag>
-                <span>Basic user access</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.student')}</span>
               </Space>
             </Option>
             <Option value={ROLE_IDS.freelancer}>
               <Space>
                 <Tag color={ROLE_COLORS.freelancer}>Freelancer</Tag>
-                <span>Independent contractor</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.freelancer')}</span>
               </Space>
             </Option>
             <Option value={ROLE_IDS.assistant}>
               <Space>
                 <Tag color={ROLE_COLORS.assistant}>Assistant</Tag>
-                <span>Limited administrative support</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.assistant')}</span>
               </Space>
             </Option>
             <Option value={ROLE_IDS.instructor}>
               <Space>
                 <Tag color={ROLE_COLORS.instructor}>Instructor</Tag>
-                <span>Teaching and booking management</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.instructor')}</span>
               </Space>
             </Option>
             <Option value={ROLE_IDS.receptionist}>
               <Space>
                 <Tag color={ROLE_COLORS.receptionist}>Receptionist</Tag>
-                <span>Front desk operations</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.receptionist')}</span>
               </Space>
             </Option>
             <Option value={ROLE_IDS.manager}>
               <Space>
                 <Tag color={ROLE_COLORS.manager}>Manager</Tag>
-                <span>Operational management</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.manager')}</span>
               </Space>
             </Option>
             <Option value={ROLE_IDS.admin}>
               <Space>
                 <Tag color={ROLE_COLORS.admin} icon={<CrownOutlined />}>Admin</Tag>
-                <span>Full system access</span>
+                <span>{t('admin:userRoleManager.roleDescriptions.admin')}</span>
               </Space>
             </Option>
           </Select>
@@ -170,8 +161,7 @@ const UserRoleManager = ({
         {selectedRole !== userData.role_id && (
           <div className="bg-yellow-50 border border-yellow-200 p-3 rounded">
             <Text type="warning">
-              <strong>Warning:</strong> Changing the user's role will immediately affect their 
-              access permissions. They may need to log out and log back in for changes to take full effect.
+              <strong>{t('admin:userRoleManager.warningLabel')}</strong> {t('admin:userRoleManager.warning')}
             </Text>
           </div>
         )}
@@ -179,15 +169,15 @@ const UserRoleManager = ({
         {/* Actions */}
         <div className="flex justify-end space-x-2 pt-4">
           <Button onClick={onCancel}>
-            Cancel
+            {t('admin:userRoleManager.cancel')}
           </Button>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={handleRoleChange}
             loading={loading}
             disabled={selectedRole === userData.role_id}
           >
-            {selectedRole === userData.role_id ? 'No Changes' : 'Update Role'}
+            {selectedRole === userData.role_id ? t('admin:userRoleManager.noChanges') : t('admin:userRoleManager.updateRole')}
           </Button>
         </div>
       </div>

@@ -1,15 +1,17 @@
 // src/shared/components/error/AppErrorFallback.jsx
 import PropTypes from 'prop-types';
 import { Button, Result, Space, Typography } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { RedoOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Paragraph, Text } = Typography;
 
 const AppErrorFallback = ({ error = null, onRetry = undefined }) => {
+  const { t } = useTranslation(['common']);
   const isDevelopment = import.meta.env.DEV;
   const errorText = isDevelopment && error?.message
     ? error.message
-    : 'An unexpected error occurred. Please try again in a moment.';
+    : t('common:error.unexpected');
 
   const fullErrorText = error
     ? `${error.message || 'Unknown error'}\n\n${error.stack || ''}\n\nURL: ${window.location.href}\nTime: ${new Date().toISOString()}`
@@ -51,19 +53,19 @@ const AppErrorFallback = ({ error = null, onRetry = undefined }) => {
       <div className="mx-auto w-full max-w-2xl">
         <Result
           status="500"
-          title="We hit a snag"
+          title={t('common:error.title')}
           subTitle={errorText}
           extra={(
             <Space wrap>
               <Button type="primary" icon={<RedoOutlined />} onClick={handleRetry}>
-                Try again
+                {t('common:error.tryAgain')}
               </Button>
               <Button icon={<ReloadOutlined />} onClick={handleReload}>
-                Reload app
+                {t('common:error.reloadApp')}
               </Button>
               {error && (
                 <Button id="copy-error-btn" onClick={handleCopyError}>
-                  Copy Error
+                  {t('common:error.copyError')}
                 </Button>
               )}
             </Space>

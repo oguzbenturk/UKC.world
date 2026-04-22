@@ -16,6 +16,7 @@ import * as formService from '../../forms/services/formService';
 import usersService from '@/shared/services/usersService';
 import rolesService from '@/shared/services/rolesService';
 import { findFieldValue, getPublicUrl } from '../utils/formHelpers';
+import { useTranslation } from 'react-i18next';
 
 import FormsTab from '../components/FormsTab';
 import LinksTab from '../components/LinksTab';
@@ -29,6 +30,7 @@ import SubmissionDetailDrawer from '../components/SubmissionDetailDrawer';
 import CreateUserModal from '../components/CreateUserModal';
 
 const QuickLinksPage = ({ embedded = false }) => {
+  const { t } = useTranslation(['manager']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('forms');
@@ -395,7 +397,7 @@ const QuickLinksPage = ({ embedded = false }) => {
               label: (
                 <span className="flex items-center gap-2">
                   <FormOutlined />
-                  My Forms
+                  {t('manager:quicklinks.tabs.myForms')}
                   {allFormTemplates.length > 0 && <Tag color="blue">{allFormTemplates.length}</Tag>}
                 </span>
               ),
@@ -417,7 +419,7 @@ const QuickLinksPage = ({ embedded = false }) => {
               label: (
                 <span className="flex items-center gap-2">
                   <LinkOutlined />
-                  Shareable Links
+                  {t('manager:quicklinks.tabs.shareableLinks')}
                   {links.length > 0 && <Tag color="green">{links.length}</Tag>}
                 </span>
               ),
@@ -438,7 +440,7 @@ const QuickLinksPage = ({ embedded = false }) => {
               label: (
                 <span className="flex items-center gap-2">
                   <InboxOutlined />
-                  Form Answers
+                  {t('manager:quicklinks.tabs.formAnswers')}
                   {formSubmissions.length > 0 && <Tag color="blue">{formSubmissions.length}</Tag>}
                 </span>
               ),
@@ -462,7 +464,7 @@ const QuickLinksPage = ({ embedded = false }) => {
               label: (
                 <span className="flex items-center gap-2">
                   <UserOutlined />
-                  Registrations
+                  {t('manager:quicklinks.tabs.registrations')}
                   {allRegistrations.filter(r => r.status === 'pending').length > 0 && (
                     <Tag color="orange">{allRegistrations.filter(r => r.status === 'pending').length}</Tag>
                   )}

@@ -8,6 +8,7 @@ import {
   MessageOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { getSubmitterName, getSubmitterEmail } from '../utils/formHelpers';
 import * as formService from '../../forms/services/formService';
 
@@ -26,6 +27,7 @@ const FormAnswersTab = ({
   onViewSubmission,
   onCreateUserFromSubmission,
 }) => {
+  const { t } = useTranslation(['manager']);
   const handleViewClick = async (record) => {
     try {
       const fullSubmission = await formService.getFormSubmission(record.id);
@@ -37,7 +39,7 @@ const FormAnswersTab = ({
 
   const columns = [
     {
-      title: 'Submitted By',
+      title: t('manager:quicklinks.formAnswers.submittedBy'),
       key: 'submitter',
       render: (_, record) => (
         <div>
@@ -52,14 +54,14 @@ const FormAnswersTab = ({
       )
     },
     {
-      title: 'Form',
+      title: t('manager:quicklinks.formAnswers.form'),
       key: 'form',
       render: (_, record) => (
-        <Tag color="blue" icon={<FormOutlined />}>{record.form_name || 'Unknown Form'}</Tag>
+        <Tag color="blue" icon={<FormOutlined />}>{record.form_name || t('manager:quicklinks.formAnswers.unknownForm')}</Tag>
       )
     },
     {
-      title: 'Status',
+      title: t('manager:quicklinks.formAnswers.status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -85,40 +87,39 @@ const FormAnswersTab = ({
       ) : null
     },
     {
-      title: 'Submitted',
+      title: t('manager:quicklinks.formAnswers.date'),
       dataIndex: 'submitted_at',
       key: 'date',
       width: 150,
       render: (date) => date ? dayjs(date).format('MMM D, YYYY h:mm A') : '-'
     },
     {
-      title: 'Actions',
+      title: t('manager:quicklinks.formAnswers.actions'),
       key: 'actions',
       width: 200,
       render: (_, record) => (
         <Space size="small">
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             size="small"
             icon={<EyeOutlined />}
             onClick={() => handleViewClick(record)}
           >
-            View
+            {t('manager:quicklinks.formAnswers.view')}
           </Button>
-          <Button 
+          <Button
             size="small"
             icon={<UserOutlined />}
             onClick={() => onCreateUserFromSubmission(record)}
-            title="Create User Account"
+            title={t('manager:quicklinks.formAnswers.createUser')}
           >
-            User
+            {t('manager:quicklinks.formAnswers.createUser')}
           </Button>
           <Popconfirm
-            title="Delete submission"
-            description="Are you sure you want to delete this submission? This cannot be undone."
+            title={t('manager:quicklinks.formAnswers.delete')}
             onConfirm={() => onDeleteSubmission(record.id)}
-            okText="Delete"
-            cancelText="Cancel"
+            okText={t('manager:quicklinks.formAnswers.delete')}
+            cancelText={t('manager:products.confirm.deleteCancel')}
             okButtonProps={{ danger: true }}
           >
             <Button danger size="small" icon={<DeleteOutlined />} />
@@ -133,11 +134,11 @@ const FormAnswersTab = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <Title level={4} className="!mb-1">Form Responses</Title>
-          <Text type="secondary">Review and manage submissions from your custom forms</Text>
+          <Title level={4} className="!mb-1">{t('manager:quicklinks.tabs.formAnswers')}</Title>
+          <Text type="secondary">{t('manager:quicklinks.formAnswers.submittedBy')}</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={fetchFormSubmissions}>
-          Refresh
+          {t('manager:quicklinks.links.refresh')}
         </Button>
       </div>
 
@@ -168,7 +169,7 @@ const FormAnswersTab = ({
           </Select>
           
           <Select 
-            placeholder="Filter by Form"
+            placeholder={t('manager:quicklinks.formAnswers.filterByForm')}
             allowClear
             className="w-full sm:w-64"
             value={submissionFilters.formId}
@@ -176,8 +177,8 @@ const FormAnswersTab = ({
             loading={formTemplatesLoading}
             popupMatchSelectWidth={false}
           >
-            {allFormTemplates.map(t => (
-              <Option key={t.id} value={t.id}>{t.name}</Option>
+            {allFormTemplates.map(form => (
+              <Option key={form.id} value={form.id}>{form.name}</Option>
             ))}
           </Select>
 
@@ -198,7 +199,7 @@ const FormAnswersTab = ({
           pagination={{ pageSize: 15 }}
           locale={{
             emptyText: (
-              <Empty description="No form submissions found matching your filters." />
+              <Empty description={t('manager:quicklinks.formAnswers.noSubmissions')} />
             )
           }}
         />

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Tag, Button, Drawer, Input, Select, Switch, Spin, Empty, Avatar, Tooltip,
 } from 'antd';
@@ -57,16 +58,17 @@ const roleColor = {
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 
 function StatsBar({ stats, loading }) {
+  const { t } = useTranslation(['admin']);
   if (loading) return <div className="h-20 flex items-center justify-center"><Spin /></div>;
   if (!stats) return null;
 
   const items = [
-    { label: 'Total Sessions',    value: stats.total_sessions,    color: 'text-slate-700' },
-    { label: 'Total Messages',    value: stats.total_messages,    color: 'text-sky-600'   },
-    { label: 'Outsider',          value: stats.outsider_sessions, color: 'text-slate-500' },
-    { label: 'Student',           value: stats.student_sessions,  color: 'text-blue-600'  },
-    { label: 'Staff / Admin',     value: stats.staff_sessions,    color: 'text-cyan-600'  },
-    { label: 'Has Unanswered',    value: stats.unanswered_sessions, color: 'text-red-500' },
+    { label: t('admin:kai.stats.totalSessions'),  value: stats.total_sessions,      color: 'text-slate-700' },
+    { label: t('admin:kai.stats.totalMessages'),  value: stats.total_messages,      color: 'text-sky-600'   },
+    { label: t('admin:kai.stats.outsider'),        value: stats.outsider_sessions,   color: 'text-slate-500' },
+    { label: t('admin:kai.stats.student'),         value: stats.student_sessions,    color: 'text-blue-600'  },
+    { label: t('admin:kai.stats.staffAdmin'),      value: stats.staff_sessions,      color: 'text-cyan-600'  },
+    { label: t('admin:kai.stats.hasUnanswered'),   value: stats.unanswered_sessions, color: 'text-red-500'   },
   ];
 
   return (
@@ -84,6 +86,7 @@ function StatsBar({ stats, loading }) {
 // ── Session row / mobile card ─────────────────────────────────────────────────
 
 function SessionRow({ s, onOpen }) {
+  const { t } = useTranslation(['admin']);
   const preview = typeof s.last_user_message === 'string' ? s.last_user_message : null;
 
   return (
@@ -104,7 +107,7 @@ function SessionRow({ s, onOpen }) {
             </Tag>
             {s.has_unanswered && (
               <Tag icon={<ExclamationCircleOutlined />} color="red" className="text-xs">
-                not answered
+                {t('admin:kai.sessions.notAnswered')}
               </Tag>
             )}
           </div>
@@ -131,6 +134,7 @@ function SessionRow({ s, onOpen }) {
 // ── Chat bubble ───────────────────────────────────────────────────────────────
 
 function ChatBubble({ msg }) {
+  const { t } = useTranslation(['admin']);
   // Support both {role, content} and n8n LangChain format {type, content}
   const role = msg.role || (msg.type === 'ai' ? 'assistant' : msg.type === 'human' ? 'user' : msg.type);
   const content = typeof msg.content === 'string'
@@ -162,7 +166,7 @@ function ChatBubble({ msg }) {
       >
         {flagged && (
           <p className="text-xs font-semibold text-red-500 mb-1 flex items-center gap-1">
-            <ExclamationCircleOutlined /> Couldn't fully answer
+            <ExclamationCircleOutlined /> {t('admin:kai.sessions.couldntAnswer')}
           </p>
         )}
         {content}
@@ -174,6 +178,7 @@ function ChatBubble({ msg }) {
 // ── Session detail drawer ─────────────────────────────────────────────────────
 
 function SessionDrawer({ sessionId, onClose }) {
+  const { t } = useTranslation(['admin']);
   const { data: session, isLoading, error } = useQuery({
     queryKey: ['kai-session', sessionId],
     queryFn: () => fetchSession(sessionId),
@@ -191,7 +196,7 @@ function SessionDrawer({ sessionId, onClose }) {
         <div className="flex items-center gap-2">
           <RobotOutlined className="text-sky-500" />
           <span className="text-sm font-semibold">
-            {session?.name || session?.email || 'Conversation'}
+            {session?.name || session?.email || t('admin:kai.drawer.conversation')}
           </span>
           {session?.user_role && (
             <Tag color={roleColor[session.user_role] || 'default'} className="text-xs">
@@ -208,19 +213,19 @@ function SessionDrawer({ sessionId, onClose }) {
       )}
       {error && !isLoading && (
         <div className="py-8 text-center text-red-500 text-sm">
-          Failed to load conversation. Please try again.
+          {t('admin:kai.drawer.loadError')}
         </div>
       )}
       {!isLoading && !error && session && (
         <>
           {session.summary && (
             <div className="mb-4 p-3 bg-sky-50 border border-sky-200 rounded-xl text-sm text-slate-700">
-              <p className="text-xs font-semibold text-sky-600 mb-1">Summary</p>
+              <p className="text-xs font-semibold text-sky-600 mb-1">{t('admin:kai.drawer.summary')}</p>
               {session.summary}
             </div>
           )}
           {messages.length === 0 ? (
-            <Empty description="No messages saved" />
+            <Empty description={t('admin:kai.drawer.noMessages')} />
           ) : (
             messages.map((msg, i) => <ChatBubble key={i} msg={msg} />)
           )}
@@ -233,6 +238,7 @@ function SessionDrawer({ sessionId, onClose }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function KaiSessionsPage() {
+  const { t } = useTranslation(['admin']);
   const [search, setSearch]               = useState('');
   const [role, setRole]                   = useState(null);
   const [unansweredOnly, setUnansweredOnly] = useState(false);
@@ -289,14 +295,15 @@ export default function KaiSessionsPage() {
         <div className="flex items-center gap-3">
           <RobotOutlined className="text-2xl text-sky-500" />
           <div>
-            <h1 className="text-xl font-bold text-slate-800 leading-tight">Kai Conversations</h1>
+            <h1 className="text-xl font-bold text-slate-800 leading-tight">{t('admin:kai.title')}</h1>
             <p className="text-sm text-slate-500">
-              Auto-refreshes every 30s
-              {dataUpdatedAt ? ` · last updated ${dayjs(dataUpdatedAt).format('HH:mm:ss')}` : ''}
+              {dataUpdatedAt
+                ? t('admin:kai.subtitleWithTime', { time: dayjs(dataUpdatedAt).format('HH:mm:ss') })
+                : t('admin:kai.subtitle')}
             </p>
           </div>
         </div>
-        <Tooltip title="Refresh now">
+        <Tooltip title={t('admin:kai.refreshNow')}>
           <Button icon={<ReloadOutlined />} onClick={handleRefreshAll} />
         </Tooltip>
       </div>
@@ -306,7 +313,7 @@ export default function KaiSessionsPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
         <Search
-          placeholder="Search name, email or message…"
+          placeholder={t('admin:kai.filters.searchPlaceholder')}
           allowClear
           onSearch={handleSearch}
           onChange={(e) => !e.target.value && handleSearch('')}
@@ -314,16 +321,16 @@ export default function KaiSessionsPage() {
           prefix={<SearchOutlined className="text-slate-400" />}
         />
         <Select
-          placeholder="All roles"
+          placeholder={t('admin:kai.filters.allRoles')}
           allowClear
           onChange={handleRole}
           className="w-40"
           options={[
-            { value: 'outsider',   label: 'Outsider'  },
-            { value: 'student',    label: 'Student'   },
-            { value: 'instructor', label: 'Instructor'},
-            { value: 'manager',    label: 'Manager'   },
-            { value: 'admin',      label: 'Admin'     },
+            { value: 'outsider',   label: t('admin:kai.filters.roles.outsider')  },
+            { value: 'student',    label: t('admin:kai.filters.roles.student')   },
+            { value: 'instructor', label: t('admin:kai.filters.roles.instructor') },
+            { value: 'manager',    label: t('admin:kai.filters.roles.manager')   },
+            { value: 'admin',      label: t('admin:kai.filters.roles.admin')     },
           ]}
         />
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1">
@@ -332,7 +339,7 @@ export default function KaiSessionsPage() {
             checked={unansweredOnly}
             onChange={handleUnanswered}
           />
-          <span className="text-sm text-slate-600">Unanswered only</span>
+          <span className="text-sm text-slate-600">{t('admin:kai.filters.unansweredOnly')}</span>
         </div>
       </div>
 
@@ -340,10 +347,10 @@ export default function KaiSessionsPage() {
       {isLoading ? (
         <div className="flex justify-center py-16"><Spin size="large" /></div>
       ) : sessions.length === 0 ? (
-        <Empty description="No sessions found" />
+        <Empty description={t('admin:kai.sessions.noSessions')} />
       ) : (
         <>
-          <p className="text-xs text-slate-400 mb-3">{total} sessions found</p>
+          <p className="text-xs text-slate-400 mb-3">{t('admin:kai.sessions.found', { count: total })}</p>
           {sessions.map((s) => (
             <SessionRow key={s.session_id} s={s} onOpen={setActiveSession} />
           ))}
@@ -353,16 +360,16 @@ export default function KaiSessionsPage() {
               disabled={offset === 0}
               onClick={() => setOffset(Math.max(0, offset - LIMIT))}
             >
-              Previous
+              {t('admin:kai.sessions.previous')}
             </Button>
             <span className="text-sm text-slate-500">
-              {offset + 1}–{Math.min(offset + LIMIT, total)} of {total}
+              {t('admin:kai.sessions.pageRange', { from: offset + 1, to: Math.min(offset + LIMIT, total), total })}
             </span>
             <Button
               disabled={offset + LIMIT >= total}
               onClick={() => setOffset(offset + LIMIT)}
             >
-              Next
+              {t('admin:kai.sessions.next')}
             </Button>
           </div>
         </>

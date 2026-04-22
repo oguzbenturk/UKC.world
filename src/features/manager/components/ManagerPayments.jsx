@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Spin, Table, Button, Modal, Form, Input, InputNumber, DatePicker,
   Segmented, Popconfirm, Empty, Tag
@@ -48,6 +49,7 @@ const buildPayload = (values, type, record, managerName) => {
 
 /* eslint-disable complexity */
 const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
+  const { t } = useTranslation(['manager']);
   const { apiClient } = useData();
   const [loading, setLoading] = useState(true);
 
@@ -149,20 +151,20 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
           amount: p.amount, description: p.description,
           payment_date: p.payment_date, payment_method: p.payment_method,
         });
-        message.success('Payment updated');
+        message.success(t('manager:payments.messages.updated'));
       } else {
         await createManagerPayment(manager.id, {
           amount: p.amount, description: p.description,
           payment_date: p.payment_date, payment_method: p.payment_method,
         });
-        message.success(`${p.isDeduction ? 'Deduction' : 'Payment'} recorded`);
+        message.success(t(p.isDeduction ? 'manager:payments.messages.deductionRecorded' : 'manager:payments.messages.paymentRecorded'));
       }
 
       setIsModalVisible(false);
       await fetchData();
       onPaymentSuccess?.();
     } catch (error) {
-      if (!error.errorFields) message.error(error.message || 'Failed to save payment');
+      if (!error.errorFields) message.error(error.message || t('manager:payments.messages.saveFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -171,22 +173,22 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
   const handleDelete = async (record) => {
     try {
       await deleteManagerPayment(manager.id, record.id);
-      message.success('Payment deleted');
+      message.success(t('manager:payments.messages.deleted'));
       await fetchData();
       onPaymentSuccess?.();
     } catch (error) {
-      message.error(error.message || 'Failed to delete payment');
+      message.error(error.message || t('manager:payments.messages.deleteFailed'));
     }
   };
 
   // ── Table columns ──
   const paymentColumns = [
     {
-      title: 'Date', dataIndex: 'payment_date', key: 'date', width: 100,
+      title: t('manager:payments.columns.date'), dataIndex: 'payment_date', key: 'date', width: 100,
       render: val => val ? dayjs(val).format('DD/MM/YYYY') : '—',
     },
     {
-      title: 'Amount', dataIndex: 'amount', key: 'amount', width: 100, align: 'right',
+      title: t('manager:payments.columns.amount'), dataIndex: 'amount', key: 'amount', width: 100, align: 'right',
       render: val => {
         const amt = parseFloat(val || 0);
         return (
@@ -197,17 +199,17 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       },
     },
     {
-      title: 'Type', key: 'type', width: 90, align: 'center',
+      title: t('manager:payments.columns.type'), key: 'type', width: 90, align: 'center',
       render: (_, r) => parseFloat(r.amount || 0) >= 0
-        ? <Tag color="green" bordered={false} className="rounded-full m-0">Payment</Tag>
-        : <Tag color="red" bordered={false} className="rounded-full m-0">Deduction</Tag>,
+        ? <Tag color="green" bordered={false} className="rounded-full m-0">{t('manager:payments.paymentType')}</Tag>
+        : <Tag color="red" bordered={false} className="rounded-full m-0">{t('manager:payments.deductionType')}</Tag>,
     },
     {
-      title: 'Method', dataIndex: 'payment_method', key: 'method', width: 90,
+      title: t('manager:payments.columns.method'), dataIndex: 'payment_method', key: 'method', width: 90,
       render: val => val ? <span className="capitalize text-gray-600">{val}</span> : '—',
     },
     {
-      title: 'Notes', key: 'notes', ellipsis: true,
+      title: t('manager:payments.columns.notes'), key: 'notes', ellipsis: true,
       render: (_, r) => <span className="text-gray-500 text-xs">{r.description || r.notes || '—'}</span>,
     },
     {
@@ -230,31 +232,31 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-100 bg-white p-4">
-          <div className="text-xs text-gray-400 mb-2">Earnings Breakdown</div>
+          <div className="text-xs text-gray-400 mb-2">{t('manager:payments.earningsBreakdown')}</div>
           <div className="flex items-center gap-2 mb-1">
             <CrownOutlined className="text-purple-500" />
-            <span className="text-xs text-gray-500">Manager Commission</span>
+            <span className="text-xs text-gray-500">{t('manager:payments.managerCommission')}</span>
             <span className="ml-auto font-semibold text-purple-600">{formatCurrency(mgrCommissionTotal, 'EUR')}</span>
           </div>
           <div className="flex items-center gap-2">
             <UserOutlined className="text-blue-500" />
-            <span className="text-xs text-gray-500">Instructor Earnings</span>
+            <span className="text-xs text-gray-500">{t('manager:payments.instructorEarnings')}</span>
             <span className="ml-auto font-semibold text-blue-600">{formatCurrency(instrEarningsTotal, 'EUR')}</span>
           </div>
           <div className="border-t border-gray-100 mt-2 pt-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Total Earned</span>
+            <span className="text-xs font-medium text-gray-600">{t('manager:payments.totalEarned')}</span>
             <span className="text-lg font-bold text-gray-800">{formatCurrency(totalEarned, 'EUR')}</span>
           </div>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-4">
-          <div className="text-xs text-gray-400 mb-2">Payment Summary</div>
+          <div className="text-xs text-gray-400 mb-2">{t('manager:payments.paymentSummary')}</div>
           <div className="flex items-center gap-2 mb-1">
             <CheckCircleOutlined className="text-green-500" />
-            <span className="text-xs text-gray-500">Total Paid Out</span>
+            <span className="text-xs text-gray-500">{t('manager:payments.totalPaidOut')}</span>
             <span className="ml-auto font-semibold text-green-600">{formatCurrency(totalPaid, 'EUR')}</span>
           </div>
           <div className="border-t border-gray-100 mt-2 pt-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">Balance Owed</span>
+            <span className="text-xs font-medium text-gray-600">{t('manager:payments.balanceOwed')}</span>
             <span className={`text-lg font-bold ${totalBalance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
               {formatCurrency(totalBalance, 'EUR')}
             </span>
@@ -267,22 +269,22 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <DollarOutlined className="text-indigo-500" />
-            <h4 className="text-sm font-semibold text-gray-800">Payment History</h4>
+            <h4 className="text-sm font-semibold text-gray-800">{t('manager:payments.paymentHistory')}</h4>
             {payments.length > 0 && <Tag bordered={false} className="rounded-full ml-1">{payments.length}</Tag>}
           </div>
           <div className="flex gap-2">
             <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => showModal('payment')}>
-              Pay
+              {t('manager:payments.pay')}
             </Button>
             <Button size="small" danger icon={<MinusOutlined />} onClick={() => showModal('deduction')}>
-              Deduct
+              {t('manager:payments.deduct')}
             </Button>
           </div>
         </div>
 
         {payments.length === 0 ? (
           <div className="px-5 py-6">
-            <Empty description="No payments recorded yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty description={t('manager:payments.noPayments')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         ) : (
           <Table
@@ -298,35 +300,47 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
 
       {/* Payment/Deduction Modal */}
       <Modal
-        title={modalConfig.type === 'edit' ? 'Edit Payment' : modalConfig.type === 'deduction' ? `Record Deduction — ${managerName}` : `Record Payment — ${managerName}`}
+        title={
+          modalConfig.type === 'edit'
+            ? t('manager:payments.editPayment')
+            : modalConfig.type === 'deduction'
+              ? t('manager:payments.recordDeduction', { name: managerName })
+              : t('manager:payments.recordPayment', { name: managerName })
+        }
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         onOk={handleSubmit}
         confirmLoading={isSubmitting}
-        okText={modalConfig.type === 'edit' ? 'Update' : modalConfig.type === 'deduction' ? 'Record Deduction' : 'Record Payment'}
+        okText={
+          modalConfig.type === 'edit'
+            ? t('manager:payments.actions.update')
+            : modalConfig.type === 'deduction'
+              ? t('manager:payments.actions.recordDeduction')
+              : t('manager:payments.actions.recordPayment')
+        }
         okButtonProps={{ danger: modalConfig.type === 'deduction' }}
         afterOpenChange={handleModalOpen}
       >
         <Form form={form} layout="vertical" className="mt-4">
-          <Form.Item name="amount" label="Amount (€)" rules={[{ required: true, message: 'Enter amount' }, { type: 'number', min: 0.01, message: 'Must be > 0' }]}>
+          <Form.Item name="amount" label={t('manager:payments.form.amount')} rules={[{ required: true, message: t('manager:payments.form.validation.enterAmount') }, { type: 'number', min: 0.01, message: t('manager:payments.form.validation.mustBePositive') }]}>
             <InputNumber min={0.01} step={10} style={{ width: '100%' }} placeholder="0.00" addonAfter="€" size="large" />
           </Form.Item>
-          <Form.Item name="payment_date" label="Date" rules={[{ required: true, message: 'Select date' }]}>
+          <Form.Item name="payment_date" label={t('manager:payments.form.date')} rules={[{ required: true, message: t('manager:payments.form.validation.selectDate') }]}>
             <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
           </Form.Item>
-          <Form.Item name="payment_method" label="Payment Method">
+          <Form.Item name="payment_method" label={t('manager:payments.form.paymentMethod')}>
             <Segmented
               block
               options={[
-                { label: 'Cash', value: 'cash' },
-                { label: 'Bank Transfer', value: 'bank_transfer' },
-                { label: 'Check', value: 'check' },
-                { label: 'Other', value: 'other' },
+                { label: t('manager:payments.form.methods.cash'), value: 'cash' },
+                { label: t('manager:payments.form.methods.bank_transfer'), value: 'bank_transfer' },
+                { label: t('manager:payments.form.methods.check'), value: 'check' },
+                { label: t('manager:payments.form.methods.other'), value: 'other' },
               ]}
             />
           </Form.Item>
-          <Form.Item name="notes" label="Notes">
-            <TextArea rows={2} placeholder="Optional notes..." />
+          <Form.Item name="notes" label={t('manager:payments.form.notes')}>
+            <TextArea rows={2} placeholder={t('manager:payments.form.notesPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

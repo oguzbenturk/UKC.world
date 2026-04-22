@@ -10,6 +10,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FORM_CATEGORIES, getPublicUrl } from '../utils/formHelpers';
 
 const { Text, Title } = Typography;
@@ -22,6 +23,7 @@ const FormsTab = ({
   onDeleteForm,
   onCreateForm,
 }) => {
+  const { t } = useTranslation(['manager']);
   const navigate = useNavigate();
 
   return (
@@ -29,17 +31,17 @@ const FormsTab = ({
       {/* Header with Create Button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <Title level={4} className="!mb-1">Your Forms</Title>
-          <Text type="secondary">Create custom forms for applications, waivers, surveys, and feedback</Text>
+          <Title level={4} className="!mb-1">{t('manager:quicklinks.forms.heading')}</Title>
+          <Text type="secondary">{t('manager:quicklinks.forms.headingDesc')}</Text>
         </div>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           size="large"
           className="w-full sm:w-auto"
           onClick={onCreateForm}
         >
-          Create New Form
+          {t('manager:quicklinks.forms.createNew')}
         </Button>
       </div>
 
@@ -50,19 +52,19 @@ const FormsTab = ({
             image={<FormOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
             description={
               <div className="mt-4">
-                <Title level={5} className="!mb-2">No forms yet</Title>
+                <Title level={5} className="!mb-2">{t('manager:quicklinks.forms.noForms')}</Title>
                 <Text type="secondary">
-                  Create your first form to collect applications, feedback, or waivers
+                  {t('manager:quicklinks.forms.noFormsDesc')}
                 </Text>
               </div>
             }
           >
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<PlusOutlined />}
               onClick={onCreateForm}
             >
-              Create Your First Form
+              {t('manager:quicklinks.forms.createFirst')}
             </Button>
           </Empty>
         </Card>
@@ -79,18 +81,18 @@ const FormsTab = ({
                   className="h-full"
                   actions={[
                     <Button type="text" icon={<EditOutlined />} onClick={() => navigate(`/forms/builder/${form.id}`)} key="edit">
-                      Edit
+                      {t('manager:quicklinks.forms.edit')}
                     </Button>,
                     <Button type="text" icon={<EyeOutlined />} onClick={() => navigate(`/forms/preview/${form.id}`)} key="preview">
-                      Preview
+                      {t('manager:quicklinks.forms.preview')}
                     </Button>,
                     existingLink ? (
                       <Button type="text" icon={<CopyOutlined />} onClick={() => copyLink(existingLink.link_code)} key="share">
-                        Copy
+                        {t('manager:quicklinks.forms.copy')}
                       </Button>
                     ) : (
                       <Button type="text" icon={<ShareAltOutlined />} onClick={() => onCreateLinkForForm(form)} key="share">
-                        Get Link
+                        {t('manager:quicklinks.forms.getLink')}
                       </Button>
                     )
                   ]}
@@ -104,10 +106,10 @@ const FormsTab = ({
                         )}
                       </div>
                       <Popconfirm
-                        title="Delete this form?"
-                        description="This will also delete all submissions."
+                        title={t('manager:quicklinks.forms.deleteConfirm')}
+                        description={t('manager:quicklinks.forms.deleteDesc')}
                         onConfirm={() => onDeleteForm(form.id, form.name)}
-                        okText="Delete"
+                        okText={t('manager:quicklinks.forms.deleteOk')}
                         okButtonProps={{ danger: true }}
                       >
                         <Button type="text" danger icon={<DeleteOutlined />} size="small" />
@@ -117,7 +119,7 @@ const FormsTab = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       {category && <Tag color={category.color}>{category.label}</Tag>}
                       <Tag color={form.is_active ? 'green' : 'default'}>
-                        {form.is_active ? 'Active' : 'Draft'}
+                        {form.is_active ? t('manager:quicklinks.forms.statusActive') : t('manager:quicklinks.forms.statusDraft')}
                       </Tag>
                     </div>
 
@@ -132,14 +134,16 @@ const FormsTab = ({
 
                     {/* Submission Count */}
                     {form.submission_count > 0 && (
-                      <Button 
-                        type="link" 
-                        size="small" 
+                      <Button
+                        type="link"
+                        size="small"
                         icon={<InboxOutlined />}
                         className="!p-0"
                         onClick={() => navigate(`/forms/${form.id}/responses`)}
                       >
-                        {form.submission_count} response{form.submission_count !== 1 ? 's' : ''}
+                        {form.submission_count !== 1
+                          ? t('manager:quicklinks.forms.responsesPlural', { count: form.submission_count })
+                          : t('manager:quicklinks.forms.responses', { count: form.submission_count })}
                       </Button>
                     )}
                   </div>

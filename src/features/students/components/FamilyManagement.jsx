@@ -7,6 +7,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Button,
@@ -45,22 +46,7 @@ import useNetworkStatus from '@/shared/hooks/useNetworkStatus';
 const WaiverModal = lazy(() => import('../../compliance/components/WaiverModal'));
 const FamilyMemberActivity = lazy(() => import('./FamilyMemberActivity'));
 
-const RELATIONSHIP_LABELS = {
-  son: 'Son',
-  daughter: 'Daughter',
-  child: 'Child',
-  sibling: 'Sibling',
-  other: 'Other',
-};
-
-const WAIVER_LABELS = {
-  signed: 'Signed',
-  pending: 'Action required',
-  expired: 'Expired',
-  unknown: 'Unknown',
-};
-
-const buildRelationshipOptions = (members) => {
+const buildRelationshipOptions = (members, t) => {
   const unique = new Set(
     members
       .map((member) => member.relationship)
@@ -68,17 +54,17 @@ const buildRelationshipOptions = (members) => {
   );
 
   return [
-    { value: 'all', label: 'All relationships' },
+    { value: 'all', label: t('student:family.filters.allRelationships') },
     ...Array.from(unique)
       .sort()
       .map((value) => ({
         value,
-        label: RELATIONSHIP_LABELS[value] || value,
+        label: t(`student:family.relationships.${value}`, { defaultValue: value }),
       })),
   ];
 };
 
-const buildWaiverOptions = (members) => {
+const buildWaiverOptions = (members, t) => {
   const unique = new Set(
     members
       .map((member) => member.waiver_status || 'unknown')
@@ -86,12 +72,12 @@ const buildWaiverOptions = (members) => {
   );
 
   return [
-    { value: 'all', label: 'All waiver statuses' },
+    { value: 'all', label: t('student:family.filters.allWaiverStatuses') },
     ...Array.from(unique)
       .sort()
       .map((value) => ({
         value,
-        label: WAIVER_LABELS[value] || value,
+        label: t(`student:family.waiverStatuses.${value}`, { defaultValue: value }),
       })),
   ];
 };
@@ -99,6 +85,7 @@ const buildWaiverOptions = (members) => {
 const { Title, Text, Paragraph } = Typography;
 
 const FamilyManagement = ({ userId }) => {
+  const { t } = useTranslation(['student']);
   const { message, modal } = App.useApp();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -119,9 +106,9 @@ const FamilyManagement = ({ userId }) => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const hasFiltersApplied = normalizedSearch.length > 0 || relationshipFilter !== 'all' || waiverFilter !== 'all';
 
-  const relationshipOptions = useMemo(() => buildRelationshipOptions(members), [members]);
+  const relationshipOptions = useMemo(() => buildRelationshipOptions(members, t), [members, t]);
 
-  const waiverOptions = useMemo(() => buildWaiverOptions(members), [members]);
+  const waiverOptions = useMemo(() => buildWaiverOptions(members, t), [members, t]);
 
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
@@ -206,20 +193,20 @@ const FamilyManagement = ({ userId }) => {
    */
   const handleDeleteMember = (member) => {
     modal.confirm({
-      title: 'Remove Family Member',
+      title: t('student:family.deleteConfirm.title'),
       content: (
         <div>
           <Paragraph>
-            Are you sure you want to remove <strong>{member.full_name}</strong> from your family members?
+            {t('student:family.deleteConfirm.body', { name: member.full_name })}
           </Paragraph>
           <Paragraph type="secondary">
-            This will not affect their existing bookings, but they will not be available for new bookings.
+            {t('student:family.deleteConfirm.consequence')}
           </Paragraph>
         </div>
       ),
-      okText: 'Remove',
+      okText: t('student:family.deleteConfirm.okText'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('student:family.deleteConfirm.cancelText'),
       onOk: async () => {
         let undoTriggered = false;
         const memberBackup = { ...member };
@@ -232,7 +219,7 @@ const FamilyManagement = ({ userId }) => {
           const undoMessage = message.info({
             content: (
               <span>
-                {member.full_name} removed.{' '}
+                {t('student:family.deleteConfirm.undoMessage', { name: member.full_name })}{' '}
                 <Button
                   type="link"
                   size="small"
@@ -241,10 +228,10 @@ const FamilyManagement = ({ userId }) => {
                     undoTriggered = true;
                     undoMessage();
                     setMembers((prev) => [...prev, memberBackup]);
-                    message.success(`${member.full_name} has been restored`);
+                    message.success(t('student:family.deleteConfirm.restored', { name: member.full_name }));
                   }}
                 >
-                  Undo
+                  {t('student:family.deleteConfirm.undoButton')}
                 </Button>
               </span>
             ),
@@ -269,7 +256,7 @@ const FamilyManagement = ({ userId }) => {
         } catch (err) {
           // Restore member on error
           setMembers((prev) => [...prev, memberBackup]);
-          message.error(err.message || 'Failed to remove family member');
+          message.error(err.message || t('student:family.deleteConfirm.removeError'));
         }
       },
     });
@@ -285,9 +272,9 @@ const FamilyManagement = ({ userId }) => {
     setWaiverModalOpen(false);
     setSelectedMemberForWaiver(null);
     if (signedMemberName) {
-      message.success(`${signedMemberName}'s waiver has been signed`);
+      message.success(t('student:family.waiverSigned', { name: signedMemberName }));
     } else {
-      message.success('Waiver signed successfully');
+      message.success(t('student:family.waiverSignedGeneric'));
     }
     fetchMembers();
   };
@@ -311,7 +298,7 @@ const FamilyManagement = ({ userId }) => {
           content: (
             <span>
               <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-              {values.full_name} has been updated
+              {t('student:family.modal.toasts.updated', { name: values.full_name })}
             </span>
           ),
           duration: 3,
@@ -326,7 +313,7 @@ const FamilyManagement = ({ userId }) => {
           content: (
             <span>
               <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-              {values.full_name} has been added to your family
+              {t('student:family.modal.toasts.added', { name: values.full_name })}
             </span>
           ),
           duration: 3,
@@ -343,7 +330,7 @@ const FamilyManagement = ({ userId }) => {
       setEditingMember(null);
       fetchMembers(); // Refresh list
     } catch (err) {
-      message.error(err.message || 'Failed to save family member');
+      message.error(err.message || t('student:family.modal.toasts.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -384,9 +371,9 @@ const FamilyManagement = ({ userId }) => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      message.success('Family member list downloaded');
+      message.success(t('student:family.exportSuccess'));
     } catch (err) {
-      message.error(err.message || 'Failed to export family members');
+      message.error(err.message || t('student:family.exportError'));
     } finally {
       setExporting(false);
     }
@@ -396,7 +383,7 @@ const FamilyManagement = ({ userId }) => {
     return (
       <Card>
         <div className="flex justify-center items-center py-12">
-          <Spin size="large" tip="Loading family members..." />
+          <Spin size="large" tip={t('student:family.loading')} />
         </div>
       </Card>
     );
@@ -466,6 +453,7 @@ const FamilyManagement = ({ userId }) => {
 };
 
 const FamilyMembersView = (props) => {
+  const { t } = useTranslation(['student']);
   const {
     loading,
     error,
@@ -515,7 +503,7 @@ const FamilyMembersView = (props) => {
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500/10 to-indigo-500/10 text-sky-600 dark:text-sky-400">
             <UsergroupAddOutlined className="text-lg" />
           </div>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">Family Members</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-200">{t('student:family.cardTitle')}</span>
           <Tag 
             color="blue" 
             className="ml-1 rounded-full px-3"
@@ -528,7 +516,7 @@ const FamilyMembersView = (props) => {
       }
       extra={
         <Space wrap size="small">
-          <Tooltip title={isOnline ? 'Download CSV export' : 'Connect to export'}>
+          <Tooltip title={isOnline ? t('student:family.actions.exportTooltipOnline') : t('student:family.actions.exportTooltipOffline')}>
             <Button
               icon={<CloudDownloadOutlined />}
               onClick={onExport}
@@ -536,10 +524,10 @@ const FamilyMembersView = (props) => {
               disabled={!isOnline || totalMembers === 0}
               className="border-slate-200 dark:border-slate-600 hover:border-sky-400 dark:hover:border-sky-500"
             >
-              <span className="hidden sm:inline">Export</span>
+              <span className="hidden sm:inline">{t('student:family.actions.export')}</span>
             </Button>
           </Tooltip>
-          <Tooltip title={isOnline ? 'Add a new family member' : 'You are offline'}>
+          <Tooltip title={isOnline ? t('student:family.actions.addMemberTooltipOnline') : t('student:family.actions.addMemberTooltipOffline')}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -547,7 +535,7 @@ const FamilyMembersView = (props) => {
               disabled={!canMutate}
               className="bg-gradient-to-r from-sky-500 to-indigo-600 border-0 hover:from-sky-600 hover:to-indigo-700 shadow-lg shadow-sky-500/25"
             >
-              <span className="hidden sm:inline">Add Member</span>
+              <span className="hidden sm:inline">{t('student:family.actions.addMember')}</span>
             </Button>
           </Tooltip>
         </Space>
@@ -555,7 +543,7 @@ const FamilyMembersView = (props) => {
     >
       {error && (
         <Alert
-          message="Error Loading Family Members"
+          message={t('student:family.loadError')}
           description={error}
           type="error"
           showIcon
@@ -570,8 +558,8 @@ const FamilyMembersView = (props) => {
           type="warning"
           showIcon
           className="mb-4"
-          message="Offline mode"
-          description="You are viewing the latest cached family members. Creating or editing family members requires an internet connection."
+          message={t('student:family.offline.title')}
+          description={t('student:family.offline.description')}
         />
       )}
 
@@ -642,7 +630,9 @@ FamilyMembersSkeleton.propTypes = {
   ).isRequired,
 };
 
-const FamilyMembersEmptyState = ({ canMutate, onAddMember }) => (
+const FamilyMembersEmptyState = ({ canMutate, onAddMember }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -668,11 +658,10 @@ const FamilyMembersEmptyState = ({ canMutate, onAddMember }) => (
       description={
         <div className="text-center mt-6 space-y-3">
           <Title level={4} className="!mb-2 !text-slate-800 dark:!text-white">
-            No family members yet
+            {t('student:family.emptyState.heading')}
           </Title>
           <Text className="text-slate-500 dark:text-slate-400 block max-w-md mx-auto">
-            Add your children (under 18) to easily book lessons and rentals for them.
-            You'll also be able to sign waivers and track their activity.
+            {t('student:family.emptyState.body')}
           </Text>
         </div>
       }
@@ -690,12 +679,13 @@ const FamilyMembersEmptyState = ({ canMutate, onAddMember }) => (
           disabled={!canMutate}
           className="bg-gradient-to-r from-sky-500 to-indigo-600 border-0 hover:from-sky-600 hover:to-indigo-700 shadow-lg shadow-sky-500/25 h-12 px-8 rounded-xl"
         >
-          Add Your First Family Member
+          {t('student:family.emptyState.addButton')}
         </Button>
       </motion.div>
     </Empty>
   </motion.div>
-);
+  );
+};
 
 FamilyMembersEmptyState.propTypes = {
   canMutate: PropTypes.bool.isRequired,
@@ -721,6 +711,7 @@ const FamilyMembersContent = ({
   onSignWaiver,
   onViewActivity,
 }) => {
+  const { t } = useTranslation(['student']);
   const showFilteredEmpty = filteredMembers.length === 0;
 
   return (
@@ -729,7 +720,7 @@ const FamilyMembersContent = ({
         type="secondary"
         className="mb-4 text-slate-600 dark:text-slate-300"
       >
-        Manage your family members below. You can book lessons and rentals for any family member listed here.
+        {t('student:family.management.description')}
       </Paragraph>
 
       <FamilyMembersFilters
@@ -746,9 +737,9 @@ const FamilyMembersContent = ({
       />
 
       <Paragraph className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-        Showing {visibleMembers} {visibleMembers === 1 ? 'member' : 'members'}
-        {totalMembers !== visibleMembers && ` of ${totalMembers} total`}.
-        {hasFiltersApplied && visibleMembers === 0 && ' Adjust your filters to see more family members.'}
+        {t('student:family.management.showingCount', { count: visibleMembers })}
+        {totalMembers !== visibleMembers && t('student:family.management.showingOf', { total: totalMembers })}
+        {hasFiltersApplied && visibleMembers === 0 && t('student:family.management.adjustFilters')}
       </Paragraph>
 
       {showFilteredEmpty ? (
@@ -777,51 +768,56 @@ const FamilyMembersFilters = ({
   waiverOptions,
   onResetFilters,
   hasFiltersApplied,
-}) => (
-  <div className="p-4 mb-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/50">
-    <Row gutter={[12, 12]} align="middle">
-      <Col xs={24} md={10} lg={8}>
-        <Input
-          allowClear
-          prefix={<SearchOutlined className="text-slate-400" />}
-          value={searchTerm}
-          placeholder="Search by name or notes..."
-          onChange={(event) => onSearchChange(event.target.value)}
-          className="rounded-lg"
-        />
-      </Col>
-      <Col xs={12} sm={8} md={5} lg={5}>
-        <Select
-          className="w-full"
-          value={relationshipFilter}
-          options={relationshipOptions}
-          onChange={onRelationshipFilterChange}
-          suffixIcon={<FilterOutlined className="text-slate-400" />}
-        />
-      </Col>
-      <Col xs={12} sm={8} md={5} lg={5}>
-        <Select
-          className="w-full"
-          value={waiverFilter}
-          options={waiverOptions}
-          onChange={onWaiverFilterChange}
-        />
-      </Col>
-      <Col xs={24} sm={8} md={4} lg={6} className="flex justify-end">
-        <Button
-          onClick={onResetFilters}
-          disabled={!hasFiltersApplied}
-          icon={<ClearOutlined />}
-          className={hasFiltersApplied ? 'text-sky-600 border-sky-300 hover:border-sky-500' : ''}
-        >
-          <span className="hidden lg:inline">Clear</span>
-        </Button>
-      </Col>
-    </Row>
-  </div>
-);
+}) => {
+  const { t } = useTranslation(['student']);
+  return (
+    <div className="p-4 mb-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-700/50">
+      <Row gutter={[12, 12]} align="middle">
+        <Col xs={24} md={10} lg={8}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={searchTerm}
+            placeholder={t('student:family.filters.searchPlaceholder')}
+            onChange={(event) => onSearchChange(event.target.value)}
+            className="rounded-lg"
+          />
+        </Col>
+        <Col xs={12} sm={8} md={5} lg={5}>
+          <Select
+            className="w-full"
+            value={relationshipFilter}
+            options={relationshipOptions}
+            onChange={onRelationshipFilterChange}
+            suffixIcon={<FilterOutlined className="text-slate-400" />}
+          />
+        </Col>
+        <Col xs={12} sm={8} md={5} lg={5}>
+          <Select
+            className="w-full"
+            value={waiverFilter}
+            options={waiverOptions}
+            onChange={onWaiverFilterChange}
+          />
+        </Col>
+        <Col xs={24} sm={8} md={4} lg={6} className="flex justify-end">
+          <Button
+            onClick={onResetFilters}
+            disabled={!hasFiltersApplied}
+            icon={<ClearOutlined />}
+            className={hasFiltersApplied ? 'text-sky-600 border-sky-300 hover:border-sky-500' : ''}
+          >
+            <span className="hidden lg:inline">{t('student:family.filters.clearButton')}</span>
+          </Button>
+        </Col>
+      </Row>
+    </div>
+  );
+};
 
-const FamilyMembersFilteredEmpty = ({ onResetFilters }) => (
+const FamilyMembersFilteredEmpty = ({ onResetFilters }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
@@ -842,10 +838,10 @@ const FamilyMembersFilteredEmpty = ({ onResetFilters }) => (
       description={
         <div className="text-center mt-4 space-y-2">
           <Title level={5} className="!mb-1 !text-slate-700 dark:!text-slate-200">
-            No matches found
+            {t('student:family.filteredEmpty.heading')}
           </Title>
           <Text className="text-slate-500 dark:text-slate-400">
-            Try adjusting your search or filters
+            {t('student:family.filteredEmpty.body')}
           </Text>
         </div>
       }
@@ -855,11 +851,12 @@ const FamilyMembersFilteredEmpty = ({ onResetFilters }) => (
         icon={<ClearOutlined />}
         className="mt-4"
       >
-        Clear All Filters
+        {t('student:family.filteredEmpty.clearButton')}
       </Button>
     </Empty>
   </motion.div>
-);
+  );
+};
 
 FamilyMembersFilteredEmpty.propTypes = {
   onResetFilters: PropTypes.func.isRequired,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFeatures } from '../../../shared/contexts/FeaturesContext';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { FeedbackSystem } from '../components/FeedbackSystem';
@@ -12,6 +13,7 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
 const FeedbackStats = ({ stats }) => {
+  const { t } = useTranslation(['student']);
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
       <StarIconSolid
@@ -29,7 +31,7 @@ const FeedbackStats = ({ stats }) => {
             <StarIcon className="h-8 w-8 text-yellow-500" />
           </div>
           <div className="ml-4">
-            <p className="text-sm font-medium text-slate-600">Average Rating</p>
+            <p className="text-sm font-medium text-slate-600">{t('student:feedback.stats.averageRating')}</p>
             <div className="flex items-center mt-1">
               <p className="text-2xl font-semibold text-slate-900">
                 {stats.average_rating ? parseFloat(stats.average_rating).toFixed(1) : '0.0'}
@@ -48,7 +50,7 @@ const FeedbackStats = ({ stats }) => {
             <ChatBubbleBottomCenterTextIcon className="h-8 w-8 text-sky-500" />
           </div>
           <div className="ml-4">
-            <p className="text-sm font-medium text-slate-600">Total Reviews</p>
+            <p className="text-sm font-medium text-slate-600">{t('student:feedback.stats.totalReviews')}</p>
             <p className="text-2xl font-semibold text-slate-900">{stats.total_feedback || 0}</p>
           </div>
         </div>
@@ -60,7 +62,7 @@ const FeedbackStats = ({ stats }) => {
             <TrophyIcon className="h-8 w-8 text-green-500" />
           </div>
           <div className="ml-4">
-            <p className="text-sm font-medium text-slate-600">5-Star Reviews</p>
+            <p className="text-sm font-medium text-slate-600">{t('student:feedback.stats.fiveStarReviews')}</p>
             <p className="text-2xl font-semibold text-slate-900">{stats.five_star_count || 0}</p>
           </div>
         </div>
@@ -70,6 +72,7 @@ const FeedbackStats = ({ stats }) => {
 };
 
 const FeedbackList = ({ feedbacks }) => {
+  const { t } = useTranslation(['student']);
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, i) => (
       <StarIconSolid
@@ -84,7 +87,7 @@ const FeedbackList = ({ feedbacks }) => {
       {feedbacks.length === 0 ? (
         <div className="text-center py-8 text-slate-500">
           <ChatBubbleBottomCenterTextIcon className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-          <p>No feedback found</p>
+          <p>{t('student:feedback.list.noFeedback')}</p>
         </div>
       ) : (
         feedbacks.map((feedback) => (
@@ -97,7 +100,7 @@ const FeedbackList = ({ feedbacks }) => {
                 <div className="ml-3">
                   <p className="text-sm font-medium text-slate-900">{feedback.student_name}</p>
                   <p className="text-xs text-slate-500">
-                    Instructor: {feedback.instructor_name}
+                    {t('student:feedback.list.instructorLabel', { name: feedback.instructor_name })}
                   </p>
                 </div>
               </div>
@@ -121,7 +124,7 @@ const FeedbackList = ({ feedbacks }) => {
             {feedback.skill_level && (
               <div className="mt-3">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800">
-                  Skill Level: {feedback.skill_level}
+                  {t('student:feedback.list.skillLevel', { level: feedback.skill_level })}
                 </span>
               </div>
             )}
@@ -129,7 +132,7 @@ const FeedbackList = ({ feedbacks }) => {
             {feedback.progress_notes && (
               <div className="mt-3 p-3 bg-slate-50 rounded">
                 <p className="text-sm text-slate-600">
-                  <strong>Progress Notes:</strong> {feedback.progress_notes}
+                  <strong>{t('student:feedback.list.progressNotes')}</strong> {feedback.progress_notes}
                 </p>
               </div>
             )}
@@ -141,14 +144,15 @@ const FeedbackList = ({ feedbacks }) => {
 };
 
 const Achievements = ({ achievements }) => {
+  const { t } = useTranslation(['student']);
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900">Your Achievements</h3>
+      <h3 className="text-lg font-semibold text-slate-900">{t('student:feedback.achievements.yourAchievements')}</h3>
       {achievements.length === 0 ? (
         <div className="text-center py-8 text-slate-500">
           <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-          <p>No achievements yet</p>
-          <p className="text-sm">Complete lessons and submit feedback to earn achievements!</p>
+          <p>{t('student:feedback.achievements.noAchievements')}</p>
+          <p className="text-sm">{t('student:feedback.achievements.noAchievementsDesc')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,7 +164,7 @@ const Achievements = ({ achievements }) => {
                   <h4 className="font-semibold text-slate-900">{achievement.title}</h4>
                   <p className="text-sm text-slate-600">{achievement.description}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Earned on {new Date(achievement.earned_at).toLocaleDateString()}
+                    {t('student:feedback.achievements.earnedOn', { date: new Date(achievement.earned_at).toLocaleDateString() })}
                   </p>
                 </div>
               </div>
@@ -173,6 +177,7 @@ const Achievements = ({ achievements }) => {
 };
 
 const FeedbackPage = () => {
+  const { t } = useTranslation(['student']);
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [feedbacks, setFeedbacks] = useState([]);
@@ -249,13 +254,13 @@ const FeedbackPage = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Feedback & Reviews</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t('student:feedback.page.title')}</h1>
         <p className="text-slate-600 mt-2">
-          {user?.role === 'instructor' 
-            ? 'View your teaching performance and student feedback'
+          {user?.role === 'instructor'
+            ? t('student:feedback.page.subtitleInstructor')
             : user?.role === 'student'
-            ? 'Submit feedback and track your achievements'
-            : 'Manage feedback and reviews across the platform'
+            ? t('student:feedback.page.subtitleStudent')
+            : t('student:feedback.page.subtitleAdmin')
           }
         </p>
       </div>
@@ -273,7 +278,7 @@ const FeedbackPage = () => {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              {user?.role === 'instructor' ? 'Recent Feedback' : 'Overview'}
+              {user?.role === 'instructor' ? t('student:feedback.page.tabs.recentFeedback') : t('student:feedback.page.tabs.overview')}
             </button>
             
             {user?.role === 'student' && (
@@ -286,7 +291,7 @@ const FeedbackPage = () => {
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Achievements
+                  {t('student:feedback.page.tabs.achievements')}
                 </button>
                 <button
                   onClick={() => setActiveTab('submit')}
@@ -296,7 +301,7 @@ const FeedbackPage = () => {
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Submit Feedback
+                  {t('student:feedback.page.tabs.submitFeedback')}
                 </button>
               </>
             )}
@@ -310,9 +315,9 @@ const FeedbackPage = () => {
             ) : (
               <div className="text-center py-8">
                 <ChartBarIcon className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                <h3 className="text-lg font-medium text-slate-900">Welcome to Feedback</h3>
+                <h3 className="text-lg font-medium text-slate-900">{t('student:feedback.page.welcomeHeading')}</h3>
                 <p className="text-slate-600 mt-2">
-                  Use this section to submit feedback after your lessons and track your progress.
+                  {t('student:feedback.page.welcomeBody')}
                 </p>
               </div>
             )
@@ -324,7 +329,7 @@ const FeedbackPage = () => {
           
           {activeTab === 'submit' && user?.role === 'student' && (
             <div className="max-w-2xl">
-              <h3 className="text-lg font-semibold text-slate-900 mb-6">Submit Lesson Feedback</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-6">{t('student:feedback.page.submitHeading')}</h3>
               <FeedbackSystem
                 booking={mockBooking}
                 onSuccess={handleFeedbackSubmit}

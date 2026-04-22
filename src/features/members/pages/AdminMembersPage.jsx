@@ -2,7 +2,8 @@
 // Admin page to view all member purchases and assign memberships
 
 import { useState } from 'react';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
   Card, Table, Tag, Button, Space,
   Modal, Input, Select, DatePicker, Spin,
   Avatar, Descriptions,
@@ -30,13 +31,6 @@ import QuickMembershipModal from '@/features/dashboard/components/QuickMembershi
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
 
-const statusConfig = {
-  active: { color: 'green', icon: <CheckCircleOutlined />, label: 'Active' },
-  pending: { color: 'gold', icon: <ClockCircleOutlined />, label: 'Pending' },
-  expired: { color: 'default', icon: <CloseCircleOutlined />, label: 'Expired' },
-  cancelled: { color: 'red', icon: <CloseCircleOutlined />, label: 'Cancelled' }
-};
-
 const getMemberIcon = (name) => {
   const n = (name || '').toLowerCase();
   if (n.includes('platinum') || n.includes('bundle')) return <TrophyOutlined style={{ color: '#a855f7' }} />;
@@ -45,10 +39,18 @@ const getMemberIcon = (name) => {
 };
 
 const AdminMembersPage = () => {
+  const { t } = useTranslation(['admin']);
   const { formatCurrency } = useCurrency();
   const queryClient = useQueryClient();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+
+  const statusConfig = {
+    active: { color: 'green', icon: <CheckCircleOutlined />, label: t('admin:members.status.active') },
+    pending: { color: 'gold', icon: <ClockCircleOutlined />, label: t('admin:members.status.pending') },
+    expired: { color: 'default', icon: <CloseCircleOutlined />, label: t('admin:members.status.expired') },
+    cancelled: { color: 'red', icon: <CloseCircleOutlined />, label: t('admin:members.status.cancelled') }
+  };
   
   const [filters, setFilters] = useState({
     status: 'all',
@@ -113,18 +115,18 @@ const AdminMembersPage = () => {
     setAssignModalVisible(false);
     refetch();
     queryClient.invalidateQueries(['admin-member-stats']);
-    message.success('Membership assigned successfully!');
+    message.success(t('admin:members.toast.assigned'));
   };
 
   const columns = [
     {
-      title: 'Member',
+      title: t('admin:members.table.member'),
       key: 'member',
       render: (_, record) => (
         <div className="flex items-center gap-2">
           <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
           <div className="leading-tight">
-            <span className="text-sm font-medium text-slate-800">{record.user_name || 'Unknown'}</span>
+            <span className="text-sm font-medium text-slate-800">{record.user_name || t('admin:members.detail.memberName')}</span>
             <br />
             <span className="text-[11px] text-slate-400">{record.user_email}</span>
           </div>
@@ -132,7 +134,7 @@ const AdminMembersPage = () => {
       )
     },
     {
-      title: 'Membership',
+      title: t('admin:members.table.membership'),
       key: 'type',
       render: (_, record) => (
         <span className="flex items-center gap-1.5 text-sm">
@@ -142,7 +144,7 @@ const AdminMembersPage = () => {
       )
     },
     {
-      title: 'Status',
+      title: t('admin:members.table.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -156,7 +158,7 @@ const AdminMembersPage = () => {
       }
     },
     {
-      title: 'Purchased',
+      title: t('admin:members.table.purchased'),
       dataIndex: 'purchased_at',
       key: 'purchased_at',
       width: 120,
@@ -164,12 +166,12 @@ const AdminMembersPage = () => {
       sorter: (a, b) => new Date(a.purchased_at) - new Date(b.purchased_at)
     },
     {
-      title: 'Expires',
+      title: t('admin:members.table.expires'),
       dataIndex: 'expires_at',
       key: 'expires_at',
       width: 120,
       render: (date) => {
-        if (!date) return <span className="text-xs text-slate-400">Never</span>;
+        if (!date) return <span className="text-xs text-slate-400">{t('admin:members.table.never')}</span>;
         const expiry = dayjs(date);
         const isExpired = expiry.isBefore(dayjs());
         const isExpiringSoon = expiry.isBefore(dayjs().add(7, 'days'));
@@ -181,7 +183,7 @@ const AdminMembersPage = () => {
       }
     },
     {
-      title: 'Amount',
+      title: t('admin:members.table.amount'),
       dataIndex: 'offering_price',
       key: 'offering_price',
       width: 90,
@@ -218,7 +220,7 @@ const AdminMembersPage = () => {
           <div className="flex items-center gap-2">
             <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
             <div className="leading-tight">
-              <span className="text-sm font-medium block">{record.user_name || 'Unknown'}</span>
+              <span className="text-sm font-medium block">{record.user_name || t('admin:members.detail.memberName')}</span>
               <span className="text-[11px] text-slate-400">{record.user_email}</span>
             </div>
           </div>
@@ -234,13 +236,13 @@ const AdminMembersPage = () => {
         
         <div className="grid grid-cols-2 gap-1 text-xs text-slate-500 mb-2">
           <div>
-            <span className="text-slate-400">Purchased: </span>
+            <span className="text-slate-400">{t('admin:members.table.purchased')}: </span>
             {record.purchased_at ? dayjs(record.purchased_at).format('MMM D, YYYY') : '-'}
           </div>
           <div>
-            <span className="text-slate-400">Expires: </span>
+            <span className="text-slate-400">{t('admin:members.table.expires')}: </span>
             <span className={isExpired ? 'text-red-500' : ''}>
-              {expiry ? expiry.format('MMM D, YYYY') : 'Never'}
+              {expiry ? expiry.format('MMM D, YYYY') : t('admin:members.table.never')}
             </span>
           </div>
         </div>
@@ -265,19 +267,19 @@ const AdminMembersPage = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h2 className="m-0 text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
             <CrownOutlined className="text-amber-500" />
-            Members
+            {t('admin:members.title')}
           </h2>
           <Space size="small" wrap>
             <Button icon={<ReloadOutlined />} size="small" onClick={() => refetch()}>
-              {!isMobile && 'Refresh'}
+              {!isMobile && t('admin:members.refresh')}
             </Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               icon={<PlusOutlined />}
               size="small"
               onClick={() => setAssignModalVisible(true)}
             >
-              {isMobile ? 'Assign' : 'Assign Membership'}
+              {isMobile ? t('admin:members.assign') : t('admin:members.assignMembership')}
             </Button>
           </Space>
         </div>
@@ -287,7 +289,7 @@ const AdminMembersPage = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-3 mb-3 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-2">
           <Input
-            placeholder="Search name or email..."
+            placeholder={t('admin:members.filters.searchPlaceholder')}
             prefix={<SearchOutlined className="text-slate-400" />}
             value={filters.search}
             onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
@@ -302,26 +304,26 @@ const AdminMembersPage = () => {
               style={{ minWidth: 110 }}
               size="middle"
             >
-              <Select.Option value="all">All Status</Select.Option>
-              <Select.Option value="active">Active</Select.Option>
-              <Select.Option value="pending">Pending</Select.Option>
-              <Select.Option value="expired">Expired</Select.Option>
-              <Select.Option value="cancelled">Cancelled</Select.Option>
+              <Select.Option value="all">{t('admin:members.filters.allStatus')}</Select.Option>
+              <Select.Option value="active">{t('admin:members.filters.active')}</Select.Option>
+              <Select.Option value="pending">{t('admin:members.filters.pending')}</Select.Option>
+              <Select.Option value="expired">{t('admin:members.filters.expired')}</Select.Option>
+              <Select.Option value="cancelled">{t('admin:members.filters.cancelled')}</Select.Option>
             </Select>
             {!isMobile && (
               <RangePicker
                 value={filters.dateRange}
                 onChange={(dates) => setFilters(f => ({ ...f, dateRange: dates }))}
-                placeholder={['From', 'To']}
+                placeholder={[t('admin:members.filters.from'), t('admin:members.filters.to')]}
                 size="middle"
               />
             )}
             {(filters.search || filters.status !== 'all' || filters.dateRange) && (
-              <Button 
+              <Button
                 onClick={() => setFilters({ status: 'all', search: '', dateRange: null })}
                 size="middle"
               >
-                Clear
+                {t('admin:members.clear')}
               </Button>
             )}
           </div>
@@ -339,17 +341,17 @@ const AdminMembersPage = () => {
             <Card className="rounded-xl">
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No members found"
+                description={t('admin:members.empty.noMembers')}
               >
                 <Button type="primary" onClick={() => setAssignModalVisible(true)}>
-                  Assign First Member
+                  {t('admin:members.assignFirst')}
                 </Button>
               </Empty>
             </Card>
           ) : (
             <>
               <div className="text-xs text-slate-500 mb-2 px-1">
-                {filteredPurchases.length} member{filteredPurchases.length !== 1 ? 's' : ''}
+                {t('admin:members.count', { count: filteredPurchases.length })}
               </div>
               {filteredPurchases.map(purchase => (
                 <MemberCard key={purchase.id} record={purchase} />
@@ -368,7 +370,7 @@ const AdminMembersPage = () => {
             pagination={{
               pageSize: 25,
               showSizeChanger: true,
-              showTotal: (total) => <span className="text-xs text-slate-500">{total} members</span>,
+              showTotal: (total) => <span className="text-xs text-slate-500">{t('admin:members.totalMembers', { total })}</span>,
               size: 'small'
             }}
             scroll={{ x: 800 }}
@@ -376,10 +378,10 @@ const AdminMembersPage = () => {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No members found"
+                  description={t('admin:members.empty.noMembers')}
                 >
                   <Button type="primary" onClick={() => setAssignModalVisible(true)}>
-                    Assign First Member
+                    {t('admin:members.assignFirst')}
                   </Button>
                 </Empty>
               )
@@ -393,58 +395,58 @@ const AdminMembersPage = () => {
         title={
           <Space>
             {getMemberIcon(selectedPurchase?.offering_name)}
-            <span>Member Details</span>
+            <span>{t('admin:members.detail.title')}</span>
           </Space>
         }
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={[
           <Button key="close" onClick={() => setDetailModalVisible(false)}>
-            Close
+            {t('admin:members.detail.close')}
           </Button>
         ]}
         width={600}
       >
         {selectedPurchase && (
           <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="Member Name">
+            <Descriptions.Item label={t('admin:members.detail.memberName')}>
               <Space>
                 <Avatar icon={<UserOutlined />} size="small" />
                 {selectedPurchase.user_name}
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="Email">
+            <Descriptions.Item label={t('admin:members.detail.email')}>
               {selectedPurchase.user_email}
             </Descriptions.Item>
-            <Descriptions.Item label="Membership Type">
+            <Descriptions.Item label={t('admin:members.detail.membershipType')}>
               <Space>
                 {getMemberIcon(selectedPurchase.offering_name)}
                 {selectedPurchase.offering_name || selectedPurchase.current_offering_name}
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="Status">
+            <Descriptions.Item label={t('admin:members.detail.status')}>
               <Tag color={statusConfig[selectedPurchase.status]?.color || 'default'}>
                 {statusConfig[selectedPurchase.status]?.label || selectedPurchase.status}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Purchase Date">
-              {selectedPurchase.purchased_at 
+            <Descriptions.Item label={t('admin:members.detail.purchaseDate')}>
+              {selectedPurchase.purchased_at
                 ? dayjs(selectedPurchase.purchased_at).format('MMMM D, YYYY h:mm A')
                 : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="Expiry Date">
-              {selectedPurchase.expires_at 
+            <Descriptions.Item label={t('admin:members.detail.expiryDate')}>
+              {selectedPurchase.expires_at
                 ? dayjs(selectedPurchase.expires_at).format('MMMM D, YYYY')
-                : 'Never expires'}
+                : t('admin:members.detail.neverExpires')}
             </Descriptions.Item>
-            <Descriptions.Item label="Amount Paid">
+            <Descriptions.Item label={t('admin:members.detail.amountPaid')}>
               {formatCurrency(selectedPurchase.offering_price || 0)}
             </Descriptions.Item>
-            <Descriptions.Item label="Payment Method">
+            <Descriptions.Item label={t('admin:members.detail.paymentMethod')}>
               {selectedPurchase.payment_method || '-'}
             </Descriptions.Item>
             {selectedPurchase.notes && (
-              <Descriptions.Item label="Notes">
+              <Descriptions.Item label={t('admin:members.detail.notes')}>
                 {selectedPurchase.notes}
               </Descriptions.Item>
             )}

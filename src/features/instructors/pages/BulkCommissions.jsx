@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Checkbox, Form, InputNumber, Radio, Upload, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { UploadOutlined, FileTextOutlined } from '@ant-design/icons';
@@ -6,6 +7,7 @@ import UnifiedTable from '@/shared/components/tables/UnifiedTable';
 import { useData } from '@/shared/hooks/useData';
 
 export default function BulkCommissions() {
+  const { t } = useTranslation(['instructor']);
   const { instructors = [], apiClient } = useData();
   const [selected, setSelected] = useState([]);
   const [form] = Form.useForm();
@@ -23,7 +25,7 @@ export default function BulkCommissions() {
     try {
       const values = await form.validateFields();
       if (!selected.length) {
-        message.warning('Select at least one instructor');
+        message.warning(t('instructor:bulkCommissions.selectAtLeastOne'));
         return;
       }
       const payload = {
@@ -42,8 +44,8 @@ export default function BulkCommissions() {
           // continue
         }
       }
-      if (success) message.success(`Updated ${success} instructor(s)`);
-      if (success < selected.length) message.warning(`${selected.length - success} failed`);
+      if (success) message.success(t('instructor:bulkCommissions.updatedCount', { count: success }));
+      if (success < selected.length) message.warning(t('instructor:bulkCommissions.failedCount', { count: selected.length - success }));
     } catch {
       // validation handled by antd
     }
@@ -70,7 +72,7 @@ export default function BulkCommissions() {
       const typeIdx = headers.indexOf('type');
       const valueIdx = headers.indexOf('value');
       if (idIdx === -1 || typeIdx === -1 || valueIdx === -1) {
-        message.error('CSV must contain instructor_id,type,value columns');
+        message.error(t('instructor:bulkCommissions.csvColumns'));
         return Upload.LIST_IGNORE;
       }
       let success = 0; let failed = 0;
@@ -88,10 +90,10 @@ export default function BulkCommissions() {
           failed++;
         }
       }
-      if (success) message.success(`CSV applied to ${success} instructor(s)`);
-      if (failed) message.warning(`${failed} row(s) failed`);
+      if (success) message.success(t('instructor:bulkCommissions.csvApplied', { count: success }));
+      if (failed) message.warning(t('instructor:bulkCommissions.csvRowsFailed', { count: failed }));
   } catch {
-      message.error('Failed to read CSV');
+      message.error(t('instructor:bulkCommissions.failedToReadCsv'));
     }
     return Upload.LIST_IGNORE;
   };
@@ -99,35 +101,35 @@ export default function BulkCommissions() {
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Bulk Commission Assignment</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{t('instructor:bulkCommissions.title')}</h1>
         <div className="flex gap-2">
-          <Button onClick={() => window.history.back()}>Back</Button>
+          <Button onClick={() => window.history.back()}>{t('instructor:bulkCommissions.back')}</Button>
           <Upload beforeUpload={handleCsv} showUploadList={false} accept=".csv">
-            <Button icon={<UploadOutlined />}>Import CSV</Button>
+            <Button icon={<UploadOutlined />}>{t('instructor:bulkCommissions.importCsv')}</Button>
           </Upload>
-          <Tooltip title="Download CSV header: instructor_id,type,value">
-            <Button icon={<FileTextOutlined />} onClick={downloadTemplate}>Template</Button>
+          <Tooltip title={t('instructor:bulkCommissions.templateTooltip')}>
+            <Button icon={<FileTextOutlined />} onClick={downloadTemplate}>{t('instructor:bulkCommissions.template')}</Button>
           </Tooltip>
-          <Button type="primary" onClick={applyBulk}>Apply to Selected</Button>
+          <Button type="primary" onClick={applyBulk}>{t('instructor:bulkCommissions.applyToSelected')}</Button>
         </div>
       </div>
 
       <UnifiedTable
         title={
           <div className="flex items-center justify-between w-full">
-            <span>Default Commission</span>
+            <span>{t('instructor:bulkCommissions.defaultCommission')}</span>
           </div>
         }
         actions={
           <Form form={form} layout="inline" className="gap-2">
             <Form.Item name="type" initialValue="percentage" rules={[{ required: true }]}> 
               <Radio.Group>
-                <Radio value="percentage">Percentage</Radio>
-                <Radio value="fixed">Fixed</Radio>
+                <Radio value="percentage">{t('instructor:bulkCommissions.percentage')}</Radio>
+                <Radio value="fixed">{t('instructor:bulkCommissions.fixed')}</Radio>
               </Radio.Group>
             </Form.Item>
-            <Form.Item name="value" rules={[{ required: true, message: 'Enter value' }]}>
-              <InputNumber placeholder="Value" min={0} max={100} />
+            <Form.Item name="value" rules={[{ required: true, message: t('instructor:bulkCommissions.enterValue') }]}>
+              <InputNumber placeholder={t('instructor:bulkCommissions.value')} min={0} max={100} />
             </Form.Item>
           </Form>
         }
@@ -140,9 +142,9 @@ export default function BulkCommissions() {
                 <th className="border-b px-3 py-2 w-10">
                   <Checkbox checked={!!allSelected} indeterminate={selected.length && selected.length < instructors.length} onChange={(e) => toggleAll(e.target.checked)} />
                 </th>
-                <th className="border-b px-3 py-2">Name</th>
-                <th className="border-b px-3 py-2">Email</th>
-                <th className="border-b px-3 py-2">Status</th>
+                <th className="border-b px-3 py-2">{t('instructor:bulkCommissions.columns.name')}</th>
+                <th className="border-b px-3 py-2">{t('instructor:bulkCommissions.columns.email')}</th>
+                <th className="border-b px-3 py-2">{t('instructor:bulkCommissions.columns.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -158,7 +160,7 @@ export default function BulkCommissions() {
               ))}
               {!instructors.length && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-8 text-center text-gray-500">No instructors</td>
+                  <td colSpan={4} className="px-3 py-8 text-center text-gray-500">{t('instructor:bulkCommissions.noInstructors')}</td>
                 </tr>
               )}
             </tbody>

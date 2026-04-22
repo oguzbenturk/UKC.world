@@ -6,6 +6,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -16,9 +17,10 @@ const RegistrationsTab = ({
   onRefresh,
   onUpdateRegistration,
 }) => {
+  const { t } = useTranslation(['manager']);
   const columns = [
     {
-      title: 'Customer',
+      title: t('manager:quicklinks.registrations.customer'),
       key: 'customer',
       render: (_, record) => (
         <div>
@@ -29,19 +31,19 @@ const RegistrationsTab = ({
       )
     },
     {
-      title: 'Service',
+      title: t('manager:quicklinks.registrations.service'),
       key: 'service',
       render: (_, record) => (
         <div>
           <Text>{record.link_name}</Text>
           <div className="text-xs text-gray-400">
-            {record.service_type || 'General'}
+            {record.service_type || t('manager:quicklinks.registrations.general')}
           </div>
         </div>
       )
     },
     {
-      title: 'Status',
+      title: t('manager:quicklinks.registrations.status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -56,14 +58,14 @@ const RegistrationsTab = ({
       }
     },
     {
-      title: 'Date',
+      title: t('manager:quicklinks.registrations.date'),
       dataIndex: 'created_at',
       key: 'date',
       width: 150,
       render: (date) => dayjs(date).format('MMM D, YYYY h:mm A')
     },
     {
-      title: 'Actions',
+      title: t('manager:quicklinks.registrations.actions'),
       key: 'actions',
       width: 150,
       render: (_, record) => (
@@ -73,9 +75,9 @@ const RegistrationsTab = ({
           size="small"
           onChange={(value) => onUpdateRegistration(record.id, value)}
         >
-          <Option value="pending">Pending</Option>
-          <Option value="confirmed">Confirm</Option>
-          <Option value="cancelled">Cancel</Option>
+          <Option value="pending">{t('manager:quicklinks.registrations.pending')}</Option>
+          <Option value="confirmed">{t('manager:quicklinks.registrations.confirm')}</Option>
+          <Option value="cancelled">{t('manager:quicklinks.registrations.cancel')}</Option>
         </Select>
       )
     }
@@ -86,15 +88,15 @@ const RegistrationsTab = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <Title level={4} className="!mb-1">Link Registrations</Title>
-          <Text type="secondary">Service registrations from your shareable links</Text>
+          <Title level={4} className="!mb-1">{t('manager:quicklinks.registrations.heading')}</Title>
+          <Text type="secondary">{t('manager:quicklinks.registrations.headingDesc')}</Text>
         </div>
-        <Button 
-          icon={<ReloadOutlined />} 
+        <Button
+          icon={<ReloadOutlined />}
           onClick={onRefresh}
           className="w-full sm:w-auto"
         >
-          Refresh
+          {t('manager:quicklinks.registrations.refresh')}
         </Button>
       </div>
 
@@ -109,7 +111,7 @@ const RegistrationsTab = ({
           pagination={{ pageSize: 15 }}
           locale={{
             emptyText: (
-              <Empty description="No registrations yet. Share your links to receive sign-ups." />
+              <Empty description={t('manager:quicklinks.registrations.noRegistrations')} />
             )
           }}
         />

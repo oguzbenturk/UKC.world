@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, Input, Button, Typography, Divider, Spin, DatePicker, App } from 'antd';
 import { UserOutlined, EditOutlined, LockOutlined, SaveOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -18,6 +19,7 @@ const { TextArea } = Input;
 const MAX_FILE_SIZE_MB = 2;
 
 export default function AccountSettings() {
+  const { t } = useTranslation(['admin']);
   const { user, refreshUser } = useAuth();
   const { message } = App.useApp();
 
@@ -65,7 +67,7 @@ export default function AccountSettings() {
     if (!file) return;
 
     if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      message.error(`Photo must be smaller than ${MAX_FILE_SIZE_MB} MB`);
+      message.error(t('admin:account.profilePhoto.toast.fileTooLarge', { maxMb: MAX_FILE_SIZE_MB }));
       e.target.value = '';
       return;
     }
@@ -79,9 +81,9 @@ export default function AccountSettings() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       await refreshUser();
-      message.success('Profile photo updated');
+      message.success(t('admin:account.profilePhoto.toast.updated'));
     } catch {
-      message.error('Failed to upload photo');
+      message.error(t('admin:account.profilePhoto.toast.uploadError'));
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -103,9 +105,9 @@ export default function AccountSettings() {
         bio: form.bio,
       });
       await refreshUser();
-      message.success('Personal information updated');
+      message.success(t('admin:account.personalInfo.toast.saved'));
     } catch {
-      message.error('Failed to update personal information');
+      message.error(t('admin:account.personalInfo.toast.saveError'));
     } finally {
       setSavingProfile(false);
     }
@@ -115,15 +117,15 @@ export default function AccountSettings() {
 
   const handlePasswordSave = async () => {
     if (!passwords.currentPassword) {
-      message.warning('Please enter your current password');
+      message.warning(t('admin:account.password.toast.enterCurrent'));
       return;
     }
     if (passwords.newPassword.length < 8) {
-      message.warning('New password must be at least 8 characters');
+      message.warning(t('admin:account.password.toast.minLength'));
       return;
     }
     if (passwords.newPassword !== passwords.confirmPassword) {
-      message.warning('New passwords do not match');
+      message.warning(t('admin:account.password.toast.noMatch'));
       return;
     }
 
@@ -133,10 +135,10 @@ export default function AccountSettings() {
         currentPassword: passwords.currentPassword,
         newPassword: passwords.newPassword,
       });
-      message.success('Password changed successfully');
+      message.success(t('admin:account.password.toast.changed'));
       setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Failed to change password';
+      const msg = err?.response?.data?.message || t('admin:account.password.toast.changeError');
       message.error(msg);
     } finally {
       setSavingPassword(false);
@@ -179,7 +181,7 @@ export default function AccountSettings() {
         title={
           <span className="flex items-center gap-2">
             <UserOutlined className="text-sky-500" />
-            Profile Photo
+            {t('admin:account.profilePhoto.title')}
           </span>
         }
         className="rounded-xl shadow-sm"
@@ -195,9 +197,9 @@ export default function AccountSettings() {
           </div>
 
           <div className="flex-1">
-            <Text strong className="block mb-1">Update your photo</Text>
+            <Text strong className="block mb-1">{t('admin:account.profilePhoto.updatePhotoLabel')}</Text>
             <Paragraph className="!mb-3 text-sm text-slate-500">
-              JPG, PNG or GIF. Max {MAX_FILE_SIZE_MB} MB.
+              {t('admin:account.profilePhoto.uploadDescription', { maxMb: MAX_FILE_SIZE_MB })}
             </Paragraph>
             <Button
               icon={<CameraOutlined />}
@@ -205,7 +207,7 @@ export default function AccountSettings() {
               loading={uploading}
               disabled={uploading}
             >
-              Upload Photo
+              {t('admin:account.profilePhoto.uploadButton')}
             </Button>
             <input
               ref={fileInputRef}
@@ -223,7 +225,7 @@ export default function AccountSettings() {
         title={
           <span className="flex items-center gap-2">
             <EditOutlined className="text-sky-500" />
-            Personal Information
+            {t('admin:account.personalInfo.title')}
           </span>
         }
         className="rounded-xl shadow-sm"
@@ -231,19 +233,19 @@ export default function AccountSettings() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Text strong className="block mb-1">First Name</Text>
+              <Text strong className="block mb-1">{t('admin:account.personalInfo.firstName')}</Text>
               <Input
                 value={form.first_name}
                 onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
-                placeholder="First name"
+                placeholder={t('admin:account.personalInfo.firstNamePlaceholder')}
               />
             </div>
             <div>
-              <Text strong className="block mb-1">Last Name</Text>
+              <Text strong className="block mb-1">{t('admin:account.personalInfo.lastName')}</Text>
               <Input
                 value={form.last_name}
                 onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
-                placeholder="Last name"
+                placeholder={t('admin:account.personalInfo.lastNamePlaceholder')}
               />
             </div>
           </div>
@@ -251,43 +253,43 @@ export default function AccountSettings() {
           <Divider className="!my-2" />
 
           <div>
-            <Text strong className="block mb-1">Email</Text>
+            <Text strong className="block mb-1">{t('admin:account.personalInfo.email')}</Text>
             <Input
               type="email"
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="Email address"
+              placeholder={t('admin:account.personalInfo.emailPlaceholder')}
             />
           </div>
 
           <div>
-            <Text strong className="block mb-1">Phone</Text>
+            <Text strong className="block mb-1">{t('admin:account.personalInfo.phone')}</Text>
             <Input
               type="tel"
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="Phone number"
+              placeholder={t('admin:account.personalInfo.phonePlaceholder')}
             />
           </div>
 
           <div>
-            <Text strong className="block mb-1">Date of Birth</Text>
+            <Text strong className="block mb-1">{t('admin:account.personalInfo.dateOfBirth')}</Text>
             <DatePicker
               value={form.date_of_birth}
               onChange={(date) => setForm((f) => ({ ...f, date_of_birth: date }))}
               format="YYYY-MM-DD"
               style={{ width: '100%' }}
-              placeholder="Select date of birth"
+              placeholder={t('admin:account.personalInfo.dateOfBirth')}
             />
           </div>
 
           <div>
-            <Text strong className="block mb-1">Bio</Text>
+            <Text strong className="block mb-1">{t('admin:account.personalInfo.bio')}</Text>
             <TextArea
               rows={3}
               value={form.bio}
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-              placeholder="Tell us a bit about yourself..."
+              placeholder={t('admin:account.personalInfo.bioPlaceholder')}
             />
           </div>
 
@@ -299,7 +301,7 @@ export default function AccountSettings() {
               loading={savingProfile}
               className="rounded-lg"
             >
-              Save Personal Information
+              {t('admin:account.personalInfo.save')}
             </Button>
           </div>
         </div>
@@ -310,18 +312,18 @@ export default function AccountSettings() {
         title={
           <span className="flex items-center gap-2">
             <LockOutlined className="text-sky-500" />
-            Change Password
+            {t('admin:account.password.title')}
           </span>
         }
         className="rounded-xl shadow-sm"
       >
         <div className="space-y-4">
           <div>
-            <Text strong className="block mb-1">Current Password</Text>
+            <Text strong className="block mb-1">{t('admin:account.password.currentPassword')}</Text>
             <Input.Password
               value={passwords.currentPassword}
               onChange={(e) => setPasswords((p) => ({ ...p, currentPassword: e.target.value }))}
-              placeholder="Enter current password"
+              placeholder={t('admin:account.password.currentPassword')}
               autoComplete="current-password"
             />
           </div>
@@ -329,31 +331,31 @@ export default function AccountSettings() {
           <Divider className="!my-2" />
 
           <div>
-            <Text strong className="block mb-1">New Password</Text>
+            <Text strong className="block mb-1">{t('admin:account.password.newPassword')}</Text>
             <Input.Password
               value={passwords.newPassword}
               onChange={(e) => setPasswords((p) => ({ ...p, newPassword: e.target.value }))}
-              placeholder="Minimum 8 characters"
+              placeholder={t('admin:account.password.newPassword')}
               autoComplete="new-password"
             />
             {passwords.newPassword && passwords.newPassword.length < 8 && (
               <Paragraph className="!mb-0 text-xs text-red-500 mt-1">
-                Password must be at least 8 characters
+                {t('admin:account.password.toast.minLength')}
               </Paragraph>
             )}
           </div>
 
           <div>
-            <Text strong className="block mb-1">Confirm New Password</Text>
+            <Text strong className="block mb-1">{t('admin:account.password.confirmPassword')}</Text>
             <Input.Password
               value={passwords.confirmPassword}
               onChange={(e) => setPasswords((p) => ({ ...p, confirmPassword: e.target.value }))}
-              placeholder="Repeat new password"
+              placeholder={t('admin:account.password.confirmPassword')}
               autoComplete="new-password"
             />
             {passwords.confirmPassword && passwords.newPassword !== passwords.confirmPassword && (
               <Paragraph className="!mb-0 text-xs text-red-500 mt-1">
-                Passwords do not match
+                {t('admin:account.password.toast.noMatch')}
               </Paragraph>
             )}
           </div>
@@ -366,7 +368,7 @@ export default function AccountSettings() {
               loading={savingPassword}
               className="rounded-lg"
             >
-              Change Password
+              {t('admin:account.password.save')}
             </Button>
           </div>
         </div>

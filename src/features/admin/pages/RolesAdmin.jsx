@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Form, Input, Modal, Select, Space, Popconfirm, Checkbox, Collapse, Divider, Switch, Tooltip, List, Avatar, Empty, Typography } from 'antd';
 import { InfoCircleOutlined, UserOutlined, SwapOutlined, EditOutlined, UserAddOutlined, DeleteOutlined, PlusOutlined, TeamOutlined, LockOutlined, KeyOutlined } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
@@ -37,14 +38,14 @@ const CategoryChip = ({ category }) => {
   );
 };
 
-const PermissionDisplay = ({ perms }) => {
+const PermissionDisplay = ({ perms, t }) => {
   if (!perms || Object.keys(perms).length === 0) {
-    return <span className="text-xs text-slate-400 italic">No permissions</span>;
+    return <span className="text-xs text-slate-400 italic">{t('admin:roles.permissions.noPermissions')}</span>;
   }
   if (perms['*'] === true) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-        <KeyOutlined style={{ fontSize: 10 }} /> Full Access
+        <KeyOutlined style={{ fontSize: 10 }} /> {t('admin:roles.permissions.fullAccess')}
       </span>
     );
   }
@@ -56,12 +57,12 @@ const PermissionDisplay = ({ perms }) => {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {shown.map(cat => <CategoryChip key={cat} category={cat} />)}
-      {rest > 0 && <span className="text-xs text-slate-400">+{rest} more</span>}
+      {rest > 0 && <span className="text-xs text-slate-400">{t('admin:roles.permissions.moreCategories', { count: rest })}</span>}
     </div>
   );
 };
 
-const RoleMobileCard = ({ record, canManage, protectedRoles, onViewUsers, onEdit, onAssign, onDelete }) => {
+const RoleMobileCard = ({ record, canManage, protectedRoles, onViewUsers, onEdit, onAssign, onDelete, t }) => {
   const isProtected = protectedRoles.has(record.name);
   const hasUsers = (record.user_count || 0) > 0;
 
@@ -72,7 +73,7 @@ const RoleMobileCard = ({ record, canManage, protectedRoles, onViewUsers, onEdit
           <span className="font-semibold text-slate-800">{record.name}</span>
           {isProtected && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-500 font-medium">
-              <LockOutlined style={{ fontSize: 10 }} /> system
+              <LockOutlined style={{ fontSize: 10 }} /> {t('admin:roles.mobileCard.system')}
             </span>
           )}
         </div>
@@ -85,32 +86,32 @@ const RoleMobileCard = ({ record, canManage, protectedRoles, onViewUsers, onEdit
               : 'bg-slate-50 text-slate-400 border border-slate-100 cursor-default'
           }`}
         >
-          {record.user_count || 0} users
+          {t('admin:roles.mobileCard.users', { count: record.user_count || 0 })}
         </button>
       </div>
       {record.description && (
         <p className="text-sm text-slate-500 mb-3 leading-snug">{record.description}</p>
       )}
       <div className="mb-3">
-        <PermissionDisplay perms={record.permissions} />
+        <PermissionDisplay perms={record.permissions} t={t} />
       </div>
       <div className="flex items-center gap-1.5 pt-3 border-t border-slate-50">
         <Button size="small" icon={<TeamOutlined />} onClick={() => onViewUsers(record)} disabled={!hasUsers}>
-          Users
+          {t('admin:roles.mobileCard.usersButton')}
         </Button>
         <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(record)} disabled={!canManage}>
-          Edit
+          {t('admin:roles.mobileCard.edit')}
         </Button>
         <Button size="small" icon={<UserAddOutlined />} onClick={() => onAssign(record)} disabled={!canManage}>
-          Assign
+          {t('admin:roles.mobileCard.assign')}
         </Button>
         <div className="ml-auto">
           <Popconfirm
-            title="Delete role"
-            description="Are you sure you want to delete this role?"
-            okText="Delete"
+            title={t('admin:roles.popconfirm.deleteTitle')}
+            description={t('admin:roles.popconfirm.deleteDescription')}
+            okText={t('admin:roles.popconfirm.deleteOk')}
             okButtonProps={{ danger: true }}
-            cancelText="Cancel"
+            cancelText={t('admin:roles.popconfirm.cancel')}
             onConfirm={() => onDelete(record)}
             disabled={!canManage || isProtected || hasUsers}
           >
@@ -127,120 +128,35 @@ const RoleMobileCard = ({ record, canManage, protectedRoles, onViewUsers, onEdit
   );
 };
 
-// Permission categories and their actions
-const PERMISSION_CATEGORIES = {
-  bookings: {
-    label: 'Bookings',
-    description: 'Manage lesson and activity bookings',
-    actions: {
-      read: 'View bookings',
-      write: 'Create/edit bookings',
-      delete: 'Cancel/delete bookings',
-      approve: 'Approve pending bookings'
-    }
-  },
-  users: {
-    label: 'Users',
-    description: 'Manage user accounts',
-    actions: {
-      read: 'View users',
-      write: 'Create/edit users',
-      delete: 'Delete users',
-      assign_roles: 'Assign roles to users'
-    }
-  },
-  finances: {
-    label: 'Finances',
-    description: 'Access financial data and transactions',
-    actions: {
-      read: 'View financial reports',
-      write: 'Create transactions/payments',
-      refund: 'Process refunds',
-      reconcile: 'Run financial reconciliation'
-    }
-  },
-  wallet: {
-    label: 'Wallet',
-    description: 'Manage user wallet operations',
-    actions: {
-      read: 'View wallet balances',
-      topup: 'Add funds to wallets',
-      deduct: 'Deduct from wallets',
-      transfer: 'Transfer between wallets'
-    }
-  },
-  instructors: {
-    label: 'Instructors',
-    description: 'Manage instructor profiles and schedules',
-    actions: {
-      read: 'View instructors',
-      write: 'Create/edit instructors',
-      schedule: 'Manage schedules',
-      earnings: 'View/manage earnings'
-    }
-  },
-  equipment: {
-    label: 'Equipment',
-    description: 'Manage rental equipment inventory',
-    actions: {
-      read: 'View equipment',
-      write: 'Create/edit equipment',
-      delete: 'Delete equipment',
-      rental: 'Manage rentals'
-    }
-  },
-  services: {
-    label: 'Services',
-    description: 'Manage service offerings',
-    actions: {
-      read: 'View services',
-      write: 'Create/edit services',
-      delete: 'Delete services',
-      pricing: 'Manage pricing'
-    }
-  },
-  settings: {
-    label: 'Settings',
-    description: 'System configuration',
-    actions: {
-      read: 'View settings',
-      write: 'Modify settings'
-    }
-  },
-  reports: {
-    label: 'Reports',
-    description: 'Access analytics and reports',
-    actions: {
-      read: 'View reports',
-      export: 'Export data'
-    }
-  },
-  notifications: {
-    label: 'Notifications',
-    description: 'Manage system notifications',
-    actions: {
-      read: 'View notifications',
-      send: 'Send notifications',
-      manage: 'Manage notification settings'
-    }
-  },
-  audit: {
-    label: 'Audit Logs',
-    description: 'Access system audit logs',
-    actions: {
-      read: 'View audit logs'
-    }
-  },
-  system: {
-    label: 'System',
-    description: 'System administration',
-    actions: {
-      admin: 'Full system access',
-      backup: 'Manage backups',
-      maintenance: 'Maintenance mode'
-    }
-  }
+// Permission category keys (actions are static — labels come from t())
+const PERMISSION_CATEGORY_KEYS = {
+  bookings: { actions: ['read', 'write', 'delete', 'approve'] },
+  users: { actions: ['read', 'write', 'delete', 'assign_roles'] },
+  finances: { actions: ['read', 'write', 'refund', 'reconcile'] },
+  wallet: { actions: ['read', 'topup', 'deduct', 'transfer'] },
+  instructors: { actions: ['read', 'write', 'schedule', 'earnings'] },
+  equipment: { actions: ['read', 'write', 'delete', 'rental'] },
+  services: { actions: ['read', 'write', 'delete', 'pricing'] },
+  settings: { actions: ['read', 'write'] },
+  reports: { actions: ['read', 'export'] },
+  notifications: { actions: ['read', 'send', 'manage'] },
+  audit: { actions: ['read'] },
+  system: { actions: ['admin', 'backup', 'maintenance'] },
 };
+
+const buildPermissionCategories = (t) =>
+  Object.fromEntries(
+    Object.entries(PERMISSION_CATEGORY_KEYS).map(([cat, { actions }]) => [
+      cat,
+      {
+        label: t(`admin:roles.categories.${cat}.label`),
+        description: t(`admin:roles.categories.${cat}.description`),
+        actions: Object.fromEntries(
+          actions.map((a) => [a, t(`admin:roles.categories.${cat}.${a}`)])
+        ),
+      },
+    ])
+  );
 
 const checkboxesToPermissions = (selectedPerms) => {
   const permissions = {};
@@ -255,7 +171,8 @@ const permissionsToCheckboxes = (permissions) => {
     .map(([key]) => key);
 };
 
-const PermissionEditor = ({ value = [], onChange }) => {
+const PermissionEditor = ({ value = [], onChange, t }) => {
+  const PERMISSION_CATEGORIES = buildPermissionCategories(t);
   const [selectedPerms, setSelectedPerms] = useState(value);
   const [hasWildcard, setHasWildcard] = useState(value.includes('*'));
 
@@ -338,12 +255,12 @@ const PermissionEditor = ({ value = [], onChange }) => {
           </div>
           {fullySelected && (
             <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
-              All granted
+              {t('admin:roles.permissions.allGranted')}
             </span>
           )}
           {partiallySelected && (
             <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">
-              Partial
+              {t('admin:roles.permissions.partial')}
             </span>
           )}
         </div>
@@ -375,10 +292,10 @@ const PermissionEditor = ({ value = [], onChange }) => {
       <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
         <Switch checked={hasWildcard} onChange={handleWildcardChange} size="small" />
         <div className="flex-1">
-          <span className="text-sm font-semibold text-amber-800">Super Admin — Full Access</span>
-          <p className="text-xs text-amber-600 mt-0.5 mb-0">Grants all current and future permissions. Use with caution.</p>
+          <span className="text-sm font-semibold text-amber-800">{t('admin:roles.superAdmin.label')}</span>
+          <p className="text-xs text-amber-600 mt-0.5 mb-0">{t('admin:roles.superAdmin.description')}</p>
         </div>
-        <Tooltip title="Grants all permissions including future ones.">
+        <Tooltip title={t('admin:roles.superAdmin.tooltip')}>
           <InfoCircleOutlined className="text-amber-500 flex-shrink-0" />
         </Tooltip>
       </div>
@@ -386,8 +303,8 @@ const PermissionEditor = ({ value = [], onChange }) => {
       {hasWildcard ? (
         <div className="text-center py-8 bg-emerald-50 border border-emerald-100 rounded-lg">
           <div className="text-2xl mb-2">✓</div>
-          <p className="text-sm font-semibold text-emerald-700 mb-0">Full access to all features</p>
-          <p className="text-xs text-emerald-500 mt-1">Toggle off above to configure granular permissions</p>
+          <p className="text-sm font-semibold text-emerald-700 mb-0">{t('admin:roles.superAdmin.fullAccessMessage')}</p>
+          <p className="text-xs text-emerald-500 mt-1">{t('admin:roles.superAdmin.fullAccessHint')}</p>
         </div>
       ) : (
         <Collapse
@@ -402,6 +319,7 @@ const PermissionEditor = ({ value = [], onChange }) => {
 };
 
 const RolesAdmin = () => {
+  const { t } = useTranslation(['admin']);
   const { user } = useAuth();
   const canManage = user && hasPermission(user.role, [ROLES.ADMIN]);
 
@@ -432,7 +350,7 @@ const RolesAdmin = () => {
       setRoles(roleList);
       setUsers(userList);
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to load roles/users');
+      message.error(err?.response?.data?.error || t('admin:roles.toast.loadError'));
     } finally {
       setLoading(false);
     }
@@ -442,7 +360,7 @@ const RolesAdmin = () => {
 
   const columns = [
     {
-      title: 'Role',
+      title: t('admin:roles.table.role'),
       dataIndex: 'name',
       key: 'name',
       render: (name) => {
@@ -453,7 +371,7 @@ const RolesAdmin = () => {
             {isProtected && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-500 font-medium">
                 <LockOutlined style={{ fontSize: 9 }} />
-                system
+                {t('admin:roles.mobileCard.system')}
               </span>
             )}
           </div>
@@ -461,7 +379,7 @@ const RolesAdmin = () => {
       }
     },
     {
-      title: 'Description',
+      title: t('admin:roles.table.description'),
       dataIndex: 'description',
       key: 'description',
       render: (v) => v
@@ -469,14 +387,14 @@ const RolesAdmin = () => {
         : <span className="text-sm text-slate-300 italic">—</span>
     },
     {
-      title: 'Permissions',
+      title: t('admin:roles.table.permissions'),
       dataIndex: 'permissions',
       key: 'permissions',
       width: 260,
-      render: (perms) => <PermissionDisplay perms={perms} />
+      render: (perms) => <PermissionDisplay perms={perms} t={t} />
     },
     {
-      title: 'Users',
+      title: t('admin:roles.table.users'),
       dataIndex: 'user_count',
       key: 'user_count',
       width: 90,
@@ -503,7 +421,7 @@ const RolesAdmin = () => {
         const hasUsers = (record.user_count || 0) > 0;
         return (
           <div className="flex items-center gap-1 justify-end">
-            <Tooltip title="View Users">
+            <Tooltip title={t('admin:roles.tooltips.viewUsers')}>
               <Button
                 size="small"
                 type="text"
@@ -513,7 +431,7 @@ const RolesAdmin = () => {
                 className="text-slate-500 hover:text-sky-600"
               />
             </Tooltip>
-            <Tooltip title="Edit">
+            <Tooltip title={t('admin:roles.tooltips.edit')}>
               <Button
                 size="small"
                 type="text"
@@ -523,7 +441,7 @@ const RolesAdmin = () => {
                 className="text-slate-500 hover:text-sky-600"
               />
             </Tooltip>
-            <Tooltip title="Assign to User">
+            <Tooltip title={t('admin:roles.tooltips.assignToUser')}>
               <Button
                 size="small"
                 type="text"
@@ -533,13 +451,13 @@ const RolesAdmin = () => {
                 className="text-slate-500 hover:text-sky-600"
               />
             </Tooltip>
-            <Tooltip title={isProtected ? 'System roles cannot be deleted' : hasUsers ? 'Remove all users first' : 'Delete role'}>
+            <Tooltip title={isProtected ? t('admin:roles.tooltips.systemRoleCannotDelete') : hasUsers ? t('admin:roles.tooltips.removeUsersFirst') : t('admin:roles.tooltips.deleteRole')}>
               <Popconfirm
-                title="Delete role"
-                description="Are you sure you want to delete this role?"
-                okText="Delete"
+                title={t('admin:roles.popconfirm.deleteTitle')}
+                description={t('admin:roles.popconfirm.deleteDescription')}
+                okText={t('admin:roles.popconfirm.deleteOk')}
                 okButtonProps={{ danger: true }}
-                cancelText="Cancel"
+                cancelText={t('admin:roles.popconfirm.cancel')}
                 onConfirm={() => onDelete(record)}
                 disabled={!canManage || isProtected || hasUsers}
               >
@@ -569,10 +487,10 @@ const RolesAdmin = () => {
   const onDelete = async (role) => {
     try {
       await rolesService.remove(role.id);
-      message.success('Role deleted');
+      message.success(t('admin:roles.toast.roleDeleted'));
       fetchData();
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to delete role');
+      message.error(err?.response?.data?.error || t('admin:roles.toast.roleDeleteError'));
     }
   };
 
@@ -583,12 +501,12 @@ const RolesAdmin = () => {
         description: values.description?.trim() || '',
         permissions: checkboxesToPermissions(permissions)
       });
-      message.success('Role created');
+      message.success(t('admin:roles.toast.roleCreated'));
       setCreateOpen(false);
       setPermissions([]);
       fetchData();
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to create role');
+      message.error(err?.response?.data?.error || t('admin:roles.toast.roleCreateError'));
     }
   };
 
@@ -599,25 +517,25 @@ const RolesAdmin = () => {
         description: values.description?.trim(),
         permissions: checkboxesToPermissions(permissions)
       });
-      message.success('Role updated');
+      message.success(t('admin:roles.toast.roleUpdated'));
       setEditOpen(false);
       setCurrentRole(null);
       setPermissions([]);
       fetchData();
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to update role');
+      message.error(err?.response?.data?.error || t('admin:roles.toast.roleUpdateError'));
     }
   };
 
   const handleAssignFinish = async (values) => {
     try {
       await rolesService.assign(currentRole.id, values.user_id);
-      message.success('Role assigned to user');
+      message.success(t('admin:roles.toast.roleAssigned'));
       setAssignOpen(false);
       setCurrentRole(null);
       fetchData();
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to assign role');
+      message.error(err?.response?.data?.error || t('admin:roles.toast.roleAssignError'));
     }
   };
 
@@ -638,12 +556,12 @@ const RolesAdmin = () => {
   const handleChangeRoleFinish = async (values) => {
     try {
       await rolesService.assign(values.new_role_id, selectedUserForRoleChange.id);
-      message.success(`Role changed for ${selectedUserForRoleChange.first_name || selectedUserForRoleChange.name || 'user'}`);
+      message.success(t('admin:roles.toast.roleChanged', { name: selectedUserForRoleChange.first_name || selectedUserForRoleChange.name || 'user' }));
       setChangeRoleOpen(false);
       setSelectedUserForRoleChange(null);
       fetchData();
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to change role');
+      message.error(err?.response?.data?.error || t('admin:roles.toast.roleChangeError'));
     }
   };
 
@@ -658,7 +576,7 @@ const RolesAdmin = () => {
 
   const modalFooterButtons = (onCancel, submitLabel) => (
     <div className="flex justify-end gap-2 pt-2">
-      <Button onClick={onCancel}>Cancel</Button>
+      <Button onClick={onCancel}>{t('admin:roles.modals.cancel')}</Button>
       <Button type="primary" htmlType="submit">{submitLabel}</Button>
     </div>
   );
@@ -668,11 +586,11 @@ const RolesAdmin = () => {
       {/* Action bar — sits above the table, no duplicate title (parent UserSettings renders it) */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm text-slate-400">
-          {!loading && roles.length > 0 && `${roles.length} role${roles.length !== 1 ? 's' : ''}`}
+          {!loading && roles.length > 0 && t('admin:roles.roleCount', { count: roles.length })}
         </span>
         {canManage && (
           <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
-            New Role
+            {t('admin:roles.newRole')}
           </Button>
         )}
       </div>
@@ -688,6 +606,7 @@ const RolesAdmin = () => {
         mobileCardRenderer={(props) => (
           <RoleMobileCard
             {...props}
+            t={t}
             canManage={canManage}
             protectedRoles={protectedRoles}
             onViewUsers={onViewUsers}
@@ -705,7 +624,7 @@ const RolesAdmin = () => {
             <span className="w-6 h-6 rounded-md bg-sky-100 flex items-center justify-center">
               <PlusOutlined style={{ fontSize: 12, color: '#0284c7' }} />
             </span>
-            <span className="font-semibold text-slate-800">Create Role</span>
+            <span className="font-semibold text-slate-800">{t('admin:roles.modals.createRole')}</span>
           </div>
         }
         open={createOpen}
@@ -717,26 +636,26 @@ const RolesAdmin = () => {
         <Form layout="vertical" form={form} onFinish={handleCreateFinish} className="pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
             <Form.Item
-              label={<span className="text-sm font-medium text-slate-700">Role Name</span>}
+              label={<span className="text-sm font-medium text-slate-700">{t('admin:roles.modals.roleNameLabel')}</span>}
               name="name"
-              rules={[{ required: true, message: 'Role name is required' }]}
+              rules={[{ required: true, message: t('admin:roles.modals.roleNameRequired') }]}
             >
-              <Input placeholder="e.g., sales_manager" />
+              <Input placeholder={t('admin:roles.modals.roleNamePlaceholder')} />
             </Form.Item>
             <Form.Item
-              label={<span className="text-sm font-medium text-slate-700">Description</span>}
+              label={<span className="text-sm font-medium text-slate-700">{t('admin:roles.modals.descriptionLabel')}</span>}
               name="description"
             >
-              <Input placeholder="Describe the role's purpose" />
+              <Input placeholder={t('admin:roles.modals.descriptionPlaceholder')} />
             </Form.Item>
           </div>
           <Divider className="my-4">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Permissions</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin:roles.modals.permissionsLabel')}</span>
           </Divider>
           <div className="mb-4">
-            <PermissionEditor value={permissions} onChange={setPermissions} />
+            <PermissionEditor value={permissions} onChange={setPermissions} t={t} />
           </div>
-          {modalFooterButtons(() => { setCreateOpen(false); setPermissions([]); }, 'Create Role')}
+          {modalFooterButtons(() => { setCreateOpen(false); setPermissions([]); }, t('admin:roles.modals.createRoleButton'))}
         </Form>
       </Modal>
 
@@ -748,7 +667,7 @@ const RolesAdmin = () => {
               <EditOutlined style={{ fontSize: 12, color: '#475569' }} />
             </span>
             <span className="font-semibold text-slate-800">
-              Edit Role
+              {t('admin:roles.modals.editRole')}
               {currentRole && <span className="ml-1.5 text-slate-400 font-normal">— {currentRole.name}</span>}
             </span>
           </div>
@@ -762,26 +681,26 @@ const RolesAdmin = () => {
         <Form layout="vertical" form={form} onFinish={handleEditFinish} className="pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
             <Form.Item
-              label={<span className="text-sm font-medium text-slate-700">Role Name</span>}
+              label={<span className="text-sm font-medium text-slate-700">{t('admin:roles.modals.roleNameLabel')}</span>}
               name="name"
-              rules={[{ required: true, message: 'Role name is required' }]}
+              rules={[{ required: true, message: t('admin:roles.modals.roleNameRequired') }]}
             >
               <Input disabled={currentRole && protectedRoles.has(currentRole.name)} />
             </Form.Item>
             <Form.Item
-              label={<span className="text-sm font-medium text-slate-700">Description</span>}
+              label={<span className="text-sm font-medium text-slate-700">{t('admin:roles.modals.descriptionLabel')}</span>}
               name="description"
             >
               <Input />
             </Form.Item>
           </div>
           <Divider className="my-4">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Permissions</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('admin:roles.modals.permissionsLabel')}</span>
           </Divider>
           <div className="mb-4">
-            <PermissionEditor value={permissions} onChange={setPermissions} />
+            <PermissionEditor value={permissions} onChange={setPermissions} t={t} />
           </div>
-          {modalFooterButtons(() => { setEditOpen(false); setPermissions([]); }, 'Save Changes')}
+          {modalFooterButtons(() => { setEditOpen(false); setPermissions([]); }, t('admin:roles.modals.saveChanges'))}
         </Form>
       </Modal>
 
@@ -793,7 +712,7 @@ const RolesAdmin = () => {
               <UserAddOutlined style={{ fontSize: 12, color: '#0284c7' }} />
             </span>
             <span className="font-semibold text-slate-800">
-              Assign Role
+              {t('admin:roles.modals.assignRole')}
               {currentRole && <span className="ml-1.5 text-slate-400 font-normal">— {currentRole.name}</span>}
             </span>
           </div>
@@ -805,18 +724,18 @@ const RolesAdmin = () => {
       >
         <Form layout="vertical" form={assignForm} onFinish={handleAssignFinish} className="pt-2">
           <Form.Item
-            label={<span className="text-sm font-medium text-slate-700">Select User</span>}
+            label={<span className="text-sm font-medium text-slate-700">{t('admin:roles.modals.selectUserLabel')}</span>}
             name="user_id"
-            rules={[{ required: true, message: 'Select a user' }]}
+            rules={[{ required: true, message: t('admin:roles.modals.selectUserRequired') }]}
           >
             <Select
               showSearch
-              placeholder="Search users..."
+              placeholder={t('admin:roles.modals.selectUserPlaceholder')}
               options={userOptions}
               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
             />
           </Form.Item>
-          {modalFooterButtons(() => setAssignOpen(false), 'Assign Role')}
+          {modalFooterButtons(() => setAssignOpen(false), t('admin:roles.modals.assignRoleButton'))}
         </Form>
       </Modal>
 
@@ -829,7 +748,7 @@ const RolesAdmin = () => {
             </span>
             <span className="font-semibold text-slate-800">
               {currentRole?.name}
-              <span className="ml-1.5 text-slate-400 font-normal text-sm">— users</span>
+              <span className="ml-1.5 text-slate-400 font-normal text-sm">— {t('admin:roles.modals.viewUsers')}</span>
             </span>
           </div>
         }
@@ -837,7 +756,7 @@ const RolesAdmin = () => {
         onCancel={() => { setViewUsersOpen(false); setCurrentRole(null); }}
         footer={
           <div className="flex justify-end">
-            <Button onClick={() => { setViewUsersOpen(false); setCurrentRole(null); }}>Close</Button>
+            <Button onClick={() => { setViewUsersOpen(false); setCurrentRole(null); }}>{t('admin:roles.modals.close')}</Button>
           </div>
         }
         destroyOnHidden
@@ -850,7 +769,7 @@ const RolesAdmin = () => {
             )}
             {getUsersWithRole(currentRole.name).length === 0 ? (
               <Empty
-                description={<span className="text-sm text-slate-400">No users with this role</span>}
+                description={<span className="text-sm text-slate-400">{t('admin:roles.modals.noUsersWithRole')}</span>}
                 className="py-8"
               />
             ) : (
@@ -868,7 +787,7 @@ const RolesAdmin = () => {
                         onClick={() => openChangeRoleModal(u)}
                         className="text-slate-500 hover:text-sky-600"
                       >
-                        Change
+                        {t('admin:roles.modals.change')}
                       </Button>
                     ] : []}
                   >
@@ -903,7 +822,7 @@ const RolesAdmin = () => {
               <SwapOutlined style={{ fontSize: 12, color: '#475569' }} />
             </span>
             <span className="font-semibold text-slate-800">
-              Change Role
+              {t('admin:roles.modals.changeRole')}
               {selectedUserForRoleChange && (
                 <span className="ml-1.5 text-slate-400 font-normal">
                   — {selectedUserForRoleChange.first_name || selectedUserForRoleChange.name || 'User'}
@@ -920,24 +839,24 @@ const RolesAdmin = () => {
         <Form layout="vertical" form={changeRoleForm} onFinish={handleChangeRoleFinish} className="pt-2">
           {currentRole && (
             <div className="flex items-center gap-2 mb-4 text-sm text-slate-500">
-              Current role:
+              {t('admin:roles.modals.currentRole')}
               <CategoryChip category={currentRole.name in CATEGORY_COLORS ? currentRole.name : 'settings'} />
               <span className="font-medium text-slate-700">{currentRole.name}</span>
             </div>
           )}
           <Form.Item
-            label={<span className="text-sm font-medium text-slate-700">New Role</span>}
+            label={<span className="text-sm font-medium text-slate-700">{t('admin:roles.modals.selectNewRoleLabel')}</span>}
             name="new_role_id"
-            rules={[{ required: true, message: 'Select a new role' }]}
+            rules={[{ required: true, message: t('admin:roles.modals.selectNewRoleRequired') }]}
           >
             <Select
               showSearch
-              placeholder="Select new role"
+              placeholder={t('admin:roles.modals.selectNewRolePlaceholder')}
               options={roleOptionsForChange}
               filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
             />
           </Form.Item>
-          {modalFooterButtons(() => { setChangeRoleOpen(false); setSelectedUserForRoleChange(null); }, 'Change Role')}
+          {modalFooterButtons(() => { setChangeRoleOpen(false); setSelectedUserForRoleChange(null); }, t('admin:roles.modals.changeRoleButton'))}
         </Form>
       </Modal>
     </>

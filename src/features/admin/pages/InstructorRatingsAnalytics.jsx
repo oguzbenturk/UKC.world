@@ -1,5 +1,6 @@
 /* eslint-disable complexity */
 import { useMemo, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
 	Alert,
 	Avatar,
@@ -53,25 +54,7 @@ const DEFAULT_FILTERS = {
 	highlightBenchmark: true
 };
 
-const SORT_OPTIONS = [
-	{ value: 'average', label: 'Highest average rating', title: 'Highest average rating' },
-	{ value: 'count', label: 'Most ratings submitted', title: 'Most ratings submitted' },
-	{ value: 'recent', label: 'Most recent feedback', title: 'Most recent feedback' }
-];
-
-const SERVICE_TYPE_OPTIONS = [
-	{ value: 'all', label: 'All services' },
-	{ value: 'lesson', label: 'Lessons' },
-	{ value: 'rental', label: 'Rentals' },
-	{ value: 'accommodation', label: 'Accommodation' }
-];
-
-const TIME_RANGE_OPTIONS = [
-	{ value: 'all', label: 'All time' },
-	{ value: '7d', label: 'Last 7 days' },
-	{ value: '30d', label: 'Last 30 days' },
-	{ value: '90d', label: 'Last 90 days' }
-];
+// Options moved into component to use t()
 
 const formatPercent = (value) => `${(value ?? 0).toFixed(1)}%`;
 
@@ -139,13 +122,13 @@ const MetricCard = ({ title, description, icon, accent = 'slate', statisticProps
 	);
 };
 
-const LeaderboardMobileCard = ({ record }) => {
+const LeaderboardMobileCard = ({ record, t }) => {
   const isBenchmark = record.benchmarkHit;
   const isTop3 = record.rank <= 3;
-  
+
   return (
-    <Card 
-      size="small" 
+    <Card
+      size="small"
       className={`mb-3 shadow-sm ${isBenchmark ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'} ${isTop3 ? 'border-l-4 border-l-amber-400' : ''}`}
     >
       <div className="flex justify-between items-start mb-2">
@@ -154,39 +137,60 @@ const LeaderboardMobileCard = ({ record }) => {
             <div className="font-semibold text-lg">{record.instructorName}</div>
          </div>
          <div className="flex flex-col items-end">
-            <Tag color="blue" className="mr-0 mb-1">{record.averageRating} Avg</Tag>
-            {isBenchmark && <Tag color="gold" className="mr-0">Top Tier</Tag>}
+            <Tag color="blue" className="mr-0 mb-1">{record.averageRating} {t('admin:ratings.mobileCard.avg')}</Tag>
+            {isBenchmark && <Tag color="gold" className="mr-0">{t('admin:ratings.mobileCard.topTier')}</Tag>}
          </div>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-2 mb-2 text-sm">
-         <div className="text-gray-500">Ratings: <span className="text-gray-900 font-medium">{record.totalRatings}</span></div>
-         <div className="text-gray-500 text-right">5★ Share: <span className="text-gray-900 font-medium">{formatPercent(record.fiveStarShare)}</span></div>
+         <div className="text-gray-500">{t('admin:ratings.mobileCard.ratingsLabel')} <span className="text-gray-900 font-medium">{record.totalRatings}</span></div>
+         <div className="text-gray-500 text-right">{t('admin:ratings.mobileCard.fiveStarShare')} <span className="text-gray-900 font-medium">{formatPercent(record.fiveStarShare)}</span></div>
       </div>
-      
+
       <div className="border-t pt-2 mt-1 grid grid-cols-3 gap-1 text-xs text-center">
          <div>
-           <div className="text-gray-500">Lesson</div>
+           <div className="text-gray-500">{t('admin:ratings.mobileCard.lesson')}</div>
            <div className="font-medium">{Number(record.breakdown?.lesson?.average || 0).toFixed(2)}</div>
          </div>
          <div className="border-l border-r border-gray-100">
-           <div className="text-gray-500">Rental</div>
+           <div className="text-gray-500">{t('admin:ratings.mobileCard.rental')}</div>
            <div className="font-medium">{Number(record.breakdown?.rental?.average || 0).toFixed(2)}</div>
          </div>
          <div>
-           <div className="text-gray-500">Accomm</div>
+           <div className="text-gray-500">{t('admin:ratings.mobileCard.accomm')}</div>
            <div className="font-medium">{Number(record.breakdown?.accommodation?.average || 0).toFixed(2)}</div>
          </div>
       </div>
 
-      <div className="text-xs text-gray-400 mt-2 text-right">Last rated: {record.lastRatingAt || 'Never'}</div>
+      <div className="text-xs text-gray-400 mt-2 text-right">{t('admin:ratings.mobileCard.lastRated', { date: record.lastRatingAt || '—' })}</div>
     </Card>
   );
 };
 
 
 const InstructorRatingsAnalytics = () => {
+	const { t } = useTranslation(['admin']);
 	const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+	const SORT_OPTIONS = [
+		{ value: 'average', label: t('admin:ratings.sort.average'), title: t('admin:ratings.sort.average') },
+		{ value: 'count', label: t('admin:ratings.sort.count'), title: t('admin:ratings.sort.count') },
+		{ value: 'recent', label: t('admin:ratings.sort.recent'), title: t('admin:ratings.sort.recent') },
+	];
+
+	const SERVICE_TYPE_OPTIONS = [
+		{ value: 'all', label: t('admin:ratings.serviceType.all') },
+		{ value: 'lesson', label: t('admin:ratings.serviceType.lesson') },
+		{ value: 'rental', label: t('admin:ratings.serviceType.rental') },
+		{ value: 'accommodation', label: t('admin:ratings.serviceType.accommodation') },
+	];
+
+	const TIME_RANGE_OPTIONS = [
+		{ value: 'all', label: t('admin:ratings.timeRange.all') },
+		{ value: '7d', label: t('admin:ratings.timeRange.7d') },
+		{ value: '30d', label: t('admin:ratings.timeRange.30d') },
+		{ value: '90d', label: t('admin:ratings.timeRange.90d') },
+	];
 	const [autoRefresh, setAutoRefresh] = useState(false);
 	const { data, isLoading, error, refetch } = useInstructorRatingsAnalytics(filters, {
 		autoRefresh,
@@ -274,10 +278,10 @@ const InstructorRatingsAnalytics = () => {
 	const starDistributionData = useMemo(
 		() =>
 			data.starBuckets.map((count, index) => ({
-				label: `${5 - index} Stars`,
+				label: t('admin:ratings.charts.stars', { count: 5 - index }),
 				count
 			})),
-		[data.starBuckets]
+		[data.starBuckets, t]
 	);
 
 	const serviceBreakdownData = useMemo(
@@ -308,8 +312,8 @@ const InstructorRatingsAnalytics = () => {
 			return record.lastRatingTimestamp > current ? record.lastRatingTimestamp : current;
 		}, null);
 
-		return latest ? new Date(latest).toLocaleDateString() : 'No ratings';
-	}, [tableData]);
+		return latest ? new Date(latest).toLocaleDateString() : t('admin:ratings.metrics.noRatingsYet');
+	}, [tableData, t]);
 
 	const totalRatings = data.totals.totalRatings;
 	const overallAverage = Number(data.totals.average || 0);
@@ -320,18 +324,18 @@ const InstructorRatingsAnalytics = () => {
 		() => [
 			{
 				key: 'average',
-				title: 'Average rating',
+				title: t('admin:ratings.metrics.averageRating'),
 				icon: <StarFilled style={{ fontSize: 18 }} />,
 				accent: 'amber',
 				statisticProps: {
 					value: overallAverage,
 					precision: 2
 				},
-				description: hasRatings ? `Computed across ${totalRatings} submissions.` : 'No ratings submitted yet.'
+				description: hasRatings ? t('admin:ratings.metrics.computedAcross', { count: totalRatings }) : t('admin:ratings.metrics.noRatings')
 			},
 			{
 				key: 'fiveStarShare',
-				title: 'Five-star share',
+				title: t('admin:ratings.metrics.fiveStarShare'),
 				icon: <LikeFilled style={{ fontSize: 18 }} />,
 				accent: 'sky',
 				statisticProps: {
@@ -340,41 +344,41 @@ const InstructorRatingsAnalytics = () => {
 					suffix: '%'
 				},
 				description: hasRatings
-					? 'Portion of total reviews earning five stars.'
-					: 'Collect more feedback to populate this metric.'
+					? t('admin:ratings.metrics.portionFiveStars')
+					: t('admin:ratings.metrics.collectMore')
 			},
 			{
 				key: 'activeInstructors',
-				title: 'Active instructors',
+				title: t('admin:ratings.metrics.activeInstructors'),
 				icon: <TeamOutlined style={{ fontSize: 18 }} />,
 				accent: 'emerald',
 				statisticProps: {
 					value: tableData.length
 				},
 				description: tableData.length
-					? 'Currently included in the leaderboard.'
-					: 'No instructors have ratings yet.'
+					? t('admin:ratings.metrics.currentlyOnLeaderboard')
+					: t('admin:ratings.metrics.noInstructorsYet')
 			},
 			{
 				key: 'latestFeedback',
-				title: 'Most recent feedback',
+				title: t('admin:ratings.metrics.mostRecentFeedback'),
 				icon: <FieldTimeOutlined style={{ fontSize: 18 }} />,
 				accent: 'indigo',
 				statisticProps: {
 					value: latestFeedbackLabel
 				},
 				description: hasRatings
-					? 'Latest submission date among tracked instructors.'
-					: 'No feedback submitted yet.'
+					? t('admin:ratings.metrics.latestSubmissionDate')
+					: t('admin:ratings.metrics.noFeedback')
 			}
 		],
-		[hasRatings, latestFeedbackLabel, overallAverage, tableData.length, totalRatings, fiveStarShareValue]
+		[hasRatings, latestFeedbackLabel, overallAverage, tableData.length, totalRatings, fiveStarShareValue, t]
 	);
 
 	const sortDescriptorMap = {
-		average: 'highest average rating',
-		count: 'most ratings submitted',
-		recent: 'most recent feedback'
+		average: t('admin:ratings.sort.average'),
+		count: t('admin:ratings.sort.count'),
+		recent: t('admin:ratings.sort.recent'),
 	};
 	const sortDescriptor = sortDescriptorMap[filters.sortBy] ?? filters.sortBy;
 
@@ -384,8 +388,8 @@ const InstructorRatingsAnalytics = () => {
 		if (!hasRatings) {
 			return [
 				{
-					title: 'No ratings yet',
-					description: 'Encourage students to submit their first reviews to unlock analytics.'
+					title: t('admin:ratings.insights.noRatings'),
+					description: t('admin:ratings.insights.noRatingsDescription')
 				}
 			];
 		}
@@ -412,29 +416,29 @@ const InstructorRatingsAnalytics = () => {
 
 		return [
 			{
-				title: 'Overall average',
-				description: `${overallAverage.toFixed(2)} across ${totalRatings} total ratings.`
+				title: t('admin:ratings.insights.overallAverage'),
+				description: t('admin:ratings.insights.overallAverageDescription', { average: overallAverage.toFixed(2), total: totalRatings })
 			},
 			{
-				title: 'Five-star champions',
-				description: `${highestFiveStar.name || '—'} leads with ${formatPercent(highestFiveStar.value)} five-star reviews.`
+				title: t('admin:ratings.insights.fiveStarChampions'),
+				description: t('admin:ratings.insights.fiveStarChampionsDescription', { name: highestFiveStar.name || '—', percent: formatPercent(highestFiveStar.value) })
 			},
 			{
-				title: 'Most feedback collected',
-				description: `${mostRatings.name || '—'} has received ${mostRatings.value} ratings in total.`
+				title: t('admin:ratings.insights.mostFeedback'),
+				description: t('admin:ratings.insights.mostFeedbackDescription', { name: mostRatings.name || '—', count: mostRatings.value })
 			}
 		];
-	}, [hasRatings, overallAverage, tableData, totalRatings]);
+	}, [hasRatings, overallAverage, tableData, totalRatings, t]);
 
 	const columns = [
 		{
-			title: '#',
+			title: t('admin:ratings.table.rank'),
 			dataIndex: 'rank',
 			key: 'rank',
 			width: 60
 		},
 		{
-			title: 'Instructor',
+			title: t('admin:ratings.table.instructor'),
 			dataIndex: 'instructorName',
 			key: 'instructorName',
 			render: (name, record) => (
@@ -452,32 +456,32 @@ const InstructorRatingsAnalytics = () => {
 			sorter: (a, b) => a.instructorName.localeCompare(b.instructorName)
 		},
 		{
-			title: 'Average Rating',
+			title: t('admin:ratings.table.averageRating'),
 			dataIndex: 'averageRating',
 			key: 'averageRating',
 			render: (value) => <Text>{value}</Text>,
 			sorter: (a, b) => Number(a.averageRating) - Number(b.averageRating)
 		},
 		{
-			title: 'Ratings',
+			title: t('admin:ratings.table.ratings'),
 			dataIndex: 'totalRatings',
 			key: 'totalRatings',
 			sorter: (a, b) => a.totalRatings - b.totalRatings
 		},
 		{
-			title: '5★ Share',
+			title: t('admin:ratings.table.fiveStarShare'),
 			dataIndex: 'fiveStarShare',
 			key: 'fiveStarShare',
 			render: (value) => <Tag color={value >= 60 ? 'green' : 'blue'}>{formatPercent(value)}</Tag>,
 			sorter: (a, b) => a.fiveStarShare - b.fiveStarShare
 		},
 		{
-			title: 'Last Rating',
+			title: t('admin:ratings.table.lastRating'),
 			dataIndex: 'lastRatingAt',
 			key: 'lastRatingAt'
 		},
 		{
-			title: 'Lesson Avg',
+			title: t('admin:ratings.table.lessonAvg'),
 			dataIndex: ['breakdown', 'lesson', 'average'],
 			key: 'lessonAverage',
 			render: (_, record) => (
@@ -487,7 +491,7 @@ const InstructorRatingsAnalytics = () => {
 			)
 		},
 		{
-			title: 'Rental Avg',
+			title: t('admin:ratings.table.rentalAvg'),
 			dataIndex: ['breakdown', 'rental', 'average'],
 			key: 'rentalAverage',
 			render: (_, record) => (
@@ -497,7 +501,7 @@ const InstructorRatingsAnalytics = () => {
 			)
 		},
 		{
-			title: 'Accommodation Avg',
+			title: t('admin:ratings.table.accommodationAvg'),
 			dataIndex: ['breakdown', 'accommodation', 'average'],
 			key: 'accommodationAverage',
 			render: (_, record) => (
@@ -507,11 +511,11 @@ const InstructorRatingsAnalytics = () => {
 			)
 		},
 		filters.highlightBenchmark && {
-			title: 'Benchmark',
+			title: t('admin:ratings.table.benchmark'),
 			dataIndex: 'benchmarkHit',
 			key: 'benchmarkHit',
 			render: (_, record) =>
-				record.benchmarkHit ? <Tag color="gold">Top performer</Tag> : <Tag>Below target</Tag>
+				record.benchmarkHit ? <Tag color="gold">{t('admin:ratings.table.topPerformer')}</Tag> : <Tag>{t('admin:ratings.table.belowTarget')}</Tag>
 		}
 	];
 
@@ -530,10 +534,10 @@ const InstructorRatingsAnalytics = () => {
 						<Space size={12} align="center" className="w-full justify-between">\n							<div className="space-y-2">
 								<Title level={2} className="!mb-0 text-slate-900 flex items-center gap-3">
 									<StarFilled className="text-amber-500 flex-shrink-0" />
-									Instructor Ratings Analytics
+									{t('admin:ratings.title')}
 								</Title>
 								<Text className="text-slate-600 text-base">
-									Track instructor performance and student feedback across all services.
+									{t('admin:ratings.subtitle')}
 								</Text>
 							</div>
 						</Space>
@@ -550,7 +554,7 @@ const InstructorRatingsAnalytics = () => {
 				<Alert
 					type="error"
 					showIcon
-					message="Failed to load instructor analytics"
+					message={t('admin:ratings.error')}
 					description={error.message}
 					className="rounded-2xl border border-rose-200 bg-rose-50"
 				/>
@@ -563,12 +567,12 @@ const InstructorRatingsAnalytics = () => {
 						loading={isLoading}
 					>
 						<Space direction="vertical" size={12} className="w-full">
-							<Title level={4} style={{ margin: 0 }}>Rating distribution</Title>
-							<Text type="secondary">How students score instructors over time.</Text>
+							<Title level={4} style={{ margin: 0 }}>{t('admin:ratings.charts.ratingDistribution')}</Title>
+							<Text type="secondary">{t('admin:ratings.charts.ratingDistributionSubtitle')}</Text>
 						</Space>
 						<div className="mt-4" style={{ height: 260 }}>
 							{!totalRatings ? (
-								<Empty description="No rating data yet" />
+								<Empty description={t('admin:ratings.charts.noRatingData')} />
 							) : (
 								<ResponsiveContainer width="100%" height="100%">
 									<BarChart data={starDistributionData}>
@@ -587,16 +591,16 @@ const InstructorRatingsAnalytics = () => {
 						className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
 					>
 						<Space direction="vertical" size={12} className="w-full">
-							<Title level={4} style={{ margin: 0 }}>Service breakdown</Title>
+							<Title level={4} style={{ margin: 0 }}>{t('admin:ratings.charts.serviceBreakdown')}</Title>
 							<Text type="secondary">
 								{totalRatings
-									? `${formatPercent(fiveStarShareValue)} of ratings are five-star. Overall average is ${overallAverage.toFixed(2)}.`
-									: 'Collect more feedback to unlock this breakdown.'}
+									? t('admin:ratings.charts.serviceBreakdownSubtitle', { fiveStarPercent: formatPercent(fiveStarShareValue), average: overallAverage.toFixed(2) })
+									: t('admin:ratings.charts.noServiceBreakdown')}
 							</Text>
 						</Space>
 						<div className="mt-4" style={{ height: 260 }}>
 							{!totalRatings ? (
-								<Empty description="No service breakdown available" />
+								<Empty description={t('admin:ratings.charts.noServiceBreakdownData')} />
 							) : (
 								<ResponsiveContainer width="100%" height="100%">
 									<BarChart data={serviceBreakdownData}>
@@ -618,7 +622,7 @@ const InstructorRatingsAnalytics = () => {
 					<Space direction="vertical" size={16} className="w-full">
 						<Space size={10} align="center">
 							<RiseOutlined style={{ color: '#0ea5e9' }} />
-							<Text strong>Key insights</Text>
+							<Text strong>{t('admin:ratings.insights.title')}</Text>
 						</Space>
 						<List
 							dataSource={insights}
@@ -642,10 +646,10 @@ const InstructorRatingsAnalytics = () => {
 				<Space direction="vertical" size={16} className="w-full">
 					<Space size={10} align="center">
 						<CrownFilled style={{ color: '#f59e0b' }} />
-						<Text strong>Top performers</Text>
+						<Text strong>{t('admin:ratings.topPerformers.title')}</Text>
 					</Space>
 					{!topPerformers.length ? (
-						<Empty description="No instructors ranked yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+						<Empty description={t('admin:ratings.topPerformers.noInstructors')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
 					) : (
 						<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 							{topPerformers.map((item, index) => (
@@ -666,10 +670,10 @@ const InstructorRatingsAnalytics = () => {
 									<div className="flex-1 min-w-0">
 										<div className="flex items-center gap-2">
 											<Text strong className="truncate">#{item.rank} {item.instructorName}</Text>
-											{index === 0 && <Tag color="gold" className="m-0 flex-shrink-0">Champion</Tag>}
+											{index === 0 && <Tag color="gold" className="m-0 flex-shrink-0">{t('admin:ratings.topPerformers.champion')}</Tag>}
 										</div>
 										<Text type="secondary" className="text-xs">
-											Avg {item.averageRating} · {item.totalRatings} ratings · {formatPercent(item.fiveStarShare)} 5★
+											{t('admin:ratings.topPerformers.avgRatingsFormat', { avg: item.averageRating, count: item.totalRatings, fiveStarPct: formatPercent(item.fiveStarShare) })}
 										</Text>
 									</div>
 								</div>
@@ -683,11 +687,11 @@ const InstructorRatingsAnalytics = () => {
 				className="rounded-2xl border border-slate-200 shadow-sm [&>.ant-card-body]:p-5 sm:[&>.ant-card-body]:p-6"
 			>
 				<Space direction="vertical" size={12} className="w-full">
-					<Title level={4} style={{ margin: 0 }}>Instructor leaderboard</Title>
+					<Title level={4} style={{ margin: 0 }}>{t('admin:ratings.leaderboard.title')}</Title>
 						<Text type="secondary">
 							{totalRatings
-								? 'Use the leaderboard to spot consistently high performers and areas needing support.'
-								: 'Leaderboard data will appear once instructors receive ratings.'}
+								? t('admin:ratings.leaderboard.subtitle')
+								: t('admin:ratings.leaderboard.waitingForRatings')}
 						</Text>
 					</Space>
 
@@ -697,15 +701,15 @@ const InstructorRatingsAnalytics = () => {
 						</div>
 					) : !tableData.length ? (
 						<Result
-							title="No data available"
-							subTitle="Ratings will appear once students start submitting feedback."
+							title={t('admin:ratings.leaderboard.noDataTitle')}
+							subTitle={t('admin:ratings.leaderboard.noDataSubtitle')}
 						/>
 					) : (
 							<>
 								<Row gutter={[16, 16]} className="mb-6">
 									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
-											<Text strong>Sort by</Text>
+											<Text strong>{t('admin:ratings.leaderboard.sortBy')}</Text>
 											<Select
 												value={filters.sortBy}
 												onChange={handleSortChange}
@@ -723,45 +727,45 @@ const InstructorRatingsAnalytics = () => {
 									</Col>
 									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
-											<Text strong>Benchmark highlight</Text>
+											<Text strong>{t('admin:ratings.leaderboard.benchmarkHighlight')}</Text>
 											<Space size={8} align="center">
 												<Switch
 													checked={filters.highlightBenchmark}
 													onChange={handleBenchmarkToggle}
 													aria-label="Toggle benchmark highlight"
 												/>
-												<Text type="secondary" className="truncate" title={filters.highlightBenchmark ? 'Showing top performer badges' : 'Hidden from leaderboard'}>
-													{filters.highlightBenchmark ? 'Showing badges' : 'Hidden'}
+												<Text type="secondary" className="truncate">
+													{filters.highlightBenchmark ? t('admin:ratings.leaderboard.showingBadges') : t('admin:ratings.leaderboard.hidden')}
 												</Text>
 											</Space>
 										</Space>
 									</Col>
 									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
-											<Text strong>Auto refresh</Text>
+											<Text strong>{t('admin:ratings.leaderboard.autoRefresh')}</Text>
 											<Space size={8} align="center">
 												<Switch
 													checked={autoRefresh}
 													onChange={handleAutoRefreshToggle}
 													aria-label="Auto refresh"
 												/>
-												<Text type="secondary">Every 60s</Text>
+												<Text type="secondary">{t('admin:ratings.leaderboard.every60s')}</Text>
 											</Space>
 										</Space>
 									</Col>
 									<Col xs={24} sm={12} lg={12} xl={6}>
 										<Space direction="vertical" size={4} className="w-full">
-											<Text strong>Actions</Text>
+											<Text strong>{t('admin:ratings.leaderboard.actions')}</Text>
 											<Space size={8} wrap>
 												<Button icon={<ReloadOutlined />} onClick={handleManualRefresh}>
-													Refresh
+													{t('admin:ratings.leaderboard.refresh')}
 												</Button>
 												<Button
 													icon={<FilePdfOutlined />}
 													onClick={handleExportPdf}
 													disabled={!tableData.length}
 												>
-													Export
+													{t('admin:ratings.leaderboard.export')}
 												</Button>
 											</Space>
 										</Space>
@@ -769,9 +773,9 @@ const InstructorRatingsAnalytics = () => {
 								</Row>
 								<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 									<Text type="secondary" className="uppercase tracking-wide text-xs">
-										Sorted by {sortDescriptor}
+										{t('admin:ratings.leaderboard.sortedBy', { descriptor: sortDescriptor })}
 									</Text>
-									<Text type="secondary">Benchmark performers are highlighted in amber.</Text>
+									<Text type="secondary">{t('admin:ratings.leaderboard.benchmarkNote')}</Text>
 								</div>
 							<UnifiedResponsiveTable
 								columns={sanitizedColumns}
@@ -781,7 +785,7 @@ const InstructorRatingsAnalytics = () => {
 								pagination={{
 									pageSize: 10,
 									showSizeChanger: false,
-									showTotal: (total) => `${total} instructor${total === 1 ? '' : 's'}`
+									showTotal: (total) => t('admin:ratings.leaderboard.totalInstructors', { count: total })
 								}}
 								scroll={{ x: 1200 }}
 								rowClassName={(record) => {
@@ -794,7 +798,7 @@ const InstructorRatingsAnalytics = () => {
 									}
 									return classes.join(' ');
 								}}
-								mobileCardRenderer={(props) => <LeaderboardMobileCard {...props} />}
+								mobileCardRenderer={(props) => <LeaderboardMobileCard {...props} t={t} />}
 							/>
 						</>
 					)}

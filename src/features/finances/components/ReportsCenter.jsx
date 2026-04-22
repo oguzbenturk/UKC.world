@@ -1,5 +1,6 @@
 // src/features/finances/components/ReportsCenter.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Card, 
   Tabs, 
@@ -44,6 +45,7 @@ const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
 function ReportsCenter() {
+  const { t } = useTranslation(['manager']);
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [loading, setLoading] = useState(false);
@@ -57,63 +59,20 @@ function ReportsCenter() {
 
   // Report types configuration
   const reportTypes = [
-    {
-      key: 'financial-summary',
-      name: 'Financial Summary',
-      description: 'Complete financial overview with revenue, expenses, and profit analysis',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel', 'csv']
-    },
-    {
-      key: 'revenue-analytics',
-      name: 'Revenue Analytics',
-      description: 'Detailed revenue analysis with trends and forecasting',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel']
-    },
-    {
-      key: 'customer-analytics',
-      name: 'Customer Analytics',
-      description: 'Customer behavior, CLV, and segmentation analysis',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel', 'csv']
-    },
-    {
-      key: 'operational-metrics',
-      name: 'Operational Metrics',
-      description: 'Efficiency, utilization, and performance metrics',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel']
-    },
-    {
-      key: 'instructor-performance',
-      name: 'Instructor Performance',
-      description: 'Individual instructor metrics and commissions',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel', 'csv']
-    },
-    {
-      key: 'outstanding-balances',
-      name: 'Outstanding Balances',
-      description: 'Customer debt and credit analysis',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel', 'csv']
-    },
-    {
-      key: 'inventory-valuation',
-      name: 'Inventory Valuation',
-      description: 'Equipment and inventory financial analysis',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel']
-    },
-    {
-      key: 'tax-report',
-      name: 'Tax Report',
-      description: 'Tax-ready financial statements and summaries',
-      icon: <FileTextOutlined />,
-      formats: ['pdf', 'excel']
-    }
-  ];
+    { key: 'financial-summary', formats: ['pdf', 'excel', 'csv'] },
+    { key: 'revenue-analytics', formats: ['pdf', 'excel'] },
+    { key: 'customer-analytics', formats: ['pdf', 'excel', 'csv'] },
+    { key: 'operational-metrics', formats: ['pdf', 'excel'] },
+    { key: 'instructor-performance', formats: ['pdf', 'excel', 'csv'] },
+    { key: 'outstanding-balances', formats: ['pdf', 'excel', 'csv'] },
+    { key: 'inventory-valuation', formats: ['pdf', 'excel'] },
+    { key: 'tax-report', formats: ['pdf', 'excel'] },
+  ].map((r) => ({
+    ...r,
+    name: t(`manager:reportsCenter.reportTypes.${r.key}`),
+    description: t(`manager:reportsCenter.reportDescriptions.${r.key}`),
+    icon: <FileTextOutlined />,
+  }));
 
   // Fetch data
   useEffect(() => {
@@ -160,12 +119,12 @@ function ReportsCenter() {
       link.download = `${values.reportType}-${new Date().toISOString().split('T')[0]}.${values.format}`;
       link.click();
       
-      message.success('Report generated successfully');
+      message.success(t('manager:reportsCenter.messages.generated'));
       setGenerateModalVisible(false);
       form.resetFields();
       fetchReportData();
   } catch {
-      message.error('Failed to generate report');
+      message.error(t('manager:reportsCenter.messages.generateError'));
     } finally {
       setLoading(false);
     }
@@ -191,12 +150,12 @@ function ReportsCenter() {
 
       await ReportingService.scheduleReport(scheduleConfig);
       
-      message.success('Report scheduled successfully');
+      message.success(t('manager:reportsCenter.messages.scheduled'));
       setScheduleModalVisible(false);
       scheduleForm.resetFields();
       fetchReportData();
   } catch {
-      message.error('Failed to schedule report');
+      message.error(t('manager:reportsCenter.messages.scheduleError'));
     } finally {
       setLoading(false);
     }
@@ -206,10 +165,10 @@ function ReportsCenter() {
   const handleToggleSchedule = async (reportId, active) => {
     try {
       await ReportingService.updateScheduledReport(reportId, { active });
-      message.success(`Report ${active ? 'activated' : 'paused'}`);
+      message.success(active ? t('manager:reportsCenter.messages.activated') : t('manager:reportsCenter.messages.paused'));
       fetchReportData();
   } catch {
-      message.error('Failed to update report schedule');
+      message.error(t('manager:reportsCenter.messages.toggleError'));
     }
   };
 
@@ -217,10 +176,10 @@ function ReportsCenter() {
   const handleDeleteSchedule = async (reportId) => {
     try {
       await ReportingService.deleteScheduledReport(reportId);
-      message.success('Scheduled report deleted');
+      message.success(t('manager:reportsCenter.messages.deleted'));
       fetchReportData();
   } catch {
-      message.error('Failed to delete scheduled report');
+      message.error(t('manager:reportsCenter.messages.deleteError'));
     }
   };
 
@@ -232,7 +191,7 @@ function ReportsCenter() {
       link.href = downloadUrl;
       link.click();
   } catch {
-      message.error('Failed to download report');
+      message.error(t('manager:reportsCenter.messages.downloadError'));
     }
   };
 
@@ -253,11 +212,11 @@ function ReportsCenter() {
 
   const renderFrequency = (frequency, record) => {
     const freqMap = {
-      daily: 'Daily',
-      weekly: `Weekly (${record.dayOfWeek})`,
-      monthly: `Monthly (${record.dayOfMonth}th)`,
-      quarterly: 'Quarterly',
-      yearly: 'Yearly'
+      daily: t('manager:reportsCenter.frequency.daily'),
+      weekly: t('manager:reportsCenter.frequency.weekly', { day: record.dayOfWeek }),
+      monthly: t('manager:reportsCenter.frequency.monthly', { day: record.dayOfMonth }),
+      quarterly: t('manager:reportsCenter.frequency.quarterly'),
+      yearly: t('manager:reportsCenter.frequency.yearly'),
     };
     return freqMap[frequency] || frequency;
   };
@@ -265,7 +224,7 @@ function ReportsCenter() {
   // Scheduled reports table columns
   const scheduledColumns = [
     {
-      title: 'Report Name',
+      title: t('manager:reportsCenter.columns.reportName'),
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -275,50 +234,50 @@ function ReportsCenter() {
         </div>
       )
     },
-  { title: 'Frequency', dataIndex: 'frequency', key: 'frequency', render: renderFrequency },
+  { title: t('manager:reportsCenter.columns.frequency'), dataIndex: 'frequency', key: 'frequency', render: renderFrequency },
     {
-      title: 'Format',
+      title: t('manager:reportsCenter.columns.format'),
       dataIndex: 'format',
       key: 'format',
       render: renderFormat
     },
     {
-      title: 'Recipients',
+      title: t('manager:reportsCenter.columns.recipients'),
       dataIndex: 'recipients',
       key: 'recipients',
       render: (recipients) => (
         <Tooltip title={recipients?.join(', ')}>
-          <Tag>{recipients?.length || 0} recipients</Tag>
+          <Tag>{t('manager:reportsCenter.recipients', { count: recipients?.length || 0 })}</Tag>
         </Tooltip>
       )
     },
     {
-      title: 'Next Run',
+      title: t('manager:reportsCenter.columns.nextRun'),
       dataIndex: 'nextRun',
       key: 'nextRun',
-      render: (date) => (date ? formatDate(date) : 'Not scheduled')
+      render: (date) => (date ? formatDate(date) : t('manager:reportsCenter.notScheduled'))
     },
     {
-      title: 'Status',
+      title: t('manager:reportsCenter.columns.status'),
       dataIndex: 'active',
       key: 'active',
       render: (active, record) => (
         <Switch
           checked={active}
           onChange={(checked) => handleToggleSchedule(record.id, checked)}
-          checkedChildren="Active"
-          unCheckedChildren="Paused"
+          checkedChildren={t('manager:reportsCenter.switchStatus.active')}
+          unCheckedChildren={t('manager:reportsCenter.switchStatus.paused')}
         />
       )
     },
     {
-      title: 'Actions',
+      title: t('manager:reportsCenter.columns.actions'),
       key: 'actions',
       render: (_, record) => {
         const menu = (
           <Menu>
-            <Menu.Item 
-              key="edit" 
+            <Menu.Item
+              key="edit"
               icon={<EditOutlined />}
               onClick={() => {
                 setSelectedReport(record);
@@ -326,23 +285,23 @@ function ReportsCenter() {
                 setScheduleModalVisible(true);
               }}
             >
-              Edit
+              {t('manager:reportsCenter.edit')}
             </Menu.Item>
-            <Menu.Item 
-              key="run" 
+            <Menu.Item
+              key="run"
               icon={<PlayCircleOutlined />}
               onClick={() => handleRunNow(record)}
             >
-              Run Now
+              {t('manager:reportsCenter.runNow')}
             </Menu.Item>
             <Menu.Divider />
-            <Menu.Item 
-              key="delete" 
+            <Menu.Item
+              key="delete"
               icon={<DeleteOutlined />}
               danger
               onClick={() => handleDeleteSchedule(record.id)}
             >
-              Delete
+              {t('manager:reportsCenter.delete')}
             </Menu.Item>
           </Menu>
         );
@@ -359,7 +318,7 @@ function ReportsCenter() {
   // Report history table columns
   const historyColumns = [
     {
-      title: 'Report',
+      title: t('manager:reportsCenter.columns.report'),
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -370,31 +329,31 @@ function ReportsCenter() {
       )
     },
     {
-      title: 'Generated',
+      title: t('manager:reportsCenter.columns.generated'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date) => formatDate(date),
       sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
     },
     {
-      title: 'Period',
+      title: t('manager:reportsCenter.columns.period'),
       key: 'period',
       render: (_, record) => `${formatDate(record.startDate)} - ${formatDate(record.endDate)}`
     },
     {
-      title: 'Format',
+      title: t('manager:reportsCenter.columns.format'),
       dataIndex: 'format',
       key: 'format',
       render: renderFormat
     },
     {
-      title: 'Size',
+      title: t('manager:reportsCenter.columns.size'),
       dataIndex: 'fileSize',
       key: 'fileSize',
       render: (size) => `${(size / 1024).toFixed(1)} KB`
     },
     {
-      title: 'Status',
+      title: t('manager:reportsCenter.columns.status'),
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
@@ -407,25 +366,25 @@ function ReportsCenter() {
       }
     },
     {
-      title: 'Actions',
+      title: t('manager:reportsCenter.columns.actions'),
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button 
-            type="text" 
+          <Button
+            type="text"
             icon={<DownloadOutlined />}
             onClick={() => handleDownloadFromHistory(record.id)}
             disabled={record.status !== 'completed'}
           >
-            Download
+            {t('manager:reportsCenter.download')}
           </Button>
-          <Button 
-            type="text" 
+          <Button
+            type="text"
             icon={<EyeOutlined />}
             onClick={() => handlePreviewReport(record)}
             disabled={record.status !== 'completed'}
           >
-            Preview
+            {t('manager:reportsCenter.preview')}
           </Button>
         </Space>
       )
@@ -435,23 +394,23 @@ function ReportsCenter() {
   const handleRunNow = async (report) => {
     try {
       await ReportingService.runScheduledReport(report.id);
-      message.success('Report generation started');
+      message.success(t('manager:reportsCenter.messages.runStarted'));
       fetchReportData();
     } catch {
-      message.error('Failed to run report');
+      message.error(t('manager:reportsCenter.messages.runError'));
     }
   };
 
   const handlePreviewReport = (_report) => {
     // Implement report preview functionality
-    message.info('Preview functionality coming soon');
+    message.info(t('manager:reportsCenter.messages.previewComingSoon'));
   };
 
   // Tabs items generator (extracted to lower component complexity)
   const getTabsItems = () => ([
     {
       key: 'scheduled',
-      label: 'Scheduled Reports',
+      label: t('manager:reportsCenter.scheduledReports'),
       children: (
         <UnifiedTable density={isMobile ? 'compact' : 'comfortable'}>
           <Table
@@ -471,7 +430,7 @@ function ReportsCenter() {
     },
     {
       key: 'history',
-      label: 'Report History',
+      label: t('manager:reportsCenter.reportHistory'),
       children: (
         <UnifiedTable density={isMobile ? 'compact' : 'comfortable'}>
           <Table
@@ -483,8 +442,8 @@ function ReportsCenter() {
             pagination={{
               showSizeChanger: true,
               showQuickJumper: true,
-              showTotal: (total, range) => 
-                `${range[0]}-${range[1]} of ${total} reports`
+              showTotal: (total, range) =>
+                t('manager:reportsCenter.pagination.showTotal', { start: range[0], end: range[1], total })
             }}
             scroll={{ x: isMobile ? 'max-content' : undefined }}
           />
@@ -497,28 +456,28 @@ function ReportsCenter() {
     <div className="space-y-6">
       {/* Header */}
       <div className={`w-full ${isMobile ? 'flex flex-col gap-2 items-start' : 'flex justify-between items-center'}`}>
-        <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-800`}>Reports Center</h2>
+        <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-800`}>{t('manager:reportsCenter.title')}</h2>
         <Space wrap size={isMobile ? 'small' : 'middle'} className={`${isMobile ? 'w-full justify-start' : ''}`}>
-          <Button 
+          <Button
             size={isMobile ? 'small' : 'middle'}
-            type="primary" 
+            type="primary"
             icon={<PlusOutlined />}
             onClick={() => setGenerateModalVisible(true)}
           >
-            {isMobile ? 'Generate' : 'Generate Report'}
+            {isMobile ? t('manager:reportsCenter.generateShort') : t('manager:reportsCenter.generateReport')}
           </Button>
-          <Button 
+          <Button
             size={isMobile ? 'small' : 'middle'}
             icon={<ScheduleOutlined />}
             onClick={() => setScheduleModalVisible(true)}
           >
-            {isMobile ? 'Schedule' : 'Schedule Report'}
+            {isMobile ? t('manager:reportsCenter.scheduleShort') : t('manager:reportsCenter.scheduleReport')}
           </Button>
         </Space>
       </div>
 
       {/* Report Types Grid */}
-      <Card title="Available Reports">
+      <Card title={t('manager:reportsCenter.availableReports')}>
         <Row gutter={[16, 16]}>
           {reportTypes.map(report => (
             <Col xs={24} sm={12} lg={8} xl={6} key={report.key}>
@@ -527,16 +486,16 @@ function ReportsCenter() {
                 hoverable
                 className="h-full"
                 actions={[
-                  <Button 
+                  <Button
                     key={`generate-${report.key}`}
-                    type="text" 
+                    type="text"
                     icon={<PlayCircleOutlined />}
                     onClick={() => {
                       form.setFieldValue('reportType', report.key);
                       setGenerateModalVisible(true);
                     }}
                   >
-                    Generate
+                    {t('manager:reportsCenter.generate')}
                   </Button>
                 ]}
               >
@@ -570,7 +529,7 @@ function ReportsCenter() {
 
       {/* Generate Report Modal */}
       <Modal
-        title="Generate Report"
+        title={t('manager:reportsCenter.generateReport')}
         open={generateModalVisible}
         onCancel={() => {
           setGenerateModalVisible(false);
@@ -586,10 +545,10 @@ function ReportsCenter() {
         >
           <Form.Item
             name="reportType"
-            label="Report Type"
-            rules={[{ required: true, message: 'Please select a report type' }]}
+            label={t('manager:reportsCenter.form.reportType')}
+            rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectReportType') }]}
           >
-            <Select placeholder="Select report type">
+            <Select placeholder={t('manager:reportsCenter.form.selectReportType')}>
               {reportTypes.map(report => (
                 <Option key={report.key} value={report.key}>
                   {report.name}
@@ -600,18 +559,18 @@ function ReportsCenter() {
 
           <Form.Item
             name="dateRange"
-            label="Date Range"
-            rules={[{ required: true, message: 'Please select date range' }]}
+            label={t('manager:reportsCenter.form.dateRange')}
+            rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectDateRange') }]}
           >
             <RangePicker style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item
             name="format"
-            label="Format"
-            rules={[{ required: true, message: 'Please select format' }]}
+            label={t('manager:reportsCenter.form.format')}
+            rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectFormat') }]}
           >
-            <Select placeholder="Select format">
+            <Select placeholder={t('manager:reportsCenter.form.selectFormat')}>
               <Option value="pdf">PDF</Option>
               <Option value="excel">Excel</Option>
               <Option value="csv">CSV</Option>
@@ -621,12 +580,12 @@ function ReportsCenter() {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="includeCharts" valuePropName="checked">
-                <Switch /> Include Charts
+                <Switch /> {t('manager:reportsCenter.form.includeCharts')}
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="includeDetails" valuePropName="checked" initialValue={true}>
-                <Switch /> Include Details
+                <Switch /> {t('manager:reportsCenter.form.includeDetails')}
               </Form.Item>
             </Col>
           </Row>
@@ -634,10 +593,10 @@ function ReportsCenter() {
           <Form.Item>
             <Space className="w-full justify-end">
               <Button onClick={() => setGenerateModalVisible(false)}>
-                Cancel
+                {t('manager:reportsCenter.cancel')}
               </Button>
               <Button type="primary" htmlType="submit" loading={loading}>
-                Generate Report
+                {t('manager:reportsCenter.generateReport')}
               </Button>
             </Space>
           </Form.Item>
@@ -646,7 +605,7 @@ function ReportsCenter() {
 
       {/* Schedule Report Modal */}
       <Modal
-        title="Schedule Report"
+        title={t('manager:reportsCenter.scheduleReport')}
         open={scheduleModalVisible}
         onCancel={() => {
           setScheduleModalVisible(false);
@@ -663,20 +622,20 @@ function ReportsCenter() {
         >
           <Form.Item
             name="name"
-            label="Report Name"
-            rules={[{ required: true, message: 'Please enter report name' }]}
+            label={t('manager:reportsCenter.form.reportName')}
+            rules={[{ required: true, message: t('manager:reportsCenter.form.validation.enterName') }]}
           >
-            <Input placeholder="Enter report name" />
+            <Input placeholder={t('manager:reportsCenter.form.enterReportName')} />
           </Form.Item>
 
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="reportType"
-                label="Report Type"
-                rules={[{ required: true, message: 'Please select a report type' }]}
+                label={t('manager:reportsCenter.form.reportType')}
+                rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectReportType') }]}
               >
-                <Select placeholder="Select report type">
+                <Select placeholder={t('manager:reportsCenter.form.selectReportType')}>
                   {reportTypes.map(report => (
                     <Option key={report.key} value={report.key}>
                       {report.name}
@@ -685,14 +644,14 @@ function ReportsCenter() {
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col span={12}>
               <Form.Item
                 name="format"
-                label="Format"
-                rules={[{ required: true, message: 'Please select format' }]}
+                label={t('manager:reportsCenter.form.format')}
+                rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectFormat') }]}
               >
-                <Select placeholder="Select format">
+                <Select placeholder={t('manager:reportsCenter.form.selectFormat')}>
                   <Option value="pdf">PDF</Option>
                   <Option value="excel">Excel</Option>
                   <Option value="csv">CSV</Option>
@@ -705,24 +664,24 @@ function ReportsCenter() {
             <Col span={12}>
               <Form.Item
                 name="frequency"
-                label="Frequency"
-                rules={[{ required: true, message: 'Please select frequency' }]}
+                label={t('manager:reportsCenter.columns.frequency')}
+                rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectFrequency') }]}
               >
-                <Select placeholder="Select frequency">
-                  <Option value="daily">Daily</Option>
-                  <Option value="weekly">Weekly</Option>
-                  <Option value="monthly">Monthly</Option>
-                  <Option value="quarterly">Quarterly</Option>
-                  <Option value="yearly">Yearly</Option>
+                <Select placeholder={t('manager:reportsCenter.form.selectFrequency')}>
+                  <Option value="daily">{t('manager:reportsCenter.frequency.daily')}</Option>
+                  <Option value="weekly">{t('manager:reportsCenter.frequency.weekly', { day: '' }).trim()}</Option>
+                  <Option value="monthly">{t('manager:reportsCenter.frequency.monthly', { day: '' }).trim()}</Option>
+                  <Option value="quarterly">{t('manager:reportsCenter.frequency.quarterly')}</Option>
+                  <Option value="yearly">{t('manager:reportsCenter.frequency.yearly')}</Option>
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col span={12}>
               <Form.Item
                 name="time"
-                label="Time"
-                rules={[{ required: true, message: 'Please select time' }]}
+                label={t('manager:reportsCenter.form.time')}
+                rules={[{ required: true, message: t('manager:reportsCenter.form.validation.selectTime') }]}
               >
                 <TimePicker style={{ width: '100%' }} format="HH:mm" />
               </Form.Item>
@@ -731,11 +690,11 @@ function ReportsCenter() {
 
           <Form.Item
             name="recipients"
-            label="Email Recipients"
-            rules={[{ required: true, message: 'Please enter email recipients' }]}
+            label={t('manager:reportsCenter.form.emailRecipients')}
+            rules={[{ required: true, message: t('manager:reportsCenter.form.validation.enterRecipients') }]}
           >
-            <TextArea 
-              placeholder="Enter email addresses separated by commas"
+            <TextArea
+              placeholder={t('manager:reportsCenter.form.recipientsPlaceholder')}
               rows={2}
             />
           </Form.Item>
@@ -743,12 +702,12 @@ function ReportsCenter() {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="includeCharts" valuePropName="checked">
-                <Switch /> Include Charts
+                <Switch /> {t('manager:reportsCenter.form.includeCharts')}
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="includeDetails" valuePropName="checked" initialValue={true}>
-                <Switch /> Include Details
+                <Switch /> {t('manager:reportsCenter.form.includeDetails')}
               </Form.Item>
             </Col>
           </Row>
@@ -756,10 +715,10 @@ function ReportsCenter() {
           <Form.Item>
             <Space className="w-full justify-end">
               <Button onClick={() => setScheduleModalVisible(false)}>
-                Cancel
+                {t('manager:reportsCenter.cancel')}
               </Button>
               <Button type="primary" htmlType="submit" loading={loading}>
-                {selectedReport ? 'Update Schedule' : 'Schedule Report'}
+                {selectedReport ? t('manager:reportsCenter.updateSchedule') : t('manager:reportsCenter.scheduleReport')}
               </Button>
             </Space>
           </Form.Item>

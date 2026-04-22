@@ -5,6 +5,7 @@ import {
   CalendarOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/shared/hooks/useAuth';
 
 const LANGUAGE_FLAGS = {
@@ -45,13 +46,13 @@ const getImageUrl = (url) => {
   return url;
 };
 
-const getExperienceText = (createdAt) => {
+const getExperienceYear = (createdAt) => {
   if (!createdAt) return null;
-  const year = new Date(createdAt).getFullYear();
-  return `With us since ${year}`;
+  return new Date(createdAt).getFullYear();
 };
 
 const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
+  const { t } = useTranslation(['admin']);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -62,7 +63,8 @@ const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
   const languages = parseLanguages(instructor.language);
   const visibleFields = instructor.visible_fields || ['bio', 'specializations', 'languages', 'experience'];
   const skills = instructor.skills || [];
-  const experienceText = getExperienceText(instructor.created_at);
+  const experienceYear = getExperienceYear(instructor.created_at);
+  const experienceText = experienceYear ? t('admin:community.team.withUsSince', { year: experienceYear }) : null;
 
   const handleBookLesson = () => {
     if (!isAuthenticated) {
@@ -117,7 +119,7 @@ const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
             <h2 className="text-2xl font-bold text-white">{name}</h2>
             {instructor.featured && (
               <Tag className="!bg-amber-500/20 !border-amber-500/40 !text-amber-300 !rounded-full !text-xs !font-semibold">
-                <StarFilled className="mr-1" />Featured
+                <StarFilled className="mr-1" />{t('admin:community.team.featured')}
               </Tag>
             )}
           </div>
@@ -130,7 +132,7 @@ const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
 
           {visibleFields.includes('specializations') && skills.length > 0 && (
             <div className="mb-5">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Specializations</h4>
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('admin:community.team.specializations')}</h4>
               <div className="flex flex-wrap gap-1.5">
                 {skills.map((skill, idx) => (
                   skill.discipline_tag && (
@@ -146,7 +148,7 @@ const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
 
           {visibleFields.includes('languages') && languages.length > 0 && (
             <div className="mb-5">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Languages</h4>
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('admin:community.team.languages')}</h4>
               <div className="flex flex-wrap gap-1.5">
                 {languages.map((lang) => {
                   const flag = LANGUAGE_FLAGS[lang];
@@ -176,7 +178,7 @@ const InstructorDetailDrawer = ({ instructor, open, onClose }) => {
               onClick={handleBookLesson}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00a8c4] to-cyan-500 text-white font-semibold text-sm hover:from-[#0095ad] hover:to-cyan-600 transition-all duration-200 shadow-lg shadow-cyan-500/20"
             >
-              Book a Lesson
+              {t('admin:community.team.bookALesson')}
             </button>
           )}
         </div>

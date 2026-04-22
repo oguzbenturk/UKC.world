@@ -4,12 +4,14 @@ import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, AcademicCapIcon, Sho
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAIChat } from '@/shared/contexts/AIChatContext';
 import { featureFlags } from '@/shared/config/featureFlags';
+import { useTranslation } from 'react-i18next';
 
 const STUDENT_ROLES = ['student', 'trusted_customer'];
 const HIDDEN_EXACT_PATHS = ['/', '/login', '/register', '/reset-password', '/academy', '/guest'];
 const HIDDEN_PATH_PREFIXES = ['/shop', '/f/', '/quick/', '/group-invitation/'];
 
 const StudentQuickActions = () => {
+  const { t } = useTranslation(['student']);
   const { user, isAuthenticated } = useAuth();
   const { openChat } = useAIChat();
   const location = useLocation();
@@ -55,12 +57,12 @@ const StudentQuickActions = () => {
       {isOpen && (
         <div className="flex flex-col items-end gap-2 mb-1 animate-in fade-in slide-in-from-bottom-3 duration-200">
           {[
-            { path: '/academy',          label: 'Visit Lessons',    icon: AcademicCapIcon,        gradient: 'linear-gradient(135deg, #33c4d9, #007a8f)' },
-            { path: '/rental',           label: 'Visit Rentals',    icon: WrenchScrewdriverIcon,  gradient: 'linear-gradient(135deg, #f59e0b, #b45309)' },
-            ...(featureFlags.publicShopEnabled ? [{ path: '/shop', label: 'Visit Shop', icon: ShoppingBagIcon, gradient: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' }] : []),
-            { path: '/student/schedule', label: 'Visit My Lessons', icon: CalendarDaysIcon,       gradient: 'linear-gradient(135deg, #10b981, #047857)' },
-            { path: null,                label: 'My Wallet',        icon: WalletIcon,             gradient: 'linear-gradient(135deg, #00a8c4, #004f5e)', event: 'studentWallet:open' },
-            { path: null,                label: 'Talk to Kai',      icon: SparklesIcon,           gradient: 'linear-gradient(135deg, #ec4899, #be185d)', action: 'openChat' },
+            { path: '/academy',          label: t('student:dashboard.quickLinks.visitLessons'),    icon: AcademicCapIcon,        gradient: 'linear-gradient(135deg, #33c4d9, #007a8f)' },
+            { path: '/rental',           label: t('student:dashboard.quickLinks.visitRentals'),    icon: WrenchScrewdriverIcon,  gradient: 'linear-gradient(135deg, #f59e0b, #b45309)' },
+            ...(featureFlags.publicShopEnabled ? [{ path: '/shop', label: t('student:dashboard.quickLinks.visitShop'), icon: ShoppingBagIcon, gradient: 'linear-gradient(135deg, #8b5cf6, #5b21b6)' }] : []),
+            { path: '/student/schedule', label: t('student:dashboard.quickLinks.visitMyLessons'), icon: CalendarDaysIcon,       gradient: 'linear-gradient(135deg, #10b981, #047857)' },
+            { path: null,                label: t('student:dashboard.quickLinks.myWallet'),        icon: WalletIcon,             gradient: 'linear-gradient(135deg, #00a8c4, #004f5e)', event: 'studentWallet:open' },
+            { path: null,                label: t('student:dashboard.quickLinks.talkToKai'),       icon: SparklesIcon,           gradient: 'linear-gradient(135deg, #ec4899, #be185d)', action: 'openChat' },
           ].map(({ path, label, icon: Icon, gradient, event, action }) => (
             <button
               key={label}
@@ -126,8 +128,8 @@ const StudentQuickActions = () => {
         <button
           onClick={() => setIsOpen((o) => !o)}
           className="group relative h-14 w-14 rounded-full"
-          title={isOpen ? 'Close' : 'Quick Actions'}
-          aria-label={isOpen ? 'Close' : 'Quick Actions'}
+          title={isOpen ? t('student:dashboard.quickLinks.close') : t('student:dashboard.quickLinks.quickActions')}
+          aria-label={isOpen ? t('student:dashboard.quickLinks.close') : t('student:dashboard.quickLinks.quickActions')}
           aria-expanded={isOpen}
         >
           {/* Sphere — duotone-blue to deep teal */}

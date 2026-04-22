@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 
 function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
+  const { t } = useTranslation(['manager']);
   const { register, handleSubmit, formState: { errors }, watch } = useForm({
     defaultValues: isNew ? {
       status: 'available',
@@ -49,18 +51,18 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg shadow-lg p-6">
       <h2 className="text-xl font-bold text-gray-900 mb-6">
-        {isNew ? 'Add New Equipment' : 'Edit Equipment'}
+        {isNew ? t('manager:equipmentPage.form.addTitle') : t('manager:equipmentPage.form.editTitle')}
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Equipment Name *
+              {t('manager:equipmentPage.form.fields.name')}
             </label>
             <input
               type="text"
-              {...register('name', { required: 'Name is required' })}
+              {...register('name', { required: t('manager:equipmentPage.form.validation.nameRequired') })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
             {errors.name && (
@@ -70,11 +72,11 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Brand *
+              {t('manager:equipmentPage.form.fields.brand')}
             </label>
             <input
               type="text"
-              {...register('brand', { required: 'Brand is required' })}
+              {...register('brand', { required: t('manager:equipmentPage.form.validation.brandRequired') })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
             {errors.brand && (
@@ -84,10 +86,10 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Equipment Type *
+              {t('manager:equipmentPage.form.fields.type')}
             </label>
             <select
-              {...register('type', { required: 'Type is required' })}
+              {...register('type', { required: t('manager:equipmentPage.form.validation.typeRequired') })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
               {kitesurfEquipmentTypes.map(type => (
@@ -101,10 +103,10 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
           {getSizeOptions(equipmentType).length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Size *
+                {t('manager:equipmentPage.form.fields.size')}
               </label>
               <select
-                {...register('size', { required: 'Size is required' })}
+                {...register('size', { required: t('manager:equipmentPage.form.validation.sizeRequired') })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
                 {getSizeOptions(equipmentType).map(size => (
@@ -120,19 +122,19 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Wind Range (Knots) *
+                  {t('manager:equipmentPage.form.fields.windRange')}
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="number"
-                    {...register('windRangeLow', { required: 'Required' })}
-                    placeholder="Min"
+                    {...register('windRangeLow', { required: t('manager:equipmentPage.form.validation.required') })}
+                    placeholder={t('manager:equipmentPage.form.fields.windMin')}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                   <input
                     type="number"
-                    {...register('windRangeHigh', { required: 'Required' })}
-                    placeholder="Max"
+                    {...register('windRangeHigh', { required: t('manager:equipmentPage.form.validation.required') })}
+                    placeholder={t('manager:equipmentPage.form.fields.windMax')}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
@@ -142,44 +144,44 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Status *
+              {t('manager:equipmentPage.form.fields.status')}
             </label>
             <select
-              {...register('status', { required: 'Status is required' })}
+              {...register('status', { required: t('manager:equipmentPage.form.validation.statusRequired') })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="available">Available</option>
-              <option value="in-use">In Use</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="retired">Retired</option>
+              <option value="available">{t('manager:equipmentPage.form.status.available')}</option>
+              <option value="in-use">{t('manager:equipmentPage.form.status.inUse')}</option>
+              <option value="maintenance">{t('manager:equipmentPage.form.status.maintenance')}</option>
+              <option value="retired">{t('manager:equipmentPage.form.status.retired')}</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Serial Number *
+              {t('manager:equipmentPage.form.fields.serialNumber')}
             </label>
             <input
               type="text"
-              {...register('serialNumber', { required: 'Serial number is required' })}
+              {...register('serialNumber', { required: t('manager:equipmentPage.form.validation.serialRequired') })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Purchase Date *
+              {t('manager:equipmentPage.form.fields.purchaseDate')}
             </label>
             <input
               type="date"
-              {...register('purchaseDate', { required: 'Purchase date is required' })}
+              {...register('purchaseDate', { required: t('manager:equipmentPage.form.validation.purchaseDateRequired') })}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Notes
+              {t('manager:equipmentPage.form.fields.notes')}
             </label>
             <textarea
               {...register('notes')}
@@ -196,13 +198,13 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
           onClick={onCancel}
           className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
-          Cancel
+          {t('manager:equipmentPage.form.cancel')}
         </button>
         <button
           type="submit"
           className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700"
         >
-          {isNew ? 'Add Equipment' : 'Save Changes'}
+          {isNew ? t('manager:equipmentPage.form.addButton') : t('manager:equipmentPage.form.saveButton')}
         </button>
       </div>
     </form>

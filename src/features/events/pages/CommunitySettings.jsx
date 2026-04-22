@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useData } from '@/shared/hooks/useData';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { message } from '@/shared/utils/antdStatic';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
 const EVENT_TYPES = [
@@ -25,6 +26,7 @@ const getTypeColor = (type) => EVENT_TYPES.find(t => t.value === type)?.color ||
 const getTypeLabel = (type) => EVENT_TYPES.find(t => t.value === type)?.label || type || 'Other';
 
 export default function CommunitySettings() {
+  const { t } = useTranslation(['manager']);
   const { apiClient } = useData();
   const queryClient = useQueryClient();
   const { getCurrencySymbol } = useCurrency();
@@ -81,11 +83,11 @@ export default function CommunitySettings() {
       return res.data;
     },
     onSuccess: () => {
-      message.success('Event created');
+      message.success(t('manager:events.messages.created'));
       queryClient.invalidateQueries({ queryKey: ['events', 'list'] });
       closeDrawer();
     },
-    onError: () => message.error('Failed to create event'),
+    onError: () => message.error(t('manager:events.messages.createError')),
   });
 
   const updateMutation = useMutation({
@@ -94,29 +96,29 @@ export default function CommunitySettings() {
       return res.data;
     },
     onSuccess: () => {
-      message.success('Event updated');
+      message.success(t('manager:events.messages.updated'));
       queryClient.invalidateQueries({ queryKey: ['events', 'list'] });
       closeDrawer();
     },
-    onError: () => message.error('Failed to update event'),
+    onError: () => message.error(t('manager:events.messages.updateError')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => apiClient.delete(`/events/${id}`),
     onSuccess: () => {
-      message.success('Event deleted');
+      message.success(t('manager:events.messages.deleted'));
       queryClient.invalidateQueries({ queryKey: ['events', 'list'] });
     },
-    onError: () => message.error('Failed to delete event'),
+    onError: () => message.error(t('manager:events.messages.deleteError')),
   });
 
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, status }) => apiClient.put(`/events/${id}`, { status }),
     onSuccess: () => {
-      message.success('Status updated');
+      message.success(t('manager:events.messages.statusUpdated'));
       queryClient.invalidateQueries({ queryKey: ['events', 'list'] });
     },
-    onError: () => message.error('Failed to update status'),
+    onError: () => message.error(t('manager:events.messages.statusError')),
   });
 
   const openCreate = () => {
@@ -169,7 +171,7 @@ export default function CommunitySettings() {
   // Table columns
   const columns = [
     {
-      title: 'Event',
+      title: t('manager:events.columns.event'),
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
@@ -185,7 +187,7 @@ export default function CommunitySettings() {
       ),
     },
     {
-      title: 'Type',
+      title: t('manager:events.columns.type'),
       dataIndex: 'event_type',
       key: 'type',
       width: 140,
@@ -194,17 +196,17 @@ export default function CommunitySettings() {
       ),
     },
     {
-      title: 'Date',
+      title: t('manager:events.columns.date'),
       dataIndex: 'start_at',
       key: 'date',
       width: 140,
       sorter: (a, b) => dayjs(a.start_at).unix() - dayjs(b.start_at).unix(),
       render: (date) => date ? (
         <span className="text-xs text-slate-600">{dayjs(date).format('MMM D, YYYY HH:mm')}</span>
-      ) : <span className="text-xs text-slate-300">Not set</span>,
+      ) : <span className="text-xs text-slate-300">{t('manager:events.notSet')}</span>,
     },
     {
-      title: 'Capacity',
+      title: t('manager:events.columns.capacity'),
       key: 'capacity',
       width: 90,
       align: 'center',
@@ -216,7 +218,7 @@ export default function CommunitySettings() {
       ),
     },
     {
-      title: 'Price',
+      title: t('manager:events.columns.price'),
       dataIndex: 'price',
       key: 'price',
       width: 80,
@@ -226,13 +228,13 @@ export default function CommunitySettings() {
         : <span className="text-[10px] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">Free</span>,
     },
     {
-      title: 'Status',
+      title: t('manager:events.columns.status'),
       dataIndex: 'status',
       key: 'status',
       width: 80,
       render: (status) => (
         <Tag color={status === 'scheduled' ? 'green' : 'red'} className="text-[10px]">
-          {status === 'scheduled' ? 'Active' : 'Inactive'}
+          {status === 'scheduled' ? t('manager:events.status.active') : t('manager:events.status.inactive')}
         </Tag>
       ),
     },
@@ -242,12 +244,12 @@ export default function CommunitySettings() {
       width: 100,
       render: (_, record) => (
         <div className="flex items-center gap-1">
-          <Tooltip title="Edit">
+          <Tooltip title={t('manager:events.tooltips.edit')}>
             <button onClick={() => openEdit(record)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
               <EditOutlined className="text-xs" />
             </button>
           </Tooltip>
-          <Tooltip title={record.status === 'scheduled' ? 'Deactivate' : 'Activate'}>
+          <Tooltip title={record.status === 'scheduled' ? t('manager:events.tooltips.deactivate') : t('manager:events.tooltips.activate')}>
             <button
               onClick={() => toggleStatusMutation.mutate({ id: record.id, status: record.status === 'scheduled' ? 'cancelled' : 'scheduled' })}
               className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
@@ -255,8 +257,8 @@ export default function CommunitySettings() {
               <span className={`w-2 h-2 rounded-full ${record.status === 'scheduled' ? 'bg-emerald-400' : 'bg-slate-300'}`} />
             </button>
           </Tooltip>
-          <Popconfirm title="Delete this event?" onConfirm={() => deleteMutation.mutate(record.id)} okButtonProps={{ danger: true }}>
-            <Tooltip title="Delete">
+          <Popconfirm title={t('manager:events.deleteConfirm')} onConfirm={() => deleteMutation.mutate(record.id)} okButtonProps={{ danger: true }}>
+            <Tooltip title={t('manager:events.tooltips.delete')}>
               <button className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                 <DeleteOutlined className="text-xs" />
               </button>
@@ -273,8 +275,8 @@ export default function CommunitySettings() {
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-slate-800">Community Events</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Manage event types, pricing, and capacity settings</p>
+            <h1 className="text-lg font-semibold text-slate-800">{t('manager:events.title')}</h1>
+            <p className="text-xs text-slate-400 mt-0.5">{t('manager:events.subtitle')}</p>
           </div>
           <Button
             type="primary"
@@ -282,7 +284,7 @@ export default function CommunitySettings() {
             onClick={openCreate}
             className="h-9 rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 border-0 shadow-sm text-sm"
           >
-            <span className="hidden sm:inline">New Event</span>
+            <span className="hidden sm:inline">{t('manager:events.newEvent')}</span>
           </Button>
         </div>
       </div>
@@ -292,25 +294,25 @@ export default function CommunitySettings() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-slate-200 p-3">
             <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <CalendarOutlined /> Total
+              <CalendarOutlined /> {t('manager:events.stats.total')}
             </div>
             <div className="text-xl font-bold text-slate-800">{stats.total}</div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-3">
             <div className="flex items-center gap-2 text-emerald-400 text-xs mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Active
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {t('manager:events.stats.active')}
             </div>
             <div className="text-xl font-bold text-emerald-600">{stats.active}</div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-3">
             <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <TeamOutlined /> Registrations
+              <TeamOutlined /> {t('manager:events.stats.registrations')}
             </div>
             <div className="text-xl font-bold text-slate-700">{stats.totalRegs}</div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-3">
             <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              {currencySymbol} Revenue
+              {currencySymbol} {t('manager:financePages.shop.stats.totalRevenue')}
             </div>
             <div className="text-xl font-bold text-slate-700">{currencySymbol}{stats.totalRevenue.toLocaleString()}</div>
           </div>
@@ -320,7 +322,7 @@ export default function CommunitySettings() {
         <div className="bg-white rounded-xl border border-slate-200 p-3">
           <div className="flex flex-col sm:flex-row gap-3">
             <Input
-              placeholder="Search events..."
+              placeholder={t('manager:events.form.placeholders.name')}
               prefix={<SearchOutlined className="text-slate-300" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -355,14 +357,14 @@ export default function CommunitySettings() {
             rowKey="id"
             loading={isLoading}
             size="small"
-            pagination={{ pageSize: 15, showSizeChanger: false, showTotal: (total) => `${total} events` }}
+            pagination={{ pageSize: 15, showSizeChanger: false, showTotal: (total) => t('manager:events.table.showTotal', { count: total }) }}
             locale={{
               emptyText: (
                 <div className="py-10 text-center">
                   <CalendarOutlined className="text-3xl text-slate-200 mb-3" />
-                  <div className="text-sm text-slate-400">No events found</div>
+                  <div className="text-sm text-slate-400">{t('manager:events.table.empty')}</div>
                   <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreate} className="mt-3 rounded-lg bg-slate-700 border-0">
-                    Create Event
+                    {t('manager:events.table.createFirst')}
                   </Button>
                 </div>
               ),
@@ -385,9 +387,9 @@ export default function CommunitySettings() {
           <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-5 py-4 text-white">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold">{editingEvent ? 'Edit Event' : 'New Event'}</h2>
+                <h2 className="text-lg font-semibold">{editingEvent ? t('manager:events.form.editTitle') : t('manager:events.form.createTitle')}</h2>
                 <p className="text-xs text-white/60 mt-0.5">
-                  {editingEvent ? 'Update event settings' : 'Configure a new community event'}
+                  {editingEvent ? t('manager:events.form.updateSettings') : t('manager:events.form.configureNew')}
                 </p>
               </div>
               <button onClick={closeDrawer} className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors text-white">
@@ -401,19 +403,19 @@ export default function CommunitySettings() {
             <Form form={form} layout="vertical" onFinish={handleSubmit} requiredMark={false}>
               <Form.Item
                 name="name"
-                label={<span className="text-xs font-medium text-slate-600">Event Name *</span>}
-                rules={[{ required: true, message: 'Enter event name' }]}
+                label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.name')}</span>}
+                rules={[{ required: true, message: t('manager:events.form.validation.enterName') }]}
               >
-                <Input placeholder="e.g., Beach Party, Morning Yoga" className="rounded-lg" size="large" />
+                <Input placeholder={t('manager:events.form.placeholders.name')} className="rounded-lg" size="large" />
               </Form.Item>
 
               <Form.Item
                 name="event_type"
-                label={<span className="text-xs font-medium text-slate-600">Event Type *</span>}
-                rules={[{ required: true, message: 'Select type' }]}
+                label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.type')}</span>}
+                rules={[{ required: true, message: t('manager:events.form.validation.selectType') }]}
               >
                 <Select
-                  placeholder="Select type..."
+                  placeholder={t('manager:events.form.placeholders.type')}
                   options={EVENT_TYPES}
                   className="w-full"
                   size="large"
@@ -428,46 +430,46 @@ export default function CommunitySettings() {
               <div className="grid grid-cols-2 gap-3">
                 <Form.Item
                   name="start_at"
-                  label={<span className="text-xs font-medium text-slate-600">Start Date & Time *</span>}
-                  rules={[{ required: true, message: 'Select start date' }]}
+                  label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.startAt')}</span>}
+                  rules={[{ required: true, message: t('manager:events.form.validation.selectStart') }]}
                 >
-                  <DatePicker showTime format="YYYY-MM-DD HH:mm" className="w-full rounded-lg" size="large" placeholder="Start" />
+                  <DatePicker showTime format="YYYY-MM-DD HH:mm" className="w-full rounded-lg" size="large" placeholder={t('manager:events.form.placeholders.name')} />
                 </Form.Item>
                 <Form.Item
                   name="end_at"
-                  label={<span className="text-xs font-medium text-slate-600">End Date & Time</span>}
+                  label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.endAt')}</span>}
                 >
-                  <DatePicker showTime format="YYYY-MM-DD HH:mm" className="w-full rounded-lg" size="large" placeholder="End (optional)" />
+                  <DatePicker showTime format="YYYY-MM-DD HH:mm" className="w-full rounded-lg" size="large" placeholder={t('manager:events.form.placeholders.endAt')} />
                 </Form.Item>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Form.Item
                   name="capacity"
-                  label={<span className="text-xs font-medium text-slate-600">Max Participants</span>}
+                  label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.capacity')}</span>}
                 >
-                  <InputNumber min={1} max={500} className="w-full rounded-lg" size="large" placeholder="Unlimited" />
+                  <InputNumber min={1} max={500} className="w-full rounded-lg" size="large" placeholder={t('manager:events.form.placeholders.capacity')} />
                 </Form.Item>
                 <Form.Item
                   name="price"
-                  label={<span className="text-xs font-medium text-slate-600">Price (per person)</span>}
+                  label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.price')}</span>}
                 >
-                  <InputNumber min={0} className="w-full rounded-lg" size="large" placeholder="0 = Free" prefix={currencySymbol} />
+                  <InputNumber min={0} className="w-full rounded-lg" size="large" placeholder={t('manager:events.form.placeholders.price')} prefix={currencySymbol} />
                 </Form.Item>
               </div>
 
               <Form.Item
                 name="location"
-                label={<span className="text-xs font-medium text-slate-600">Default Location</span>}
+                label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.location')}</span>}
               >
-                <Input placeholder="e.g., Main Beach, Studio A" className="rounded-lg" size="large" prefix={<EnvironmentOutlined className="text-slate-300" />} />
+                <Input placeholder={t('manager:events.form.placeholders.location')} className="rounded-lg" size="large" prefix={<EnvironmentOutlined className="text-slate-300" />} />
               </Form.Item>
 
               <Form.Item
                 name="description"
-                label={<span className="text-xs font-medium text-slate-600">Description</span>}
+                label={<span className="text-xs font-medium text-slate-600">{t('manager:events.form.fields.description')}</span>}
               >
-                <Input.TextArea rows={3} placeholder="Event details, what to bring..." className="rounded-lg" />
+                <Input.TextArea rows={3} placeholder={t('manager:events.form.placeholders.description')} className="rounded-lg" />
               </Form.Item>
             </Form>
           </div>
@@ -475,14 +477,14 @@ export default function CommunitySettings() {
           {/* Footer */}
           <div className="border-t border-slate-200 px-5 py-3 bg-white flex items-center gap-3">
             <button onClick={closeDrawer} className="flex-1 py-2.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-              Cancel
+              {t('manager:events.form.cancel')}
             </button>
             <button
               onClick={() => form.submit()}
               disabled={createMutation.isPending || updateMutation.isPending}
               className="flex-1 py-2.5 text-sm text-white bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 rounded-lg transition-all shadow-sm disabled:opacity-50"
             >
-              {(createMutation.isPending || updateMutation.isPending) ? 'Saving...' : editingEvent ? 'Update' : 'Create'}
+              {(createMutation.isPending || updateMutation.isPending) ? t('manager:events.form.saving') : editingEvent ? t('manager:events.form.update') : t('manager:events.form.save')}
             </button>
           </div>
         </div>

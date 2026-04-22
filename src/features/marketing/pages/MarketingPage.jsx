@@ -33,6 +33,7 @@ import {
   BellFilled
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
+import { useTranslation } from 'react-i18next';
 
 // Import extracted components
 import { WhatsAppTextArea } from '../components/WhatsAppToolbar';
@@ -157,6 +158,7 @@ const emailTemplates = [
  * Optimized for performance with separated components
  */
 const MarketingPage = () => {
+  const { t } = useTranslation(['manager']);
   // Main state
   const [activeTab, setActiveTab] = useState('campaigns');
   const [campaigns, setCampaigns] = useState([]);
@@ -210,7 +212,7 @@ const MarketingPage = () => {
       const response = await apiClient.get('/marketing/campaigns');
       setCampaigns(response.data.data);
     } catch {
-      message.error('Failed to load campaigns');
+      message.error(t('manager:marketing.form.saveError'));
     } finally {
       setLoading(false);
     }
@@ -226,7 +228,7 @@ const MarketingPage = () => {
       console.log('Customers loaded:', customersList.length);
       setCustomers(customersList);
     } catch (error) {
-      message.error('Failed to load customers');
+      message.error(t('manager:marketing.sendModal.loadError'));
       console.error('Error fetching customers:', error);
     } finally {
       setLoadingCustomers(false);
@@ -244,7 +246,7 @@ const MarketingPage = () => {
   // Handle send campaign
   const handleSendCampaign = async () => {
     if (selectedCustomers.length === 0) {
-      message.warning('Please select at least one customer');
+      message.warning(t('manager:marketing.sendModal.noCustomerWarning'));
       return;
     }
 
@@ -253,11 +255,11 @@ const MarketingPage = () => {
       await apiClient.post(`/marketing/campaigns/${sendingCampaign.id}/send`, {
         customerIds: selectedCustomers
       });
-      message.success(`Campaign sent to ${selectedCustomers.length} customer(s)`);
+      message.success(t('manager:marketing.sendModal.sent', { count: selectedCustomers.length }));
       setIsSendModalOpen(false);
       fetchCampaigns(); // Refresh to update stats
     } catch (error) {
-      message.error('Failed to send campaign');
+      message.error(t('manager:marketing.sendModal.sendError'));
       console.error('Error sending campaign:', error);
     } finally {
       setSendingInProgress(false);
@@ -458,16 +460,16 @@ const MarketingPage = () => {
 
       if (editingCampaign) {
         await apiClient.patch(`/marketing/campaigns/${editingCampaign.id}`, campaignData);
-        message.success('Campaign updated successfully');
+        message.success(t('manager:marketing.form.updated'));
       } else {
         await apiClient.post('/marketing/campaigns', campaignData);
-        message.success('Campaign created successfully');
+        message.success(t('manager:marketing.form.saved'));
       }
 
       setIsModalOpen(false);
       fetchCampaigns();
     } catch {
-      message.error('Failed to save campaign');
+      message.error(t('manager:marketing.form.saveError'));
     }
   };
 
@@ -475,10 +477,10 @@ const MarketingPage = () => {
   const handleDeleteCampaign = async (id) => {
     try {
       await apiClient.delete(`/marketing/campaigns/${id}`);
-      message.success('Campaign deleted');
+      message.success(t('manager:marketing.form.deleted'));
       fetchCampaigns();
     } catch {
-      message.error('Failed to delete campaign');
+      message.error(t('manager:marketing.form.deleteError'));
     }
   };
 
@@ -636,9 +638,9 @@ const MarketingPage = () => {
 
   // Campaign table columns
   const campaignColumns = useMemo(() => [
-    { 
-      title: 'Campaign', 
-      dataIndex: 'name', 
+    {
+      title: t('manager:marketing.columns.campaign'),
+      dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
         <div>
@@ -647,9 +649,9 @@ const MarketingPage = () => {
         </div>
       )
     },
-    { 
-      title: 'Type', 
-      dataIndex: 'type', 
+    {
+      title: t('manager:marketing.columns.type'),
+      dataIndex: 'type',
       key: 'type',
       render: (type) => {
         const typeConfig = {
@@ -663,9 +665,9 @@ const MarketingPage = () => {
         return <Tag color={config.color} icon={config.icon}>{type?.toUpperCase()}</Tag>;
       }
     },
-    { 
-      title: 'Status', 
-      dataIndex: 'status', 
+    {
+      title: t('manager:marketing.columns.status'),
+      dataIndex: 'status',
       key: 'status',
       render: (status) => {
         const statusColors = { draft: 'default', active: 'success', paused: 'warning', completed: 'blue' };
@@ -673,7 +675,7 @@ const MarketingPage = () => {
       }
     },
     {
-      title: 'Actions',
+      title: t('manager:marketing.columns.actions'),
       key: 'actions',
       render: (_, record) => (
         <Space size="small">
@@ -683,26 +685,26 @@ const MarketingPage = () => {
             icon={<SendOutlined />}
             onClick={() => openSendModal(record)}
           >
-            Send
+            {t('manager:marketing.actions.send')}
           </Button>
-          <Button 
-            size="small" 
-            type="primary" 
-            ghost 
+          <Button
+            size="small"
+            type="primary"
+            ghost
             icon={<EditOutlined />}
             onClick={() => openCampaignModal(record.type, record)}
           >
-            Edit
+            {t('manager:marketing.actions.edit')}
           </Button>
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             icon={<CopyOutlined />}
             onClick={() => handleDuplicateCampaign(record)}
           >
-            Duplicate
+            {t('manager:marketing.actions.duplicate')}
           </Button>
           <Popconfirm
-            title="Delete this campaign?"
+            title={t('manager:marketing.deleteConfirm')}
             onConfirm={() => handleDeleteCampaign(record.id)}
             okText="Yes"
             cancelText="No"
@@ -712,7 +714,7 @@ const MarketingPage = () => {
         </Space>
       )
     }
-  ], [openCampaignModal, handleDuplicateCampaign, handleDeleteCampaign, openSendModal]);
+  ], [openCampaignModal, handleDuplicateCampaign, handleDeleteCampaign, openSendModal, t]);
 
   // Modal title
   const getModalTitle = () => {
@@ -723,7 +725,8 @@ const MarketingPage = () => {
       whatsapp: '💬 WhatsApp Campaign',
       question: '❓ Interactive Question'
     };
-    return `${editingCampaign ? 'Edit' : 'Create'} ${titles[modalType] || 'Campaign'}`;
+    const action = editingCampaign ? t('manager:marketing.actions.edit') : t('manager:marketing.campaigns');
+    return `${action} ${titles[modalType] || 'Campaign'}`;
   };
 
   // Get preview width based on size
@@ -742,11 +745,11 @@ const MarketingPage = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-              <SendOutlined /> Marketing Hub
+              <SendOutlined /> {t('manager:marketing.hub')}
             </div>
-            <h1 className="text-3xl font-semibold">Campaign Builder</h1>
+            <h1 className="text-3xl font-semibold">{t('manager:marketing.campaignBuilder')}</h1>
             <p className="text-sm text-white/75">
-              Create powerful campaigns with live preview - Email, Popup, SMS & WhatsApp
+              {t('manager:marketing.campaignBuilderDesc')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -756,35 +759,35 @@ const MarketingPage = () => {
               onClick={() => openCampaignModal('email')}
               className="h-11 rounded-2xl bg-white text-rose-600 border-0 shadow-lg hover:bg-slate-100"
             >
-              New Email
+              {t('manager:marketing.newEmail')}
             </Button>
             <Button
               icon={<BellOutlined />}
               onClick={() => openCampaignModal('popup')}
               className="h-11 rounded-2xl bg-white/20 text-white border-white/30 hover:bg-white/30"
             >
-              New Popup
+              {t('manager:marketing.newPopup')}
             </Button>
             <Button
               icon={<MessageOutlined />}
               onClick={() => openCampaignModal('sms')}
               className="h-11 rounded-2xl bg-white/20 text-white border-white/30 hover:bg-white/30"
             >
-              New SMS
+              {t('manager:marketing.newSMS')}
             </Button>
             <Button
               icon={<WhatsAppOutlined />}
               onClick={() => openCampaignModal('whatsapp')}
               className="h-11 rounded-2xl bg-green-500 text-white border-0 hover:bg-green-600"
             >
-              WhatsApp
+              {t('manager:marketing.whatsapp')}
             </Button>
             <Button
               icon={<QuestionCircleOutlined />}
               onClick={() => openCampaignModal('question')}
               className="h-11 rounded-2xl bg-white/20 text-white border-white/30 hover:bg-white/30"
             >
-              Ask Question
+              {t('manager:marketing.askQuestion')}
             </Button>
           </div>
         </div>
@@ -795,7 +798,7 @@ const MarketingPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title={<span className="flex items-center gap-2"><TeamOutlined /> Total Sent</span>}
+              title={<span className="flex items-center gap-2"><TeamOutlined /> {t('manager:marketing.stats.totalSent')}</span>}
               value={campaigns.reduce((sum, c) => sum + (c.sent_count || 0), 0)}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -804,7 +807,7 @@ const MarketingPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title={<span className="flex items-center gap-2"><EyeOutlined /> Total Opens</span>}
+              title={<span className="flex items-center gap-2"><EyeOutlined /> {t('manager:marketing.stats.totalOpens')}</span>}
               value={campaigns.reduce((sum, c) => sum + (c.open_count || 0), 0)}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -813,7 +816,7 @@ const MarketingPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title={<span className="flex items-center gap-2"><PercentageOutlined /> Avg Open Rate</span>}
+              title={<span className="flex items-center gap-2"><PercentageOutlined /> {t('manager:marketing.stats.avgOpenRate')}</span>}
               value={42.5}
               suffix="%"
               valueStyle={{ color: '#722ed1' }}
@@ -823,7 +826,7 @@ const MarketingPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title={<span className="flex items-center gap-2"><SendOutlined /> Active Campaigns</span>}
+              title={<span className="flex items-center gap-2"><SendOutlined /> {t('manager:marketing.stats.activeCampaigns')}</span>}
               value={campaigns.filter(c => c.status === 'active').length}
               valueStyle={{ color: '#eb2f96' }}
             />
@@ -839,7 +842,7 @@ const MarketingPage = () => {
           items={[
             {
               key: 'campaigns',
-              label: <span><SendOutlined /> Campaigns</span>,
+              label: <span><SendOutlined /> {t('manager:marketing.campaigns')}</span>,
               children: (
                 <Spin spinning={loading}>
                   <Table 
@@ -848,25 +851,25 @@ const MarketingPage = () => {
                     rowKey="id"
                     pagination={{ pageSize: 10 }}
                     scroll={{ x: true }}
-                    locale={{ emptyText: 'No campaigns yet. Create your first one!' }}
+                    locale={{ emptyText: t('manager:marketing.noCampaigns') }}
                   />
                 </Spin>
               )
             },
             {
               key: 'quicklinks',
-              label: <span><LinkOutlined /> Quick Links</span>,
+              label: <span><LinkOutlined /> {t('manager:marketing.quickLinks')}</span>,
               children: (
                 <QuickLinksPage embedded={true} />
               )
             },
             {
               key: 'analytics',
-              label: <span><PercentageOutlined /> Analytics</span>,
+              label: <span><PercentageOutlined /> {t('manager:marketing.analytics')}</span>,
               children: (
                 <div className="text-center py-12 text-gray-500">
                   <PercentageOutlined className="text-4xl mb-4" />
-                  <p>Analytics coming soon...</p>
+                  <p>{t('manager:marketing.analyticsComingSoon')}</p>
                 </div>
               )
             }
@@ -907,11 +910,11 @@ const MarketingPage = () => {
                 onFinish={handleSaveCampaign}
                 className="space-y-4"
               >
-                <Form.Item name="name" label="Campaign Name" rules={[{ required: true }]}>
+                <Form.Item name="name" label={t('manager:marketing.form.campaignName')} rules={[{ required: true }]}>
                   <Input placeholder="Summer Sale Campaign" className="rounded-lg" />
                 </Form.Item>
 
-                <Form.Item name="audience" label="Target Audience" rules={[{ required: true }]}>
+                <Form.Item name="audience" label={t('manager:marketing.form.targetAudience')} rules={[{ required: true }]}>
                   <Select placeholder="Select audience" options={audienceOptions} className="rounded-lg" />
                 </Form.Item>
 
@@ -933,9 +936,9 @@ const MarketingPage = () => {
                 />
 
                 <div className="flex justify-end gap-3 mt-6 pt-4 border-t sticky bottom-0 bg-white pb-2">
-                  <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                  <Button onClick={() => setIsModalOpen(false)}>{t('manager:marketing.form.cancel')}</Button>
                   <Button type="primary" htmlType="submit" icon={<SendOutlined />}>
-                    {editingCampaign ? 'Update Campaign' : 'Create Campaign'}
+                    {editingCampaign ? t('manager:marketing.form.update') : t('manager:marketing.form.create')}
                   </Button>
                 </div>
               </Form>
@@ -946,7 +949,7 @@ const MarketingPage = () => {
           <Col xs={24} lg={12}>
             <div className="sticky top-0">
               <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <Text strong className="text-base">Live Preview</Text>
+                <Text strong className="text-base">{t('manager:marketing.form.livePreview')}</Text>
                 <Space wrap>
                   <Space.Compact size="small">
                     <Button 
@@ -992,7 +995,7 @@ const MarketingPage = () => {
         title={
           <Space>
             <SendOutlined />
-            <span>Send Campaign: {sendingCampaign?.name}</span>
+            <span>{t('manager:marketing.sendModal.title', { name: sendingCampaign?.name })}</span>
           </Space>
         }
         open={isSendModalOpen}
@@ -1000,23 +1003,23 @@ const MarketingPage = () => {
         width={900}
         footer={[
           <Button key="cancel" onClick={() => setIsSendModalOpen(false)}>
-            Cancel
+            {t('manager:marketing.sendModal.cancelButton')}
           </Button>,
-          <Button 
-            key="send" 
-            type="primary" 
+          <Button
+            key="send"
+            type="primary"
             icon={<SendOutlined />}
             loading={sendingInProgress}
             onClick={handleSendCampaign}
             disabled={selectedCustomers.length === 0}
           >
-            Send to {selectedCustomers.length} Customer{selectedCustomers.length !== 1 ? 's' : ''}
+            {t('manager:marketing.sendModal.sendButton', { count: selectedCustomers.length })}
           </Button>,
         ]}
       >
         <div className="mb-4">
           <Text type="secondary">
-            Select customers to send this campaign to. You can select multiple customers.
+            {t('manager:marketing.sendModal.description')}
           </Text>
         </div>
         
@@ -1061,7 +1064,7 @@ const MarketingPage = () => {
           }}
           pagination={{ 
             pageSize: 10,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} customers`,
+            showTotal: (total, range) => t('manager:marketing.sendModal.pagination.showTotal', { start: range[0], end: range[1], total }),
           }}
           scroll={{ y: 400 }}
         />

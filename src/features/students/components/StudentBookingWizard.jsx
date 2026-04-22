@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -400,12 +401,12 @@ const parseBookingError = (error) => {
   return getServerMessage(error);
 };
 
-const submitBooking = async ({ payload, mutation, messageApi }) => {
+const submitBooking = async ({ payload, mutation, messageApi, fallbackMessage }) => {
   try {
     await mutation.mutateAsync(payload);
   } catch (error) {
     const serverMessage = parseBookingError(error);
-    messageApi.error(serverMessage || 'Failed to create booking');
+    messageApi.error(serverMessage || fallbackMessage || 'Failed to create booking');
   }
 };
 
@@ -474,6 +475,7 @@ const EMPTY_INITIAL_DATA = {};
 
 // eslint-disable-next-line complexity
 const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA }) => {
+  const { t } = useTranslation(['student']);
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -734,12 +736,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     setFamilyModalSubmitting(true);
     try {
       await familyApi.createFamilyMember(studentId, formData);
-      message.success('Family member added successfully');
+      message.success(t('bookingWizard.familyMember.addSuccess'));
       setFamilyModalOpen(false);
       // Refetch family members to update the list
       await refetchFamilyMembers();
     } catch (error) {
-      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to add family member';
+      const errorMessage = error?.response?.data?.error || error?.message || t('bookingWizard.familyMember.addFailed');
       message.error(errorMessage);
     } finally {
       setFamilyModalSubmitting(false);
@@ -835,29 +837,29 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         return;
       }
 
-      let description = `You have successfully purchased "${data.customerPackage.packageName}".`;
-      
+      let description = t('bookingWizard.purchaseSuccess.description', { packageName: data.customerPackage.packageName });
+
       // Add voucher discount info if applied
       if (data.voucher) {
-        description += ` Promo code "${data.voucher.code}" saved you ${data.voucher.discountApplied.toFixed(2)}!`;
+        description += t('bookingWizard.purchaseSuccess.promoSaved', { code: data.voucher.code, amount: data.voucher.discountApplied.toFixed(2) });
         if (data.voucher.walletCreditApplied) {
-          description += ` Plus ${data.voucher.walletCreditApplied.toFixed(2)} ${data.voucher.walletCurrency} added to your wallet!`;
+          description += t('bookingWizard.purchaseSuccess.walletCredit', { walletCredit: data.voucher.walletCreditApplied.toFixed(2), walletCurrency: data.voucher.walletCurrency });
         }
       }
-      
+
       // Add accommodation booking info if present
       if (data.accommodationBooking) {
-        description += ` Accommodation confirmed at ${data.accommodationBooking.unitName} for ${data.accommodationBooking.nights} night(s).`;
+        description += t('bookingWizard.purchaseSuccess.accommodationConfirmed', { unitName: data.accommodationBooking.unitName, nights: data.accommodationBooking.nights });
       }
-      
+
       if (data.wallet) {
-        description += ` Your new wallet balance is ${formatCurrency(data.wallet.newBalance, data.wallet.currency)}.`;
+        description += t('bookingWizard.purchaseSuccess.newBalance', { balance: formatCurrency(data.wallet.newBalance, data.wallet.currency) });
       } else if (data.paymentMethod === 'pay_later') {
-        description += ' Payment is pending.';
+        description += t('bookingWizard.purchaseSuccess.paymentPending');
       }
 
       notification.success({
-        message: 'Package Purchased!',
+        message: t('bookingWizard.purchaseSuccess.title'),
         description,
         duration: 5,
       });
@@ -882,39 +884,42 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       }
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to purchase package';
+      const errorMessage = error.response?.data?.error || error.message || t('bookingWizard.purchaseError.failedTitle');
       const errorData = error.response?.data;
       const errorCode = errorData?.code;
       
       if (errorData?.required && errorData?.available !== undefined) {
         notification.error({
-          message: 'Insufficient Balance',
-          description: `You need ${formatCurrency(errorData.required, errorData.currency)} but only have ${formatCurrency(errorData.available, errorData.currency)} available. Please add funds or choose another payment method.`,
+          message: t('bookingWizard.purchaseError.insufficientBalanceTitle'),
+          description: t('bookingWizard.purchaseError.insufficientBalanceDesc', {
+            required: formatCurrency(errorData.required, errorData.currency),
+            available: formatCurrency(errorData.available, errorData.currency)
+          }),
           duration: 6,
         });
       } else if (errorCode === 'DATES_UNAVAILABLE') {
         notification.error({
-          message: 'Accommodation Not Available',
-          description: 'The accommodation is not available for your selected dates. Please choose different dates.',
+          message: t('bookingWizard.purchaseError.datesUnavailableTitle'),
+          description: t('bookingWizard.purchaseError.datesUnavailableDesc'),
           duration: 6,
         });
         // Reset dates so user can try again
         setAccommodationDates({ checkIn: null, checkOut: null });
       } else if (errorCode === 'DATES_REQUIRED') {
         notification.error({
-          message: 'Dates Required',
-          description: 'Please select check-in and check-out dates for this accommodation package.',
+          message: t('bookingWizard.purchaseError.datesRequiredTitle'),
+          description: t('bookingWizard.purchaseError.datesRequiredDesc'),
           duration: 5,
         });
       } else if (errorCode === 'NO_UNIT_ASSIGNED') {
         notification.error({
-          message: 'Configuration Error',
-          description: 'This package does not have an accommodation unit assigned. Please contact support.',
+          message: t('bookingWizard.purchaseError.noUnitTitle'),
+          description: t('bookingWizard.purchaseError.noUnitDesc'),
           duration: 6,
         });
       } else {
         notification.error({
-          message: 'Purchase Failed',
+          message: t('bookingWizard.purchaseError.failedTitle'),
           description: errorMessage,
           duration: 5,
         });
@@ -948,8 +953,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     // Validate wallet payment
     if (purchasePaymentMethod === 'wallet' && walletBal < pkgPrice) {
       notification.error({
-        message: 'Insufficient Balance',
-        description: `You need ${formatCurrency(pkgPrice, pkgCurrency)} but only have ${formatCurrency(walletBal, pkgCurrency)} available.`,
+        message: t('bookingWizard.purchaseError.insufficientBalanceTitle'),
+        description: t('bookingWizard.purchaseError.insufficientBalanceDesc', {
+          required: formatCurrency(pkgPrice, pkgCurrency),
+          available: formatCurrency(walletBal, pkgCurrency)
+        }),
       });
       return;
     }
@@ -961,48 +969,48 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
     // Show confirmation modal
     Modal.confirm({
-      title: 'Confirm Package Purchase',
+      title: t('bookingWizard.purchaseConfirm.title'),
       icon: <span className="text-xl">📦</span>,
       content: (
         <div className="space-y-2 mt-3">
           <div className="flex justify-between">
-            <Text strong>Package:</Text>
+            <Text strong>{t('bookingWizard.purchaseConfirm.packageLabel')}</Text>
             <Text>{pkg.name}</Text>
           </div>
           <div className="flex justify-between">
-            <Text strong>Price:</Text>
+            <Text strong>{t('bookingWizard.purchaseConfirm.priceLabel')}</Text>
             <Text className="text-sky-600 font-semibold">{formatCurrency(pkgPrice, pkgCurrency)}</Text>
           </div>
           {dates && (
             <>
               <div className="flex justify-between">
-                <Text strong>Check-in:</Text>
+                <Text strong>{t('bookingWizard.purchaseConfirm.checkInLabel')}</Text>
                 <Text>{dates.checkIn.format('DD MMM YYYY')}</Text>
               </div>
               <div className="flex justify-between">
-                <Text strong>Check-out:</Text>
+                <Text strong>{t('bookingWizard.purchaseConfirm.checkOutLabel')}</Text>
                 <Text>{dates.checkOut.format('DD MMM YYYY')}</Text>
               </div>
               <div className="flex justify-between">
-                <Text strong>Nights:</Text>
+                <Text strong>{t('bookingWizard.purchaseConfirm.nightsLabel')}</Text>
                 <Text>{nightsSelected}</Text>
               </div>
             </>
           )}
           <div className="flex justify-between">
-            <Text strong>Payment:</Text>
-            <Text>{purchasePaymentMethod === 'wallet' ? '💳 Wallet' : '💳 Card'}</Text>
+            <Text strong>{t('bookingWizard.purchaseConfirm.paymentLabel')}</Text>
+            <Text>{purchasePaymentMethod === 'wallet' ? `💳 ${t('bookingWizard.purchaseConfirm.walletOption')}` : `💳 ${t('bookingWizard.purchaseConfirm.cardOption')}`}</Text>
           </div>
           {purchasePaymentMethod === 'wallet' && (
             <div className="flex justify-between">
-              <Text strong>Balance after:</Text>
+              <Text strong>{t('bookingWizard.purchaseConfirm.balanceAfterLabel')}</Text>
               <Text>{formatCurrency(walletBal - pkgPrice, pkgCurrency)}</Text>
             </div>
           )}
         </div>
       ),
-      okText: 'Confirm Purchase',
-      cancelText: 'Cancel',
+      okText: t('bookingWizard.purchaseConfirm.confirmButton'),
+      cancelText: t('bookingWizard.purchaseConfirm.cancelButton'),
       okButtonProps: { type: 'primary' },
       onOk: async () => {
         await purchaseMutation.mutateAsync({
@@ -1476,34 +1484,73 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const combinedNotes = notes?.trim() || '';
   const paymentSummary = useMemo(() => {
     if (paymentMethod === 'wallet') {
-      return buildWalletPaymentSummary({
-        formattedFinalAmount,
-        walletInsufficient,
-        formattedWallet,
-        formattedWalletAfterCharge
-      });
+      return {
+        title: t('bookingWizard.paymentSummary.walletTitle'),
+        tag: walletInsufficient
+          ? { color: 'red', text: t('bookingWizard.paymentSummary.walletTagInsufficient') }
+          : { color: 'green', text: t('bookingWizard.paymentSummary.walletTagOk') },
+        lines: [
+          { text: t('bookingWizard.paymentSummary.walletChargeText', { amount: formattedFinalAmount }) },
+          {
+            text: walletInsufficient
+              ? t('bookingWizard.paymentSummary.walletBalanceInsufficient', { balance: formattedWallet })
+              : t('bookingWizard.paymentSummary.walletBalanceAfter', { balance: formattedWalletAfterCharge }),
+            type: walletInsufficient ? 'danger' : 'secondary'
+          }
+        ]
+      };
     }
 
     if (paymentMethod === 'package') {
-      return buildPackagePaymentSummary({
-        selectedPackage,
-        packageHoursUsed,
-        packageRemainingAfterBooking,
-        roundedFinalAmount,
-        formattedFinalAmount
-      });
+      const packageName = selectedPackage ? getPackageDisplayName(selectedPackage) : t('bookingWizard.paymentSummary.packageTitle');
+      const lines = [];
+      if (packageHoursUsed > 0) {
+        lines.push({ text: t('bookingWizard.paymentSummary.packageHoursUsed', { hours: packageHoursUsed.toFixed(2), packageName }) });
+        if (Number.isFinite(packageRemainingAfterBooking)) {
+          lines.push({ text: t('bookingWizard.paymentSummary.packageHoursRemaining', { hours: packageRemainingAfterBooking.toFixed(2) }), type: 'secondary' });
+        }
+        lines.push({
+          text: roundedFinalAmount > 0
+            ? t('bookingWizard.paymentSummary.packageAdditionalPayment', { amount: formattedFinalAmount })
+            : t('bookingWizard.paymentSummary.packageNoCost'),
+          type: roundedFinalAmount > 0 ? 'warning' : 'secondary'
+        });
+      } else {
+        lines.push({ text: t('bookingWizard.paymentSummary.packageNotCovered', { amount: formattedFinalAmount }), type: 'warning' });
+      }
+      const tag = packageHoursUsed > 0
+        ? (roundedFinalAmount > 0
+          ? { color: 'gold', text: t('bookingWizard.paymentSummary.packageTagPartial') }
+          : { color: 'green', text: t('bookingWizard.paymentSummary.packageTagCovered') })
+        : { color: 'orange', text: t('bookingWizard.paymentSummary.packageTagCheck') };
+      return { title: t('bookingWizard.paymentSummary.packageTitle'), tag, lines };
     }
 
     if (paymentMethod === 'pay_later') {
-      return buildPayLaterSummary({ formattedFinalAmount });
+      return {
+        title: t('bookingWizard.paymentSummary.payLaterTitle'),
+        tag: { color: 'blue', text: t('bookingWizard.paymentSummary.payLaterTag') },
+        lines: [
+          { text: t('bookingWizard.paymentSummary.payLaterReserve'), type: 'secondary' },
+          { text: t('bookingWizard.paymentSummary.payLaterAmount', { amount: formattedFinalAmount }), type: 'secondary' }
+        ]
+      };
     }
 
     if (paymentMethod === 'credit_card') {
-      return buildCreditCardSummary({ formattedFinalAmount });
+      return {
+        title: t('bookingWizard.paymentSummary.creditCardTitle'),
+        tag: { color: 'blue', text: t('bookingWizard.paymentSummary.creditCardTag') },
+        lines: [
+          { text: t('bookingWizard.paymentSummary.creditCardRedirect'), type: 'secondary' },
+          { text: t('bookingWizard.paymentSummary.creditCardAmount', { amount: formattedFinalAmount }), type: 'secondary' }
+        ]
+      };
     }
 
     return null;
   }, [
+    t,
     paymentMethod,
     formattedFinalAmount,
     walletInsufficient,
@@ -1521,13 +1568,13 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         value: 'wallet',
         label: (
           <Space align="baseline" className="w-full justify-between">
-            <Text>Wallet</Text>
+            <Text>{t('bookingWizard.paymentOptions.walletLabel')}</Text>
             <Tag color={walletInsufficient ? 'red' : 'green'}>
-              {walletInsufficient ? 'Add funds' : 'Instant'}
+              {walletInsufficient ? t('bookingWizard.paymentOptions.walletTagAddFunds') : t('bookingWizard.paymentOptions.walletTagInstant')}
             </Tag>
           </Space>
         ),
-        display: 'Wallet'
+        display: t('bookingWizard.paymentOptions.walletLabel')
       },
     ];
 
@@ -1536,13 +1583,13 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         value: 'package',
         label: (
           <Space align="baseline" className="w-full justify-between">
-            <Text>Use package hours</Text>
+            <Text>{t('bookingWizard.paymentOptions.packageLabel')}</Text>
             <Tag color={matchingPackages.length > 0 ? 'green' : 'blue'}>
-              {matchingPackages.length > 0 ? 'Matches service' : 'Select package'}
+              {matchingPackages.length > 0 ? t('bookingWizard.paymentOptions.packageTagMatches') : t('bookingWizard.paymentOptions.packageTagSelect')}
             </Tag>
           </Space>
         ),
-        display: 'Use package hours'
+        display: t('bookingWizard.paymentOptions.packageLabel')
       });
     }
 
@@ -1552,16 +1599,16 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         value: 'pay_later',
         label: (
           <Space align="baseline" className="w-full justify-between">
-            <Text>Pay at Reception (Cash/Card)</Text>
-            <Tag color="blue">Due on arrival</Tag>
+            <Text>{t('bookingWizard.paymentOptions.payLaterLabel')}</Text>
+            <Tag color="blue">{t('bookingWizard.paymentOptions.payLaterTag')}</Tag>
           </Space>
         ),
-        display: 'Pay at Reception (Cash/Card)'
+        display: t('bookingWizard.paymentOptions.payLaterLabel')
       });
     }
 
     return options;
-  }, [walletInsufficient, hasPackages, matchingPackages.length, user?.role]);
+  }, [t, walletInsufficient, hasPackages, matchingPackages.length, user?.role]);
   const startHourDecimal = useMemo(() => {
     const minutes = timeStringToMinutes(selectedTime);
     if (minutes === null) {
@@ -1631,8 +1678,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     return (
       <Card size="small" className="border-sky-200 bg-sky-50">
         <Space direction="vertical" size={4}>
-          <Text strong>Suggested package match</Text>
-          <Text type="secondary">{recommendedName} · {remainingLabel} remaining</Text>
+          <Text strong>{t('bookingWizard.recommendedPackage.suggested')}</Text>
+          <Text type="secondary">{t('bookingWizard.recommendedPackage.remaining', { name: recommendedName, hours: remainingLabel })}</Text>
           <Button
             size="small"
             type="primary"
@@ -1641,7 +1688,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               setSelectedPackageId(recommendedPackage.id);
             }}
           >
-            Apply this package
+            {t('bookingWizard.recommendedPackage.applyButton')}
           </Button>
         </Space>
       </Card>
@@ -1651,10 +1698,10 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const renderBookingOverview = () => {
     // Get payment method display label
     const getPaymentMethodLabel = () => {
-      if (paymentMethod === 'wallet') return 'Wallet';
-      if (paymentMethod === 'package') return selectedPackage ? getPackageDisplayName(selectedPackage) : 'Package';
-      if (paymentMethod === 'pay_later') return 'Pay at Center';
-      if (paymentMethod === 'credit_card') return 'Credit Card';
+      if (paymentMethod === 'wallet') return t('bookingWizard.paymentOptions.walletLabel');
+      if (paymentMethod === 'package') return selectedPackage ? getPackageDisplayName(selectedPackage) : t('steps.package', { ns: 'student' });
+      if (paymentMethod === 'pay_later') return t('bookingWizard.paymentSummary.payLaterTitle');
+      if (paymentMethod === 'credit_card') return t('bookingWizard.paymentSummary.creditCardTitle');
       return paymentMethod;
     };
 
@@ -1667,41 +1714,41 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
       return (
         <div className="space-y-2">
-          <Title level={5} className="mb-2">Group Booking Details</Title>
+          <Title level={5} className="mb-2">{t('bookingWizard.confirm.groupBookingDetailsHeading')}</Title>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <Text type="secondary" className="text-xs block mb-1">Service</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.serviceLabel')}</Text>
               <Text strong>{selectedService?.name}</Text>
             </div>
             {(instructorLabel || isInstructorRequired) && (
               <div>
-                <Text type="secondary" className="text-xs block mb-1">Instructor</Text>
-                <Text strong>{instructorLabel || (instructorsLoading ? 'Loading…' : 'To be assigned')}</Text>
+                <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.instructorLabel')}</Text>
+                <Text strong>{instructorLabel || (instructorsLoading ? t('bookingWizard.confirm.loadingInstructor') : t('bookingWizard.confirm.toBeAssigned'))}</Text>
               </div>
             )}
             <div>
-              <Text type="secondary" className="text-xs block mb-1">Duration</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.durationLabel')}</Text>
               <Text strong>{durationLabel}</Text>
             </div>
             <div>
-              <Text type="secondary" className="text-xs block mb-1">Participants</Text>
-              <Text strong>{selectedGroupParticipants.length} selected</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.participantsSelectedLabel')}</Text>
+              <Text strong>{t('bookingWizard.confirm.participantsCount', { count: selectedGroupParticipants.length })}</Text>
             </div>
             <div>
-              <Text type="secondary" className="text-xs block mb-1">Date</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.dateLabel')}</Text>
               <Text strong>{selectedDateString}</Text>
             </div>
             <div>
-              <Text type="secondary" className="text-xs block mb-1">Time</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.timeLabel')}</Text>
               <Text strong>{selectedTime}</Text>
             </div>
             <div className="col-span-2 pt-1 border-t border-gray-100">
-              <Text type="secondary" className="text-xs block mb-1">Payment Method</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.paymentMethodLabel')}</Text>
               <Text strong>{getPaymentMethodLabel()}</Text>
             </div>
             {selectedParticipantNames.length > 0 && (
               <div className="col-span-2">
-                <Text type="secondary" className="text-xs block mb-1">Selected Participants</Text>
+                <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.selectedParticipantsLabel')}</Text>
                 <div className="flex flex-wrap gap-1">
                   {selectedParticipantNames.map((name, idx) => (
                     <Tag key={idx} color="blue">{name}</Tag>
@@ -1714,7 +1761,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             type="info"
             showIcon
             className="mt-3"
-            message="Participants will need to accept the invitation before this lesson is confirmed."
+            message={t('bookingWizard.confirm.groupInviteNotice')}
           />
         </div>
       );
@@ -1722,36 +1769,36 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
     return (
       <div className="space-y-2">
-        <Title level={5} className="mb-2">Booking Details</Title>
+        <Title level={5} className="mb-2">{t('bookingWizard.confirm.bookingDetailsHeading')}</Title>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
-            <Text type="secondary" className="text-xs block mb-1">Participant</Text>
+            <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.participantLabel')}</Text>
             <Text strong>{participantLabel}</Text>
           </div>
           <div>
-            <Text type="secondary" className="text-xs block mb-1">Service</Text>
+            <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.serviceLabel')}</Text>
             <Text strong>{selectedService?.name}</Text>
           </div>
           {(instructorLabel || isInstructorRequired) && (
             <div>
-              <Text type="secondary" className="text-xs block mb-1">Instructor</Text>
-              <Text strong>{instructorLabel || (instructorsLoading ? 'Loading…' : 'To be assigned')}</Text>
+              <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.instructorLabel')}</Text>
+              <Text strong>{instructorLabel || (instructorsLoading ? t('bookingWizard.confirm.loadingInstructor') : t('bookingWizard.confirm.toBeAssigned'))}</Text>
             </div>
           )}
           <div>
-            <Text type="secondary" className="text-xs block mb-1">Duration</Text>
+            <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.durationLabel')}</Text>
             <Text strong>{durationLabel}</Text>
           </div>
           <div>
-            <Text type="secondary" className="text-xs block mb-1">Date</Text>
+            <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.dateLabel')}</Text>
             <Text strong>{selectedDateString}</Text>
           </div>
           <div>
-            <Text type="secondary" className="text-xs block mb-1">Time</Text>
+            <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.timeLabel')}</Text>
             <Text strong>{selectedTime}</Text>
           </div>
           <div className="col-span-2 pt-1 border-t border-gray-100">
-            <Text type="secondary" className="text-xs block mb-1">Payment Method</Text>
+            <Text type="secondary" className="text-xs block mb-1">{t('bookingWizard.confirm.paymentMethodLabel')}</Text>
             <Text strong>{getPaymentMethodLabel()}</Text>
           </div>
         </div>
@@ -1793,8 +1840,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       <Space direction="vertical" size={4} className="w-full">
         <Text type="secondary">
           {showingAllPackages
-            ? 'No packages match this service. Showing all available packages:'
-            : 'Select a package with remaining hours'}
+            ? t('bookingWizard.package.showingAllPackages')
+            : t('bookingWizard.package.selectPackage')}
         </Text>
         <Radio.Group
           onChange={(event) => setSelectedPackageId(event.target.value)}
@@ -1805,7 +1852,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             <Radio key={pkg.id} value={pkg.id}>
               {getPackageDisplayName(pkg)}
               <Text type="secondary" className="ml-2">
-                {Number(pkg.remainingHours).toFixed(2)}h remaining
+                {t('bookingWizard.package.hoursRemaining', { hours: Number(pkg.remainingHours).toFixed(2) })}
               </Text>
             </Radio>
           ))}
@@ -1814,8 +1861,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           <Alert
             type="warning"
             showIcon
-            message="No packages match this service"
-            description="You can still select a package, but the backend may reject it if hours are insufficient."
+            message={t('bookingWizard.package.noMatchWarningTitle')}
+            description={t('bookingWizard.package.noMatchWarningDesc')}
           />
         ) : null}
       </Space>
@@ -1835,12 +1882,12 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         <Alert
           type="info"
           showIcon
-          message="Partial Wallet Payment"
+          message={t('bookingWizard.walletWarning.partialTitle')}
           description={
             <div>
-              <p className="mb-1">Your wallet balance is <strong>{formatCurrency(displayCurrentBalance, userCurrency)}</strong>.</p>
-              <p className="mb-1">The remaining <strong>{formatCurrency(displayDeficit, userCurrency)}</strong> will be charged from your credit card.</p>
-              <p className="text-xs text-gray-500">The card charge will be added to your wallet and then used for this purchase.</p>
+              <p className="mb-1">{t('bookingWizard.walletWarning.partialDesc1', { balance: formatCurrency(displayCurrentBalance, userCurrency) }).replace('<1>', '<strong>').replace('</1>', '</strong>')}</p>
+              <p className="mb-1">{t('bookingWizard.walletWarning.partialDesc2', { deficit: formatCurrency(displayDeficit, userCurrency) }).replace('<1>', '<strong>').replace('</1>', '</strong>')}</p>
+              <p className="text-xs text-gray-500">{t('bookingWizard.walletWarning.partialDesc3')}</p>
             </div>
           }
         />
@@ -1851,14 +1898,14 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       <Alert
         type="warning"
         showIcon
-        message="Insufficient wallet balance. Choose another payment option or top up your wallet."
+        message={t('bookingWizard.walletWarning.insufficientMessage')}
       />
     );
   };
 
   const renderPaymentOptions = () => (
     <div className="space-y-2">
-      <Title level={5} className="mb-2">Payment Method</Title>
+      <Title level={5} className="mb-2">{t('bookingWizard.paymentOptions.heading')}</Title>
       <Select
         value={paymentMethod}
         onChange={handlePaymentMethodChange}
@@ -1875,11 +1922,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
   const renderNotesSection = () => (
     <div className="space-y-2">
-      <Title level={5} className="mb-2">Additional Notes (Optional)</Title>
+      <Title level={5} className="mb-2">{t('bookingWizard.confirm.notesHeading')}</Title>
       <Input.TextArea
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
-        placeholder="Add details for your instructor"
+        placeholder={t('bookingWizard.confirm.notesPlaceholder')}
         autoSize={{ minRows: 2, maxRows: 4 }}
         size="small"
       />
@@ -1892,19 +1939,19 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     }
     return (
       <div className="space-y-1 text-xs bg-gray-50 p-2 rounded border border-gray-200">
-        <Text strong className="text-xs">Pricing Breakdown</Text>
+        <Text strong className="text-xs">{t('bookingWizard.confirm.pricingBreakdownHeading')}</Text>
         <div className="grid grid-cols-2 gap-1 text-xs">
-          <Text type="secondary" className="text-xs">Planned: {pricingBreakdown.plannedHours.toFixed(2)}h</Text>
-          <Text type="secondary" className="text-xs">Package: {pricingBreakdown.usedFromPackage.toFixed(2)}h</Text>
-          <Text type="secondary" className="text-xs">Chargeable: {pricingBreakdown.chargeableHours.toFixed(2)}h</Text>
-          <Text type="secondary" className="text-xs">Rate: {formatCurrency(convertCurrency ? convertCurrency(baseHourlyRate, serviceCurrency, userCurrency) : baseHourlyRate, userCurrency)}</Text>
+          <Text type="secondary" className="text-xs">{t('bookingWizard.confirm.pricingPlanned', { hours: pricingBreakdown.plannedHours.toFixed(2) })}</Text>
+          <Text type="secondary" className="text-xs">{t('bookingWizard.confirm.pricingPackage', { hours: pricingBreakdown.usedFromPackage.toFixed(2) })}</Text>
+          <Text type="secondary" className="text-xs">{t('bookingWizard.confirm.pricingChargeable', { hours: pricingBreakdown.chargeableHours.toFixed(2) })}</Text>
+          <Text type="secondary" className="text-xs">{t('bookingWizard.confirm.pricingRate', { amount: formatCurrency(convertCurrency ? convertCurrency(baseHourlyRate, serviceCurrency, userCurrency) : baseHourlyRate, userCurrency) })}</Text>
         </div>
       </div>
     );
   };
 
   const renderErrorBanner = () => (
-    mutation.isError ? <Alert type="error" message="Could not create booking" showIcon /> : null
+    mutation.isError ? <Alert type="error" message={t('bookingWizard.confirm.bookingError')} showIcon /> : null
   );
 
   const stepValidators = [
@@ -2029,17 +2076,17 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     onSuccess: async (data) => {
       // Credit card payment: redirect to Iyzico checkout
       if (data?.paymentPageUrl) {
-        message.info('Redirecting to payment page...');
+        message.info(t('bookingWizard.booking.redirecting'));
         onClose();
         window.location.href = data.paymentPageUrl;
         return;
       }
 
-      message.success('Your booking request has been submitted.');
-      
+      message.success(t('bookingWizard.booking.successMessage'));
+
       // Check if user was upgraded from outsider to student
       if (data?.roleUpgrade?.upgraded) {
-        message.info(data.roleUpgrade.message || 'You have been upgraded to a student account!', 5);
+        message.info(data.roleUpgrade.message || t('bookingWizard.booking.roleUpgradeMessage'), 5);
         // Refresh token to get new JWT with updated role
         await refreshToken();
         // Navigate to student dashboard after role upgrade
@@ -2122,19 +2169,19 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
         // Validate required fields before sending
         if (!groupPayload.serviceId) {
-          throw new Error('Please select a service');
+          throw new Error(t('bookingWizard.booking.validationSelectService'));
         }
         if (!groupPayload.participantIds || groupPayload.participantIds.length === 0) {
-          throw new Error('Please select at least one participant');
+          throw new Error(t('bookingWizard.booking.validationSelectParticipant'));
         }
         if (groupPayload.pricePerPerson === null || groupPayload.pricePerPerson === undefined || isNaN(groupPayload.pricePerPerson)) {
-          throw new Error('Invalid price per person');
+          throw new Error(t('bookingWizard.booking.validationInvalidPrice'));
         }
         if (!groupPayload.scheduledDate) {
-          throw new Error('Please select a date');
+          throw new Error(t('bookingWizard.booking.validationSelectDate'));
         }
         if (!groupPayload.startTime) {
-          throw new Error('Please select a time');
+          throw new Error(t('bookingWizard.booking.validationSelectTime'));
         }
 
         const response = await createGroupBooking(groupPayload);
@@ -2142,33 +2189,33 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         const groupId = response?.groupBooking?.id || response?.data?.groupBooking?.id;
         
         if (!groupId) {
-          throw new Error('Group booking created but ID not returned');
+          throw new Error(t('bookingWizard.booking.validationGroupIdMissing'));
         }
 
-        message.success('Group booking created! Participants will be notified to accept.');
-        
+        message.success(t('bookingWizard.booking.groupSuccess'));
+
         Modal.success({
-          title: '✅ Group Booking Created!',
+          title: t('bookingWizard.booking.groupSuccessTitle'),
           width: 600,
-          okText: 'Close',
+          okText: t('bookingWizard.booking.groupCloseButton'),
           content: (
             <div className="space-y-4 mt-4">
               <Alert
                 type="success"
                 showIcon
-                message="Invitation notifications sent!"
-                description={`${selectedGroupParticipants.length} participant(s) will receive notifications to accept or decline this group lesson.`}
+                message={t('bookingWizard.booking.groupInvitationsTitle')}
+                description={t('bookingWizard.booking.groupInvitationsDesc', { count: selectedGroupParticipants.length })}
               />
-              
+
               <Alert
                 type="info"
                 showIcon
-                message="Next Steps"
+                message={t('bookingWizard.booking.groupNextStepsTitle')}
                 description={
                   <div className="mt-2 space-y-1 text-xs">
-                    <p>• All participants will receive a notification to accept or decline.</p>
-                    <p>• Once <strong>all participants accept</strong>, the lesson will appear on the calendar for admin approval.</p>
-                    <p>• You can track acceptance status in your Group Bookings section.</p>
+                    <p>{t('bookingWizard.booking.groupNextStep1')}</p>
+                    <p>{t('bookingWizard.booking.groupNextStep2')}</p>
+                    <p>{t('bookingWizard.booking.groupNextStep3')}</p>
                   </div>
                 }
               />
@@ -2182,7 +2229,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         onClose();
       } catch (error) {
         console.error('Group booking error:', error);
-        message.error(error.response?.data?.error || error.message || 'Failed to create group booking');
+        message.error(error.response?.data?.error || error.message || t('bookingWizard.booking.failedToCreate'));
       } finally {
         setCreatingGroupBooking(false);
       }
@@ -2231,14 +2278,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       payload,
       mutation,
       messageApi: message,
+      fallbackMessage: t('bookingWizard.booking.failedToCreate'),
     });
   };
 
   const renderParticipantStep = () => (
     <div className="space-y-2">
       <div>
-        <Title level={5} className="mb-1 text-sm">Who is this lesson for?</Title>
-        <Text type="secondary" className="text-xs">Select yourself, group, or a family member</Text>
+        <Title level={5} className="mb-1 text-sm">{t('bookingWizard.participant.heading')}</Title>
+        <Text type="secondary" className="text-xs">{t('bookingWizard.participant.subheading')}</Text>
       </div>
 
       <div className="grid gap-1.5 sm:grid-cols-1 md:grid-cols-2">
@@ -2253,8 +2301,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <Title level={5} className="mb-0.5 text-xs">Myself</Title>
-              <Text type="secondary" className="text-xs">Your profile</Text>
+              <Title level={5} className="mb-0.5 text-xs">{t('bookingWizard.participant.myselfTitle')}</Title>
+              <Text type="secondary" className="text-xs">{t('bookingWizard.participant.myselfDesc')}</Text>
             </div>
             {participantType === 'self' && (
               <div className="ml-1 flex-shrink-0 w-4 h-4 rounded-full bg-sky-500 text-white flex items-center justify-center text-xs">✓</div>
@@ -2273,8 +2321,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <Title level={5} className="mb-0.5 text-xs">Group</Title>
-              <Text type="secondary" className="text-xs">Multiple participants</Text>
+              <Title level={5} className="mb-0.5 text-xs">{t('bookingWizard.participant.groupTitle')}</Title>
+              <Text type="secondary" className="text-xs">{t('bookingWizard.participant.groupDesc')}</Text>
             </div>
             {participantType === 'group' && (
               <div className="ml-1 flex-shrink-0 w-4 h-4 rounded-full bg-sky-500 text-white flex items-center justify-center text-xs">✓</div>
@@ -2301,7 +2349,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                   <div className="flex-1 min-w-0">
                     <Title level={5} className="mb-0.5 text-xs">{member.full_name}</Title>
                     <div className="flex flex-wrap gap-0.5">
-                      {age !== null && <Tag className="text-xs">{age} years</Tag>}
+                      {age !== null && <Tag className="text-xs">{t('bookingWizard.participant.yearsTag', { count: age })}</Tag>}
                       {member.relationship && <Tag color="blue" className="text-xs">{member.relationship}</Tag>}
                     </div>
                   </div>
@@ -2319,8 +2367,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <Title level={5} className="mb-0.5 text-xs">Family Member</Title>
-                  <Text type="secondary" className="text-xs">Add one to continue</Text>
+                  <Title level={5} className="mb-0.5 text-xs">{t('bookingWizard.participant.familyMemberTitle')}</Title>
+                  <Text type="secondary" className="text-xs">{t('bookingWizard.participant.familyMemberDesc')}</Text>
                 </div>
                 <div className="ml-1 flex-shrink-0 w-4 h-4 rounded-full border-2 border-gray-300 text-gray-400 flex items-center justify-center text-xs">+</div>
               </div>
@@ -2330,16 +2378,16 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
 
       {Array.isArray(familyMembers) && familyMembers.length === 0 && (
         <Text type="secondary" className="text-xs text-center py-1">
-          No family members.{' '}
-          <Button 
-            type="link" 
-            size="small" 
+          {t('bookingWizard.participant.noFamilyText')}{' '}
+          <Button
+            type="link"
+            size="small"
             className="p-0 h-auto"
             onClick={() => setFamilyModalOpen(true)}
           >
-            Add one
+            {t('bookingWizard.participant.noFamilyAddLink')}
           </Button>{' '}
-          to continue.
+          {t('bookingWizard.participant.noFamilyToContinue')}
         </Text>
       )}
 
@@ -2370,15 +2418,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     return (
       <div className="space-y-4">
         <div>
-          <Title level={5} className="mb-1">Select Group Participants</Title>
-          <Text type="secondary">Choose registered customers to join this group lesson. Each participant will need to accept the invitation before the lesson is confirmed.</Text>
+          <Title level={5} className="mb-1">{t('bookingWizard.groupParticipants.heading')}</Title>
+          <Text type="secondary">{t('bookingWizard.groupParticipants.subheading')}</Text>
         </div>
 
         {/* Selected Participants */}
         {selectedGroupParticipants.length > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <Text strong className="text-green-700 block mb-2">
-              Selected Participants ({selectedGroupParticipants.length})
+              {t('bookingWizard.groupParticipants.selectedTitle', { count: selectedGroupParticipants.length })}
             </Text>
             <div className="flex flex-wrap gap-2">
               {selectedCustomers.map(customer => (
@@ -2400,7 +2448,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         <div className="relative">
           <Input
             prefix={<SearchOutlined />}
-            placeholder="Search customers by name or email..."
+            placeholder={t('bookingWizard.groupParticipants.searchPlaceholder')}
             value={participantSearchQuery}
             onChange={(e) => setParticipantSearchQuery(e.target.value)}
             allowClear
@@ -2412,15 +2460,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           {customersLoading ? (
             <div className="p-4 text-center">
               <Spin size="small" />
-              <Text type="secondary" className="ml-2">Loading customers...</Text>
+              <Text type="secondary" className="ml-2">{t('bookingWizard.groupParticipants.loadingCustomers')}</Text>
             </div>
           ) : availableCustomers.length === 0 ? (
-            <Empty 
+            <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
-                participantSearchQuery 
-                  ? "No customers found matching your search" 
-                  : "No available customers"
+                participantSearchQuery
+                  ? t('bookingWizard.groupParticipants.noCustomersSearch')
+                  : t('bookingWizard.groupParticipants.noCustomersAvailable')
               }
               className="py-4"
             />
@@ -2446,7 +2494,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                       </div>
                     </div>
                     <Button type="link" size="small" icon={<PlusOutlined />}>
-                      Add
+                      {t('bookingWizard.groupParticipants.addButton')}
                     </Button>
                   </div>
                 </List.Item>
@@ -2459,13 +2507,13 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         <Alert
           type="info"
           showIcon
-          message="How Group Booking Works"
+          message={t('bookingWizard.groupParticipants.howItWorksTitle')}
           description={
             <div className="space-y-1 mt-2 text-xs">
-              <p>• Only your <strong>friends/connections</strong> can be invited to group lessons.</p>
-              <p>• Selected participants will receive a notification to accept or decline.</p>
-              <p>• The lesson will only appear on the calendar for approval once <strong>all participants accept</strong>.</p>
-              <p>• Each participant must have a valid group package or be prepared to purchase one.</p>
+              <p>{t('bookingWizard.groupParticipants.howItWorksBullet1').replace('<1>', '').replace('</1>', '')}</p>
+              <p>{t('bookingWizard.groupParticipants.howItWorksBullet2')}</p>
+              <p>{t('bookingWizard.groupParticipants.howItWorksBullet3').replace('<1>', '').replace('</1>', '')}</p>
+              <p>{t('bookingWizard.groupParticipants.howItWorksBullet4')}</p>
             </div>
           }
         />
@@ -2475,16 +2523,16 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           <Alert
             type="warning"
             showIcon
-            message="No Friends Found"
+            message={t('bookingWizard.groupParticipants.noFriendsTitle')}
             description={
               <div className="text-xs mt-1">
-                <p className="mb-2">You need to connect with other students before inviting them to group lessons.</p>
-                <Button 
-                  type="primary" 
+                <p className="mb-2">{t('bookingWizard.groupParticipants.noFriendsDesc')}</p>
+                <Button
+                  type="primary"
                   size="small"
                   onClick={() => navigate('/student/friends')}
                 >
-                  Manage Friends
+                  {t('bookingWizard.groupParticipants.manageFriends')}
                 </Button>
               </div>
             }
@@ -2495,7 +2543,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           <Alert
             type="warning"
             showIcon
-            message="Please select at least one participant to continue"
+            message={t('bookingWizard.groupParticipants.selectAtLeastOne')}
           />
         )}
       </div>
@@ -2527,15 +2575,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                 setPurchasePaymentMethod('wallet');
               }}
             />
-            <Title level={5} className="mb-0">Buy Lesson Packages</Title>
+            <Title level={5} className="mb-0">{t('bookingWizard.package.buyFlowHeading')}</Title>
           </div>
 
           {/* Payment method for purchase */}
           <Card size="small" className="bg-gray-50">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Text strong className="text-sm">Payment Method</Text>
-                    <Tag color="green">Balance: {formatCurrency(walletBal)}</Tag>
+                    <Text strong className="text-sm">{t('bookingWizard.package.paymentMethod')}</Text>
+                    <Tag color="green">{t('bookingWizard.package.walletBalance', { balance: formatCurrency(walletBal) })}</Tag>
                   </div>
                   <Radio.Group
                     value={purchasePaymentMethod}
@@ -2545,8 +2593,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                     className="w-full"
                   >
                     <div className="flex flex-wrap gap-2">
-                      <Radio.Button value="wallet">💳 Wallet</Radio.Button>
-                      <Radio.Button value="pay_later">💵 Cash</Radio.Button>
+                      <Radio.Button value="wallet">💳 {t('bookingWizard.package.walletOption')}</Radio.Button>
+                      <Radio.Button value="pay_later">💵 {t('bookingWizard.package.cashOption')}</Radio.Button>
                     </div>
                   </Radio.Group>
                 </div>
@@ -2556,7 +2604,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               {purchasePackagesLoading ? (
                 <div className="text-center py-8">
                   <Spin />
-                  <Text type="secondary" className="block mt-2">Loading packages...</Text>
+                  <Text type="secondary" className="block mt-2">{t('bookingWizard.package.loadingPackages')}</Text>
                 </div>
               ) : (() => {
                 // Filter packages to match the selected service (if any)
@@ -2578,17 +2626,17 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                 if (filteredPackages.length === 0) {
                   return (
                     <div className="text-center py-6">
-                      <Empty 
+                      <Empty
                         description={
-                          selectedService 
-                            ? `No packages available for "${selectedService.name}"`
-                            : "No packages available in this category"
-                        } 
+                          selectedService
+                            ? t('bookingWizard.package.noPackagesForService', { serviceName: selectedService.name })
+                            : t('bookingWizard.package.noPackagesForCategory')
+                        }
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                       />
                       {selectedService && availablePackagesForPurchase.length > 0 && (
                         <Text type="secondary" className="text-xs mt-2 block">
-                          {availablePackagesForPurchase.length} other package{availablePackagesForPurchase.length !== 1 ? 's' : ''} available for different lesson types
+                          {t('bookingWizard.package.otherPackagesHint', { count: availablePackagesForPurchase.length })}
                         </Text>
                       )}
                     </div>
@@ -2632,7 +2680,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                               disabled={purchasePaymentMethod === 'wallet' && !canAffordWithWallet}
                               onClick={() => handlePurchasePackage(pkg)}
                             >
-                              {purchasePaymentMethod === 'wallet' && !canAffordWithWallet ? 'Insufficient' : 'Buy Now'}
+                              {purchasePaymentMethod === 'wallet' && !canAffordWithWallet ? t('bookingWizard.package.insufficientBalance') : t('bookingWizard.package.buyNow')}
                             </Button>
                           </div>
                         </div>
@@ -2659,11 +2707,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
-                <Title level={5} className="mb-0.5 text-sm">Your Package Hours</Title>
+                <Title level={5} className="mb-0.5 text-sm">{t('bookingWizard.package.ownedHeading')}</Title>
                 <Text type="secondary" className="text-xs">
-                  {selectedService 
-                    ? `Packages matching "${selectedService.name}"`
-                    : 'Use pre-purchased lesson hours for your booking'
+                  {selectedService
+                    ? t('bookingWizard.package.ownedSubheadingFiltered', { serviceName: selectedService.name })
+                    : t('bookingWizard.package.ownedSubheadingGeneric')
                   }
                 </Text>
               </div>
@@ -2688,7 +2736,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                       <Text strong className="text-sm">{getPackageDisplayName(pkg)}</Text>
                       <div className="flex items-center gap-2 mt-0.5">
                         <Tag color="green" className="text-xs">
-                          {Number(pkg.remainingHours).toFixed(1)}h remaining
+                          {t('bookingWizard.package.remainingHours', { hours: Number(pkg.remainingHours).toFixed(1) })}
                         </Tag>
                       </div>
                     </div>
@@ -2701,7 +2749,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             </div>
             {displayPackages.length > 3 && (
               <Text type="secondary" className="text-xs">
-                +{displayPackages.length - 3} more packages available
+                {t('bookingWizard.package.morePackages', { count: displayPackages.length - 3 })}
               </Text>
             )}
           </div>
@@ -2714,21 +2762,21 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               <div className="text-2xl">💡</div>
               <div className="flex-1">
                 <Title level={5} className="mb-1 text-sm">
-                  {hasMatchingPackages ? 'Buy More Packages (Optional)' : 'Save with Packages (Optional)'}
+                  {hasMatchingPackages ? t('bookingWizard.package.buyMoreOptional') : t('bookingWizard.package.saveWithPackages')}
                 </Title>
                 <Text type="secondary" className="text-xs block mb-2">
-                  {selectedService 
-                    ? `Buy packages for "${selectedService.name}" to save money on multiple lessons.`
-                    : 'You can book individual lessons now, or buy a package to save money on multiple lessons.'
+                  {selectedService
+                    ? t('bookingWizard.package.buyDescFiltered', { serviceName: selectedService.name })
+                    : t('bookingWizard.package.buyDescGeneric')
                   }
                 </Text>
-                <Button 
+                <Button
                   type="link"
                   size="small"
                   className="px-0"
                   onClick={() => setShowBuyPackages(true)}
                 >
-                  {hasMatchingPackages ? 'Buy More Packages →' : 'View Packages →'}
+                  {hasMatchingPackages ? t('bookingWizard.package.buyMoreLink') : t('bookingWizard.package.viewPackagesLink')}
                 </Button>
               </div>
             </div>
@@ -2740,8 +2788,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           <Alert
             type="info"
             showIcon
-            message="You can continue booking without a package"
-            description="Individual lesson payment will be processed at the next steps."
+            message={t('bookingWizard.package.noPackageContinue')}
+            description={t('bookingWizard.package.noPackageContinueDesc')}
             className="text-xs"
           />
         )}
@@ -2789,8 +2837,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       {!selectedServiceCategory ? (
         <>
           <div>
-            <Title level={5} className="mb-1">What would you like to book?</Title>
-            <Text type="secondary" className="text-sm">Choose a category to see available options</Text>
+            <Title level={5} className="mb-1">{t('bookingWizard.service.categoryHeading')}</Title>
+            <Text type="secondary" className="text-sm">{t('bookingWizard.service.categorySubheading')}</Text>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -2807,11 +2855,11 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                 <div className="flex items-center gap-4">
                   <div className="text-3xl">{cat.icon}</div>
                   <div className="flex-1">
-                    <Title level={5} className="mb-0 text-base">{cat.label}</Title>
-                    <Text type="secondary" className="text-xs">{cat.description}</Text>
+                    <Title level={5} className="mb-0 text-base">{t(`bookingWizard.service.categories.${cat.key}.label`)}</Title>
+                    <Text type="secondary" className="text-xs">{t(`bookingWizard.service.categories.${cat.key}.description`)}</Text>
                   </div>
                   <div className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-sky-500 hover:text-white transition-colors">
-                    Select
+                    {t('bookingWizard.service.categorySelect')}
                   </div>
                 </div>
               </div>
@@ -2836,9 +2884,9 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             <div className="flex-1">
               <Title level={5} className="mb-0">
                 {SERVICE_CATEGORIES.find(c => c.key === selectedServiceCategory)?.icon}{' '}
-                {SERVICE_CATEGORIES.find(c => c.key === selectedServiceCategory)?.label}
+                {t(`bookingWizard.service.categories.${selectedServiceCategory}.label`)}
               </Title>
-              <Text type="secondary" className="text-xs">Select a service from this category</Text>
+              <Text type="secondary" className="text-xs">{t('bookingWizard.service.serviceListSubheading')}</Text>
             </div>
           </div>
 
@@ -2850,7 +2898,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               className="text-xs"
               message={
                 <span>
-                  Showing services compatible with your selected package: <strong>{selectedPackage ? getPackageDisplayName(selectedPackage) : 'Package'}</strong>
+                  {t('bookingWizard.service.packageFilterNotice').replace('<1>', '').replace('</1>', '')} <strong>{selectedPackage ? getPackageDisplayName(selectedPackage) : t('bookingWizard.steps.package')}</strong>
                 </span>
               }
             />
@@ -2860,7 +2908,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           <div>
             <Input
               prefix={<svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
-              placeholder="Search services..."
+              placeholder={t('bookingWizard.service.searchPlaceholder')}
               value={serviceSearch}
               onChange={(e) => setServiceSearch(e.target.value)}
               size="small"
@@ -2869,7 +2917,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             />
             {filteredServices.length > 0 && (
               <Text type="secondary" className="text-xs">
-                Found {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''}
+                {t('bookingWizard.service.foundCount', { count: filteredServices.length })}
               </Text>
             )}
           </div>
@@ -2878,22 +2926,22 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           {servicesLoading ? (
             <Spin size="small" />
           ) : availableServices.length === 0 ? (
-            <Empty 
-              description={`No ${SERVICE_CATEGORIES.find(c => c.key === selectedServiceCategory)?.label.toLowerCase() || 'services'} available`}
+            <Empty
+              description={t('bookingWizard.service.noneAvailable', { categoryLabel: t(`bookingWizard.service.categories.${selectedServiceCategory}.label`).toLowerCase() })}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             >
               <Button type="link" size="small" onClick={() => setSelectedServiceCategory(null)}>
-                ← Back to categories
+                {t('bookingWizard.service.backToCategories')}
               </Button>
             </Empty>
           ) : filteredServices.length === 0 ? (
             <Empty
-              description="No matching services"
+              description={t('bookingWizard.service.noMatchingServices')}
               style={{ marginTop: 24, marginBottom: 24 }}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             >
               <Button type="primary" size="small" onClick={() => setServiceSearch('')}>
-                Clear Search
+                {t('bookingWizard.service.clearSearch')}
               </Button>
             </Empty>
           ) : (
@@ -2942,7 +2990,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                         )}
                         {isPremium && !service.description && (
                           <Text type="secondary" className="text-xs mb-2 block italic">
-                            Private coaching with our most experienced instructors - fully personalized sessions
+                            {t('bookingWizard.service.premiumDescription')}
                           </Text>
                         )}
                         <div className="flex flex-wrap gap-1">
@@ -2956,7 +3004,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                           isSelected ? 'bg-sky-500 text-white' : 'bg-gray-100 text-gray-600'
                         }`}
                       >
-                        {isSelected ? '✓' : 'Select'}
+                        {isSelected ? '✓' : t('bookingWizard.service.categorySelect')}
                       </div>
                     </div>
                   </div>
@@ -2970,8 +3018,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             <Alert
               type="success"
               showIcon
-              message="Compatible Packages"
-              description={`${matchingPackages.length} package${matchingPackages.length !== 1 ? 's' : ''} match this service`}
+              message={t('bookingWizard.service.compatiblePackagesTitle')}
+              description={t('bookingWizard.service.compatiblePackages', { count: matchingPackages.length })}
               className="mb-0 text-xs"
             />
           )}
@@ -2983,15 +3031,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const renderInstructorStep = () => (
     <div className="space-y-3">
       <div>
-        <Title level={5} className="mb-1">Who will teach you?</Title>
-        <Text type="secondary" className="text-sm">Choose your preferred instructor for this lesson</Text>
+        <Title level={5} className="mb-1">{t('bookingWizard.instructor.heading')}</Title>
+        <Text type="secondary" className="text-sm">{t('bookingWizard.instructor.subheading')}</Text>
       </div>
 
       {/* Search Bar */}
       <div>
         <Input
           prefix={<svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>}
-          placeholder="Search by name or email..."
+          placeholder={t('bookingWizard.instructor.searchPlaceholder')}
           value={instructorSearch}
           onChange={(e) => setInstructorSearch(e.target.value)}
           size="small"
@@ -3000,7 +3048,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         />
         {filteredInstructors.length > 0 && (
           <Text type="secondary" className="text-xs">
-            Found {filteredInstructors.length} instructor{filteredInstructors.length !== 1 ? 's' : ''}
+            {t('bookingWizard.instructor.foundCount', { count: filteredInstructors.length })}
           </Text>
         )}
       </div>
@@ -3009,15 +3057,15 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       {instructorsLoading ? (
         <Spin size="small" />
       ) : instructorsData.length === 0 ? (
-        <Empty description="No instructors available" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('bookingWizard.instructor.noneAvailable')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : filteredInstructors.length === 0 ? (
         <Empty
-          description="No matching instructors"
+          description={t('bookingWizard.instructor.noMatching')}
           style={{ marginTop: 24, marginBottom: 24 }}
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
           <Button type="primary" size="small" onClick={() => setInstructorSearch('')}>
-            Clear Search
+            {t('bookingWizard.instructor.clearSearch')}
           </Button>
         </Empty>
       ) : (
@@ -3059,10 +3107,10 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                     ) : null}
                     {!isQualified && instructor.matchReason && (
                       <Text type="secondary" className="text-[10px] block text-orange-500">
-                        {instructor.matchReason === 'no_skill_for_discipline' ? 'Not qualified for this discipline'
-                          : instructor.matchReason === 'category_mismatch' ? 'Not qualified for this lesson type'
-                          : instructor.matchReason === 'level_insufficient' ? 'Level insufficient'
-                          : 'Not qualified'}
+                        {instructor.matchReason === 'no_skill_for_discipline' ? t('bookingWizard.instructor.notQualifiedDiscipline')
+                          : instructor.matchReason === 'category_mismatch' ? t('bookingWizard.instructor.notQualifiedCategory')
+                          : instructor.matchReason === 'level_insufficient' ? t('bookingWizard.instructor.notQualifiedLevel')
+                          : t('bookingWizard.instructor.notQualified')}
                       </Text>
                     )}
                   </div>
@@ -3082,9 +3130,9 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     return (
       <div className="border border-gray-200 rounded-lg p-2 bg-white">
         <div className="grid grid-cols-7 gap-1 mb-1">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => (
             <div key={day} className="text-center text-xs font-medium text-gray-600 h-6 flex items-center justify-center">
-              {day}
+              {t(`bookingWizard.schedule.weekDays.${day}`)}
             </div>
           ))}
         </div>
@@ -3150,7 +3198,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         onClick={() => setScheduleStep(1)}
         className="w-full flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
       >
-        <Title level={5} className="mb-0">Step 1: Select Duration</Title>
+        <Title level={5} className="mb-0">{t('bookingWizard.schedule.step1Label')}</Title>
         <span className={`text-sm font-medium ${scheduleStep === 1 ? 'text-sky-500' : 'text-gray-400'}`}>
           {scheduleStep === 1 ? '▼' : '▶'}
         </span>
@@ -3192,7 +3240,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
         }`}
       >
-        <Title level={5} className="mb-0">Step 2: Select Date</Title>
+        <Title level={5} className="mb-0">{t('bookingWizard.schedule.step2Label')}</Title>
         <span className={`text-sm font-medium ${scheduleStep === 2 ? 'text-sky-500' : 'text-gray-400'}`}>
           {scheduleStep === 2 ? '▼' : '▶'}
         </span>
@@ -3205,7 +3253,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               onClick={() => setSelectedDate((selectedDate || today).subtract(1, 'month'))}
               className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
             >
-              ← Prev
+              {t('bookingWizard.schedule.prevMonth')}
             </button>
             <span className="text-xs font-medium px-2">
               {calendarMonth.format('MMM YYYY')}
@@ -3214,7 +3262,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               onClick={() => setSelectedDate((selectedDate || today).add(1, 'month'))}
               className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
             >
-              Next →
+              {t('bookingWizard.schedule.nextMonth')}
             </button>
           </div>
           {renderCalendarGrid(calendarMonth, calendarDays, today)}
@@ -3234,7 +3282,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
         }`}
       >
-        <Title level={5} className="mb-0">Step 3: Select Time</Title>
+        <Title level={5} className="mb-0">{t('bookingWizard.schedule.step3Label')}</Title>
         <span className={`text-sm font-medium ${scheduleStep === 3 ? 'text-sky-500' : 'text-gray-400'}`}>
           {scheduleStep === 3 ? '▼' : '▶'}
         </span>
@@ -3254,7 +3302,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               <Spin size="small" />
             </div>
           ) : availableStarts.length === 0 ? (
-            <Empty description="No slots available" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty description={t('bookingWizard.schedule.noSlotsAvailable')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : (
             <div className="grid gap-1 grid-cols-4 sm:grid-cols-5 md:grid-cols-6 pr-1">
               {availableStarts.map((slot) => (
@@ -3288,7 +3336,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
       {/* Promo Code Input */}
       {paymentMethod !== 'package' && (
         <div className="space-y-2">
-          <Title level={5} className="mb-2">Have a Promo Code?</Title>
+          <Title level={5} className="mb-2">{t('bookingWizard.confirm.promoCodeHeading')}</Title>
           <PromoCodeInput
             context={(() => {
               const cat = getServiceCategoryKey(selectedService);
@@ -3353,21 +3401,21 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
   const footer = (
     <div className="flex items-center justify-between gap-3">
       <Button onClick={onClose} disabled={mutation.isLoading || creatingGroupBooking}>
-        Cancel
+        {t('bookingWizard.footer.cancel')}
       </Button>
       <div className="flex items-center gap-3">
         {currentStep > 0 && (
           <Button onClick={handleBack} disabled={mutation.isLoading || creatingGroupBooking}>
-            ← Back
+            {t('bookingWizard.footer.back')}
           </Button>
         )}
         {currentStep < (participantType === 'group' ? GROUP_STEP_CONFIG.length - 1 : STEP_CONFIG.length - 1) ? (
-          <Button 
-            type="primary" 
-            onClick={handleNext} 
+          <Button
+            type="primary"
+            onClick={handleNext}
             disabled={!isStepValid(currentStep) || mutation.isLoading || creatingGroupBooking}
           >
-            Next →
+            {t('bookingWizard.footer.next')}
           </Button>
         ) : participantType === 'group' ? (
           <Button
@@ -3376,7 +3424,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             loading={creatingGroupBooking}
             disabled={!isStepValid(currentStep) || creatingGroupBooking}
           >
-            Create Group Booking
+            {t('bookingWizard.footer.createGroupBooking')}
           </Button>
         ) : (
           <Button
@@ -3385,7 +3433,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             loading={mutation.isLoading}
             disabled={!isStepValid(5) || mutation.isLoading}
           >
-            Confirm Booking
+            {t('bookingWizard.footer.confirmBooking')}
           </Button>
         )}
       </div>
@@ -3401,7 +3449,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
             onClose();
           }
         }}
-        title="Book a service"
+        title={t('bookingWizard.modal.title')}
         width={Math.min(600, window.innerWidth - 32)}
         footer={footer}
         destroyOnHidden
@@ -3439,23 +3487,23 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
         title={
           <div className="flex items-center gap-2">
             <CalendarOutlined className="text-orange-500" />
-            <span>Select Stay Dates</span>
+            <span>{t('bookingWizard.accommodationModal.title')}</span>
           </div>
         }
         onCancel={() => {
           setAccommodationDateModal(null);
           setAccommodationDates({ checkIn: null, checkOut: null });
         }}
-        okText="Continue to Purchase"
-        cancelText="Cancel"
+        okText={t('bookingWizard.accommodationModal.confirmButton')}
+        cancelText={t('bookingWizard.accommodationModal.cancelButton')}
         okButtonProps={{
           disabled: !accommodationDates.checkIn || !accommodationDates.checkOut
         }}
         onOk={() => {
           if (!accommodationDates.checkIn || !accommodationDates.checkOut) {
             notification.error({
-              message: 'Select Dates',
-              description: 'Please select both check-in and check-out dates.'
+              message: t('bookingWizard.accommodationModal.selectDatesError'),
+              description: t('bookingWizard.accommodationModal.selectDatesErrorDesc')
             });
             return;
           }
@@ -3471,35 +3519,35 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               <Text type="secondary">{accommodationDateModal.lessonServiceName || accommodationDateModal.lesson_service_name}</Text>
               {accommodationDateModal.accommodationNights > 0 && (
                 <div className="mt-2">
-                  <Tag color="orange">Includes {accommodationDateModal.accommodationNights} nights accommodation</Tag>
+                  <Tag color="orange">{t('bookingWizard.accommodationModal.packageInfo', { nights: accommodationDateModal.accommodationNights })}</Tag>
                 </div>
               )}
             </div>
 
             <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
               <Text type="secondary" className="block mb-3 text-sm">
-                {accommodationDateModal.accommodationNights > 0 
-                  ? `This package includes ${accommodationDateModal.accommodationNights} nights of accommodation`
-                  : 'Select your check-in and check-out dates'}
+                {accommodationDateModal.accommodationNights > 0
+                  ? t('bookingWizard.accommodationModal.includesNights', { nights: accommodationDateModal.accommodationNights })
+                  : t('bookingWizard.accommodationModal.selectDatesDesc')}
               </Text>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Text className="text-xs text-gray-500 block mb-1">Check-in</Text>
+                  <Text className="text-xs text-gray-500 block mb-1">{t('bookingWizard.accommodationModal.checkInLabel')}</Text>
                   <DatePicker
                     value={accommodationDates.checkIn}
                     onChange={(date) => setAccommodationDates(prev => ({ ...prev, checkIn: date }))}
-                    placeholder="Check-in date"
+                    placeholder={t('bookingWizard.accommodationModal.checkInPlaceholder')}
                     className="w-full"
                     disabledDate={(current) => current && current < dayjs().startOf('day')}
                     format="DD MMM YYYY"
                   />
                 </div>
                 <div>
-                  <Text className="text-xs text-gray-500 block mb-1">Check-out</Text>
+                  <Text className="text-xs text-gray-500 block mb-1">{t('bookingWizard.accommodationModal.checkOutLabel')}</Text>
                   <DatePicker
                     value={accommodationDates.checkOut}
                     onChange={(date) => setAccommodationDates(prev => ({ ...prev, checkOut: date }))}
-                    placeholder="Check-out date"
+                    placeholder={t('bookingWizard.accommodationModal.checkOutPlaceholder')}
                     className="w-full"
                     disabledDate={(current) => {
                       if (!accommodationDates.checkIn) return current && current < dayjs().startOf('day');
@@ -3512,7 +3560,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
               {accommodationDates.checkIn && accommodationDates.checkOut && (
                 <div className="mt-3 text-center">
                   <Tag color="orange" className="text-sm">
-                    {accommodationDates.checkOut.diff(accommodationDates.checkIn, 'day')} night{accommodationDates.checkOut.diff(accommodationDates.checkIn, 'day') > 1 ? 's' : ''}
+                    {t('bookingWizard.accommodationModal.nightsTag', { count: accommodationDates.checkOut.diff(accommodationDates.checkIn, 'day') })}
                   </Tag>
                 </div>
               )}
@@ -3546,6 +3594,7 @@ StudentBookingWizard.propTypes = {
 export default StudentBookingWizard;
 
 const StepNavigator = ({ currentStep, participantType, selectedService, isInstructorRequired, isScheduleRequired }) => {
+  const { t } = useTranslation(['student']);
   const stepConfig = participantType === 'group' ? GROUP_STEP_CONFIG : STEP_CONFIG;
   
   // Filter out steps that aren't needed based on service type
@@ -3595,7 +3644,7 @@ const StepNavigator = ({ currentStep, participantType, selectedService, isInstru
                 <span className={`${circleBase} ${circleClasses}`} aria-hidden>
                   {isCompleted ? '✓' : index + 1}
                 </span>
-                <span className={`${labelBase} ${labelClasses}`}>{step.title}</span>
+                <span className={`${labelBase} ${labelClasses}`}>{t(`bookingWizard.steps.${step.key === 'group_participants' ? 'participants' : step.key}`, step.title)}</span>
               </div>
               {index < visibleSteps.length - 1 ? (
                 <span

@@ -1,5 +1,6 @@
 // src/features/admin/components/CurrencyManagement.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   Table,
@@ -26,12 +27,13 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 const { Title } = Typography;
 
 const CurrencyManagement = () => {
+  const { t } = useTranslation(['admin']);
   const [currencies, setCurrencies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCurrency, setEditingCurrency] = useState(null);
   const [form] = Form.useForm();
-  
+
   const { loadCurrencies } = useCurrency();
 
   // Load all currencies (including inactive)
@@ -49,7 +51,7 @@ const CurrencyManagement = () => {
         setCurrencies(data);
       }
     } catch (error) {
-      message.error('Failed to load currencies');
+      message.error(t('admin:currency.toast.loadError'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ const CurrencyManagement = () => {
         setAllowedRegistrationCurrencies(data.allowed_registration_currencies || ['EUR', 'USD', 'TRY']);
       }
     } catch (error) {
-      message.error('Failed to load registration settings');
+      message.error(t('admin:currency.toast.registrationLoadError'));
     }
   };
 
@@ -86,13 +88,13 @@ const CurrencyManagement = () => {
       });
       
       if (response.ok) {
-        message.success('Registration currencies updated');
+        message.success(t('admin:currency.toast.registrationCurrenciesUpdated'));
         setAllowedRegistrationCurrencies(currencies);
       } else {
-        message.error('Failed to update registration currencies');
+        message.error(t('admin:currency.toast.registrationUpdateError'));
       }
     } catch (error) {
-      message.error('Failed to update registration currencies');
+      message.error(t('admin:currency.toast.registrationUpdateError'));
     }
   };
 
@@ -115,7 +117,7 @@ const CurrencyManagement = () => {
       });
       
       if (response.ok) {
-        message.success(`Currency ${editingCurrency ? 'updated' : 'added'} successfully`);
+        message.success(editingCurrency ? t('admin:currency.toast.updated') : t('admin:currency.toast.added'));
         setModalVisible(false);
         setEditingCurrency(null);
         form.resetFields();
@@ -123,10 +125,10 @@ const CurrencyManagement = () => {
         loadCurrencies(); // Refresh global currency context
       } else {
         const error = await response.json();
-        message.error(error.error || 'Failed to save currency');
+        message.error(error.error || t('admin:currency.toast.saveError'));
       }
     } catch (error) {
-      message.error('Failed to save currency');
+      message.error(t('admin:currency.toast.saveError'));
     }
   };
 
@@ -143,12 +145,12 @@ const CurrencyManagement = () => {
       });
       
       if (response.ok) {
-        message.success(`Currency ${isActive ? 'activated' : 'deactivated'}`);
+        message.success(isActive ? t('admin:currency.toast.activated') : t('admin:currency.toast.deactivated'));
         loadAllCurrencies();
         loadCurrencies();
       }
     } catch (error) {
-      message.error('Failed to update currency status');
+      message.error(t('admin:currency.toast.toggleError'));
     }
   };
 
@@ -163,12 +165,12 @@ const CurrencyManagement = () => {
       });
       
       if (response.ok) {
-        message.success('Base currency updated');
+        message.success(t('admin:currency.toast.baseCurrencyUpdated'));
         loadAllCurrencies();
         loadCurrencies();
       }
     } catch (error) {
-      message.error('Failed to set base currency');
+      message.error(t('admin:currency.toast.baseError'));
     }
   };
 
@@ -185,18 +187,18 @@ const CurrencyManagement = () => {
       });
       
       if (response.ok) {
-        message.success('Exchange rate updated');
+        message.success(t('admin:currency.toast.exchangeRateUpdated'));
         loadAllCurrencies();
         loadCurrencies();
       }
     } catch (error) {
-      message.error('Failed to update exchange rate');
+      message.error(t('admin:currency.toast.rateError'));
     }
   };
 
   const columns = [
     {
-      title: 'Currency',
+      title: t('admin:currency.table.currency'),
       dataIndex: 'currency_code',
       key: 'currency_code',
       render: (code, record) => (
@@ -208,17 +210,17 @@ const CurrencyManagement = () => {
       )
     },
     {
-      title: 'Name',
+      title: t('admin:currency.table.name'),
       dataIndex: 'currency_name',
       key: 'currency_name'
     },
     {
-      title: 'Exchange Rate',
+      title: t('admin:currency.table.exchangeRate'),
       dataIndex: 'exchange_rate',
       key: 'exchange_rate',
       render: (rate, record) => (
         record.base_currency ? (
-          <Tag color="gold">Base (1.0000)</Tag>
+          <Tag color="gold">{t('admin:currency.table.baseCurrency')}</Tag>
         ) : (
           <InputNumber
             value={rate}
@@ -237,7 +239,7 @@ const CurrencyManagement = () => {
       )
     },
     {
-      title: 'Status',
+      title: t('admin:currency.table.status'),
       dataIndex: 'is_active',
       key: 'is_active',
       render: (isActive, record) => (
@@ -249,7 +251,7 @@ const CurrencyManagement = () => {
       )
     },
     {
-      title: 'Actions',
+      title: t('admin:currency.table.actions'),
       key: 'actions',
       render: (_, record) => (
         <Space>
@@ -264,8 +266,8 @@ const CurrencyManagement = () => {
           />
           {!record.base_currency && (
             <Popconfirm
-              title="Set as base currency?"
-              description="This will make all other currencies relative to this one"
+              title={t('admin:currency.popconfirm.setBase')}
+              description={t('admin:currency.popconfirm.setBaseDescription')}
               onConfirm={() => setBaseCurrency(record.currency_code)}
             >
               <Button type="text" icon={<CrownOutlined />} />
@@ -284,7 +286,7 @@ const CurrencyManagement = () => {
     <div>
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Title level={3}>Currency Management</Title>
+          <Title level={3}>{t('admin:currency.title')}</Title>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -294,13 +296,13 @@ const CurrencyManagement = () => {
               setModalVisible(true);
             }}
           >
-            Add Currency
+            {t('admin:currency.addCurrency')}
           </Button>
         </div>
 
         <div style={{ marginBottom: 16, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
           <Text type="secondary">
-            <strong>Note:</strong> To control which currencies users can select during registration, go to <strong>Settings {'>'} Currency Settings</strong>.
+            {t('admin:currency.note')}
           </Text>
         </div>
 
@@ -314,7 +316,7 @@ const CurrencyManagement = () => {
       </Card>
 
       <Modal
-        title={editingCurrency ? 'Edit Currency' : 'Add Currency'}
+        title={editingCurrency ? t('admin:currency.modal.editTitle') : t('admin:currency.modal.addTitle')}
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
@@ -330,11 +332,11 @@ const CurrencyManagement = () => {
         >
           <Form.Item
             name="currency_code"
-            label="Currency Code"
-            rules={[{ required: true, message: 'Please enter currency code' }]}
+            label={t('admin:currency.modal.currencyCode')}
+            rules={[{ required: true, message: t('admin:currency.modal.currencyCodeRequired') }]}
           >
             <Input
-              placeholder="USD"
+              placeholder={t('admin:currency.modal.currencyCodePlaceholder')}
               maxLength={3}
               disabled={!!editingCurrency}
               style={{ textTransform: 'uppercase' }}
@@ -343,25 +345,25 @@ const CurrencyManagement = () => {
 
           <Form.Item
             name="currency_name"
-            label="Currency Name"
-            rules={[{ required: true, message: 'Please enter currency name' }]}
+            label={t('admin:currency.modal.currencyName')}
+            rules={[{ required: true, message: t('admin:currency.modal.currencyNameRequired') }]}
           >
-            <Input placeholder="US Dollar" />
+            <Input placeholder={t('admin:currency.modal.currencyNamePlaceholder')} />
           </Form.Item>
 
           <Form.Item
             name="symbol"
-            label="Symbol"
-            rules={[{ required: true, message: 'Please enter currency symbol' }]}
+            label={t('admin:currency.modal.symbol')}
+            rules={[{ required: true, message: t('admin:currency.modal.symbolRequired') }]}
           >
-            <Input placeholder="$" maxLength={5} />
+            <Input placeholder={t('admin:currency.modal.symbolPlaceholder')} maxLength={5} />
           </Form.Item>
 
           {!editingCurrency && (
             <Form.Item
               name="exchange_rate"
-              label="Exchange Rate"
-              rules={[{ required: true, message: 'Please enter exchange rate' }]}
+              label={t('admin:currency.modal.exchangeRate')}
+              rules={[{ required: true, message: t('admin:currency.modal.exchangeRateRequired') }]}
             >
               <InputNumber
                 placeholder="1.0000"
@@ -375,7 +377,7 @@ const CurrencyManagement = () => {
 
           <Form.Item
             name="is_active"
-            label="Active"
+            label={t('admin:currency.modal.active')}
             valuePropName="checked"
             initialValue={true}
           >
@@ -388,7 +390,7 @@ const CurrencyManagement = () => {
                 type="primary"
                 htmlType="submit"
               >
-                {editingCurrency ? 'Update' : 'Add'} Currency
+                {editingCurrency ? t('admin:currency.modal.updateButton') : t('admin:currency.modal.addButton')}
               </Button>
               <Button
                 onClick={() => {
@@ -397,7 +399,7 @@ const CurrencyManagement = () => {
                   form.resetFields();
                 }}
               >
-                Cancel
+                {t('admin:currency.modal.cancel')}
               </Button>
             </Space>
           </Form.Item>

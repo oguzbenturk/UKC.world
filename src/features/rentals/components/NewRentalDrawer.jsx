@@ -1,5 +1,6 @@
 // src/features/rentals/components/NewRentalDrawer.jsx
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import {
   Drawer,
@@ -40,6 +41,7 @@ const toArray = (value) => (Array.isArray(value) ? value : []);
 
 // eslint-disable-next-line complexity
 function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
+  const { t } = useTranslation(['manager']);
   const { apiClient } = useData();
   const { user } = useAuth();
   const { businessCurrency, formatCurrency } = useCurrency();
@@ -197,7 +199,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
   // Option renderers
   const renderCustomerOptions = useCallback(() => {
     if (!customers.length)
-      return <Option disabled value="" key="no-customers">No customers available</Option>;
+      return <Option disabled value="" key="no-customers">{t('manager:newRentalDrawer.noCustomers')}</Option>;
     return customers.map((c) => {
       const name = c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim();
       const label = name || c.email || 'Customer';
@@ -228,7 +230,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
 
   const renderEquipmentOptions = useCallback(() => {
     if (!equipment.length)
-      return <Option disabled value="" key="no-equipment">No rental services available</Option>;
+      return <Option disabled value="" key="no-equipment">{t('manager:newRentalDrawer.noEquipment')}</Option>;
     return equipment.map((item) => {
       const meta = [];
       if (item.price != null) meta.push(formatCurrency(item.price, item.currency || businessCurrency || 'EUR'));
@@ -282,11 +284,11 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
       const isMultipleCreation = !editingRental && participantMode === 'multiple';
 
       if (isMultipleCreation) {
-        if (!customerIds.length) { messageApi.warning('Select at least one customer'); return; }
+        if (!customerIds.length) { messageApi.warning(t('manager:newRentalDrawer.messages.selectCustomersWarning')); return; }
         await Promise.all(
           customerIds.map((id) => Rental.create({ ...basePayload, user_id: id }, apiClient || apiClientDefault))
         );
-        messageApi.success(`Created ${customerIds.length} rental${customerIds.length > 1 ? 's' : ''}`);
+        messageApi.success(customerIds.length > 1 ? t('manager:newRentalDrawer.messages.createdMultiplePlural', { count: customerIds.length }) : t('manager:newRentalDrawer.messages.createdMultiple', { count: customerIds.length }));
         onSuccess?.();
         handleClose();
         return;
@@ -294,23 +296,23 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
 
       const primaryCustomerId =
         participantMode === 'multiple' ? customerIds[0] ?? null : values.customer_id;
-      if (!primaryCustomerId) { messageApi.warning('Please select a customer'); return; }
+      if (!primaryCustomerId) { messageApi.warning(t('manager:newRentalDrawer.messages.selectCustomerWarning')); return; }
 
       const client = apiClient || apiClientDefault;
       const payload = { ...basePayload, user_id: primaryCustomerId };
       if (editingRental) {
         await Rental.update(editingRental.id, payload, client);
-        messageApi.success('Rental updated successfully');
+        messageApi.success(t('manager:newRentalDrawer.messages.updated'));
       } else {
         await Rental.create(payload, client);
-        messageApi.success('Rental created successfully');
+        messageApi.success(t('manager:newRentalDrawer.messages.created'));
       }
 
       onSuccess?.();
       handleClose();
     } catch (err) {
       const serverMsg = err?.response?.data?.error || err?.message;
-      messageApi.error(serverMsg ? `Failed to save rental: ${serverMsg}` : 'Failed to save rental');
+      messageApi.error(serverMsg ? t('manager:newRentalDrawer.messages.saveError', { error: serverMsg }) : t('manager:newRentalDrawer.messages.saveErrorGeneric'));
     }
   };
 
@@ -324,7 +326,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
       footer={null}
       title={
         <span className="font-semibold text-slate-800">
-          {editingRental ? 'Edit Rental' : 'New Rental'}
+          {editingRental ? t('manager:newRentalDrawer.titleEdit') : t('manager:newRentalDrawer.titleNew')}
         </span>
       }
       styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
@@ -335,7 +337,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
           <div className="space-y-1">
             {/* Customer */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Customer</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">{t('manager:newRentalDrawer.sectionCustomer')}</span>
               <Radio.Group
                 value={participantMode}
                 onChange={(e) => setParticipantMode(e.target.value)}
@@ -343,13 +345,13 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                 buttonStyle="solid"
                 size="small"
               >
-                <Radio.Button value="single">Single</Radio.Button>
+                <Radio.Button value="single">{t('manager:newRentalDrawer.single')}</Radio.Button>
                 <Radio.Button
                   value="multiple"
                   disabled={Boolean(editingRental)}
-                  title={editingRental ? 'Not available when editing' : undefined}
+                  title={editingRental ? t('manager:newRentalDrawer.multipleDisabled') : undefined}
                 >
-                  Multiple
+                  {t('manager:newRentalDrawer.multiple')}
                 </Radio.Button>
               </Radio.Group>
             </div>
@@ -357,11 +359,11 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
             {participantMode === 'single' ? (
               <Form.Item
                 name="customer_id"
-                rules={[{ required: true, message: 'Please select a customer' }]}
+                rules={[{ required: true, message: t('manager:newRentalDrawer.validation.selectCustomer') }]}
                 className="!mb-4"
               >
                 <Select
-                  placeholder="Search customer name or email"
+                  placeholder={t('manager:newRentalDrawer.searchCustomer')}
                   showSearch
                   size="large"
                   filterOption={customerFilterOption}
@@ -374,12 +376,12 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
             ) : (
               <Form.Item
                 name="customer_ids"
-                rules={[{ required: true, type: 'array', min: 1, message: 'Select at least one customer' }]}
+                rules={[{ required: true, type: 'array', min: 1, message: t('manager:newRentalDrawer.validation.selectCustomers') }]}
                 className="!mb-4"
               >
                 <Select
                   mode="multiple"
-                  placeholder="Select customers"
+                  placeholder={t('manager:newRentalDrawer.selectCustomers')}
                   showSearch
                   size="large"
                   filterOption={customerFilterOption}
@@ -393,15 +395,15 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
             )}
 
             {/* Equipment */}
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Equipment</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">{t('manager:newRentalDrawer.sectionEquipment')}</p>
             <Form.Item
               name="equipment_ids"
-              rules={[{ required: true, message: 'Select at least one rental service' }]}
+              rules={[{ required: true, message: t('manager:newRentalDrawer.validation.selectEquipment') }]}
               className="!mb-1"
             >
               <Select
                 mode="multiple"
-                placeholder="Add rental equipment"
+                placeholder={t('manager:newRentalDrawer.addEquipment')}
                 showSearch
                 size="large"
                 optionFilterProp="children"
@@ -416,10 +418,10 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
             </Form.Item>
             {equipmentSummary.count > 0 && (
               <div className="flex flex-wrap items-center gap-2 px-1 pb-3 text-xs text-slate-500">
-                <span>{equipmentSummary.count} {equipmentSummary.count === 1 ? 'item' : 'items'}</span>
+                <span>{equipmentSummary.count} {equipmentSummary.count === 1 ? t('manager:newRentalDrawer.equipmentSummary.item') : t('manager:newRentalDrawer.equipmentSummary.items')}</span>
                 {equipmentSummary.durationLabel && <span>· {equipmentSummary.durationLabel}</span>}
                 {equipmentSummary.priceLabel && !usePackage && <span>· {equipmentSummary.priceLabel}</span>}
-                {usePackage && selectedPackageId && <Tag color="green">Using Package</Tag>}
+                {usePackage && selectedPackageId && <Tag color="green">{t('manager:newRentalDrawer.usingPackage')}</Tag>}
               </div>
             )}
 
@@ -427,12 +429,12 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
             {participantMode === 'single' && !editingRental && watchedCustomerId && (
               packagesLoading ? (
                 <div className="flex items-center gap-2 text-slate-400 text-sm py-2">
-                  <Spin size="small" /> Checking packages…
+                  <Spin size="small" /> {t('manager:newRentalDrawer.checkingPackages')}
                 </div>
               ) : availableRentalPackages.length > 0 ? (
                 <div className="pt-1 pb-3 border-t border-slate-100">
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2 mt-3">
-                    Included in Package
+                    {t('manager:newRentalDrawer.sectionPackage')}
                   </p>
                   <Checkbox
                     checked={usePackage}
@@ -443,27 +445,27 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                         setSelectedPackageId(availableRentalPackages[0].id);
                     }}
                   >
-                    <span className="text-sm text-slate-700">Use rental days from an active package</span>
+                    <span className="text-sm text-slate-700">{t('manager:newRentalDrawer.usePackage')}</span>
                   </Checkbox>
                   {usePackage && (
                     <Select
                       value={selectedPackageId}
                       onChange={setSelectedPackageId}
-                      placeholder="Select a package"
+                      placeholder={t('manager:newRentalDrawer.selectPackage')}
                       className="w-full mt-2"
                       size="middle"
                     >
                       {availableRentalPackages.map((pkg) => (
                         <Option key={pkg.id} value={pkg.id}>
                           <span>{pkg.packageName}</span>
-                          <Tag color="green" className="ml-2">{pkg.rentalDaysRemaining}d left</Tag>
+                          <Tag color="green" className="ml-2">{t('manager:newRentalDrawer.packageDaysLeft', { count: pkg.rentalDaysRemaining })}</Tag>
                         </Option>
                       ))}
                     </Select>
                   )}
                   {usePackage && selectedPackageId && (
                     <p className="text-xs text-emerald-600 mt-1">
-                      1 rental day will be deducted — no wallet charge.
+                      {t('manager:newRentalDrawer.packageDayDeducted')}
                     </p>
                   )}
                 </div>
@@ -474,35 +476,35 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
             <div className="grid gap-3 grid-cols-2 pt-2 border-t border-slate-100">
               <Form.Item
                 name="rental_date"
-                label="Rental date"
-                rules={[{ required: true, message: 'Please select a date' }]}
+                label={t('manager:newRentalDrawer.fields.rentalDate')}
+                rules={[{ required: true, message: t('manager:newRentalDrawer.validation.selectDate') }]}
                 className="!mb-2"
               >
                 <DatePicker
                   size="large"
                   className="w-full"
-                  placeholder="Choose date"
+                  placeholder={t('manager:newRentalDrawer.placeholders.chooseDate')}
                   disabledDate={canSelectPastDates ? undefined : (current) => current && current < dayjs().startOf('day')}
                 />
               </Form.Item>
               <Form.Item
                 name="status"
-                label="Status"
-                rules={[{ required: true, message: 'Required' }]}
+                label={t('manager:newRentalDrawer.fields.status')}
+                rules={[{ required: true, message: t('manager:newRentalDrawer.validation.selectStatus') }]}
                 className="!mb-2"
               >
-                <Select placeholder="Status" size="large">
-                  <Option value="active">Active</Option>
-                  <Option value="completed">Completed</Option>
+                <Select placeholder={t('manager:newRentalDrawer.placeholders.status')} size="large">
+                  <Option value="active">{t('manager:newRentalDrawer.status.active')}</Option>
+                  <Option value="completed">{t('manager:newRentalDrawer.status.completed')}</Option>
                 </Select>
               </Form.Item>
             </div>
 
             <Form.Item
               name="total_price"
-              label="Total price"
+              label={t('manager:newRentalDrawer.fields.totalPrice')}
               className="!mb-2"
-              tooltip="Override the calculated rental price"
+              tooltip={t('manager:newRentalDrawer.fields.totalPriceTooltip')}
             >
               <InputNumber
                 size="large"
@@ -510,17 +512,17 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                 min={0}
                 step={1}
                 precision={2}
-                placeholder="e.g. 100.00"
+                placeholder={t('manager:newRentalDrawer.placeholders.price')}
                 addonBefore={businessCurrency || 'EUR'}
                 disabled={usePackage && !!selectedPackageId}
               />
             </Form.Item>
 
             {/* Notes */}
-            <Form.Item name="notes" label="Notes" className="!mb-0">
+            <Form.Item name="notes" label={t('manager:newRentalDrawer.fields.notes')} className="!mb-0">
               <Input.TextArea
                 rows={3}
-                placeholder="Handover notes, customer preferences…"
+                placeholder={t('manager:newRentalDrawer.fields.notesPlaceholder')}
                 className="resize-none"
                 showCount
                 maxLength={500}
@@ -533,14 +535,14 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
       {/* Sticky footer */}
       <div className="flex-shrink-0 border-t border-slate-200 bg-white px-5 py-4 flex justify-end gap-3">
         <Button onClick={handleClose} className="rounded-xl">
-          Cancel
+          {t('manager:newRentalDrawer.cancel')}
         </Button>
         <Button
           type="primary"
           onClick={handleSubmit}
           className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 border-0 shadow-md hover:shadow-lg transition-all font-semibold"
         >
-          {editingRental ? 'Update Rental' : 'Create Rental'}
+          {editingRental ? t('manager:newRentalDrawer.updateRental') : t('manager:newRentalDrawer.createRental')}
         </Button>
       </div>
     </Drawer>

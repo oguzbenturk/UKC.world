@@ -16,6 +16,9 @@
       "title": "Спасибо за отзыв!",
       "description": "Ваша оценка помогает нам улучшить вашу работу."
     },
+    "bookingRedirect": {
+      "openingBooking": "Открытие бронирования..."
+    },
     "nextLesson": {
       "label": "Следующий урок",
       "comingSoon": "Скоро",
@@ -47,7 +50,11 @@
       "visitLessons": "Уроки",
       "visitRentals": "Аренда",
       "visitShop": "Магазин",
-      "visitMyLessons": "Мои уроки"
+      "visitMyLessons": "Мои уроки",
+      "myWallet": "Мой кошелёк",
+      "talkToKai": "Поговорить с Kai",
+      "close": "Закрыть",
+      "quickActions": "Быстрые действия"
     },
     "statsStrip": {
       "lessons": "Уроки",
@@ -517,7 +524,43 @@
     "exportSuccess": "Список членов семьи скачан",
     "exportError": "Не удалось экспортировать членов семьи",
     "waiverSigned": "Вайвер {{name}} подписан",
-    "waiverSignedGeneric": "Вайвер успешно подписан"
+    "waiverSignedGeneric": "Вайвер успешно подписан",
+    "activity": {
+      "drawerTitle": "Активность {{name}}",
+      "drawerTitleGeneric": "Активность семьи",
+      "refreshButton": "Обновить",
+      "resetFilters": "Сбросить фильтры",
+      "loadOlder": "Загрузить более старые записи",
+      "noActivity": "Активность ещё не записана",
+      "fetching": "Загрузка активности...",
+      "loadError": "Не удалось загрузить активность",
+      "unknownDate": "Неизвестно",
+      "typeFilters": {
+        "all": "Все",
+        "booking": "Бронирования",
+        "rental": "Аренда",
+        "waiver": "Вайверы",
+        "audit": "Администрирование"
+      },
+      "metadata": {
+        "service": "Услуга:",
+        "instructor": "Инструктор:",
+        "starts": "Начало:",
+        "ends": "Конец:",
+        "location": "Место:",
+        "notes": "Заметки:",
+        "from": "С:",
+        "until": "До:",
+        "signed": "Подписано:",
+        "signedBy": "Подписал:",
+        "event": "Событие:",
+        "resource": "Ресурс:",
+        "actor": "Исполнитель:",
+        "details": "Детали:",
+        "agreedToTerms": "Условия приняты",
+        "photoConsent": "Согласие на фото"
+      }
+    }
   },
   "support": {
     "stats": {
@@ -585,6 +628,25 @@
     "notifications": {
       "requestSent": "Запрос в поддержку отправлен",
       "sendError": "Не удалось отправить запрос"
+    },
+    "ticketDetail": {
+      "statusLabels": {
+        "open": "Открыт",
+        "in_progress": "В обработке",
+        "resolved": "Решён",
+        "closed": "Закрыт",
+        "pending": "Ожидает"
+      },
+      "timeline": {
+        "ticketOpened": "Тикет открыт",
+        "beingReviewed": "На рассмотрении",
+        "resolved": "Решён",
+        "openedOn": "Открыт {{date}}"
+      },
+      "yourMessage": "Ваше сообщение",
+      "noMessage": "Сообщение не указано.",
+      "statusTimeline": "Хронология статуса",
+      "teamReplies": "Ответы команды"
     }
   },
   "ratingModal": {
@@ -620,6 +682,14 @@
       "great": "Отлично",
       "amazing": "Превосходно!"
     }
+  },
+  "ratingBanner": {
+    "needsRating": "Требует оценки",
+    "rateNow": "Оценить",
+    "rateFirstLesson": "Оценить первый урок",
+    "lessonsToRate_one": "У вас {{count}} урок для оценки",
+    "lessonsToRate_other": "У вас {{count}} уроков для оценки",
+    "shareExperience": "Поделитесь опытом, чтобы помочь другим"
   },
   "layout": {
     "portalDisabled": {
@@ -806,7 +876,697 @@
       "loading": "Загружаем сводку отзывов..."
     },
     "achievements": {
-      "modalTitle": "Достижение разблокировано!"
+      "modalTitle": "Достижение разблокировано!",
+      "yourAchievements": "Мои достижения",
+      "noAchievements": "Пока нет достижений",
+      "noAchievementsDesc": "Завершайте уроки и оставляйте отзывы, чтобы получать достижения!",
+      "earnedOn": "Получено {{date}}"
+    },
+    "page": {
+      "title": "Отзывы и оценки",
+      "subtitleInstructor": "Просматривайте свои показатели преподавания и отзывы студентов",
+      "subtitleStudent": "Оставляйте отзывы и отслеживайте свои достижения",
+      "subtitleAdmin": "Управляйте отзывами и оценками на платформе",
+      "tabs": {
+        "recentFeedback": "Последние отзывы",
+        "overview": "Обзор",
+        "achievements": "Достижения",
+        "submitFeedback": "Оставить отзыв"
+      },
+      "submitHeading": "Оставить отзыв об уроке",
+      "welcomeHeading": "Добро пожаловать в раздел отзывов",
+      "welcomeBody": "Используйте этот раздел, чтобы оставлять отзывы после уроков и отслеживать прогресс."
+    },
+    "stats": {
+      "averageRating": "Средняя оценка",
+      "totalReviews": "Всего отзывов",
+      "fiveStarReviews": "Отзывы на 5 звёзд"
+    },
+    "list": {
+      "noFeedback": "Отзывы не найдены",
+      "instructorLabel": "Инструктор: {{name}}",
+      "skillLevel": "Уровень: {{level}}",
+      "progressNotes": "Заметки о прогрессе:"
+    }
+  },
+  "friends": {
+    "pageTitle": "Друзья",
+    "pageSubtitle": "Управляйте своими друзьями для совместных групповых бронирований.",
+    "seoTitle": "Друзья • Plannivo",
+    "seoDescription": "Управляйте своими друзьями для создания групповых бронирований.",
+    "findFriends": "Найти друзей",
+    "searchPlaceholder": "Поиск по имени или email...",
+    "usersFound_one": "Найден {{count}} пользователь",
+    "usersFound_other": "Найдено {{count}} пользователей",
+    "noUsersFound": "Пользователи не найдены",
+    "tabs": {
+      "friends": "Друзья",
+      "requests": "Запросы",
+      "sent": "Отправленные"
+    },
+    "emptyFriends": "У вас пока нет друзей",
+    "emptyFriendsHint": "Найдите пользователей выше, чтобы отправить запросы дружбы",
+    "noPendingRequests": "Нет входящих запросов дружбы",
+    "noSentRequests": "Нет отправленных запросов",
+    "tooltips": {
+      "removeFriend": "Удалить из друзей",
+      "blockUser": "Заблокировать пользователя",
+      "cancelRequest": "Отменить запрос"
+    },
+    "buttons": {
+      "accept": "Принять",
+      "decline": "Отклонить",
+      "cancel": "Отмена",
+      "addFriend": "Добавить в друзья",
+      "sendRequest": "Отправить запрос"
+    },
+    "pending": "Ожидает",
+    "sendRequestModal": {
+      "title": "Отправить запрос дружбы",
+      "messageLabel": "Добавить сообщение (необязательно):",
+      "messagePlaceholder": "Привет! Хочу связаться с вами для групповых бронирований..."
+    },
+    "confirmRemove": {
+      "title": "Удалить из друзей",
+      "content": "Вы уверены, что хотите удалить {{name}} из друзей?",
+      "okText": "Удалить",
+      "cancelText": "Отмена"
+    },
+    "confirmBlock": {
+      "title": "Заблокировать пользователя",
+      "content": "Вы уверены, что хотите заблокировать {{name}}? Он не сможет отправлять вам запросы дружбы.",
+      "okText": "Заблокировать",
+      "cancelText": "Отмена"
+    },
+    "toasts": {
+      "requestSent": "Запрос дружбы отправлен!",
+      "requestSentError": "Не удалось отправить запрос",
+      "requestAccepted": "Запрос дружбы принят!",
+      "requestAcceptedError": "Не удалось принять запрос",
+      "requestDeclined": "Запрос дружбы отклонён",
+      "requestDeclinedError": "Не удалось отклонить запрос",
+      "requestCancelled": "Запрос дружбы отменён",
+      "requestCancelledError": "Не удалось отменить запрос",
+      "friendRemoved": "Друг удалён",
+      "friendRemovedError": "Не удалось удалить друга",
+      "userBlocked": "Пользователь заблокирован",
+      "userBlockedError": "Не удалось заблокировать пользователя",
+      "searchError": "Ошибка поиска пользователей"
+    }
+  },
+  "bookEquipment": {
+    "seoTitle": "Аренда оборудования | UKC Academy",
+    "seoDescription": "Арендуйте качественное оборудование Duotone и Core для вашей сессии кайтсёрфинга. Всё снаряжение ежедневно обслуживается, в комплект входит защитное оборудование.",
+    "heroTitle": "Аренда снаряжения",
+    "heroBody": "Арендуйте премиум-оборудование Duotone и Core для вашей сессии! Всё снаряжение ежедневно обслуживается и включает защитное оборудование. От полных комплектов до отдельных предметов — у нас есть всё необходимое.",
+    "bookNowButton": "Забронировать снаряжение",
+    "bookServiceButton": "Забронировать",
+    "whyRentTitle": "Почему аренда у нас?",
+    "rentalOptionsTitle": "Варианты аренды",
+    "pricing": "Цены:",
+    "whatsIncluded": "Что входит:",
+    "bookPackageButton": "Забронировать {{title}}",
+    "availableNowTitle": "Доступно сейчас",
+    "availableNowSubtitle": "Снаряжение, доступное для бронирования",
+    "readyTitle": "Готовы к воде?",
+    "readyBody": "Забронируйте снаряжение сейчас и наслаждайтесь премиум-оборудованием для вашей сессии.",
+    "bookEquipmentButton": "Арендовать снаряжение",
+    "viewMyRentals": "Мои аренды",
+    "noServicesDesc": "Конкретные услуги аренды ещё не настроены. Свяжитесь с нами для бронирования!",
+    "contactForRentals": "Связаться по аренде"
+  },
+  "walletModal": {
+    "title": "Кошелёк",
+    "close": "Закрыть",
+    "availableBalance": "Доступный баланс",
+    "totalBalance": "Общий баланс",
+    "addFunds": "+ Пополнить",
+    "creditCard": "Кредитная карта",
+    "bankTransfer": "Банковский перевод",
+    "lastTopUp": "Последнее пополнение",
+    "latestActivity": "Последняя активность",
+    "noneYet": "Ещё нет",
+    "promoCode": "Промокод",
+    "recentTransactions": "Последние транзакции",
+    "lastN": "Последние {{count}}",
+    "loading": "Загрузка...",
+    "unableToLoadTransactions": "Не удалось загрузить транзакции",
+    "noTransactionsYet": "Транзакций пока нет",
+    "noTransactionsDesc": "Пополнения и платежи появятся здесь",
+    "debit": "Дебет",
+    "credit": "Кредит",
+    "overdue": "Просрочено",
+    "active": "Активен",
+    "available": "доступно",
+    "reserved": "зарезервировано",
+    "depositApproved": "Ваш банковский перевод одобрен!",
+    "depositDeclined": "Ваш запрос на банковский перевод отклонён.",
+    "depositSuccess": "Пополнение прошло успешно! Ваш кошелёк обновлён.",
+    "bankTransferSubmitted": "Запрос на банковский перевод успешно отправлен!"
+  },
+  "bookingTrigger": {
+    "label": "Забронировать урок",
+    "ariaLabel": "Открыть мастер бронирования"
+  },
+  "walletTrigger": {
+    "label": "Кошелёк",
+    "ariaLabel": "Открыть кошелёк",
+    "ariaLabelWithBalance": "Открыть кошелёк ({{balance}})"
+  },
+  "cart": {
+    "title": "Корзина",
+    "itemCount_one": "{{count}} товар",
+    "itemCount_other": "{{count}} товаров",
+    "emptyTitle": "Ваша корзина пуста",
+    "emptyBody": "Исследуйте наш магазин и найдите отличное снаряжение для следующего приключения!",
+    "startShopping": "Начать покупки",
+    "removeTooltip": "Удалить",
+    "walletLabel": "Кошелёк",
+    "walletLow": "Недостаточно средств – доступны другие способы оплаты",
+    "total": "Итого ({{count}} товаров)",
+    "proceedToCheckout": "Перейти к оплате",
+    "secureCheckout": "Безопасная оплата",
+    "signInTitle": "Войдите для оплаты",
+    "signInMessage": "Создайте аккаунт или войдите, чтобы завершить покупку. Ваша корзина будет сохранена."
+  },
+  "checkout": {
+    "title": "Оплата",
+    "itemCount_one": "{{count}} товар",
+    "itemCount_other": "{{count}} товаров",
+    "saved": "· -{{amount}} сэкономлено",
+    "delivery": "Доставка",
+    "addDeliveryAddress": "Добавить адрес доставки",
+    "editAddress": "Изменить",
+    "addAddress": "Добавить",
+    "addressPlaceholder": "Улица",
+    "cityPlaceholder": "Город",
+    "zipPlaceholder": "Индекс",
+    "countryPlaceholder": "Страна",
+    "cancelAddress": "Отмена",
+    "saveAddress": "Сохранить",
+    "saveAddressHint": "Сохраните адрес для продолжения",
+    "addressRequired": "Необходим адрес доставки",
+    "payment": "Оплата",
+    "payNow": "Оплатить сейчас",
+    "dueOnDelivery": "При получении",
+    "payDepositVia": "Оплатить задаток через",
+    "bankTransferInfo": "Переведите полную сумму, загрузите чек — заказ подтверждается после одобрения администратором.",
+    "fromWallet": "из кошелька",
+    "byCard": "картой",
+    "proceedButton": "Оплатить {{amount}}",
+    "submitOrderButton": "Оформить заказ · {{amount}}",
+    "payDepositButton": "Оплатить задаток {{amount}}",
+    "payWalletCardButton": "Оплатить кошельком + картой",
+    "wallet": {
+      "label": "Кошелёк",
+      "balance": "Баланс: {{amount}}",
+      "full": "Полный",
+      "partial": "Частичный",
+      "empty": "Пустой"
+    },
+    "bankTransfer": {
+      "label": "Банковский перевод",
+      "sublabel": "Перевод и загрузка чека · одобрение администратора"
+    },
+    "deposit": {
+      "label": "Задаток {{percent}}%",
+      "sublabel": "Сейчас {{now}} · остаток при получении"
+    },
+    "noBankAccounts": "Нет доступных банковских счетов",
+    "transferTo": "Перевести на · {{currency}}",
+    "bankFields": {
+      "bank": "Банк",
+      "accountHolder": "Владелец счёта",
+      "iban": "IBAN",
+      "swift": "SWIFT / BIC",
+      "accountNumber": "Номер счёта"
+    },
+    "uploadReceipt": "Загрузить чек",
+    "changeReceipt": "Изменить чек",
+    "copy": "Копировать",
+    "copied": "Скопировано",
+    "copiedTooltip": "Скопировано!",
+    "copyTooltip": "Копировать",
+    "confirmOrder": "Подтвердить заказ",
+    "confirmDepositOrder": "Подтвердить заказ с задатком",
+    "depositLabel": "Задаток: {{amount}}",
+    "remainingOnDelivery": "Остаток при получении: {{amount}}",
+    "deliveryTo": "Доставка по адресу: {{address}}",
+    "paymentMethod": "Оплата: {{method}}",
+    "walletFirst": "Сначала будет использован баланс кошелька {{walletAmount}}",
+    "remainingByCard": ", а оставшиеся {{cardAmount}} будут списаны с карты.",
+    "placeOrder": "Оформить заказ",
+    "payDepositConfirm": "Оплатить задаток {{amount}}",
+    "goBack": "Назад",
+    "orderSubmitted": "Заказ отправлен!",
+    "orderPlaced": "Заказ оформлен!",
+    "pendingApproval": "Ожидает одобрения администратора — вы получите уведомление после подтверждения.",
+    "thankYou": "Спасибо за покупку!",
+    "continueShopping": "Продолжить покупки",
+    "errors": {
+      "incompleteAddress": "Пожалуйста, укажите полный адрес доставки перед оформлением заказа",
+      "insufficientBalance": "Недостаточно средств на кошельке",
+      "depositReceiptRequired": "Пожалуйста, выберите банковский счёт и загрузите квитанцию о задатке",
+      "paymentReceiptRequired": "Пожалуйста, выберите банковский счёт и загрузите квитанцию об оплате",
+      "uploadReceiptRequired": "Пожалуйста, загрузите подтверждение оплаты (квитанцию)",
+      "uploadFailed": "Ошибка загрузки",
+      "orderFailed": "Не удалось оформить заказ",
+      "orderError": "Не удалось обработать ваш заказ. Пожалуйста, попробуйте снова."
+    },
+    "paymentLabels": {
+      "depositCard": "Задаток {{percent}}% ({{amount}}) картой",
+      "depositBank": "Задаток {{percent}}% ({{amount}}) банковским переводом",
+      "walletHybrid": "Кошелёк ({{wallet}}) + Карта ({{card}})",
+      "creditCardWallet": "Кошелёк ({{wallet}}) + Карта ({{card}})",
+      "wallet": "Кошелёк",
+      "creditCard": "Кредитная карта",
+      "bankTransferPending": "Банковский перевод (ожидает одобрения)",
+      "cash": "Наличные при получении"
+    }
+  },
+  "profile": {
+    "status": {
+      "active": "Активный",
+      "completed": "Завершено",
+      "returned": "Возвращено",
+      "cancelled": "Отменено",
+      "unknown": "Неизвестно",
+      "na": "Н/Д"
+    },
+    "fields": {
+      "email": "Email",
+      "phone": "Телефон",
+      "preferredLanguage": "Предпочтительный язык",
+      "customerSince": "Клиент с",
+      "notProvided": "Не указано",
+      "notSet": "Не установлено",
+      "unknown": "Неизвестно",
+      "notes": "Заметки"
+    },
+    "account": {
+      "currentBalance": "Текущий баланс",
+      "lifetimeValue": "Общая стоимость",
+      "lastPayment": "Последний платёж",
+      "noPaymentsYet": "Платежей нет"
+    },
+    "stats": {
+      "hoursAttended": "Проведено часов",
+      "attendanceRate": "Посещаемость",
+      "totalLessons": "Всего занятий",
+      "totalRentals": "Всего аренд"
+    },
+    "packages": {
+      "title": "Сводка пакета",
+      "viewOnly": "Только просмотр",
+      "none": "Пакеты не назначены",
+      "generalPackage": "Общий пакет",
+      "plusRental": " + Аренда",
+      "plusAccommodation": " + Проживание",
+      "expiresOn": "Истекает {{date}}",
+      "totalHours": "Всего часов",
+      "used": "Использовано",
+      "remaining": "Осталось",
+      "utilisation": "Использование",
+      "totalDays": "Всего дней",
+      "equipment": "Снаряжение",
+      "totalNights": "Всего ночей",
+      "unit": "Блок"
+    },
+    "upcomingLessons": {
+      "title": "Предстоящие занятия",
+      "viewOnly": "Только просмотр",
+      "none": "Предстоящих занятий нет",
+      "scheduled": "Запланировано",
+      "instructor": "Инструктор: {{name}}"
+    },
+    "history": {
+      "totalHistory": "Полная история",
+      "lessonHistory": "История занятий",
+      "rentalHistory": "История аренды",
+      "shopHistory": "История магазина",
+      "membershipHistory": "История членства",
+      "eventHistory": "История мероприятий",
+      "financialHistory": "Финансовая история",
+      "allActivity": "Все активности",
+      "noActivity": "История отсутствует",
+      "noLessons": "История занятий отсутствует",
+      "noRentals": "История аренды отсутствует",
+      "noShop": "Покупок в магазине нет",
+      "noMemberships": "Покупок членства нет",
+      "noEvents": "Регистраций на мероприятия нет",
+      "noPayments": "Платежей нет",
+      "shopPurchases": "Покупки в магазине",
+      "membershipPurchases": "Покупки членства",
+      "eventRegistrations": "Регистрации на мероприятия",
+      "columns": {
+        "dateTime": "Дата и время",
+        "service": "Услуга",
+        "instructor": "Инструктор",
+        "duration": "Продолжительность",
+        "price": "Цена",
+        "status": "Статус",
+        "payment": "Оплата",
+        "equipment": "Снаряжение",
+        "rentalDate": "Дата аренды",
+        "date": "Дата",
+        "amount": "Сумма",
+        "description": "Описание",
+        "purchased": "Куплено",
+        "membership": "Членство",
+        "expires": "Истекает",
+        "item": "Товар",
+        "quantity": "Количество",
+        "event": "Мероприятие",
+        "location": "Местоположение",
+        "registration": "Регистрация",
+        "type": "Тип"
+      }
+    },
+    "payments": {
+      "free": "Бесплатно",
+      "noExpiry": "Без срока действия",
+      "tba": "Будет объявлено",
+      "product": "Товар",
+      "lesson": "Занятие",
+      "equipment": "Снаряжение",
+      "rental": "Аренда",
+      "notAssigned": "Не назначено",
+      "refundFor": "Возврат за {{name}}",
+      "chargeFor": "Платёж за {{name}}",
+      "paymentFor": "Оплата за {{name}}",
+      "refund": "Возврат",
+      "charge": "Списание",
+      "pendingPayment": "Ожидает оплаты",
+      "payment": "Оплата",
+      "hoursUnit_one": "{{count}} час",
+      "hoursUnit_other": "{{count}} часов"
+    },
+    "alert": {
+      "familyMessage": "Ищете членов семьи?",
+      "familyDescription": "Управляйте семейными данными через боковую панель, перейдя в Профиль → Семья.",
+      "loadError": "Не удалось загрузить часть вашей истории",
+      "unavailable": "Профиль недоступен",
+      "loadingActivity": "Загрузка вашей активности..."
+    }
+  },
+  "bookingWizard": {
+    "modal": {
+      "title": "Забронировать услугу"
+    },
+    "steps": {
+      "service": "Услуга",
+      "participant": "Участник",
+      "type": "Тип",
+      "participants": "Участники",
+      "package": "Пакет",
+      "instructor": "Инструктор",
+      "schedule": "Расписание",
+      "confirm": "Подтвердить"
+    },
+    "footer": {
+      "cancel": "Отмена",
+      "back": "← Назад",
+      "next": "Далее →",
+      "confirmBooking": "Подтвердить бронирование",
+      "createGroupBooking": "Создать групповое бронирование"
+    },
+    "service": {
+      "categoryHeading": "Что вы хотите забронировать?",
+      "categorySubheading": "Выберите категорию для просмотра доступных вариантов",
+      "categorySelect": "Выбрать",
+      "categories": {
+        "lesson": {
+          "label": "Занятия",
+          "description": "Занятия кайтсёрфингом и водными видами спорта"
+        },
+        "rental": {
+          "label": "Аренда оборудования",
+          "description": "Арендуйте доски, кайты, гидрокостюмы и снаряжение"
+        },
+        "accommodation": {
+          "label": "Проживание",
+          "description": "Остановитесь в наших прибрежных объектах"
+        }
+      },
+      "serviceListSubheading": "Выберите услугу из этой категории",
+      "packageFilterNotice": "Показываются услуги, совместимые с выбранным пакетом: <1>{{packageName}}</1>",
+      "searchPlaceholder": "Поиск услуг...",
+      "foundCount_one": "Найдена {{count}} услуга",
+      "foundCount_other": "Найдено {{count}} услуг",
+      "noneAvailable": "Нет доступных {{categoryLabel}}",
+      "backToCategories": "← Назад к категориям",
+      "noMatchingServices": "Нет подходящих услуг",
+      "clearSearch": "Очистить поиск",
+      "premiumDescription": "Индивидуальный коучинг с нашими самыми опытными инструкторами — полностью персонализированные занятия",
+      "compatiblePackages_one": "{{count}} пакет подходит для этой услуги",
+      "compatiblePackages_other": "{{count}} пакета подходят для этой услуги",
+      "compatiblePackagesTitle": "Совместимые пакеты"
+    },
+    "participant": {
+      "heading": "Для кого это занятие?",
+      "subheading": "Выберите себя, группу или члена семьи",
+      "myselfTitle": "Себя",
+      "myselfDesc": "Ваш профиль",
+      "groupTitle": "Группа",
+      "groupDesc": "Несколько участников",
+      "familyMemberTitle": "Член семьи",
+      "familyMemberDesc": "Добавьте одного для продолжения",
+      "noFamilyText": "Нет членов семьи.",
+      "noFamilyAddLink": "Добавить",
+      "noFamilyToContinue": "для продолжения.",
+      "yearsTag": "{{count}} лет"
+    },
+    "groupParticipants": {
+      "heading": "Выбрать участников группы",
+      "subheading": "Выберите зарегистрированных клиентов для участия в этом групповом занятии. Каждый участник должен принять приглашение до подтверждения занятия.",
+      "selectedTitle": "Выбранные участники ({{count}})",
+      "searchPlaceholder": "Поиск клиентов по имени или email...",
+      "loadingCustomers": "Загрузка клиентов...",
+      "noCustomersSearch": "Не найдено клиентов, соответствующих вашему поиску",
+      "noCustomersAvailable": "Нет доступных клиентов",
+      "addButton": "Добавить",
+      "howItWorksTitle": "Как работает групповое бронирование",
+      "howItWorksBullet1": "Только ваши <1>друзья/контакты</1> могут быть приглашены на групповые занятия.",
+      "howItWorksBullet2": "Выбранные участники получат уведомление для принятия или отклонения.",
+      "howItWorksBullet3": "Занятие появится в календаре для одобрения только после того, как <1>все участники примут</1>.",
+      "howItWorksBullet4": "Каждый участник должен иметь действующий групповой пакет или быть готов его приобрести.",
+      "noFriendsTitle": "Друзья не найдены",
+      "noFriendsDesc": "Необходимо подключиться с другими учениками, прежде чем приглашать их на групповые занятия.",
+      "manageFriends": "Управление друзьями",
+      "selectAtLeastOne": "Пожалуйста, выберите хотя бы одного участника для продолжения"
+    },
+    "package": {
+      "ownedHeading": "Ваши часы пакета",
+      "ownedSubheadingFiltered": "Пакеты, соответствующие «{{serviceName}}»",
+      "ownedSubheadingGeneric": "Используйте предоплаченные часы занятий для вашего бронирования",
+      "remainingHours": "{{hours}}ч осталось",
+      "morePackages_one": "+{{count}} пакет доступен",
+      "morePackages_other": "+{{count}} пакета доступно",
+      "buyMoreOptional": "Купить больше пакетов (необязательно)",
+      "saveWithPackages": "Экономьте с пакетами (необязательно)",
+      "buyDescFiltered": "Купите пакеты для «{{serviceName}}», чтобы сэкономить на нескольких занятиях.",
+      "buyDescGeneric": "Вы можете бронировать отдельные занятия сейчас или купить пакет для экономии.",
+      "viewPackagesLink": "Посмотреть пакеты →",
+      "buyMoreLink": "Купить больше пакетов →",
+      "noPackageContinue": "Вы можете продолжить бронирование без пакета",
+      "noPackageContinueDesc": "Оплата отдельного занятия будет обработана на следующих шагах.",
+      "buyFlowHeading": "Купить пакеты занятий",
+      "paymentMethod": "Способ оплаты",
+      "walletBalance": "Баланс: {{balance}}",
+      "walletOption": "Кошелёк",
+      "cashOption": "Наличные",
+      "loadingPackages": "Загрузка пакетов...",
+      "noPackagesForService": "Нет доступных пакетов для «{{serviceName}}»",
+      "noPackagesForCategory": "Нет доступных пакетов в этой категории",
+      "otherPackagesHint_one": "{{count}} другой пакет доступен для других типов занятий",
+      "otherPackagesHint_other": "{{count}} других пакета доступны для других типов занятий",
+      "insufficientBalance": "Недостаточно средств",
+      "buyNow": "Купить сейчас",
+      "noMatchWarningTitle": "Ни один пакет не соответствует этой услуге",
+      "noMatchWarningDesc": "Вы всё ещё можете выбрать пакет, но система может отклонить его при нехватке часов.",
+      "showingAllPackages": "Ни один пакет не соответствует этой услуге. Показаны все доступные пакеты:",
+      "selectPackage": "Выберите пакет с оставшимися часами",
+      "hoursRemaining": "{{hours}}ч осталось"
+    },
+    "instructor": {
+      "heading": "Кто будет вас обучать?",
+      "subheading": "Выберите предпочтительного инструктора для этого занятия",
+      "searchPlaceholder": "Поиск по имени или email...",
+      "foundCount_one": "Найден {{count}} инструктор",
+      "foundCount_other": "Найдено {{count}} инструктора",
+      "noneAvailable": "Нет доступных инструкторов",
+      "noMatching": "Нет подходящих инструкторов",
+      "clearSearch": "Очистить поиск",
+      "notQualifiedDiscipline": "Не квалифицирован для этой дисциплины",
+      "notQualifiedCategory": "Не квалифицирован для этого типа занятия",
+      "notQualifiedLevel": "Уровень недостаточен",
+      "notQualified": "Не квалифицирован"
+    },
+    "schedule": {
+      "step1Label": "Шаг 1: Выбрать продолжительность",
+      "step2Label": "Шаг 2: Выбрать дату",
+      "step3Label": "Шаг 3: Выбрать время",
+      "prevMonth": "← Пред.",
+      "nextMonth": "След. →",
+      "noSlotsAvailable": "Нет доступных слотов",
+      "weekDays": {
+        "sun": "Вск",
+        "mon": "Пнд",
+        "tue": "Втр",
+        "wed": "Срд",
+        "thu": "Чтв",
+        "fri": "Птн",
+        "sat": "Сбт"
+      }
+    },
+    "confirm": {
+      "bookingDetailsHeading": "Детали бронирования",
+      "groupBookingDetailsHeading": "Детали группового бронирования",
+      "participantLabel": "Участник",
+      "serviceLabel": "Услуга",
+      "instructorLabel": "Инструктор",
+      "durationLabel": "Продолжительность",
+      "dateLabel": "Дата",
+      "timeLabel": "Время",
+      "paymentMethodLabel": "Способ оплаты",
+      "participantsSelectedLabel": "Участники",
+      "participantsCount": "{{count}} выбрано",
+      "selectedParticipantsLabel": "Выбранные участники",
+      "toBeAssigned": "Будет назначен",
+      "loadingInstructor": "Загрузка…",
+      "groupInviteNotice": "Участники должны принять приглашение до подтверждения этого занятия.",
+      "promoCodeHeading": "Есть промокод?",
+      "notesHeading": "Дополнительные заметки (необязательно)",
+      "notesPlaceholder": "Добавьте детали для вашего инструктора",
+      "pricingBreakdownHeading": "Детализация стоимости",
+      "pricingPlanned": "Запланировано: {{hours}}ч",
+      "pricingPackage": "Пакет: {{hours}}ч",
+      "pricingChargeable": "К оплате: {{hours}}ч",
+      "pricingRate": "Ставка: {{amount}}",
+      "bookingError": "Не удалось создать бронирование"
+    },
+    "paymentOptions": {
+      "heading": "Способ оплаты",
+      "walletLabel": "Кошелёк",
+      "walletTagInstant": "Мгновенно",
+      "walletTagAddFunds": "Пополнить",
+      "packageLabel": "Использовать часы пакета",
+      "packageTagMatches": "Подходит для услуги",
+      "packageTagSelect": "Выбрать пакет",
+      "payLaterLabel": "Оплатить на ресепшн (наличные/карта)",
+      "payLaterTag": "Оплата при прибытии"
+    },
+    "paymentSummary": {
+      "walletTitle": "Оплата кошельком",
+      "walletTagOk": "Мгновенное списание",
+      "walletTagInsufficient": "Пополнить",
+      "walletChargeText": "С вашего кошелька будет списано {{amount}}.",
+      "walletBalanceAfter": "Баланс после списания: {{balance}}",
+      "walletBalanceInsufficient": "Доступный баланс: {{balance}}",
+      "packageTitle": "Часы пакета",
+      "packageTagCovered": "Полностью покрыто",
+      "packageTagPartial": "Частичное покрытие",
+      "packageTagCheck": "Проверить пакет",
+      "packageHoursUsed": "Из пакета «{{packageName}}» будет списано {{hours}}ч.",
+      "packageHoursRemaining": "Оставшиеся часы после: {{hours}}ч",
+      "packageAdditionalPayment": "Вы также заплатите {{amount}} сегодня.",
+      "packageNoCost": "Дополнительная оплата не требуется.",
+      "packageNotCovered": "Этот пакет не покрывает сессию. Вы заплатите {{amount}}.",
+      "payLaterTitle": "Оплатить в центре",
+      "payLaterTag": "Оплата при прибытии",
+      "payLaterReserve": "Мы зарезервируем ваше место сейчас и примем оплату при вашем прибытии.",
+      "payLaterAmount": "Сумма для оплаты на месте: {{amount}}.",
+      "creditCardTitle": "Оплата банковской картой",
+      "creditCardTag": "Iyzico",
+      "creditCardRedirect": "Вы будете перенаправлены на защищённую страницу оплаты для завершения покупки.",
+      "creditCardAmount": "Сумма: {{amount}}"
+    },
+    "walletWarning": {
+      "partialTitle": "Частичная оплата кошельком",
+      "partialDesc1": "Ваш баланс кошелька: <1>{{balance}}</1>.",
+      "partialDesc2": "Оставшаяся сумма <1>{{deficit}}</1> будет списана с вашей карты.",
+      "partialDesc3": "Сумма с карты будет добавлена в кошелёк и затем использована для этой покупки.",
+      "insufficientMessage": "Недостаточный баланс кошелька. Выберите другой способ оплаты или пополните кошелёк."
+    },
+    "recommendedPackage": {
+      "suggested": "Рекомендуемый подходящий пакет",
+      "remaining": "{{name}} · {{hours}} осталось",
+      "applyButton": "Применить этот пакет"
+    },
+    "purchaseConfirm": {
+      "title": "Подтвердить покупку пакета",
+      "packageLabel": "Пакет:",
+      "priceLabel": "Цена:",
+      "checkInLabel": "Заезд:",
+      "checkOutLabel": "Выезд:",
+      "nightsLabel": "Ночи:",
+      "paymentLabel": "Оплата:",
+      "balanceAfterLabel": "Баланс после:",
+      "walletOption": "Кошелёк",
+      "cardOption": "Карта",
+      "confirmButton": "Подтвердить покупку",
+      "cancelButton": "Отмена"
+    },
+    "purchaseSuccess": {
+      "title": "Пакет куплен!",
+      "description": "Вы успешно купили «{{packageName}}».",
+      "promoSaved": " Промокод «{{code}}» сэкономил вам {{amount}}!",
+      "walletCredit": " Плюс {{walletCredit}} {{walletCurrency}} добавлено на ваш кошелёк!",
+      "accommodationConfirmed": " Проживание подтверждено в {{unitName}} на {{nights}} ночь(ей).",
+      "newBalance": " Новый баланс вашего кошелька: {{balance}}.",
+      "paymentPending": " Оплата ожидается."
+    },
+    "purchaseError": {
+      "insufficientBalanceTitle": "Недостаточный баланс",
+      "insufficientBalanceDesc": "Нужно {{required}}, но доступно только {{available}}. Пожалуйста, пополните баланс или выберите другой способ оплаты.",
+      "datesUnavailableTitle": "Проживание недоступно",
+      "datesUnavailableDesc": "Проживание недоступно на выбранные даты. Пожалуйста, выберите другие даты.",
+      "datesRequiredTitle": "Требуются даты",
+      "datesRequiredDesc": "Пожалуйста, выберите даты заезда и выезда для этого пакета проживания.",
+      "noUnitTitle": "Ошибка конфигурации",
+      "noUnitDesc": "Для этого пакета не назначен номер проживания. Пожалуйста, свяжитесь с поддержкой.",
+      "failedTitle": "Покупка не удалась"
+    },
+    "accommodationModal": {
+      "title": "Выбрать даты проживания",
+      "packageInfo": "Включает {{nights}} ночей проживания",
+      "selectDatesDesc": "Выберите даты заезда и выезда",
+      "includesNights": "Этот пакет включает {{nights}} ночей проживания",
+      "checkInLabel": "Заезд",
+      "checkInPlaceholder": "Дата заезда",
+      "checkOutLabel": "Выезд",
+      "checkOutPlaceholder": "Дата выезда",
+      "nightsTag_one": "{{count}} ночь",
+      "nightsTag_other": "{{count}} ночей",
+      "confirmButton": "Перейти к покупке",
+      "cancelButton": "Отмена",
+      "selectDatesError": "Выберите даты",
+      "selectDatesErrorDesc": "Пожалуйста, выберите обе даты — заезда и выезда."
+    },
+    "familyMember": {
+      "addSuccess": "Член семьи успешно добавлен",
+      "addFailed": "Не удалось добавить члена семьи"
+    },
+    "booking": {
+      "redirecting": "Перенаправление на страницу оплаты...",
+      "successMessage": "Ваш запрос на бронирование отправлен.",
+      "roleUpgradeMessage": "Вы были переведены в статус ученика!",
+      "groupSuccess": "Групповое бронирование создано! Участники получат уведомление для принятия.",
+      "groupSuccessTitle": "Групповое бронирование создано!",
+      "groupInvitationsTitle": "Уведомления с приглашениями отправлены!",
+      "groupInvitationsDesc": "{{count}} участник(ов) получат уведомления для принятия или отклонения этого группового занятия.",
+      "groupNextStepsTitle": "Следующие шаги",
+      "groupNextStep1": "• Все участники получат уведомление для принятия или отклонения.",
+      "groupNextStep2": "• После того как <1>все участники примут</1>, занятие появится в календаре для одобрения.",
+      "groupNextStep3": "• Вы можете отслеживать статус принятия в разделе «Групповые бронирования».",
+      "groupCloseButton": "Закрыть",
+      "failedToCreate": "Не удалось создать бронирование",
+      "validationSelectService": "Пожалуйста, выберите услугу",
+      "validationSelectParticipant": "Пожалуйста, выберите хотя бы одного участника",
+      "validationInvalidPrice": "Некорректная цена за человека",
+      "validationSelectDate": "Пожалуйста, выберите дату",
+      "validationSelectTime": "Пожалуйста, выберите время",
+      "validationGroupIdMissing": "Групповое бронирование создано, но не подтверждено"
     }
   }
 }

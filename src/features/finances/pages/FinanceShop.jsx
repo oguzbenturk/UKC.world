@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -17,39 +18,19 @@ const accentStyles = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-// Quick date range presets
-const getQuickRanges = () => ({
-  today: {
-    label: 'Today',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
-  },
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
-
 /**
  * FinanceShop - Finance view for product/shop sales
  */
 const FinanceShop = () => {
+  const { t } = useTranslation(['manager']);
+
+  const getQuickRanges = () => ({
+    today: { label: t('manager:finances.overview.quickRanges.today'), startDate: dayjs().format('YYYY-MM-DD'), endDate: dayjs().format('YYYY-MM-DD') },
+    thisWeek: { label: t('manager:finances.overview.quickRanges.thisWeek'), startDate: dayjs().startOf('week').format('YYYY-MM-DD'), endDate: dayjs().endOf('week').format('YYYY-MM-DD') },
+    thisMonth: { label: t('manager:finances.overview.quickRanges.thisMonth'), startDate: dayjs().startOf('month').format('YYYY-MM-DD'), endDate: dayjs().endOf('month').format('YYYY-MM-DD') },
+    thisYear: { label: t('manager:finances.overview.quickRanges.thisYear'), startDate: dayjs().startOf('year').format('YYYY-MM-DD'), endDate: dayjs().endOf('year').format('YYYY-MM-DD') },
+    allHistory: { label: t('manager:finances.overview.quickRanges.allHistory'), startDate: '2020-01-01', endDate: dayjs().endOf('year').format('YYYY-MM-DD') }
+  });
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -202,21 +183,21 @@ const FinanceShop = () => {
 
     if (!summaryData && shopOrders.length === 0) {
       return [
-        { key: 'revenue', label: 'Total Revenue', value: '--', accent: 'cyan' },
-        { key: 'orders', label: 'Total Orders', value: '--', accent: 'emerald' },
-        { key: 'cost', label: 'Cost of Goods', value: '--', accent: 'amber' },
-        { key: 'profit', label: 'Net Profit', value: '--', accent: 'emerald', subtitle: '--' }
+        { key: 'revenue', label: t('manager:financePages.shop.stats.totalRevenue'), value: '--', accent: 'cyan' },
+        { key: 'orders', label: t('manager:financePages.shop.stats.totalOrders'), value: '--', accent: 'emerald' },
+        { key: 'cost', label: t('manager:financePages.shop.stats.costOfGoods'), value: '--', accent: 'amber' },
+        { key: 'profit', label: t('manager:financePages.shop.stats.netProfit'), value: '--', accent: 'emerald', subtitle: '--' }
       ];
     }
 
     return [
-      { key: 'revenue', label: 'Total Revenue', value: formatCurrency(displayRevenue), accent: 'cyan' },
-      { key: 'orders', label: 'Total Orders', value: shopOrderCount.toLocaleString(), accent: 'slate' },
-      { key: 'cost', label: 'Cost of Goods', value: formatCurrency(totalCostPrice), accent: 'amber' },
-      { 
-        key: 'profit', 
-        label: 'Net Profit', 
-        value: formatCurrency(netProfit), 
+      { key: 'revenue', label: t('manager:financePages.shop.stats.totalRevenue'), value: formatCurrency(displayRevenue), accent: 'cyan' },
+      { key: 'orders', label: t('manager:financePages.shop.stats.totalOrders'), value: shopOrderCount.toLocaleString(), accent: 'slate' },
+      { key: 'cost', label: t('manager:financePages.shop.stats.costOfGoods'), value: formatCurrency(totalCostPrice), accent: 'amber' },
+      {
+        key: 'profit',
+        label: t('manager:financePages.shop.stats.netProfit'),
+        value: formatCurrency(netProfit),
         accent: netProfit >= 0 ? 'emerald' : 'rose',
         subtitle: `${profitMargin}% margin`
       }
@@ -253,10 +234,10 @@ const FinanceShop = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">Shop Finance</h1>
-              <Tag color="cyan" className="text-xs font-medium">Shop</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">{t('manager:financePages.shop.title')}</h1>
+              <Tag color="cyan" className="text-xs font-medium">{t('manager:financePages.shop.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500">Product & Merchandise Sales · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">{t('manager:financePages.shop.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             {/* Quick Range Buttons */}
@@ -330,7 +311,7 @@ const FinanceShop = () => {
 
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Shop Transactions</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{t('manager:financePages.shop.transactionsTitle')}</h3>
           <Button
             size={isMobile ? 'small' : 'middle'}
             icon={<ReloadOutlined />}

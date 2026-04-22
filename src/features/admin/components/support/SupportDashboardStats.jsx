@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 const accentColors = {
   total: 'border-l-slate-400',
   open: 'border-l-amber-400',
@@ -15,14 +17,15 @@ const StatPill = ({ label, value, accentKey }) => (
 );
 
 const SupportDashboardStats = ({ statistics }) => {
+  const { t } = useTranslation(['admin']);
   if (!statistics) return null;
 
   return (
     <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
-      <StatPill label="Total" value={statistics.total ?? 0} accentKey="total" />
-      <StatPill label="Open" value={statistics.byStatus?.open ?? 0} accentKey="open" />
-      <StatPill label="In Progress" value={statistics.byStatus?.in_progress ?? 0} accentKey="in_progress" />
-      <StatPill label="Resolved" value={statistics.byStatus?.resolved ?? 0} accentKey="resolved" />
+      <StatPill label={t('admin:support.stats.total')} value={statistics.total ?? 0} accentKey="total" />
+      <StatPill label={t('admin:support.stats.open')} value={statistics.byStatus?.open ?? 0} accentKey="open" />
+      <StatPill label={t('admin:support.stats.inProgress')} value={statistics.byStatus?.in_progress ?? 0} accentKey="in_progress" />
+      <StatPill label={t('admin:support.stats.resolved')} value={statistics.byStatus?.resolved ?? 0} accentKey="resolved" />
     </div>
   );
 };

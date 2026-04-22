@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { App, Button, Alert, Typography, Descriptions, Modal, Spin } from 'antd';
 import { DownloadOutlined, DeleteOutlined, InfoCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -15,6 +16,7 @@ const { Title, Paragraph, Text } = Typography;
  * - Article 17: Right to Erasure (anonymization)
  */
 const GdprDataManager = () => {
+  const { t } = useTranslation(['admin']);
   const [loading, setLoading] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [error, setError] = useState(null);
@@ -76,7 +78,7 @@ const GdprDataManager = () => {
    */
   const handleAnonymizeData = async () => {
     if (deleteConfirmText.toLowerCase() !== 'delete my data') {
-      setError('Please type "DELETE MY DATA" to confirm');
+      setError(t('admin:compliance.gdpr.deletion.confirmInstruction'));
       return;
     }
 
@@ -91,17 +93,17 @@ const GdprDataManager = () => {
       });
 
       Modal.success({
-        title: 'Data Anonymization Successful',
+        title: t('admin:compliance.gdpr.deletion.successTitle_modal'),
         content: (
           <div>
             <Paragraph>
-              Your personal data has been anonymized. Financial records have been retained for legal compliance (7 years).
+              {t('admin:compliance.gdpr.deletion.successDescription_modal')}
             </Paragraph>
             <Paragraph>
-              <Text strong>Anonymized at:</Text> {response.data.anonymizedAt}
+              <Text strong>{t('admin:compliance.gdpr.deletion.anonymizedAt')}</Text> {response.data.anonymizedAt}
             </Paragraph>
             <Paragraph type="warning">
-              You will be logged out in 5 seconds...
+              {t('admin:compliance.gdpr.deletion.loggingOut')}
             </Paragraph>
           </div>
         ),
@@ -128,7 +130,7 @@ const GdprDataManager = () => {
 
   const handleOpenWaiver = () => {
     if (!userId) {
-      setError('We could not determine your account to load the waiver. Please sign in again.');
+      setError(t('admin:compliance.gdpr.waiverSection.accountError'));
       return;
     }
     setIsWaiverModalOpen(true);
@@ -137,12 +139,12 @@ const GdprDataManager = () => {
   const handleWaiverSuccess = () => {
     setIsWaiverModalOpen(false);
     setWaiverRefreshToken((prev) => prev + 1);
-    message.success('Thanks! Your liability waiver is now up to date.');
+    message.success(t('admin:compliance.gdpr.waiverSection.successToast'));
   };
 
   const handleWaiverCancel = () => {
     setIsWaiverModalOpen(false);
-    message.info('You can sign the waiver whenever you need from this page.');
+    message.info(t('admin:compliance.gdpr.waiverSection.cancelToast'));
   };
 
   return (
@@ -152,12 +154,12 @@ const GdprDataManager = () => {
         <div className="backdrop-blur-xl bg-white/70 rounded-2xl shadow-2xl border border-white/20 p-8">
           <Title level={2} className="flex items-center gap-3 text-slate-800 mb-2">
             <InfoCircleOutlined className="text-blue-600" />
-            GDPR Data Privacy Rights
+            {t('admin:compliance.gdpr.title')}
           </Title>
 
           <Alert
-            message="Your Privacy Rights"
-            description="Under the General Data Protection Regulation (GDPR), you have specific rights regarding your personal data. You can export all your data or request deletion at any time."
+            message={t('admin:compliance.gdpr.privacyRightsTitle')}
+            description={t('admin:compliance.gdpr.privacyRightsDescription')}
             type="info"
             showIcon
             className="mb-6 backdrop-blur-sm bg-blue-50/80 border-blue-200"
@@ -165,7 +167,7 @@ const GdprDataManager = () => {
 
           {error && (
             <Alert
-              message="Error"
+              message={t('admin:compliance.gdpr.waiverSection.loadError')}
               description={error}
               type="error"
               closable
@@ -176,8 +178,8 @@ const GdprDataManager = () => {
 
           {exportSuccess && (
             <Alert
-              message="Data Export Successful"
-              description="Your data has been downloaded. The file contains all your personal information in JSON format."
+              message={t('admin:compliance.gdpr.export.successTitle')}
+              description={t('admin:compliance.gdpr.export.successDescription')}
               type="success"
               closable
               onClose={() => setExportSuccess(false)}
@@ -186,9 +188,9 @@ const GdprDataManager = () => {
           )}
 
           <div className="backdrop-blur-md bg-white/60 rounded-xl shadow-lg border border-white/30 p-6 mb-6 hover:shadow-xl transition-all">
-            <Title level={4} className="text-slate-700 mb-3">Liability Waiver & Signature History</Title>
+            <Title level={4} className="text-slate-700 mb-3">{t('admin:compliance.gdpr.waiverSection.title')}</Title>
             <Paragraph className="text-slate-600 mb-4">
-              View your current waiver status and review previous signatures. If you need to sign or refresh your waiver, you can do so directly below.
+              {t('admin:compliance.gdpr.waiverSection.description')}
             </Paragraph>
             {userId ? (
               <WaiverViewer
@@ -199,8 +201,8 @@ const GdprDataManager = () => {
               />
             ) : (
               <Alert
-                message="Unable to load waiver details"
-                description="We couldn't find your account information. Please sign in again and revisit this page."
+                message={t('admin:compliance.gdpr.waiverSection.loadError')}
+                description={t('admin:compliance.gdpr.waiverSection.loadErrorDescription')}
                 type="warning"
                 showIcon
               />
@@ -211,12 +213,11 @@ const GdprDataManager = () => {
           <div className="backdrop-blur-md bg-white/60 rounded-xl shadow-lg border border-white/30 p-6 mb-6 hover:shadow-xl transition-all">
             <Title level={4} className="flex items-center gap-2 text-slate-700 mb-4">
               <DownloadOutlined className="text-green-600" />
-              Export Your Data (Article 15 - Right of Access)
+              {t('admin:compliance.gdpr.export.title')}
             </Title>
-            
+
             <Paragraph className="text-slate-600">
-              Download a complete copy of all your personal data in machine-readable format (JSON).
-              This includes:
+              {t('admin:compliance.gdpr.export.description')}
             </Paragraph>
 
             <ul className="text-slate-600 space-y-1 mb-6 ml-4">
@@ -241,7 +242,7 @@ const GdprDataManager = () => {
               size="large"
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-0 shadow-md hover:shadow-lg transition-all"
             >
-              Export All My Data
+              {t('admin:compliance.gdpr.export.button')}
             </Button>
           </div>
 
@@ -249,23 +250,22 @@ const GdprDataManager = () => {
           <div className="backdrop-blur-md bg-white/60 rounded-xl shadow-lg border border-white/30 p-6 hover:shadow-xl transition-all">
             <Title level={4} className="flex items-center gap-2 text-slate-700 mb-4">
               <DeleteOutlined className="text-red-600" />
-              Delete Your Data (Article 17 - Right to Erasure)
+              {t('admin:compliance.gdpr.deletion.title')}
             </Title>
-            
+
             <Alert
-              message="Important Notice"
+              message={t('admin:compliance.gdpr.deletion.importantNotice')}
               description={
                 <div>
                   <Paragraph className="mb-2">
-                    This action will <strong>anonymize</strong> your personal data. Your account will be permanently deleted.
+                    {t('admin:compliance.gdpr.deletion.noticeDescription1')}
                   </Paragraph>
                   <Paragraph className="mb-2">
-                    <Text strong>Please note:</Text> Financial records must be retained for 7 years per tax law compliance.
-                    These records will be kept but anonymized (no personal identifiers).
+                    {t('admin:compliance.gdpr.deletion.noticeDescription2')}
                   </Paragraph>
                   <Paragraph type="warning" className="mb-0 flex items-center gap-1">
                     <WarningOutlined />
-                    This action cannot be undone!
+                    {t('admin:compliance.gdpr.deletion.irreversible')}
                   </Paragraph>
                 </div>
               }
@@ -281,36 +281,36 @@ const GdprDataManager = () => {
               size="large"
               className="shadow-md hover:shadow-lg transition-all"
             >
-              Request Data Deletion
+              {t('admin:compliance.gdpr.deletion.button')}
             </Button>
           </div>
 
           {/* GDPR Rights Information */}
           <div className="backdrop-blur-md bg-white/60 rounded-xl shadow-lg border border-white/30 p-6 mt-6">
-            <Title level={4} className="text-slate-700 mb-4">Your GDPR Rights</Title>
+            <Title level={4} className="text-slate-700 mb-4">{t('admin:compliance.gdpr.rights.title')}</Title>
             <Descriptions column={1} bordered size="small" className="backdrop-blur-sm bg-white/50">
-              <Descriptions.Item label="Right to Access (Art. 15)">
-                Export all your personal data
+              <Descriptions.Item label={t('admin:compliance.gdpr.rights.access.label')}>
+                {t('admin:compliance.gdpr.rights.access.value')}
               </Descriptions.Item>
-              <Descriptions.Item label="Right to Rectification (Art. 16)">
-                Update your profile information in account settings
+              <Descriptions.Item label={t('admin:compliance.gdpr.rights.rectification.label')}>
+                {t('admin:compliance.gdpr.rights.rectification.value')}
               </Descriptions.Item>
-              <Descriptions.Item label="Right to Erasure (Art. 17)">
-                Request deletion of your personal data
+              <Descriptions.Item label={t('admin:compliance.gdpr.rights.erasure.label')}>
+                {t('admin:compliance.gdpr.rights.erasure.value')}
               </Descriptions.Item>
-              <Descriptions.Item label="Right to Portability (Art. 20)">
-                Receive your data in machine-readable format (JSON)
+              <Descriptions.Item label={t('admin:compliance.gdpr.rights.portability.label')}>
+                {t('admin:compliance.gdpr.rights.portability.value')}
               </Descriptions.Item>
-              <Descriptions.Item label="Right to Withdraw Consent (Art. 7)">
-                Manage communication preferences in account settings
+              <Descriptions.Item label={t('admin:compliance.gdpr.rights.withdrawConsent.label')}>
+                {t('admin:compliance.gdpr.rights.withdrawConsent.value')}
               </Descriptions.Item>
             </Descriptions>
 
             <Paragraph className="mt-4 mb-2 text-slate-700">
-              <Text strong>Contact:</Text> privacy@plannivo.com | dpo@plannivo.com
+              <Text strong>{t('admin:compliance.gdpr.contact')}</Text> privacy@plannivo.com | dpo@plannivo.com
             </Paragraph>
             <Paragraph className="mb-0 text-slate-500 text-sm">
-              We will respond to your request within 30 days as required by GDPR.
+              {t('admin:compliance.gdpr.responseTime')}
             </Paragraph>
           </div>
         </div>
@@ -321,7 +321,7 @@ const GdprDataManager = () => {
         title={
           <span className="flex items-center gap-2">
             <WarningOutlined className="text-red-500" />
-            Confirm Data Deletion
+            {t('admin:compliance.gdpr.deletion.confirmTitle')}
           </span>
         }
         open={showDeleteModal}
@@ -331,34 +331,34 @@ const GdprDataManager = () => {
           setDeleteConfirmText('');
           setError(null);
         }}
-        okText="Delete My Data"
+        okText={t('admin:compliance.gdpr.deletion.okText')}
         okButtonProps={{ danger: true, disabled: deleteConfirmText.toLowerCase() !== 'delete my data' }}
-        cancelText="Cancel"
+        cancelText={t('admin:compliance.gdpr.deletion.cancelText')}
         className="gdpr-delete-modal"
         styles={{ mask: { backgroundColor: 'rgba(0, 0, 0, 0.5)' } }}
       >
         <Spin spinning={loading}>
           <Alert
-            message="This action is permanent and cannot be undone!"
+            message={t('admin:compliance.gdpr.deletion.confirmAction')}
             type="error"
             showIcon
             className="mb-4"
           />
-          
+
           <Paragraph>
-            To confirm deletion, please type <Text code strong>DELETE MY DATA</Text> below:
+            {t('admin:compliance.gdpr.deletion.confirmInstruction')} <Text code strong>DELETE MY DATA</Text>
           </Paragraph>
 
           <input
             type="text"
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
-            placeholder="Type: DELETE MY DATA"
+            placeholder={t('admin:compliance.gdpr.deletion.confirmPlaceholder')}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all backdrop-blur-sm bg-white/90"
           />
 
           <Paragraph type="secondary" className="mt-4 mb-0 text-sm">
-            Financial records will be retained for 7 years (anonymized) for legal compliance.
+            {t('admin:compliance.gdpr.deletion.retentionNote')}
           </Paragraph>
         </Spin>
       </Modal>

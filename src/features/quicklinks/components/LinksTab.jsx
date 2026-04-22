@@ -14,6 +14,7 @@ import {
   FormOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { getPublicUrl } from '../utils/formHelpers';
 
 const { Text, Title } = Typography;
@@ -27,9 +28,10 @@ const LinksTab = ({
   copyLink,
   onCreateLink,
 }) => {
+  const { t } = useTranslation(['manager']);
   const columns = [
     {
-      title: 'Link Name',
+      title: t('manager:quicklinks.links.linkName'),
       dataIndex: 'name',
       key: 'name',
       render: (text, record) => (
@@ -42,7 +44,7 @@ const LinksTab = ({
       )
     },
     {
-      title: 'URL',
+      title: t('manager:quicklinks.links.url'),
       key: 'url',
       render: (_, record) => (
         <Text copyable={{ text: getPublicUrl(record.link_code) }} className="text-xs font-mono">
@@ -51,34 +53,34 @@ const LinksTab = ({
       )
     },
     {
-      title: 'Type',
+      title: t('manager:quicklinks.links.type'),
       key: 'type',
       width: 140,
       render: (_, record) => {
         if (record.link_type === 'form') {
-          return <Tag icon={<FormOutlined />} color="purple">Form</Tag>;
+          return <Tag icon={<FormOutlined />} color="purple">{t('manager:quicklinks.links.typeForm')}</Tag>;
         }
         if (record.require_payment) {
-          return <Tag icon={<CreditCardOutlined />} color="gold">Service Buy</Tag>;
+          return <Tag icon={<CreditCardOutlined />} color="gold">{t('manager:quicklinks.links.typeServiceBuy')}</Tag>;
         }
         if (record.link_type === 'service') {
-          return <Tag icon={<LinkOutlined />} color="blue">Service</Tag>;
+          return <Tag icon={<LinkOutlined />} color="blue">{t('manager:quicklinks.links.typeService')}</Tag>;
         }
-        return <Tag icon={<UserAddOutlined />} color="cyan">Registration</Tag>;
+        return <Tag icon={<UserAddOutlined />} color="cyan">{t('manager:quicklinks.links.typeRegistration')}</Tag>;
       }
     },
     {
-      title: 'Status',
+      title: t('manager:quicklinks.links.status'),
       key: 'status',
       width: 100,
       render: (_, record) => (
-        record.is_active 
-          ? <Tag color="green" icon={<CheckCircleOutlined />}>Active</Tag>
-          : <Tag color="red" icon={<CloseCircleOutlined />}>Inactive</Tag>
+        record.is_active
+          ? <Tag color="green" icon={<CheckCircleOutlined />}>{t('manager:quicklinks.links.statusActive')}</Tag>
+          : <Tag color="red" icon={<CloseCircleOutlined />}>{t('manager:quicklinks.links.statusInactive')}</Tag>
       )
     },
     {
-      title: 'Uses',
+      title: t('manager:quicklinks.links.uses'),
       dataIndex: 'use_count',
       key: 'uses',
       width: 80,
@@ -87,31 +89,31 @@ const LinksTab = ({
       )
     },
     {
-      title: 'Expires',
+      title: t('manager:quicklinks.links.expires'),
       dataIndex: 'expires_at',
       key: 'expires',
       width: 130,
-      render: (date) => date ? dayjs(date).format('MMM D, YYYY') : <Text type="secondary">Never</Text>
+      render: (date) => date ? dayjs(date).format('MMM D, YYYY') : <Text type="secondary">{t('manager:quicklinks.links.never')}</Text>
     },
     {
-      title: 'Actions',
+      title: t('manager:quicklinks.links.actions'),
       key: 'actions',
       width: 200,
       render: (_, record) => (
         <Space size="small">
           <Button size="small" icon={<EditOutlined />} onClick={() => onEditLink(record)}>
-            Edit
+            {t('manager:quicklinks.links.edit')}
           </Button>
           <Button size="small" icon={<CopyOutlined />} onClick={() => copyLink(record.link_code)}>
-            Copy
+            {t('manager:quicklinks.links.copy')}
           </Button>
           <Button size="small" icon={<GlobalOutlined />} href={getPublicUrl(record.link_code)} target="_blank">
-            Open
+            {t('manager:quicklinks.links.open')}
           </Button>
           <Popconfirm
-            title="Delete this link?"
+            title={t('manager:quicklinks.links.deleteConfirm')}
             onConfirm={() => onDeleteLink(record.id)}
-            okText="Delete"
+            okText={t('manager:quicklinks.links.delete')}
             okButtonProps={{ danger: true }}
           >
             <Button danger size="small" icon={<DeleteOutlined />} />
@@ -126,24 +128,24 @@ const LinksTab = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <Title level={4} className="!mb-1">Shareable Links</Title>
-          <Text type="secondary">Direct booking and registration links for your services</Text>
+          <Title level={4} className="!mb-1">{t('manager:quicklinks.links.heading')}</Title>
+          <Text type="secondary">{t('manager:quicklinks.links.headingDesc')}</Text>
         </div>
         <Space className="w-full sm:w-auto">
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<PlusOutlined />}
             size="large"
             className="flex-1 sm:flex-none"
             onClick={onCreateLink}
           >
-            Create Link
+            {t('manager:quicklinks.links.createLink')}
           </Button>
-          <Button 
-            icon={<ReloadOutlined />} 
+          <Button
+            icon={<ReloadOutlined />}
             onClick={fetchLinks}
           >
-            Refresh
+            {t('manager:quicklinks.links.refresh')}
           </Button>
         </Space>
       </div>
@@ -159,12 +161,12 @@ const LinksTab = ({
           pagination={{ pageSize: 10 }}
           locale={{
             emptyText: (
-              <Empty 
+              <Empty
                 image={<LinkOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
-                description="No links yet. Create one to share with customers."
+                description={t('manager:quicklinks.links.noLinks')}
               >
                 <Button type="primary" icon={<PlusOutlined />} onClick={onCreateLink}>
-                  Create Your First Link
+                  {t('manager:quicklinks.links.createFirstLink')}
                 </Button>
               </Empty>
             )

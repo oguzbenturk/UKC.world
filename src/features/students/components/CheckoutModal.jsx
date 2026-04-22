@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Button, Typography, Alert, Spin, Result, Input, Upload, Tooltip } from 'antd';
 import {
   WalletOutlined,
@@ -26,6 +27,7 @@ const { Text } = Typography;
 // ─── Bank transfer helpers ────────────────────────────────────────────────────
 
 function CopyButton({ value }) {
+  const { t } = useTranslation(['student']);
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(value || '').then(() => {
@@ -34,16 +36,16 @@ function CopyButton({ value }) {
     });
   };
   return (
-    <Tooltip title={copied ? 'Copied!' : 'Copy'} placement="top">
+    <Tooltip title={copied ? t('student:checkout.copiedTooltip') : t('student:checkout.copyTooltip')} placement="top">
       <button
         type="button"
         onClick={handleCopy}
         style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#0ea5e9', cursor: 'pointer', background: 'none', border: 'none', padding: 0, marginLeft: 12 }}
       >
         {copied ? (
-          <><CheckOutlined style={{ color: '#16a34a' }} /><span style={{ color: '#16a34a' }}>Copied</span></>
+          <><CheckOutlined style={{ color: '#16a34a' }} /><span style={{ color: '#16a34a' }}>{t('student:checkout.copied')}</span></>
         ) : (
-          <><CopyOutlined />Copy</>
+          <><CopyOutlined />{t('student:checkout.copy')}</>
         )}
       </button>
     </Tooltip>
@@ -51,19 +53,20 @@ function CopyButton({ value }) {
 }
 
 function BankDetailsCard({ account }) {
+  const { t } = useTranslation(['student']);
   if (!account) return null;
   const fields = [
-    { label: 'Bank', value: account.bankName },
-    { label: 'Account Holder', value: account.accountHolder },
-    { label: 'IBAN', value: account.iban, mono: true, copy: true },
-    ...(account.swiftCode ? [{ label: 'SWIFT / BIC', value: account.swiftCode, mono: true, copy: true }] : []),
-    ...(account.accountNumber ? [{ label: 'Account No.', value: account.accountNumber, mono: true, copy: true }] : []),
+    { label: t('student:checkout.bankFields.bank'), value: account.bankName },
+    { label: t('student:checkout.bankFields.accountHolder'), value: account.accountHolder },
+    { label: t('student:checkout.bankFields.iban'), value: account.iban, mono: true, copy: true },
+    ...(account.swiftCode ? [{ label: t('student:checkout.bankFields.swift'), value: account.swiftCode, mono: true, copy: true }] : []),
+    ...(account.accountNumber ? [{ label: t('student:checkout.bankFields.accountNumber'), value: account.accountNumber, mono: true, copy: true }] : []),
   ];
   return (
     <div style={{ marginTop: 10, borderRadius: 8, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
       <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
         <BankOutlined style={{ color: '#64748b', fontSize: 12 }} />
-        <Text style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>Transfer To · {account.currency}</Text>
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{t('student:checkout.transferTo', { currency: account.currency })}</Text>
       </div>
       <div style={{ padding: '0 12px' }}>
         {fields.map(({ label, value, mono, copy }) => (
@@ -95,6 +98,7 @@ const Divider = () => (
 );
 
 const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
+  const { t } = useTranslation(['student']);
   const { cart, getCartTotal, getCartCount, clearCart } = useCart();
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
   const { user } = useAuth();
@@ -213,22 +217,22 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
 
   const handleCheckout = async () => {
     if (!hasCompleteAddress) {
-      setError('Please provide a complete delivery address before checking out');
+      setError(t('student:checkout.errors.incompleteAddress'));
       return;
     }
 
     if (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) {
-      setError('Insufficient wallet balance');
+      setError(t('student:checkout.errors.insufficientBalance'));
       return;
     }
 
     if (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)) {
-      setError('Please select a bank account and upload your deposit receipt');
+      setError(t('student:checkout.errors.depositReceiptRequired'));
       return;
     }
 
     if (paymentMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)) {
-      setError('Please select a bank account and upload your payment receipt');
+      setError(t('student:checkout.errors.paymentReceiptRequired'));
       return;
     }
 
@@ -243,48 +247,50 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     const cardPortion = Math.max(0, finalTotal - walletBal);
 
     const paymentLabel = isDeposit
-      ? `Deposit ${DEPOSIT_PERCENT}% (${formatCurrency(depositAmount, storageCurrency)}) via ${depositMethod === 'credit_card' ? 'Card' : 'Bank Transfer'}`
+      ? (depositMethod === 'credit_card'
+          ? t('student:checkout.paymentLabels.depositCard', { percent: DEPOSIT_PERCENT, amount: formatCurrency(depositAmount, storageCurrency) })
+          : t('student:checkout.paymentLabels.depositBank', { percent: DEPOSIT_PERCENT, amount: formatCurrency(depositAmount, storageCurrency) }))
       : effectiveMethod === 'wallet_hybrid'
-        ? `Wallet (${formatCurrency(walletBal, storageCurrency)}) + Card (${formatCurrency(amountNeeded, storageCurrency)})`
+        ? t('student:checkout.paymentLabels.walletHybrid', { wallet: formatCurrency(walletBal, storageCurrency), card: formatCurrency(amountNeeded, storageCurrency) })
         : creditCardHasWallet
-          ? `Wallet (${formatCurrency(walletBal, storageCurrency)}) + Card (${formatCurrency(cardPortion, storageCurrency)})`
-          : effectiveMethod === 'wallet' ? 'Wallet'
-          : effectiveMethod === 'credit_card' ? 'Credit Card'
-          : effectiveMethod === 'bank_transfer' ? 'Bank Transfer (pending approval)'
-          : 'Cash at Pickup';
+          ? t('student:checkout.paymentLabels.creditCardWallet', { wallet: formatCurrency(walletBal, storageCurrency), card: formatCurrency(cardPortion, storageCurrency) })
+          : effectiveMethod === 'wallet' ? t('student:checkout.paymentLabels.wallet')
+          : effectiveMethod === 'credit_card' ? t('student:checkout.paymentLabels.creditCard')
+          : effectiveMethod === 'bank_transfer' ? t('student:checkout.paymentLabels.bankTransferPending')
+          : t('student:checkout.paymentLabels.cash');
 
     Modal.confirm({
-      title: isDeposit ? 'Confirm Deposit Order' : 'Confirm Order',
+      title: isDeposit ? t('student:checkout.confirmDepositOrder') : t('student:checkout.confirmOrder'),
       icon: <ShoppingCartOutlined style={{ color: '#0ea5e9' }} />,
       content: (
         <div style={{ marginTop: 8 }}>
-          <p><strong>{itemCount} item{itemCount !== 1 ? 's' : ''}</strong></p>
+          <p><strong>{t('student:checkout.itemCount', { count: itemCount })}</strong></p>
           {isDeposit ? (
             <div style={{ margin: '8px 0' }}>
               <p style={{ fontSize: 16, fontWeight: 700, color: '#0ea5e9' }}>
-                Deposit: {formatCurrency(depositAmount, storageCurrency)}
+                {t('student:checkout.depositLabel', { amount: formatCurrency(depositAmount, storageCurrency) })}
               </p>
               <p style={{ fontSize: 13, color: '#888' }}>
-                Remaining on delivery: {formatCurrency(remainingAmount, storageCurrency)}
+                {t('student:checkout.remainingOnDelivery', { amount: formatCurrency(remainingAmount, storageCurrency) })}
               </p>
             </div>
           ) : (
             <p style={{ fontSize: 18, fontWeight: 700, margin: '8px 0' }}>{formatCurrency(finalTotal, storageCurrency)}</p>
           )}
-          <p style={{ color: '#888' }}>Delivery to: {formatShippingAddress()}</p>
-          <p style={{ color: '#888' }}>Payment: {paymentLabel}</p>
+          <p style={{ color: '#888' }}>{t('student:checkout.deliveryTo', { address: formatShippingAddress() })}</p>
+          <p style={{ color: '#888' }}>{t('student:checkout.paymentMethod', { method: paymentLabel })}</p>
           {(effectiveMethod === 'wallet_hybrid' || (creditCardHasWallet && !isDeposit)) && (
             <div style={{ marginTop: 8, padding: '8px 12px', background: '#eff6ff', borderRadius: 8, border: '1px solid #bfdbfe' }}>
               <p style={{ color: '#1d4ed8', fontSize: 13, margin: 0 }}>
-                Your wallet balance of <strong>{formatCurrency(Math.min(walletBal, finalTotal), storageCurrency)}</strong> will be used first
-                {(cardPortion > 0 || amountNeeded > 0) && <>, and the remaining <strong>{formatCurrency(effectiveMethod === 'wallet_hybrid' ? amountNeeded : cardPortion, storageCurrency)}</strong> will be charged from your card.</>}
+                {t('student:checkout.walletFirst', { walletAmount: formatCurrency(Math.min(walletBal, finalTotal), storageCurrency) })}
+                {(cardPortion > 0 || amountNeeded > 0) && t('student:checkout.remainingByCard', { cardAmount: formatCurrency(effectiveMethod === 'wallet_hybrid' ? amountNeeded : cardPortion, storageCurrency) })}
               </p>
             </div>
           )}
         </div>
       ),
-      okText: isDeposit ? `Pay Deposit ${formatCurrency(depositAmount, storageCurrency)}` : 'Place Order',
-      cancelText: 'Go Back',
+      okText: isDeposit ? t('student:checkout.payDepositConfirm', { amount: formatCurrency(depositAmount, storageCurrency) }) : t('student:checkout.placeOrder'),
+      cancelText: t('student:checkout.goBack'),
       centered: true,
       onOk: () => executeCheckout(effectiveMethod),
     });
@@ -300,14 +306,14 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       const needsReceipt = (isDeposit && depositMethod === 'bank_transfer') || method === 'bank_transfer';
       if (needsReceipt) {
         if (fileList.length === 0) {
-          setError('Please upload a proof of payment (receipt)');
+          setError(t('student:checkout.errors.uploadReceiptRequired'));
           setLoading(false);
           return;
         }
         try {
           receiptUrl = await uploadReceipt(fileList[0]);
         } catch (uploadErr) {
-          setError(uploadErr.message || 'Error uploading receipt');
+          setError(uploadErr.message || t('student:checkout.errors.uploadFailed'));
           setLoading(false);
           return;
         }
@@ -348,11 +354,11 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         clearCart();
         if (onSuccess) onSuccess(response.data.order);
       } else {
-        setError(response.data.error || 'Failed to place order');
+        setError(response.data.error || t('student:checkout.errors.orderFailed'));
       }
     } catch (err) {
       console.error('Checkout error:', err);
-      setError(err.response?.data?.error || 'Failed to process your order. Please try again.');
+      setError(err.response?.data?.error || t('student:checkout.errors.orderError'));
     } finally {
       setLoading(false);
     }
@@ -395,7 +401,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           icon={<CheckCircleOutlined style={{ color: '#16a34a' }} />}
           title={
             <span style={{ color: '#0f172a' }} className="font-duotone-bold-extended">
-              {isPendingApproval ? 'Order Submitted!' : 'Order Placed!'}
+              {isPendingApproval ? t('student:checkout.orderSubmitted') : t('student:checkout.orderPlaced')}
             </span>
           }
           subTitle={
@@ -406,8 +412,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
               <br />
               <Text style={{ color: isPendingApproval ? '#d97706' : '#64748b', marginTop: 8, display: 'inline-block' }}>
                 {isPendingApproval
-                  ? 'Pending admin approval — you\'ll be notified once confirmed.'
-                  : 'Thank you for your purchase!'}
+                  ? t('student:checkout.pendingApproval')
+                  : t('student:checkout.thankYou')}
               </Text>
             </div>
           }
@@ -415,7 +421,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
             <Button key="continue" type="primary" onClick={handleClose} size="large"
               className="font-duotone-bold"
               style={{ background: '#0ea5e9', border: 'none', color: '#fff', borderRadius: 10 }}>
-              Continue Shopping
+              {t('student:checkout.continueShopping')}
             </Button>
           ]}
         />
@@ -436,40 +442,40 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const isButtonDisabled = (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress || isBankTransferDepositDisabled || isBankTransferDirectDisabled;
 
   const buttonLabel = isDeposit
-    ? `Pay Deposit ${formatDualAmount(depositAmount)}`
+    ? t('student:checkout.payDepositButton', { amount: formatDualAmount(depositAmount) })
     : paymentMethod === 'bank_transfer'
-      ? `Submit Order · ${formatDualAmount(finalTotal)}`
+      ? t('student:checkout.submitOrderButton', { amount: formatDualAmount(finalTotal) })
       : paymentMethod === 'wallet' && canUseHybridWallet
-        ? 'Pay with Wallet + Card'
-        : `Pay ${formatDualAmount(finalTotal)}`;
+        ? t('student:checkout.payWalletCardButton')
+        : t('student:checkout.proceedButton', { amount: formatDualAmount(finalTotal) });
 
   const paymentRows = [
     {
       key: 'wallet',
       icon: <WalletOutlined />,
       iconColor: canAffordWallet ? '#16a34a' : walletBal > 0 ? '#d97706' : '#94a3b8',
-      label: 'Wallet',
-      sublabel: `Balance: ${formatDualAmount(walletBal)}`,
+      label: t('student:checkout.wallet.label'),
+      sublabel: t('student:checkout.wallet.balance', { amount: formatDualAmount(walletBal) }),
       badge: canAffordWallet
-        ? <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>Full</span>
+        ? <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>{t('student:checkout.wallet.full')}</span>
         : walletBal > 0
-          ? <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600 }}>Partial</span>
-          : <span style={{ fontSize: 11, color: '#94a3b8' }}>Empty</span>,
+          ? <span style={{ fontSize: 11, color: '#d97706', fontWeight: 600 }}>{t('student:checkout.wallet.partial')}</span>
+          : <span style={{ fontSize: 11, color: '#94a3b8' }}>{t('student:checkout.wallet.empty')}</span>,
     },
     {
       key: 'bank_transfer',
       icon: <BankOutlined />,
       iconColor: '#0ea5e9',
-      label: 'Bank Transfer',
-      sublabel: 'Transfer & upload receipt · admin approval',
+      label: t('student:checkout.bankTransfer.label'),
+      sublabel: t('student:checkout.bankTransfer.sublabel'),
       badge: null,
     },
     {
       key: 'deposit',
       icon: <SafetyCertificateOutlined />,
       iconColor: '#0ea5e9',
-      label: `Deposit ${DEPOSIT_PERCENT}%`,
-      sublabel: `Pay ${formatDualAmount(depositAmount)} now · rest on delivery`,
+      label: t('student:checkout.deposit.label', { percent: DEPOSIT_PERCENT }),
+      sublabel: t('student:checkout.deposit.sublabel', { now: formatDualAmount(depositAmount) }),
       badge: null,
     },
   ];
@@ -481,7 +487,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {bankAccounts.length === 0 && (
           <div style={{ padding: '10px 12px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
-            No bank accounts available
+            {t('student:checkout.noBankAccounts')}
           </div>
         )}
         {bankAccounts.map((acc) => {
@@ -529,7 +535,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
               icon={<UploadOutlined />}
               style={{ width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', borderRadius: 8 }}
             >
-              {fileList.length > 0 ? 'Change Receipt' : 'Upload Receipt'}
+              {fileList.length > 0 ? t('student:checkout.changeReceipt') : t('student:checkout.uploadReceipt')}
             </Button>
           </Upload>
         </div>
@@ -561,15 +567,15 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         {/* ── Header ────────────────────────────────────────────────── */}
         <div style={{ padding: '24px 24px 18px' }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 8 }} className="font-duotone-bold">
-            Checkout
+            {t('student:checkout.title')}
           </div>
           <div style={{ fontSize: 22, color: '#0f172a', lineHeight: 1 }} className="font-duotone-bold-extended">
             {formatDualAmount(finalTotal)}
           </div>
           <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }} className="font-duotone-regular">
-            {itemCount} {itemCount === 1 ? 'item' : 'items'}
+            {t('student:checkout.itemCount', { count: itemCount })}
             {voucherDiscount > 0 && (
-              <span style={{ color: '#16a34a', marginLeft: 8 }}>· -{formatCurrency(voucherDiscount, storageCurrency)} saved</span>
+              <span style={{ color: '#16a34a', marginLeft: 8 }}>{t('student:checkout.saved', { amount: formatCurrency(voucherDiscount, storageCurrency) })}</span>
             )}
           </div>
         </div>
@@ -630,7 +636,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         {/* ── Delivery address ──────────────────────────────────────── */}
         <div style={{ padding: '14px 24px' }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 10 }} className="font-duotone-bold">
-            Delivery
+            {t('student:checkout.delivery')}
           </div>
           {!editingAddress ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -640,7 +646,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                   style={{ fontSize: 13, color: hasCompleteAddress ? '#334155' : '#d97706', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   className="font-duotone-regular"
                 >
-                  {hasCompleteAddress ? formatShippingAddress() : 'Add delivery address'}
+                  {hasCompleteAddress ? formatShippingAddress() : t('student:checkout.addDeliveryAddress')}
                 </Text>
               </div>
               <button
@@ -649,33 +655,33 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                 style={{ fontSize: 12, color: '#0ea5e9', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: 0, flexShrink: 0 }}
                 className="font-duotone-bold"
               >
-                {hasCompleteAddress ? 'Edit' : 'Add'}
+                {hasCompleteAddress ? t('student:checkout.editAddress') : t('student:checkout.addAddress')}
               </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Input
-                placeholder="Street address"
+                placeholder={t('student:checkout.addressPlaceholder')}
                 value={deliveryAddress.address}
                 onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address: e.target.value }))}
                 className="!h-9 !rounded-lg !border-slate-200 focus-within:!border-sky-400 hover:!border-sky-300"
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <Input
-                  placeholder="City"
+                  placeholder={t('student:checkout.cityPlaceholder')}
                   value={deliveryAddress.city}
                   onChange={(e) => setDeliveryAddress(prev => ({ ...prev, city: e.target.value }))}
                   className="!h-9 !rounded-lg !border-slate-200 focus-within:!border-sky-400 hover:!border-sky-300"
                 />
                 <Input
-                  placeholder="ZIP"
+                  placeholder={t('student:checkout.zipPlaceholder')}
                   value={deliveryAddress.zip_code}
                   onChange={(e) => setDeliveryAddress(prev => ({ ...prev, zip_code: e.target.value }))}
                   className="!h-9 !rounded-lg !border-slate-200 focus-within:!border-sky-400 hover:!border-sky-300"
                 />
               </div>
               <Input
-                placeholder="Country"
+                placeholder={t('student:checkout.countryPlaceholder')}
                 value={deliveryAddress.country}
                 onChange={(e) => setDeliveryAddress(prev => ({ ...prev, country: e.target.value }))}
                 className="!h-9 !rounded-lg !border-slate-200 focus-within:!border-sky-400 hover:!border-sky-300"
@@ -686,7 +692,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                   onClick={() => setEditingAddress(false)}
                   style={{ fontSize: 13, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
-                  Cancel
+                  {t('student:checkout.cancelAddress')}
                 </button>
                 <button
                   type="button"
@@ -695,7 +701,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
                   style={{ fontSize: 13, color: hasCompleteAddress ? '#0ea5e9' : '#cbd5e1', background: 'none', border: 'none', cursor: hasCompleteAddress ? 'pointer' : 'default', padding: 0 }}
                   className="font-duotone-bold"
                 >
-                  Save
+                  {t('student:checkout.saveAddress')}
                 </button>
               </div>
             </div>
@@ -707,7 +713,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         {/* ── Payment methods ───────────────────────────────────────── */}
         <div style={{ padding: '14px 24px' }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: 10 }} className="font-duotone-bold">
-            Payment
+            {t('student:checkout.payment')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {paymentRows.map(({ key, icon, iconColor, label, sublabel, badge }) => {
@@ -751,20 +757,20 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
             {/* Breakdown */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pay now</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('student:checkout.payNow')}</div>
                 <div style={{ fontSize: 18, color: '#0f172a', fontWeight: 700 }} className="font-duotone-bold">{formatDualAmount(depositAmount)}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Due on delivery</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('student:checkout.dueOnDelivery')}</div>
                 <div style={{ fontSize: 18, color: '#0f172a', fontWeight: 700 }} className="font-duotone-bold">{formatDualAmount(remainingAmount)}</div>
               </div>
             </div>
 
             {/* Sub-method selector */}
-            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Pay deposit via</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{t('student:checkout.payDepositVia')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
               {[
-                { key: 'bank_transfer', icon: <BankOutlined />, label: 'Bank Transfer' },
+                { key: 'bank_transfer', icon: <BankOutlined />, label: t('student:checkout.bankTransfer.label') },
               ].map(({ key, icon, label }) => {
                 const active = depositMethod === key;
                 return (
@@ -801,7 +807,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           <div style={{ margin: '0 24px 8px', padding: '14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }} className="font-duotone-regular">
               <InfoCircleOutlined style={{ marginRight: 6, color: '#d97706' }} />
-              Transfer the full amount, upload your receipt — order confirms after admin approval.
+              {t('student:checkout.bankTransferInfo')}
             </div>
             {renderBankSelector()}
           </div>
@@ -816,9 +822,9 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           }} className="font-duotone-regular">
             <WalletOutlined style={{ marginRight: 6, color: '#0ea5e9' }} />
             <Text style={{ color: '#0f172a', fontWeight: 600 }} className="font-duotone-bold">{formatCurrency(Math.min(walletBal, finalTotal), storageCurrency)}</Text>
-            {' '}from wallet
+            {' '}{t('student:checkout.fromWallet')}
             {cardPortion > 0 && (
-              <> + <Text style={{ color: '#0f172a', fontWeight: 600 }} className="font-duotone-bold">{formatCurrency(cardPortion, storageCurrency)}</Text> by card</>
+              <> + <Text style={{ color: '#0f172a', fontWeight: 600 }} className="font-duotone-bold">{formatCurrency(cardPortion, storageCurrency)}</Text> {t('student:checkout.byCard')}</>
             )}
           </div>
         )}
@@ -850,7 +856,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
           </Button>
           {(!hasCompleteAddress || editingAddress) && (
             <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#d97706' }}>
-              {editingAddress ? 'Save your address to continue' : 'Delivery address required'}
+              {editingAddress ? t('student:checkout.saveAddressHint') : t('student:checkout.addressRequired')}
             </div>
           )}
         </div>

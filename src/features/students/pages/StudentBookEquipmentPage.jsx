@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, Typography, Button, Row, Col, Tag, Spin, Empty, Divider, List } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -116,6 +117,7 @@ const rentalPackages = [
 ];
 
 function StudentBookEquipmentPage() {
+  const { t } = useTranslation(['student']);
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
@@ -126,8 +128,8 @@ function StudentBookEquipmentPage() {
   const [rentalModalData, setRentalModalData] = useState(null);
 
   usePageSEO({
-    title: 'Book Equipment | UKC Academy',
-    description: 'Rent quality Duotone and Core equipment for your kitesurfing session. All gear maintained daily with safety equipment included.'
+    title: t('student:bookEquipment.seoTitle'),
+    description: t('student:bookEquipment.seoDescription')
   });
 
   // Load rental services
@@ -236,7 +238,7 @@ function StudentBookEquipmentPage() {
             onClick={() => handleBookEquipment(service)}
             className="w-full bg-orange-500 hover:bg-orange-600 border-none"
           >
-            Book Now
+            {t('student:bookEquipment.bookServiceButton')}
           </Button>
         </Card>
       </Col>
@@ -256,12 +258,10 @@ function StudentBookEquipmentPage() {
       {/* Hero Section */}
       <div className="text-center mb-12">
         <Title level={1} className="!mb-4">
-          🏄 Equipment Rental
+          🏄 {t('student:bookEquipment.heroTitle')}
         </Title>
         <Paragraph className="text-lg text-gray-600 max-w-3xl mx-auto">
-          Rent premium Duotone and Core equipment for your session! All gear is maintained daily 
-          and includes safety equipment. From complete kite sets to individual items, 
-          we have everything you need for a perfect day on the water.
+          {t('student:bookEquipment.heroBody')}
         </Paragraph>
         <Button
           type="primary"
@@ -270,7 +270,7 @@ function StudentBookEquipmentPage() {
           onClick={() => handleBookEquipment()}
           className="mt-4 h-12 px-8 bg-orange-500 hover:bg-orange-600 border-none"
         >
-          Book Equipment Now
+          {t('student:bookEquipment.bookNowButton')}
         </Button>
       </div>
 
@@ -278,7 +278,7 @@ function StudentBookEquipmentPage() {
 
       {/* Why Rent From Us */}
       <div className="mb-12">
-        <Title level={2} className="text-center mb-8">Why Rent From Us?</Title>
+        <Title level={2} className="text-center mb-8">{t('student:bookEquipment.whyRentTitle')}</Title>
         <Row gutter={[24, 24]}>
           <Col xs={24} sm={12} md={6}>
             <Card className="text-center h-full hover:shadow-lg transition-shadow">
@@ -312,7 +312,7 @@ function StudentBookEquipmentPage() {
       </div>
 
       {/* Rental Packages */}
-      <Title level={2} className="text-center mb-8">Our Rental Options</Title>
+      <Title level={2} className="text-center mb-8">{t('student:bookEquipment.rentalOptionsTitle')}</Title>
       <Row gutter={[24, 24]} className="mb-12">
         {rentalPackages.map((pkg) => (
           <Col xs={24} lg={12} key={pkg.key}>
@@ -331,7 +331,7 @@ function StudentBookEquipmentPage() {
               <Paragraph>{pkg.description}</Paragraph>
               
               <div className="mb-4">
-                <Text strong className="block mb-2">Pricing:</Text>
+                <Text strong className="block mb-2">{t('student:bookEquipment.pricing')}</Text>
                 <div className="space-y-2">
                   {pkg.options.map((opt) => (
                     <div key={`${pkg.key}-${opt.duration}`} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
@@ -347,7 +347,7 @@ function StudentBookEquipmentPage() {
               </div>
 
               <div className="mb-4">
-                <Text strong className="block mb-2">What's Included:</Text>
+                <Text strong className="block mb-2">{t('student:bookEquipment.whatsIncluded')}</Text>
                 <List
                   size="small"
                   dataSource={pkg.included}
@@ -367,7 +367,7 @@ function StudentBookEquipmentPage() {
                 onClick={() => handleBookEquipment()}
                 className="bg-orange-500 hover:bg-orange-600 border-none"
               >
-                Book {pkg.title}
+                {t('student:bookEquipment.bookPackageButton', { title: pkg.title })}
               </Button>
             </Card>
           </Col>
@@ -378,9 +378,9 @@ function StudentBookEquipmentPage() {
       {rentalServices.length > 0 && (
         <>
           <Divider />
-          <Title level={2} className="text-center mb-4">Available Right Now</Title>
+          <Title level={2} className="text-center mb-4">{t('student:bookEquipment.availableNowTitle')}</Title>
           <Paragraph className="text-center text-gray-600 mb-8">
-            Current equipment available for booking
+            {t('student:bookEquipment.availableNowSubtitle')}
           </Paragraph>
           <Row gutter={[16, 16]}>
             {rentalServices.slice(0, 6).map(renderServiceCard)}
@@ -390,9 +390,9 @@ function StudentBookEquipmentPage() {
 
       {/* Bottom CTA */}
       <div className="text-center mt-12 p-8 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl">
-        <Title level={3}>Ready to Hit the Water?</Title>
+        <Title level={3}>{t('student:bookEquipment.readyTitle')}</Title>
         <Paragraph className="text-gray-600 mb-4">
-          Book your equipment now and enjoy premium gear for your session.
+          {t('student:bookEquipment.readyBody')}
         </Paragraph>
         <div className="flex justify-center gap-4 flex-wrap">
           <Button
@@ -402,14 +402,14 @@ function StudentBookEquipmentPage() {
             onClick={() => handleBookEquipment()}
             className="bg-orange-500 hover:bg-orange-600 border-none"
           >
-            Book Equipment
+            {t('student:bookEquipment.bookEquipmentButton')}
           </Button>
           <Button
             size="large"
             icon={<SyncOutlined />}
             onClick={() => window.location.href = '/rental/my-rentals'}
           >
-            View My Rentals
+            {t('student:bookEquipment.viewMyRentals')}
           </Button>
         </div>
       </div>
@@ -417,16 +417,16 @@ function StudentBookEquipmentPage() {
       {/* Info Notice */}
       {rentalServices.length === 0 && !loading && (
         <Card className="mt-8 rounded-xl shadow-sm border-blue-200 bg-blue-50">
-          <Empty 
+          <Empty
             description={
               <span className="text-gray-600">
-                No specific rental services configured yet. Contact us to book equipment directly!
+                {t('student:bookEquipment.noServicesDesc')}
               </span>
             }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             <Button type="primary" onClick={() => handleBookEquipment()}>
-              Contact for Rentals
+              {t('student:bookEquipment.contactForRentals')}
             </Button>
           </Empty>
         </Card>

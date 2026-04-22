@@ -4,13 +4,13 @@
 // Combo-box category/subcategory selectors with inline creation
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { 
-  Form, 
-  Input, 
-  InputNumber, 
-  Button, 
-  Select, 
-  Switch, 
+import {
+  Form,
+  Input,
+  InputNumber,
+  Button,
+  Select,
+  Switch,
   Upload,
   Row,
   Col,
@@ -25,6 +25,7 @@ import {
   Alert
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
+import { useTranslation } from 'react-i18next';
 import { 
   PlusOutlined, 
   LoadingOutlined, 
@@ -203,12 +204,13 @@ const pickPlainProductForForm = (p) => {
   return out;
 };
 
-const ProductForm = ({ 
-  product = null, 
-  onSubmit, 
+const ProductForm = ({
+  product = null,
+  onSubmit,
   onCancel,
-  loading = false 
+  loading = false
 }) => {
+  const { t } = useTranslation(['manager']);
   const [form] = Form.useForm();
   const [imageUrl, setImageUrl] = useState(product?.image_url || null);
   const [images, setImages] = useState(product?.images || []);
@@ -436,9 +438,9 @@ const ProductForm = ({
         setColorInputVal('');
       }
 
-      message.success(`Product ${isEditing ? 'updated' : 'created'} successfully!`);
+      message.success(isEditing ? t('manager:products.messages.updated') : t('manager:products.messages.created'));
     } catch {
-      message.error(`Failed to ${isEditing ? 'update' : 'create'} product`);
+      message.error(isEditing ? t('manager:products.messages.updateError') : t('manager:products.messages.createError'));
     }
   };
 
@@ -465,9 +467,9 @@ const ProductForm = ({
       });
       const urls = response.data.images.map(img => img.url);
       setColorImagesMap(prev => ({ ...prev, [colorName]: [...(prev[colorName] || []), ...urls] }));
-      message.success(`${urls.length} photo${urls.length > 1 ? 's' : ''} added to ${colorName}`);
+      message.success(t('manager:products.form.colorPhotosAdded', { count: urls.length, color: colorName }));
     } catch {
-      message.error('Image upload failed');
+      message.error(t('manager:products.form.colorPhotoUploadError'));
     } finally {
       setColorUploading(null);
     }
@@ -492,9 +494,9 @@ const ProductForm = ({
       // Refresh extra subcategories from DB
       const data = await productApi.getSubcategories(selectedCategory);
       setExtraSubcategories(data.subcategories || []);
-      message.success(`Subcategory "${label}" created${parentValue ? ` under ${parentValue}` : ''}`);
+      message.success(t('manager:products.form.subcategoryCreated', { label }));
     } catch {
-      message.error('Failed to create subcategory');
+      message.error(t('manager:products.form.subcategoryCreateError'));
       throw new Error('creation failed');
     }
   }, [selectedCategory]);
@@ -506,9 +508,9 @@ const ProductForm = ({
       // Refresh extra subcategories from DB
       const data = await productApi.getSubcategories(selectedCategory);
       setExtraSubcategories(data.subcategories || []);
-      message.success('Subcategory removed');
+      message.success(t('manager:products.form.subcategoryRemoved'));
     } catch {
-      message.error('Failed to delete subcategory');
+      message.error(t('manager:products.form.subcategoryRemoveError'));
       throw new Error('deletion failed');
     }
   }, [selectedCategory]);
@@ -521,10 +523,10 @@ const ProductForm = ({
     if (info.file.status === 'done') {
       setImageLoading(false);
       setImageUrl(info.file.response.url);
-      message.success('Image uploaded successfully!');
+      message.success(t('manager:products.form.imageUploaded'));
     } else if (info.file.status === 'error') {
       setImageLoading(false);
-      message.error('Image upload failed');
+      message.error(t('manager:products.form.imageUploadError'));
     }
   };
 
@@ -547,10 +549,10 @@ const ProductForm = ({
       });
       const newImages = response.data.images.map(img => img.url);
       setImages(prev => [...prev, ...newImages]);
-      message.success(`${response.data.count} images uploaded!`);
+      message.success(t('manager:products.form.imagesUploaded', { count: response.data.count }));
     } catch (error) {
       console.error('Error uploading images:', error);
-      message.error('Failed to upload images');
+      message.error(t('manager:products.form.imagesUploadError'));
     } finally {
       setImageLoading(false);
       // Reset after a short delay to allow for next batch
@@ -562,7 +564,7 @@ const ProductForm = ({
 
   const removeImage = (indexToRemove) => {
     setImages(prev => prev.filter((_, i) => i !== indexToRemove));
-    message.success('Image removed');
+    message.success(t('manager:products.form.imageRemoved'));
   };
 
   const uploadButton = (
@@ -592,11 +594,11 @@ const ProductForm = ({
   const tabItems = [
     {
       key: 'product',
-      label: <span className="flex items-center gap-1.5"><TagsOutlined /> Product</span>,
+      label: <span className="flex items-center gap-1.5"><TagsOutlined /> {t('manager:products.form.productTab')}</span>,
       children: (
         <div className="space-y-3 pt-1">
           {/* ── Identity ── */}
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><TagsOutlined /> Identity</p>
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><TagsOutlined /> {t('manager:products.form.identity')}</p>
           <Row gutter={[8, 0]}>
             <Col xs={24} md={16}>
               <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Required' }, { min: 2 }]}>
@@ -646,15 +648,15 @@ const ProductForm = ({
           <div className="h-px bg-slate-100" />
 
           {/* ── Details ── */}
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><InfoCircleOutlined /> Details</p>
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><InfoCircleOutlined /> {t('manager:products.form.details')}</p>
           <Row gutter={[8, 0]}>
             {fieldConfig.showGender && (
               <Col xs={12} md={8}>
                 <Form.Item name="gender" label="Gender">
-                  <Select placeholder="Gender" allowClear>
-                    <Option value="Men">Men</Option>
-                    <Option value="Women">Women</Option>
-                    <Option value="Unisex">Unisex</Option>
+                  <Select placeholder={t('manager:products.columns.product')} allowClear>
+                    <Option value="Men">{t('manager:products.form.genderMen')}</Option>
+                    <Option value="Women">{t('manager:products.form.genderWomen')}</Option>
+                    <Option value="Unisex">{t('manager:products.form.genderUnisex')}</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -671,8 +673,8 @@ const ProductForm = ({
               </Form.Item>
             </Col>
             <Col xs={12} md={8}>
-              <Form.Item name="is_featured" label={<span>Featured <Tooltip title="Featured products appear in the shop landing page carousel"><InfoCircleOutlined className="text-slate-300" /></Tooltip></span>} valuePropName="checked">
-                <Switch checkedChildren="Yes" unCheckedChildren="No" />
+              <Form.Item name="is_featured" label={<span>{t('manager:products.columns.product')} <Tooltip title={t('manager:products.form.featuredTooltip')}><InfoCircleOutlined className="text-slate-300" /></Tooltip></span>} valuePropName="checked">
+                <Switch checkedChildren={t('manager:products.form.featuredYes')} unCheckedChildren={t('manager:products.form.featuredNo')} />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -689,7 +691,7 @@ const ProductForm = ({
               <Col xs={24}>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                    <BgColorsOutlined className="mr-1" />Color Options
+                    <BgColorsOutlined className="mr-1" />{t('manager:products.form.colorOptions')}
                   </label>
                   <div className="flex gap-2 mb-2">
                     <Input
@@ -703,7 +705,7 @@ const ProductForm = ({
                           setColorInputVal('');
                         }
                       }}
-                      placeholder="e.g., Black, Ocean Blue…"
+                      placeholder={t('manager:products.form.colorPlaceholder')}
                       size="small"
                       className="rounded-lg"
                     />
@@ -711,7 +713,7 @@ const ProductForm = ({
                       size="small"
                       onClick={() => { addColor(colorInputVal); setColorInputVal(''); }}
                       disabled={!colorInputVal.trim()}
-                    >Add</Button>
+                    >{t('manager:products.form.addColor')}</Button>
                   </div>
                   {colorNames.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
@@ -722,7 +724,7 @@ const ProductForm = ({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400">Add colors — you can then upload per-color photos in the Stock tab</p>
+                    <p className="text-xs text-slate-400">{t('manager:products.form.noColorsHint')}</p>
                   )}
                 </div>
               </Col>
@@ -740,7 +742,7 @@ const ProductForm = ({
       key: 'stock-media',
       label: (
         <span className="flex items-center gap-1.5">
-          <DollarOutlined /> Stock & Pricing
+          <DollarOutlined /> {t('manager:products.form.stockTab')}
           {liveStockSummary.variantCount > 0 && (
             <Badge count={`${liveStockSummary.total}`} style={{ backgroundColor: '#1677ff', fontSize: 10 }} size="small" />
           )}
@@ -753,7 +755,7 @@ const ProductForm = ({
           {/* ── Variants ── */}
           {fieldConfig.showVariants && (
             <>
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> Size & Stock Variants</p>
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> {t('manager:products.form.sizeVariants')}</p>
               <Form.Item name="variants" noStyle>
                 <VariantTable currency={selectedCurrency} category={selectedCategory} />
               </Form.Item>
@@ -763,7 +765,7 @@ const ProductForm = ({
           {/* ── Simple Sizes ── */}
           {fieldConfig.showSizes && !fieldConfig.showVariants && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Sizes</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('manager:products.form.sizesLabel')}</p>
               <Form.Item name="sizes" noStyle>
                 <Select mode="tags" style={{ width: '100%' }} placeholder={fieldConfig.sizePlaceholder} tokenSeparators={[',', ' ']} />
               </Form.Item>
@@ -773,26 +775,26 @@ const ProductForm = ({
           <div className="h-px bg-slate-100" />
 
           {/* ── Inventory ── */}
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><InboxOutlined /> Inventory</p>
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><InboxOutlined /> {t('manager:products.form.inventory')}</p>
           <Row gutter={[8, 0]}>
             <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
               <Form.Item
                 name="stock_quantity"
-                label="Total Stock"
-                rules={[{ required: true, message: 'Required' }, { type: 'number', min: 0 }]}
-                extra={liveStockSummary.variantCount > 0 ? `Synced from variants: ${liveStockSummary.total}` : undefined}
+                label={t('manager:products.form.totalStock')}
+                rules={[{ required: true, message: t('manager:products.form.identity') }, { type: 'number', min: 0 }]}
+                extra={liveStockSummary.variantCount > 0 ? t('manager:products.form.syncedFromVariants', { count: liveStockSummary.total }) : undefined}
               >
                 <InputNumber style={{ width: '100%' }} min={0} placeholder="0" disabled={liveStockSummary.variantCount > 0} />
               </Form.Item>
             </Col>
             <Col xs={24} md={fieldConfig.showWeight ? 8 : 12}>
-              <Form.Item name="min_stock_level" label="Low Stock Alert">
+              <Form.Item name="min_stock_level" label={t('manager:products.form.lowStockAlert')}>
                 <InputNumber style={{ width: '100%' }} min={0} placeholder="5" />
               </Form.Item>
             </Col>
             {fieldConfig.showWeight && (
               <Col xs={24} md={8}>
-                <Form.Item name="weight" label="Weight (kg)">
+                <Form.Item name="weight" label={t('manager:products.form.weightKg')}>
                   <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} placeholder="0.00" />
                 </Form.Item>
               </Col>
@@ -801,13 +803,13 @@ const ProductForm = ({
 
           {/* ── Discount / Original Price ── */}
           <div className="h-px bg-slate-100" />
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><TagsOutlined /> Discount</p>
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><TagsOutlined /> {t('manager:products.form.discount')}</p>
           <Row gutter={[8, 0]}>
             <Col xs={24} md={12}>
               <Form.Item
                 name="original_price"
-                label="Original Price (before discount)"
-                extra="Set higher than the sale price to show a discount badge in the shop. Leave empty if no discount."
+                label={t('manager:products.form.originalPrice')}
+                extra={t('manager:products.form.originalPriceHint')}
               >
                 <InputNumber
                   style={{ width: '100%' }}
@@ -824,7 +826,7 @@ const ProductForm = ({
           <div className="h-px bg-slate-100" />
 
           {/* ── Main Image ── */}
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><PictureOutlined /> Main Image <span className="normal-case tracking-normal font-normal text-slate-300">— required to appear in carousel & hot deals</span></p>
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><PictureOutlined /> {t('manager:products.form.mainImage')} <span className="normal-case tracking-normal font-normal text-slate-300">— {t('manager:products.form.mainImageHint')}</span></p>
           <div className="flex items-center gap-3">
             <Upload
               name="image"
@@ -852,7 +854,7 @@ const ProductForm = ({
               ) : (
                 <div className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg">
                   {imageLoading ? <LoadingOutlined className="text-slate-400" /> : <PlusOutlined className="text-slate-400" />}
-                  <span className="text-xs text-slate-400 mt-1">Upload</span>
+                  <span className="text-xs text-slate-400 mt-1">{t('manager:products.form.uploadButton')}</span>
                 </div>
               )}
             </Upload>
@@ -863,7 +865,7 @@ const ProductForm = ({
           {colorNames.length > 0 ? (
             <>
               <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                <BgColorsOutlined /> Photos per Color
+                <BgColorsOutlined /> {t('manager:products.form.photosPerColor')}
               </p>
               <div className="space-y-3">
                 {colorNames.map(colorName => {
@@ -916,7 +918,7 @@ const ProductForm = ({
                   listType="picture-card"
                   showUploadList={false}
                   beforeUpload={(file, fileList) => {
-                    if (images.length + fileList.length > 10) { message.error('Maximum 10 images'); return false; }
+                    if (images.length + fileList.length > 10) { message.error(t('manager:products.form.maxImagesError')); return false; }
                     handleMultipleImagesUpload(fileList);
                     return false;
                   }}
@@ -987,7 +989,7 @@ const ProductForm = ({
             <CheckCircleOutlined className="mr-1" />{product.name}
           </span>
         )}
-        <Button onClick={onCancel} size="small">Cancel</Button>
+        <Button onClick={onCancel} size="small">{t('manager:products.form.cancelButton')}</Button>
         <Button
           type="primary"
           htmlType="submit"
@@ -995,7 +997,7 @@ const ProductForm = ({
           size="small"
           icon={isEditing ? <CheckCircleOutlined /> : <PlusOutlined />}
         >
-          {isEditing ? 'Update Product' : '+ Create Product'}
+          {isEditing ? t('manager:products.form.updateButton') : t('manager:products.form.createButton')}
         </Button>
       </div>
     </Form>

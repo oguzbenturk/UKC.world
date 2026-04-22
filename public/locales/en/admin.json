@@ -1183,7 +1183,9 @@
         "description": "View your current waiver status and review previous signatures. If you need to sign or refresh your waiver, you can do so directly below.",
         "loadError": "Unable to load waiver details",
         "loadErrorDescription": "We couldn't find your account information. Please sign in again and revisit this page.",
-        "accountError": "We could not determine your account to load the waiver. Please sign in again."
+        "accountError": "We could not determine your account to load the waiver. Please sign in again.",
+        "successToast": "Thanks! Your liability waiver is now up to date.",
+        "cancelToast": "You can sign the waiver whenever you need from this page."
       },
       "export": {
         "title": "Export Your Data (Article 15 - Right of Access)",

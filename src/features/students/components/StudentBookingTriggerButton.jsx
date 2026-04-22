@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import { CalendarDaysIcon } from '@heroicons/react/24/outline';
 
 const variantClassMap = {
@@ -7,9 +8,11 @@ const variantClassMap = {
   navbar: 'border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 focus-visible:ring-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
 };
 
-const StudentBookingTriggerButton = ({ onClick, variant = 'light', className = '', label = 'Book Lesson', icon: Icon = CalendarDaysIcon }) => {
+const StudentBookingTriggerButton = ({ onClick, variant = 'light', className = '', label, icon: Icon = CalendarDaysIcon }) => {
+  const { t } = useTranslation(['student']);
   const classes = variantClassMap[variant] || variantClassMap.light;
-  const ariaLabel = 'Open booking wizard';
+  const resolvedLabel = label ?? t('student:bookingTrigger.label');
+  const ariaLabel = t('student:bookingTrigger.ariaLabel');
 
   return (
     <button
@@ -19,7 +22,7 @@ const StudentBookingTriggerButton = ({ onClick, variant = 'light', className = '
       className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${classes} ${className}`}
     >
       <Icon className="h-5 w-5" aria-hidden />
-      <span>{label}</span>
+      <span>{resolvedLabel}</span>
     </button>
   );
 };

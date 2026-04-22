@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Table, Tag, Space, Row, Col, Spin, Empty, Button, Typography, Grid } from 'antd';
 import { 
   ReloadOutlined, 
@@ -49,6 +50,7 @@ function StatCard({ title, value, icon, trend, color = 'cyan' }) {
 }
 
 export default function DailyOperationsPage() {
+  const { t } = useTranslation(['manager']);
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const { formatCurrency } = useCurrency();
@@ -115,16 +117,16 @@ export default function DailyOperationsPage() {
   }, [data]);
 
   const paymentColumns = [
-    { 
-      title: 'Time', 
+    {
+      title: t('manager:dailyOperations.columns.time'),
       dataIndex: 'transaction_date', 
       key: 'time',
       width: 80,
       render: v => <Text className="text-slate-600">{dayjs(v).format('HH:mm')}</Text>
     },
-    { 
-      title: 'Description', 
-      dataIndex: 'description', 
+    {
+      title: t('manager:dailyOperations.columns.description'),
+      dataIndex: 'description',
       key: 'description',
       ellipsis: true,
       render: (text, record) => (
@@ -136,9 +138,9 @@ export default function DailyOperationsPage() {
         </div>
       )
     },
-    { 
-      title: 'Type', 
-      dataIndex: 'type', 
+    {
+      title: t('manager:dailyOperations.columns.type'),
+      dataIndex: 'type',
       key: 'type',
       width: 100,
       responsive: ['md'],
@@ -154,17 +156,17 @@ export default function DailyOperationsPage() {
         return <Tag color={colors[type] || 'default'}>{type || 'Other'}</Tag>;
       }
     },
-    { 
-      title: 'Reference', 
-      dataIndex: 'reference_number', 
+    {
+      title: t('manager:dailyOperations.columns.reference'),
+      dataIndex: 'reference_number',
       key: 'reference',
       width: 120,
       responsive: ['lg'],
       render: ref => <Text type="secondary" className="text-xs">{ref || '—'}</Text>
     },
-    { 
-      title: 'Amount', 
-      dataIndex: 'amount', 
+    {
+      title: t('manager:dailyOperations.columns.amount'),
+      dataIndex: 'amount',
       key: 'amount',
       width: 100,
       align: 'right',
@@ -177,8 +179,8 @@ export default function DailyOperationsPage() {
   ];
 
   const rentalColumns = [
-    { 
-      title: 'Time', 
+    {
+      title: t('manager:dailyOperations.columns.time'),
       key: 'time',
       width: 100,
       render: (_, record) => (
@@ -188,9 +190,9 @@ export default function DailyOperationsPage() {
         </div>
       )
     },
-    { 
-      title: 'Customer', 
-      dataIndex: 'user_id', 
+    {
+      title: t('manager:dailyOperations.columns.customer'),
+      dataIndex: 'user_id',
       key: 'customer',
       ellipsis: true,
       render: (userId, record) => (
@@ -200,9 +202,9 @@ export default function DailyOperationsPage() {
         </div>
       )
     },
-    { 
-      title: 'Status', 
-      dataIndex: 'status', 
+    {
+      title: t('manager:dailyOperations.columns.status'),
+      dataIndex: 'status',
       key: 'status',
       width: 100,
       render: status => {
@@ -217,9 +219,9 @@ export default function DailyOperationsPage() {
         return <Tag color={colors[status] || 'default'}>{status}</Tag>;
       }
     },
-    { 
-      title: 'Payment', 
-      dataIndex: 'payment_status', 
+    {
+      title: t('manager:dailyOperations.columns.payment'),
+      dataIndex: 'payment_status',
       key: 'payment_status',
       width: 90,
       responsive: ['md'],
@@ -234,17 +236,17 @@ export default function DailyOperationsPage() {
         return <Tag color={colors[status] || 'default'}>{status}</Tag>;
       }
     },
-    { 
-      title: 'Price', 
-      dataIndex: 'total_price', 
+    {
+      title: t('manager:dailyOperations.columns.price'),
+      dataIndex: 'total_price',
       key: 'total_price',
       width: 100,
       align: 'right',
       render: v => <Text strong>{formatCurrency(v)}</Text>
     },
-    { 
-      title: 'Paid Today', 
-      dataIndex: 'amount_paid_today', 
+    {
+      title: t('manager:dailyOperations.columns.paidToday'),
+      dataIndex: 'amount_paid_today',
       key: 'amount_paid_today',
       width: 100,
       align: 'right',
@@ -314,8 +316,8 @@ export default function DailyOperationsPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Title level={3} className="!mb-0 text-slate-900">Daily Operations</Title>
-              {isToday && <Tag color="cyan" className="text-xs font-medium">Today</Tag>}
+              <Title level={3} className="!mb-0 text-slate-900">{t('manager:dailyOperations.title')}</Title>
+              {isToday && <Tag color="cyan" className="text-xs font-medium">{t('manager:dailyOperations.todayTag')}</Tag>}
             </div>
             <p className="text-sm text-slate-500">{dateLabel}</p>
           </div>
@@ -332,14 +334,14 @@ export default function DailyOperationsPage() {
               onClick={() => setDate(dayjs())}
               disabled={isToday}
             >
-              Today
+              {t('manager:dailyOperations.todayButton')}
             </Button>
             <Button
               icon={<ReloadOutlined />}
               onClick={load}
               loading={loading}
             >
-              Refresh
+              {t('manager:dailyOperations.refresh')}
             </Button>
           </Space>
         </div>
@@ -348,33 +350,33 @@ export default function DailyOperationsPage() {
         {!loading && dailyStats && (
           <Row gutter={[16, 16]} className="mt-6">
             <Col xs={12} md={6}>
-              <StatCard 
-                title="Total Income" 
+              <StatCard
+                title={t('manager:dailyOperations.stats.totalIncome')}
                 value={formatCurrency(dailyStats.totalIncome)}
                 icon={<DollarOutlined className="text-xl" />}
                 color="green"
               />
             </Col>
             <Col xs={12} md={6}>
-              <StatCard 
-                title="Net Revenue" 
+              <StatCard
+                title={t('manager:dailyOperations.stats.netRevenue')}
                 value={formatCurrency(dailyStats.netIncome)}
                 icon={<ArrowUpOutlined className="text-xl" />}
                 color="cyan"
               />
             </Col>
             <Col xs={12} md={6}>
-              <StatCard 
-                title="Transactions" 
+              <StatCard
+                title={t('manager:dailyOperations.stats.transactions')}
                 value={dailyStats.transactionCount}
                 icon={<ShoppingCartOutlined className="text-xl" />}
                 color="purple"
               />
             </Col>
             <Col xs={12} md={6}>
-              <StatCard 
-                title="Rentals" 
-                value={`${dailyStats.activeRentals} active / ${dailyStats.rentalCount} total`}
+              <StatCard
+                title={t('manager:dailyOperations.stats.rentals', { active: dailyStats.activeRentals, total: dailyStats.rentalCount })}
+                value={`${dailyStats.activeRentals} / ${dailyStats.rentalCount}`}
                 icon={<CalendarOutlined className="text-xl" />}
                 color="amber"
               />
@@ -393,7 +395,7 @@ export default function DailyOperationsPage() {
       {/* Error State */}
       {error && (
         <Card className="rounded-2xl border-rose-200 bg-rose-50">
-          <Text type="danger">Failed to load data: {error}</Text>
+          <Text type="danger">{t('manager:dailyOperations.error', { message: error })}</Text>
         </Card>
       )}
 
@@ -404,8 +406,8 @@ export default function DailyOperationsPage() {
           title={
             <div className="flex items-center gap-2">
               <DollarOutlined className="text-emerald-500" />
-              <span>Payment History</span>
-              <Tag color="green">{incomeTransactions.length} income transactions</Tag>
+              <span>{t('manager:dailyOperations.title')}</span>
+              <Tag color="green">{t('manager:dailyOperations.paymentHistoryCard.incomeCount', { count: incomeTransactions.length })}</Tag>
             </div>
           }
         >
@@ -418,7 +420,7 @@ export default function DailyOperationsPage() {
               emptyText: (
                 <Empty 
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No income transactions for this day"
+                  description={t('manager:dailyOperations.empty.noTransactions')}
                 />
               )
             }}
@@ -434,8 +436,8 @@ export default function DailyOperationsPage() {
           title={
             <div className="flex items-center gap-2">
               <CalendarOutlined className="text-amber-500" />
-              <span>Rentals</span>
-              <Tag color="orange">{dayRentals.length} rentals</Tag>
+              <span>{t('manager:rentalsPage.tabs.total')}</span>
+              <Tag color="orange">{t('manager:dailyOperations.rentalsCard.count', { count: dayRentals.length })}</Tag>
             </div>
           }
         >
@@ -448,7 +450,7 @@ export default function DailyOperationsPage() {
               emptyText: (
                 <Empty 
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No rentals for this day"
+                  description={t('manager:dailyOperations.empty.noRentals')}
                 />
               )
             }}

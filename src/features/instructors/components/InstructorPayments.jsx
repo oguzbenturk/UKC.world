@@ -1,4 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Decimal from 'decimal.js';
 import {
   Spin, Alert, Table, Button, Modal, Form, Input, InputNumber, DatePicker,
@@ -18,6 +19,7 @@ import moment from 'moment';
 const { Option } = Select;
 
 const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly = false }, ref) => {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const { businessCurrency, getCurrencySymbol } = useCurrency();
   const { user } = useAuth();
@@ -81,8 +83,8 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
       setUnpaidEarnings(balance.greaterThan(0) ? processed : []);
     } catch (err) {
       setError(err.response?.status === 404
-        ? 'Instructor earnings data not found.'
-        : err.response?.data?.message || 'Failed to load payroll data.');
+        ? t('instructor:payroll.earningsNotFound')
+        : err.response?.data?.message || t('instructor:payroll.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -128,15 +130,15 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     try {
       if (type === 'edit' && record) {
         await apiClient.put(`/finances/instructor-payments/${record.id}`, payload);
-        message.success('Payment updated!');
+        message.success(t('instructor:payroll.paymentUpdated'));
       } else {
         await apiClient.post('/finances/instructor-payments', payload);
-        message.success(`${type === 'deduction' ? 'Deduction' : 'Payment'} recorded!`);
+        message.success(type === 'deduction' ? t('instructor:payroll.deductionRecorded') : t('instructor:payroll.paymentRecorded'));
       }
       await refresh();
       setIsModalVisible(false);
     } catch (err) {
-      message.error(err.response?.data?.message || `Failed to record ${type}.`);
+      message.error(err.response?.data?.message || t('instructor:payroll.failedToRecord', { type }));
     } finally {
       setIsSubmitting(false);
     }
@@ -146,10 +148,10 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     if (!managementEnabled) return;
     try {
       await apiClient.delete(`/finances/instructor-payments/${paymentId}`);
-      message.success('Payment deleted!');
+      message.success(t('instructor:payroll.paymentDeleted'));
       await refresh();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to delete payment.');
+      message.error(err.response?.data?.message || t('instructor:payroll.failedToDelete'));
     }
   };
 
@@ -167,11 +169,11 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
           ? { ...e, commission_rate: parseFloat(values.commissionRate), commission_amount: e.lesson_amount * rate }
           : e
       ));
-      message.success('Commission rate updated');
+      message.success(t('instructor:payroll.commissionRateUpdated'));
       setIsCommissionModalVisible(false);
       await refresh();
     } catch (err) {
-      message.error(err.response?.data?.message || 'Failed to update commission rate');
+      message.error(err.response?.data?.message || t('instructor:payroll.failedToUpdateCommission'));
     } finally {
       setIsUpdatingCommission(false);
       setSelectedBooking(null);
@@ -195,8 +197,8 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
   };
 
   // ── Render ──
-  if (isLoading) return <div className="flex justify-center items-center h-48"><Spin size="large"><div className="p-8">Loading payroll...</div></Spin></div>;
-  if (error) return <Alert message="Error" description={error} type="error" showIcon action={<Button size="small" type="primary" onClick={() => { hasFetchedRef.current = false; fetchPayrollData(); }}>Retry</Button>} />;
+  if (isLoading) return <div className="flex justify-center items-center h-48"><Spin size="large"><div className="p-8">{t('instructor:payroll.loadingPayroll')}</div></Spin></div>;
+  if (error) return <Alert message="Error" description={error} type="error" showIcon action={<Button size="small" type="primary" onClick={() => { hasFetchedRef.current = false; fetchPayrollData(); }}>{t('instructor:payroll.retryBtn')}</Button>} />;
 
   return (
     <Spin spinning={isSubmitting}>
@@ -204,9 +206,9 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
         {/* ── Summary cards ── */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'Lifetime Earnings', value: fmt(totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Total Paid Out', value: fmt(totalPaid), icon: <ArrowUpOutlined />, color: 'text-red-500', bg: 'bg-red-50' },
-            { label: 'Balance Owed', value: fmt(availableBalance), icon: <CheckCircleOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: t('instructor:payroll.lifetimeEarnings'), value: fmt(totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: t('instructor:payroll.totalPaidOut'), value: fmt(totalPaid), icon: <ArrowUpOutlined />, color: 'text-red-500', bg: 'bg-red-50' },
+            { label: t('instructor:payroll.balanceOwed'), value: fmt(availableBalance), icon: <CheckCircleOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
           ].map(s => (
             <div key={s.label} className="rounded-lg border border-gray-100 bg-white p-2.5">
               <div className={`inline-flex items-center justify-center w-6 h-6 rounded-md ${s.bg} ${s.color} text-xs mb-1.5`}>{s.icon}</div>
@@ -219,10 +221,10 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
         {/* ── Unpaid Earnings ── */}
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-2">
-            <h4 className="text-sm font-semibold text-gray-800">Unpaid Earnings</h4>
+            <h4 className="text-sm font-semibold text-gray-800">{t('instructor:payroll.unpaidEarnings')}</h4>
             <Input.Search
               size="small"
-              placeholder="Search…"
+              placeholder={t('instructor:payroll.searchPlaceholder')}
               allowClear
               value={earningsSearch}
               onChange={e => setEarningsSearch(e.target.value)}
@@ -231,8 +233,8 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
           </div>
           <Table
             columns={[
-              { title: 'Date', dataIndex: 'lesson_date', key: 'date', render: t => t ? moment(t).format('YYYY-MM-DD') : '—', width: 110 },
-              { title: 'Duration', dataIndex: 'duration', key: 'duration', width: 80,
+              { title: t('instructor:payroll.columns.date'), dataIndex: 'lesson_date', key: 'date', render: v => v ? moment(v).format('YYYY-MM-DD') : '—', width: 110 },
+              { title: t('instructor:payroll.columns.duration'), dataIndex: 'duration', key: 'duration', width: 80,
                 render: v => {
                   const h = parseFloat(v) || 0;
                   if (!h) return '—';
@@ -241,17 +243,17 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
                 }
               },
-              { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true,
-                render: (t, r) => {
-                  const name = r.participant_names || t;
+              { title: t('instructor:payroll.columns.student'), dataIndex: 'student_name', key: 'student', ellipsis: true,
+                render: (val, r) => {
+                  const name = r.participant_names || val;
                   return r.group_size > 1
                     ? <span>{name} <Tag color="purple" bordered={false} className="rounded-full m-0 text-xs">{r.group_size}ppl</Tag></span>
                     : name;
                 }
               },
-              { title: 'Service', dataIndex: 'service_name', key: 'service', ellipsis: true },
-              ...(hideLessonAmount ? [] : [{ title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: (t, r) => formatCurrency(t || 0, r.currency || businessCurrency || 'EUR'), width: 100 }]),
-              { title: 'Rate', dataIndex: 'commission_rate', key: 'rate', width: 90,
+              { title: t('instructor:payroll.columns.service'), dataIndex: 'service_name', key: 'service', ellipsis: true },
+              ...(hideLessonAmount ? [] : [{ title: t('instructor:payroll.columns.amount'), dataIndex: 'lesson_amount', key: 'amt', render: (val, r) => formatCurrency(val || 0, r.currency || businessCurrency || 'EUR'), width: 100 }]),
+              { title: t('instructor:payroll.columns.rate'), dataIndex: 'commission_rate', key: 'rate', width: 90,
                 render: (v, r) => {
                   const rv = typeof v === 'number' ? v : parseFloat(v || '0');
                   return r.commission_type === 'fixed'
@@ -259,7 +261,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                     : `${(rv < 1 ? rv * 100 : rv).toFixed(1)}%`;
                 }
               },
-              { title: 'Commission', dataIndex: 'commission_amount', key: 'comm',
+              { title: t('instructor:payroll.columns.commission'), dataIndex: 'commission_amount', key: 'comm',
                 render: (t, r) => <span className="font-medium text-emerald-700">{formatCurrency(t || 0, r.currency || businessCurrency || 'EUR')}</span>, width: 110 },
               ...(managementEnabled ? [{
                 title: '', key: 'actions', width: 50,
@@ -282,40 +284,40 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
             pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
             size="small"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: <Empty description="No unpaid earnings." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            locale={{ emptyText: <Empty description={t('instructor:payroll.noUnpaidEarnings')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </div>
 
         {/* ── Payment History ── */}
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <h4 className="text-sm font-semibold text-gray-800">Payment History</h4>
+            <h4 className="text-sm font-semibold text-gray-800">{t('instructor:payroll.paymentHistory')}</h4>
             <div className="flex items-center gap-2">
               {managementEnabled && (
                 <>
-                  <Button size="small" type="primary" onClick={() => showModal('payment')}>Pay</Button>
-                  <Button size="small" onClick={() => showModal('deduction')}>Deduct</Button>
+                  <Button size="small" type="primary" onClick={() => showModal('payment')}>{t('instructor:payroll.pay')}</Button>
+                  <Button size="small" onClick={() => showModal('deduction')}>{t('instructor:payroll.deduct')}</Button>
                 </>
               )}
-              <Button size="small" icon={<DownloadOutlined />} onClick={exportToPDF}>PDF</Button>
+              <Button size="small" icon={<DownloadOutlined />} onClick={exportToPDF}>{t('instructor:payroll.pdf')}</Button>
             </div>
           </div>
           <Table
             columns={[
-              { title: 'Date', dataIndex: 'payment_date', key: 'date', render: t => t ? moment(t).format('YYYY-MM-DD') : '—', width: 110 },
-              { title: 'Amount', dataIndex: 'amount', key: 'amount', render: t => fmt(t), width: 110 },
-              { title: 'Type', dataIndex: 'amount', key: 'type', width: 100,
+              { title: t('instructor:payroll.columns.date'), dataIndex: 'payment_date', key: 'date', render: v => v ? moment(v).format('YYYY-MM-DD') : '—', width: 110 },
+              { title: t('instructor:payroll.columns.amount'), dataIndex: 'amount', key: 'amount', render: v => fmt(v), width: 110 },
+              { title: t('instructor:payroll.columns.type'), dataIndex: 'amount', key: 'type', width: 100,
                 render: a => a >= 0
-                  ? <Tag color="green" bordered={false} className="rounded-full m-0">Payment</Tag>
-                  : <Tag color="red" bordered={false} className="rounded-full m-0">Deduction</Tag>
+                  ? <Tag color="green" bordered={false} className="rounded-full m-0">{t('instructor:payroll.paymentTag')}</Tag>
+                  : <Tag color="red" bordered={false} className="rounded-full m-0">{t('instructor:payroll.deductionTag')}</Tag>
               },
-              { title: 'Method', dataIndex: 'payment_method', key: 'method', render: t => t || '—', width: 110 },
-              { title: 'Notes', dataIndex: 'notes', key: 'notes', ellipsis: true },
+              { title: t('instructor:payroll.columns.method'), dataIndex: 'payment_method', key: 'method', render: v => v || '—', width: 110 },
+              { title: t('instructor:payroll.columns.notes'), dataIndex: 'notes', key: 'notes', ellipsis: true },
               ...(managementEnabled ? [{
                 title: '', key: 'actions', width: 100,
                 render: (_, r) => (
                   <span className="flex gap-1">
-                    <Button type="text" size="small" onClick={() => showModal('edit', r)}>Edit</Button>
+                    <Button type="text" size="small" onClick={() => showModal('edit', r)}>{t('instructor:profile.edit')}</Button>
                     <Popconfirm title="Delete this payment?" onConfirm={() => handleDeletePayment(r.id)} okText="Yes" cancelText="No">
                       <Button type="text" size="small" danger>Del</Button>
                     </Popconfirm>
@@ -328,14 +330,14 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
             pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
             size="small"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: <Empty description="No payments yet." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            locale={{ emptyText: <Empty description={t('instructor:payroll.noPaymentsYet')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </div>
 
         {/* ── Payment / Deduction Modal ── */}
         {managementEnabled && (
           <Modal
-            title={`${modalConfig.type === 'edit' ? 'Edit' : 'New'} ${modalConfig.type === 'deduction' ? 'Deduction' : 'Payment'}`}
+            title={modalConfig.type === 'edit' ? t('instructor:payroll.editPaymentTitle') : modalConfig.type === 'deduction' ? t('instructor:payroll.newDeductionTitle') : t('instructor:payroll.newPaymentTitle')}
             open={isModalVisible}
             onCancel={() => setIsModalVisible(false)}
             footer={null}
@@ -355,31 +357,31 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
             }}
           >
             <Form form={form} layout="vertical" onFinish={handleModalSubmit} initialValues={{ payment_date: moment(), payment_method: 'bank_transfer' }}>
-              <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Enter the amount' }]}>
+              <Form.Item name="amount" label={t('instructor:payroll.amountLabel')} rules={[{ required: true, message: t('instructor:payroll.enterAmount') }]}>
                 <InputNumber prefix={getCurrencySymbol(businessCurrency || 'EUR')} style={{ width: '100%' }}
                   formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={v => v.replace(/[^0-9.\-]/g, '')} />
               </Form.Item>
-              <Form.Item name="payment_date" label="Payment Date" rules={[{ required: true }]}>
+              <Form.Item name="payment_date" label={t('instructor:payroll.paymentDate')} rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="payment_method" label="Method" rules={[{ required: true }]}>
+              <Form.Item name="payment_method" label={t('instructor:payroll.methodLabel')} rules={[{ required: true }]}>
                 <Select getPopupContainer={trigger => trigger.parentElement}>
-                  <Option value="bank_transfer">Bank Transfer</Option>
-                  <Option value="cash">Cash</Option>
-                  <Option value="paypal">PayPal</Option>
-                  <Option value="other">Other</Option>
+                  <Option value="bank_transfer">{t('instructor:payroll.bankTransfer')}</Option>
+                  <Option value="cash">{t('instructor:payroll.cash')}</Option>
+                  <Option value="paypal">{t('instructor:payroll.paypal')}</Option>
+                  <Option value="other">{t('instructor:payroll.other')}</Option>
                 </Select>
               </Form.Item>
-              <Form.Item name="reference" label="Reference"><Input /></Form.Item>
-              <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} /></Form.Item>
-              <Form.Item><Button type="primary" htmlType="submit" loading={isSubmitting} block>{modalConfig.type === 'edit' ? 'Update' : 'Submit'}</Button></Form.Item>
+              <Form.Item name="reference" label={t('instructor:payroll.referenceLabel')}><Input /></Form.Item>
+              <Form.Item name="notes" label={t('instructor:payroll.notesLabel')}><Input.TextArea rows={2} /></Form.Item>
+              <Form.Item><Button type="primary" htmlType="submit" loading={isSubmitting} block>{modalConfig.type === 'edit' ? t('instructor:payroll.updateBtn') : t('instructor:payroll.submitBtn')}</Button></Form.Item>
             </Form>
           </Modal>
         )}
 
         {/* ── Commission Edit Modal ── */}
         {managementEnabled && (
-          <Modal title="Edit Commission Rate" open={isCommissionModalVisible}
+          <Modal title={t('instructor:payroll.editCommissionRate')} open={isCommissionModalVisible}
             onCancel={() => { setIsCommissionModalVisible(false); setSelectedBooking(null); commissionForm.resetFields(); }}
             footer={null} destroyOnHidden
             afterOpenChange={(open) => {
@@ -398,12 +400,12 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                     <div className="flex justify-between"><span className="text-gray-500">Service</span><span>{selectedBooking.service_name || '—'}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Amount</span><span>{formatCurrency(selectedBooking.lesson_amount || 0)}</span></div>
                   </div>
-                  <Form.Item name="commissionRate" label="Commission Rate (%)"
-                    rules={[{ required: true, message: 'Enter commission rate' }, { type: 'number', min: 0, max: 100, message: '0-100%' }]}>
+                  <Form.Item name="commissionRate" label={t('instructor:payroll.commissionRateLabel')}
+                    rules={[{ required: true, message: t('instructor:payroll.enterCommissionRate') }, { type: 'number', min: 0, max: 100, message: t('instructor:payroll.commissionRateRange') }]}>
                     <InputNumber min={0} max={100} step={0.5} precision={2} style={{ width: '100%' }}
                       formatter={v => `${v}%`} parser={v => v.replace('%', '')} />
                   </Form.Item>
-                  <Form.Item><Button type="primary" htmlType="submit" loading={isUpdatingCommission} block>Update</Button></Form.Item>
+                  <Form.Item><Button type="primary" htmlType="submit" loading={isUpdatingCommission} block>{t('instructor:payroll.updateBtn')}</Button></Form.Item>
                 </>
               )}
             </Form>

@@ -1183,7 +1183,9 @@
         "description": "Sehen Sie Ihren aktuellen Haftungsausschluss-Status ein und überprüfen Sie frühere Unterschriften. Wenn Sie Ihren Haftungsausschluss unterschreiben oder erneuern müssen, können Sie dies direkt unten tun.",
         "loadError": "Haftungsausschluss-Details konnten nicht geladen werden",
         "loadErrorDescription": "Wir konnten Ihre Kontoinformationen nicht finden. Bitte melden Sie sich erneut an und rufen Sie diese Seite wieder auf.",
-        "accountError": "Wir konnten Ihr Konto nicht ermitteln, um den Haftungsausschluss zu laden. Bitte melden Sie sich erneut an."
+        "accountError": "Wir konnten Ihr Konto nicht ermitteln, um den Haftungsausschluss zu laden. Bitte melden Sie sich erneut an.",
+        "successToast": "Thanks! Your liability waiver is now up to date.",
+        "cancelToast": "You can sign the waiver whenever you need from this page."
       },
       "export": {
         "title": "Ihre Daten exportieren (Artikel 15 - Auskunftsrecht)",

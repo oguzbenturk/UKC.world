@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Tag, Space, Collapse, Empty, message as antMessage } from 'antd';
 import {
   ExclamationCircleOutlined,
@@ -14,15 +15,16 @@ import { useUpdateTicketStatus, useAddTicketNote } from '../../hooks/useSupportT
 const { TextArea } = Input;
 
 const statusConfig = {
-  open: { color: 'gold', icon: <ExclamationCircleOutlined />, label: 'Open' },
-  in_progress: { color: 'blue', icon: <SyncOutlined />, label: 'In Progress' },
-  resolved: { color: 'green', icon: <CheckCircleOutlined />, label: 'Resolved' },
-  closed: { color: 'default', icon: <ClockCircleOutlined />, label: 'Closed' },
+  open: { color: 'gold', icon: <ExclamationCircleOutlined /> },
+  in_progress: { color: 'blue', icon: <SyncOutlined /> },
+  resolved: { color: 'green', icon: <CheckCircleOutlined /> },
+  closed: { color: 'default', icon: <ClockCircleOutlined /> },
 };
 
 const priorityColors = { urgent: 'red', high: 'orange', normal: 'blue', low: 'default' };
 
 const TicketConversationPanel = ({ ticket }) => {
+  const { t } = useTranslation(['admin']);
   const [replyText, setReplyText] = useState('');
   const [noteText, setNoteText] = useState('');
   const updateStatus = useUpdateTicketStatus();
@@ -31,7 +33,7 @@ const TicketConversationPanel = ({ ticket }) => {
   if (!ticket) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
-        <Empty description="Select a ticket to view details" />
+        <Empty description={t('admin:support.conversation.selectTicket')} />
       </div>
     );
   }
@@ -43,10 +45,10 @@ const TicketConversationPanel = ({ ticket }) => {
     if (!replyText.trim()) return;
     try {
       await addNote.mutateAsync({ ticketId: ticket.id, note: replyText, type: 'reply' });
-      antMessage.success('Reply sent');
+      antMessage.success(t('admin:support.toast.replySent'));
       setReplyText('');
     } catch {
-      antMessage.error('Failed to send reply');
+      antMessage.error(t('admin:support.toast.replyError'));
     }
   };
 
@@ -54,19 +56,19 @@ const TicketConversationPanel = ({ ticket }) => {
     if (!noteText.trim()) return;
     try {
       await addNote.mutateAsync({ ticketId: ticket.id, note: noteText, type: 'internal' });
-      antMessage.success('Note added');
+      antMessage.success(t('admin:support.toast.noteAdded'));
       setNoteText('');
     } catch {
-      antMessage.error('Failed to add note');
+      antMessage.error(t('admin:support.toast.noteError'));
     }
   };
 
   const handleStatusChange = async (newStatus) => {
     try {
       await updateStatus.mutateAsync({ ticketId: ticket.id, status: newStatus });
-      antMessage.success(`Ticket marked as ${newStatus.replace('_', ' ')}`);
+      antMessage.success(t('admin:support.toast.statusUpdated', { status: newStatus.replace('_', ' ') }));
     } catch {
-      antMessage.error('Failed to update status');
+      antMessage.error(t('admin:support.toast.statusError'));
     }
   };
 
@@ -82,7 +84,7 @@ const TicketConversationPanel = ({ ticket }) => {
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5 shrink-0">
-            <Tag icon={st.icon} color={st.color}>{st.label}</Tag>
+            <Tag icon={st.icon} color={st.color} className="capitalize">{ticket.status?.replace('_', ' ')}</Tag>
             <Tag color={priorityColors[ticket.priority] || 'default'} className="capitalize">
               {ticket.priority}
             </Tag>
@@ -99,7 +101,7 @@ const TicketConversationPanel = ({ ticket }) => {
               loading={updateStatus.isPending}
               onClick={() => handleStatusChange('in_progress')}
             >
-              Start
+              {t('admin:support.conversation.start')}
             </Button>
           )}
           {['open', 'in_progress'].includes(ticket.status) && (
@@ -109,7 +111,7 @@ const TicketConversationPanel = ({ ticket }) => {
               loading={updateStatus.isPending}
               onClick={() => handleStatusChange('resolved')}
             >
-              Resolve
+              {t('admin:support.conversation.resolve')}
             </Button>
           )}
           {ticket.status === 'resolved' && (
@@ -118,7 +120,7 @@ const TicketConversationPanel = ({ ticket }) => {
               loading={updateStatus.isPending}
               onClick={() => handleStatusChange('closed')}
             >
-              Close
+              {t('admin:support.conversation.close')}
             </Button>
           )}
         </div>
@@ -150,12 +152,12 @@ const TicketConversationPanel = ({ ticket }) => {
               >
                 {!isReply && (
                   <p className="text-[10px] font-medium text-amber-600 mb-1 flex items-center gap-1">
-                    <FileTextOutlined /> Internal Note
+                    <FileTextOutlined /> {t('admin:support.table.internalNote')}
                   </p>
                 )}
                 <p className="text-sm text-slate-700 whitespace-pre-wrap">{n.note}</p>
                 <p className="mt-1 text-[10px] text-slate-400">
-                  {isReply ? 'Admin reply' : 'Admin note'} &middot;{' '}
+                  {isReply ? t('admin:support.conversation.adminReply') : t('admin:support.conversation.adminNote')} &middot;{' '}
                   {dayjs(n.timestamp).format('MMM D, h:mm A')}
                 </p>
               </div>
@@ -169,7 +171,7 @@ const TicketConversationPanel = ({ ticket }) => {
         <div className="flex gap-2">
           <TextArea
             rows={2}
-            placeholder="Type a reply to the student…"
+            placeholder={t('admin:support.conversation.replyPlaceholder')}
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             className="flex-1"
@@ -181,7 +183,7 @@ const TicketConversationPanel = ({ ticket }) => {
             loading={addNote.isPending}
             disabled={!replyText.trim()}
           >
-            Reply
+            {t('admin:support.conversation.reply')}
           </Button>
         </div>
 
@@ -192,14 +194,14 @@ const TicketConversationPanel = ({ ticket }) => {
               key: 'note',
               label: (
                 <span className="text-xs text-amber-600">
-                  <FileTextOutlined /> Add internal note
+                  <FileTextOutlined /> {t('admin:support.conversation.addInternalNote')}
                 </span>
               ),
               children: (
                 <div className="flex gap-2">
                   <TextArea
                     rows={2}
-                    placeholder="Internal note (not visible to student)…"
+                    placeholder={t('admin:support.conversation.notePlaceholder')}
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     className="flex-1"
@@ -209,7 +211,7 @@ const TicketConversationPanel = ({ ticket }) => {
                     loading={addNote.isPending}
                     disabled={!noteText.trim()}
                   >
-                    Add
+                    {t('admin:support.conversation.add')}
                   </Button>
                 </div>
               ),

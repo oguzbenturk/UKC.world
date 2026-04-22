@@ -1,6 +1,7 @@
 // src/pages/Customers.jsx
 /* eslint-disable no-unused-vars */
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { 
   Button, Space, Modal, Input, Card, 
@@ -32,6 +33,7 @@ import UserForm from '@/shared/components/ui/UserForm';
 import apiClient from '@/shared/services/apiClient';
 
 const Customers = () => {
+  const { t } = useTranslation(['manager']);
   const navigate = useNavigate();
   const location = useLocation();
   const { formatCurrency, businessCurrency, convertCurrency, userCurrency } = useCurrency();
@@ -113,7 +115,7 @@ const Customers = () => {
 
       setNextCursor(res.nextCursor || null);
     } catch {
-      message.error('Failed to load customers');
+      message.error(t('manager:customers.loadFailed'));
     } finally {
       setLoading(false);
       setIsLoadingMore(false);
@@ -190,25 +192,25 @@ const Customers = () => {
   const getPaymentStatusTag = useCallback((status) => {
     switch (status) {
       case 'paid':
-        return <Tag color="green">Paid</Tag>;
+        return <Tag color="green">{t('manager:customers.paymentStatus.paid')}</Tag>;
       case 'package':
-        return <Tag color="blue">Package</Tag>;
+        return <Tag color="blue">{t('manager:customers.paymentStatus.package')}</Tag>;
       case 'partial':
-        return <Tag color="orange">Partial</Tag>;
+        return <Tag color="orange">{t('manager:customers.paymentStatus.partial')}</Tag>;
       case 'pending':
-        return <Tag color="orange">Pending</Tag>;
+        return <Tag color="orange">{t('manager:customers.paymentStatus.pending')}</Tag>;
       case 'overdue':
-        return <Tag color="red">Overdue</Tag>;
+        return <Tag color="red">{t('manager:customers.paymentStatus.overdue')}</Tag>;
       case 'loading':
-        return <Tag color="blue">Loading...</Tag>;
+        return <Tag color="blue">{t('manager:customers.paymentStatus.loading')}</Tag>;
       case 'timeout':
-        return <Tag color="orange">Refresh needed</Tag>;
+        return <Tag color="orange">{t('manager:customers.paymentStatus.timeout')}</Tag>;
       case 'error':
-        return <Tag color="red">Error</Tag>;
+        return <Tag color="red">{t('manager:customers.paymentStatus.error')}</Tag>;
       default:
-        return <Tag color="default">N/A</Tag>;
+        return <Tag color="default">{t('manager:customers.paymentStatus.na')}</Tag>;
     }
-  }, []);
+  }, [t]);
   
   // Headless table column defs (TanStack)
   const columns = useMemo(
@@ -216,7 +218,7 @@ const Customers = () => {
       {
         id: 'name',
         accessorKey: 'name',
-        header: () => 'Name',
+        header: () => t('manager:customers.columns.name'),
         enableSorting: true,
         cell: ({ row, getValue }) => {
           const record = row.original;
@@ -253,14 +255,14 @@ const Customers = () => {
       {
         id: 'role',
         accessorKey: 'role',
-        header: () => 'Role',
+        header: () => t('manager:customers.columns.role'),
         enableSorting: true,
         cell: ({ getValue }) => {
           const role = getValue();
           const roleConfig = {
-            student: { color: 'blue', label: 'Student' },
-            outsider: { color: 'orange', label: 'Outsider' },
-            trusted_customer: { color: 'green', label: 'Trusted' },
+            student: { color: 'blue', label: t('manager:customers.roles.student') },
+            outsider: { color: 'orange', label: t('manager:customers.roles.outsider') },
+            trusted_customer: { color: 'green', label: t('manager:customers.roles.trusted') },
           };
           const config = roleConfig[role] || { color: 'default', label: role };
           return <Tag color={config.color}>{config.label}</Tag>;
@@ -269,14 +271,14 @@ const Customers = () => {
       {
         id: 'email',
         accessorKey: 'email',
-        header: () => 'Email',
+        header: () => t('manager:customers.columns.email'),
         enableSorting: true,
         cell: info => info.getValue()
       },
       {
         id: 'phone',
         accessorKey: 'phone',
-        header: () => 'Phone',
+        header: () => t('manager:customers.columns.phone'),
         enableSorting: false,
         cell: info => info.getValue() || '—'
       },
@@ -285,7 +287,7 @@ const Customers = () => {
         accessorKey: 'balance',
         header: () => (
           <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-            <span>Balance</span>
+            <span>{t('manager:customers.columns.balance')}</span>
             <Dropdown
               trigger={['click']}
               menu={{
@@ -327,7 +329,7 @@ const Customers = () => {
         accessorKey: 'payment_status',
         header: () => (
           <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-            <span>Payment Status</span>
+            <span>{t('manager:customers.columns.paymentStatus')}</span>
             <Dropdown
               trigger={['click']}
               menu={{
@@ -355,16 +357,16 @@ const Customers = () => {
       },
       {
         id: 'actions',
-        header: () => <div className="text-center w-full">Actions</div>,
+        header: () => <div className="text-center w-full">{t('manager:customers.columns.actions')}</div>,
         enableSorting: false,
         cell: ({ row }) => {
           const record = row.original;
           return (
             <div className="flex items-center justify-center w-full gap-2">
-              <Tooltip title="Edit Customer">
+              <Tooltip title={t('manager:customers.actions.edit')}>
                 <Button type="text" shape="circle" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); navigate(`/customers/${record.id}/edit`); }} />
               </Tooltip>
-              <Tooltip title="Delete Customer">
+              <Tooltip title={t('manager:customers.actions.delete')}>
                 <Button type="text" danger shape="circle" icon={<DeleteOutlined />} onClick={(e) => { e.stopPropagation(); handleDelete(record); }} />
               </Tooltip>
             </div>
@@ -392,7 +394,7 @@ const Customers = () => {
   
   const renderCards = () => {
   if (visibleCustomers.length === 0) {
-      return <Empty description="No customers found" />;
+      return <Empty description="{t('manager:customers.notFound')}" />;
     }
     
     return (
@@ -409,16 +411,16 @@ const Customers = () => {
                 </Space>
               }
               actions={[
-                <Tooltip key="edit-tooltip" title="Edit Customer">
-                  <EditOutlined 
-                    key="edit" 
+                <Tooltip key="edit-tooltip" title={t('manager:customers.actions.edit')}>
+                  <EditOutlined
+                    key="edit"
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/customers/${customer.id}/edit`);
-                    }} 
+                    }}
                   />
                 </Tooltip>,
-                <Tooltip key="delete-tooltip" title="Delete Customer">
+                <Tooltip key="delete-tooltip" title={t('manager:customers.actions.delete')}>
                   <Button
                     key="delete"
                     type="text"
@@ -434,10 +436,10 @@ const Customers = () => {
               ]}
             >
         <Spin spinning={loading && customers.length === 0} size="small">
-                <p><strong>Email:</strong> {customer.email}</p>
-                <p><strong>Phone:</strong> {customer.phone || 'N/A'}</p>
+                <p><strong>{t('manager:customers.columns.email')}:</strong> {customer.email}</p>
+                <p><strong>{t('manager:customers.columns.phone')}:</strong> {customer.phone || 'N/A'}</p>
                 <div>
-                  <strong>Balance:</strong> 
+                  <strong>{t('manager:customers.columns.balance')}:</strong>
                   <span style={{ color: (customer.balance || 0) < 0 ? 'red' : 'green' }}>
           {(() => {
             // IMPORTANT: All balances in DB are stored in EUR (base currency)
@@ -455,7 +457,7 @@ const Customers = () => {
           })()}
                   </span>
                 </div>
-                <p><strong>Payment Status</strong> {getPaymentStatusTag(customer.payment_status)}</p>
+                <p><strong>{t('manager:customers.columns.paymentStatus')}</strong> {getPaymentStatusTag(customer.payment_status)}</p>
               </Spin>
             </Card>
           </Col>
@@ -500,7 +502,7 @@ const Customers = () => {
       <div className="flex items-center mb-6" style={{ justifyContent: 'space-between' }}>
         <div style={{ flex: '1' }}>
           <Input
-            placeholder="Search customers..."
+            placeholder={t('manager:customers.searchPlaceholder')}
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
@@ -518,7 +520,7 @@ const Customers = () => {
             onClick={handleAddClick}
             size="middle"
           >
-            Add Customer
+            {t('manager:customers.addCustomer')}
           </Button>
         </div>
       </div>
@@ -572,8 +574,8 @@ const Customers = () => {
                       <tr>
                         <td colSpan={colCount} className="py-12">
                           <div className="flex flex-col items-center justify-center text-gray-500">
-                            <Empty description="No customers found">
-                              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>Add Customer</Button>
+                            <Empty description="{t('manager:customers.notFound')}">
+                              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>{t('manager:customers.addCustomer')}</Button>
                             </Empty>
                           </div>
                         </td>
@@ -635,7 +637,7 @@ const Customers = () => {
     </UnifiedTable>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 12 }}>
             <Space>
-              <span style={{ color: '#888' }}>Page size:</span>
+              <span style={{ color: '#888' }}>{t('manager:customers.pageSize')}</span>
               <Segmented
                 options={[25, 50, 100, 200].map(v => ({ label: String(v), value: v }))}
                 value={limit}
@@ -647,7 +649,7 @@ const Customers = () => {
                 loading={isLoadingMore}
                 type="default"
               >
-                {nextCursor ? 'Load more' : 'All loaded'}
+                {nextCursor ? t('manager:customers.loadMore') : t('manager:customers.allLoaded')}
               </Button>
               <span className="text-gray-400 text-xs max-w-[200px] hidden sm:inline">
                 Large lists stay smooth via virtual scrolling; use search to narrow results.
@@ -679,7 +681,7 @@ const Customers = () => {
           />
         </Suspense>
         
-        {/* Add Customer Drawer */}
+        {/* {t('manager:customers.addCustomer')} Drawer */}
         <Drawer
           open={isFormDrawerOpen}
           onClose={() => setIsFormDrawerOpen(false)}
@@ -690,7 +692,7 @@ const Customers = () => {
         >
           <div className="flex-shrink-0 border-b border-slate-200 bg-white px-5 py-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-800 m-0">New Customer</h2>
+              <h2 className="text-base font-semibold text-slate-800 m-0">{t('manager:customers.newCustomer')}</h2>
               <button
                 onClick={() => setIsFormDrawerOpen(false)}
                 className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 border-0 cursor-pointer transition-colors text-base"

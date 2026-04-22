@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -28,6 +29,7 @@ const QUICK_RANGES = [
 ];
 
 const PaymentHistory = () => {
+  const { t } = useTranslation(['manager']);
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -115,11 +117,11 @@ const PaymentHistory = () => {
   }, [serverStats]);
 
   const headlineStats = useMemo(() => [
-    { key: 'income', label: 'Total Income', value: formatCurrency(stats.totalIncome), accent: 'emerald' },
-    { key: 'expenses', label: 'Total Charges', value: formatCurrency(stats.totalExpenses), accent: 'rose' },
-    { key: 'net', label: 'Net Amount', value: formatCurrency(stats.net), accent: stats.net >= 0 ? 'cyan' : 'rose' },
-    { key: 'count', label: 'Transactions', value: stats.total.toLocaleString(), accent: 'slate' },
-  ], [stats]);
+    { key: 'income', label: t('manager:financePages.paymentHistory.stats.totalIncome'), value: formatCurrency(stats.totalIncome), accent: 'emerald' },
+    { key: 'expenses', label: t('manager:financePages.paymentHistory.stats.totalCharges'), value: formatCurrency(stats.totalExpenses), accent: 'rose' },
+    { key: 'net', label: t('manager:financePages.paymentHistory.stats.netAmount'), value: formatCurrency(stats.net), accent: stats.net >= 0 ? 'cyan' : 'rose' },
+    { key: 'count', label: t('manager:financePages.paymentHistory.stats.transactions'), value: stats.total.toLocaleString(), accent: 'slate' },
+  ], [stats, t]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -128,10 +130,10 @@ const PaymentHistory = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">Payment History</h1>
-              <Tag color="cyan" className="text-xs font-medium">All Payments</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">{t('manager:financePages.paymentHistory.title')}</h1>
+              <Tag color="cyan" className="text-xs font-medium">{t('manager:financePages.paymentHistory.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500">All Wallet Transactions · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">{t('manager:financePages.paymentHistory.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
@@ -211,14 +213,14 @@ const PaymentHistory = () => {
       {/* Transactions Table */}
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">All Transactions</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{t('manager:financePages.paymentHistory.allTransactions')}</h3>
           <Button
             size={isMobile ? 'small' : 'middle'}
             icon={<ReloadOutlined />}
             onClick={loadTransactions}
             loading={loading}
           >
-            Refresh
+            {t('manager:financePages.refresh')}
           </Button>
         </div>
         <TransactionHistory

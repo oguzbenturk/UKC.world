@@ -7,6 +7,7 @@ import {
 import {
   CheckCircleOutlined, CloseCircleOutlined, SearchOutlined,
   SyncOutlined, DeleteOutlined, LeftOutlined, RightOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -15,6 +16,8 @@ import accommodationApi from '@/shared/services/accommodationApi';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import { useTranslation } from 'react-i18next';
+import QuickAccommodationModal from '@/features/dashboard/components/QuickAccommodationModal';
 
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
@@ -39,6 +42,7 @@ function getInitials(name) {
 
 // ─── BookingBar ───────────────────────────────────────────────────────────────
 function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onDelete, isDeleting, left, width }) {
+  const { t } = useTranslation(['manager']);
   const cfg = STATUS_CFG[booking.status] || STATUS_CFG.pending;
   const nights = dayjs(booking.check_out_date).diff(dayjs(booking.check_in_date), 'day');
   const narrow = width < 72;
@@ -51,7 +55,7 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
           <div style={{ fontWeight: 700, fontSize: 14, color: '#0F172A', lineHeight: 1.2 }}>{booking.guest_name || 'Unknown'}</div>
           {booking.guest_email && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>{booking.guest_email}</div>}
         </div>
-        <Tag color={cfg.antColor} style={{ margin: 0 }}>{cfg.label}</Tag>
+        <Tag color={cfg.antColor} style={{ margin: 0 }}>{t(`manager:accommodation.admin.status.${booking.status}`, { defaultValue: cfg.label })}</Tag>
       </div>
       <div style={{ background: '#F8FAFC', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
         <div style={{ fontWeight: 600, color: '#334155' }}>
@@ -71,15 +75,15 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
       </div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {booking.status === 'pending' && (
-          <Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => onConfirm(booking.id)}>Confirm</Button>
+          <Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => onConfirm(booking.id)}>{t('manager:accommodation.admin.actions.confirm')}</Button>
         )}
         {booking.status === 'confirmed' && (
-          <Button size="small" icon={<CheckCircleOutlined />} onClick={() => onComplete(booking.id)}>Complete</Button>
+          <Button size="small" icon={<CheckCircleOutlined />} onClick={() => onComplete(booking.id)}>{t('manager:accommodation.admin.actions.complete')}</Button>
         )}
         {(booking.status === 'pending' || booking.status === 'confirmed') && (
-          <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => onCancel(booking.id)}>Cancel</Button>
+          <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => onCancel(booking.id)}>{t('manager:accommodation.admin.actions.cancel')}</Button>
         )}
-        <Button size="small" danger icon={<DeleteOutlined />} loading={isDeleting} onClick={() => onDelete(booking.id)}>Delete</Button>
+        <Button size="small" danger icon={<DeleteOutlined />} loading={isDeleting} onClick={() => onDelete(booking.id)}>{t('manager:accommodation.admin.actions.delete')}</Button>
       </div>
     </div>
   );
@@ -140,6 +144,7 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
 
 // ─── TimelineView ─────────────────────────────────────────────────────────────
 function TimelineView({ filteredBookings, allBookings, units, windowStart, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onDelete, deletingIds }) {
+  const { t } = useTranslation(['manager']);
   const today = dayjs().startOf('day');
   const todayColOffset = today.diff(windowStart, 'day');
 
@@ -192,7 +197,7 @@ function TimelineView({ filteredBookings, allBookings, units, windowStart, getUn
     return (
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E2E8F0', padding: 80, textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>🏠</div>
-        <div style={{ fontSize: 15, color: '#64748B' }}>No accommodation units found</div>
+        <div style={{ fontSize: 15, color: '#64748B' }}>{t('manager:accommodation.admin.noUnits')}</div>
       </div>
     );
   }
@@ -215,7 +220,7 @@ function TimelineView({ filteredBookings, allBookings, units, windowStart, getUn
           {/* Day header */}
           <div style={{ display: 'flex', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', position: 'sticky', top: 0, zIndex: 6, boxShadow: '0 1px 0 #E2E8F0' }}>
             <div style={{ width: SIDEBAR_W, flexShrink: 0, borderRight: '1px solid #E2E8F0', padding: '7px 16px', fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em', display: 'flex', alignItems: 'center' }}>
-              Unit / Room
+              {t('manager:accommodation.admin.unitRoom')}
             </div>
             {days.map((day, i) => {
               const isToday = day.isSame(today, 'day');
@@ -300,12 +305,12 @@ function TimelineView({ filteredBookings, allBookings, units, windowStart, getUn
             {Object.entries(STATUS_CFG).map(([k, v]) => (
               <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#64748B' }}>
                 <div style={{ width: 14, height: 14, borderRadius: 3, background: v.barBg, border: `1px solid ${v.barBorder}`, borderLeft: `3px solid ${v.barLeft}` }} />
-                {v.label}
+                {t(`manager:accommodation.admin.status.${k}`, { defaultValue: v.label })}
               </div>
             ))}
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94A3B8' }}>
               <div style={{ width: 2, height: 12, borderRadius: 1, background: 'rgba(2,132,199,0.4)' }} />
-              Today
+              {t('manager:accommodation.admin.today')}
             </div>
           </div>
         </div>
@@ -316,6 +321,7 @@ function TimelineView({ filteredBookings, allBookings, units, windowStart, getUn
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function AccommodationAdminPage() {
+  const { t } = useTranslation(['manager']);
   usePageSEO({ title: 'Stay Bookings | Calendar', description: 'View accommodation bookings and room status' });
 
   const { formatCurrency } = useCurrency();
@@ -327,6 +333,7 @@ function AccommodationAdminPage() {
   const [viewMode, setViewMode] = useState('timeline');
   const [windowStart, setWindowStart] = useState(() => dayjs().subtract(7, 'day').startOf('day'));
   const [deletingIds, setDeletingIds] = useState(new Set());
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -352,7 +359,7 @@ function AccommodationAdminPage() {
       setUnits(unitsList);
       setBookings([...standalone, ...packageStays]);
     } catch {
-      message.error('Failed to load bookings');
+      message.error(t('manager:accommodation.admin.messages.loadError'));
     } finally {
       setLoading(false);
     }
@@ -386,38 +393,38 @@ function AccommodationAdminPage() {
     if (record.unit_name) return record.unit_name;
     if (record.accommodation_unit_name) return record.accommodation_unit_name;
     if (record.unit_id && unitMap[record.unit_id]) return unitMap[record.unit_id];
-    return 'Unassigned';
+    return t('manager:accommodation.admin.unassigned');
   }, [unitMap]);
 
   const handleConfirmBooking = async (id) => {
-    try { await accommodationApi.confirmBooking(id); message.success('Booking confirmed'); loadBookings(); }
-    catch { message.error('Failed to confirm booking'); }
+    try { await accommodationApi.confirmBooking(id); message.success(t('manager:accommodation.admin.messages.confirmed')); loadBookings(); }
+    catch { message.error(t('manager:accommodation.admin.messages.confirmError')); }
   };
   const handleCompleteBooking = async (id) => {
-    try { await accommodationApi.completeBooking(id); message.success('Booking completed'); loadBookings(); }
-    catch { message.error('Failed to complete booking'); }
+    try { await accommodationApi.completeBooking(id); message.success(t('manager:accommodation.admin.messages.completed')); loadBookings(); }
+    catch { message.error(t('manager:accommodation.admin.messages.completeError')); }
   };
   const handleCancelBooking = async (id) => {
-    try { await accommodationApi.cancelBooking(id); message.success('Booking cancelled'); loadBookings(); }
-    catch { message.error('Failed to cancel booking'); }
+    try { await accommodationApi.cancelBooking(id); message.success(t('manager:accommodation.admin.messages.cancelled')); loadBookings(); }
+    catch { message.error(t('manager:accommodation.admin.messages.cancelError')); }
   };
   const handleDeleteBooking = (id) => {
     Modal.confirm({
-      title: 'Delete booking',
-      content: 'Are you sure you want to permanently delete this booking?',
-      okText: 'Delete', okType: 'danger',
+      title: t('manager:accommodation.admin.deleteConfirm.title'),
+      content: t('manager:accommodation.admin.deleteConfirm.content'),
+      okText: t('manager:accommodation.admin.deleteConfirm.ok'), okType: 'danger',
       onOk: async () => {
         if (deletingIds.has(id)) return;
         setDeletingIds(prev => new Set(prev).add(id));
         try {
           await accommodationApi.deleteBooking(id);
-          message.success('Booking deleted');
+          message.success(t('manager:accommodation.admin.messages.deleted'));
           await loadBookings();
         } catch (err) {
           const s = err?.response?.status;
-          if (s === 404) message.warning('Booking not found or already deleted');
-          else if (s === 403) message.error('Not authorized to delete this booking');
-          else message.error('Failed to delete booking');
+          if (s === 404) message.warning(t('manager:accommodation.admin.messages.notFound'));
+          else if (s === 403) message.error(t('manager:accommodation.admin.messages.unauthorized'));
+          else message.error(t('manager:accommodation.admin.messages.deleteError'));
         } finally {
           setDeletingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
         }
@@ -448,7 +455,7 @@ function AccommodationAdminPage() {
 
   const columns = [
     {
-      title: 'Guest', key: 'guest', width: 180,
+      title: t('manager:accommodation.admin.columns.guest'), key: 'guest', width: 180,
       sorter: (a, b) => (a.guest_name || '').localeCompare(b.guest_name || ''),
       render: (_, r) => (
         <div>
@@ -462,7 +469,7 @@ function AccommodationAdminPage() {
       ),
     },
     {
-      title: 'Unit', key: 'unit', width: 160,
+      title: t('manager:accommodation.admin.columns.unit'), key: 'unit', width: 160,
       sorter: (a, b) => getUnitName(a).localeCompare(getUnitName(b)),
       render: (_, r) => (
         <div>
@@ -472,48 +479,48 @@ function AccommodationAdminPage() {
       ),
     },
     {
-      title: 'Check-in', dataIndex: 'check_in_date', width: 100,
+      title: t('manager:accommodation.admin.columns.checkIn'), dataIndex: 'check_in_date', width: 100,
       sorter: (a, b) => dayjs(a.check_in_date).diff(dayjs(b.check_in_date)),
       render: d => <span style={{ fontSize: 13, color: '#334155' }}>{dayjs(d).format('D MMM YY')}</span>,
     },
     {
-      title: 'Check-out', dataIndex: 'check_out_date', width: 100,
+      title: t('manager:accommodation.admin.columns.checkOut'), dataIndex: 'check_out_date', width: 100,
       render: d => <span style={{ fontSize: 13, color: '#334155' }}>{dayjs(d).format('D MMM YY')}</span>,
     },
     {
-      title: 'Nights', key: 'nights', width: 70, align: 'center',
+      title: t('manager:accommodation.admin.columns.nights'), key: 'nights', width: 70, align: 'center',
       sorter: (a, b) => dayjs(a.check_out_date).diff(dayjs(a.check_in_date), 'day') - dayjs(b.check_out_date).diff(dayjs(b.check_in_date), 'day'),
       render: (_, r) => <span style={{ fontWeight: 600, color: '#334155' }}>{dayjs(r.check_out_date).diff(dayjs(r.check_in_date), 'day')}</span>,
     },
     {
-      title: 'Total', dataIndex: 'total_price', width: 100,
+      title: t('manager:accommodation.admin.columns.total'), dataIndex: 'total_price', width: 100,
       sorter: (a, b) => (parseFloat(a.total_price) || 0) - (parseFloat(b.total_price) || 0),
       render: p => <span style={{ fontWeight: 700, color: '#D97706' }}>{formatCurrency(p, 'EUR')}</span>,
     },
     {
-      title: 'Status', dataIndex: 'status', width: 110,
-      render: s => { const c = STATUS_CFG[s] || STATUS_CFG.pending; return <Tag color={c.antColor}>{c.label}</Tag>; },
+      title: t('manager:accommodation.admin.columns.status'), dataIndex: 'status', width: 110,
+      render: s => { const c = STATUS_CFG[s] || STATUS_CFG.pending; return <Tag color={c.antColor}>{t(`manager:accommodation.admin.status.${s}`, { defaultValue: c.label })}</Tag>; },
     },
     {
       title: '', key: 'actions', width: 140,
       render: (_, r) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          {r.status === 'pending' && <Tooltip title="Confirm"><Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => handleConfirmBooking(r.id)} /></Tooltip>}
-          {r.status === 'confirmed' && <Tooltip title="Complete"><Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleCompleteBooking(r.id)} /></Tooltip>}
-          {(r.status === 'pending' || r.status === 'confirmed') && <Tooltip title="Cancel"><Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleCancelBooking(r.id)} /></Tooltip>}
-          <Tooltip title="Delete"><Button size="small" danger loading={deletingIds.has(r.id)} disabled={deletingIds.has(r.id)} icon={<DeleteOutlined />} onClick={() => handleDeleteBooking(r.id)} /></Tooltip>
+          {r.status === 'pending' && <Tooltip title={t('manager:accommodation.admin.actions.confirm')}><Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => handleConfirmBooking(r.id)} /></Tooltip>}
+          {r.status === 'confirmed' && <Tooltip title={t('manager:accommodation.admin.actions.complete')}><Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleCompleteBooking(r.id)} /></Tooltip>}
+          {(r.status === 'pending' || r.status === 'confirmed') && <Tooltip title={t('manager:accommodation.admin.actions.cancel')}><Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleCancelBooking(r.id)} /></Tooltip>}
+          <Tooltip title={t('manager:accommodation.admin.actions.delete')}><Button size="small" danger loading={deletingIds.has(r.id)} disabled={deletingIds.has(r.id)} icon={<DeleteOutlined />} onClick={() => handleDeleteBooking(r.id)} /></Tooltip>
         </div>
       ),
     },
   ];
 
   const tabItems = [
-    { key: 'all', label: `All (${bookings.length})` },
-    { key: 'active', label: <span>Active {stats.activeCount > 0 && <Badge count={stats.activeCount} style={{ marginLeft: 4 }} />}</span> },
-    { key: 'pending', label: <span>Pending {stats.pendingCount > 0 && <Badge count={stats.pendingCount} style={{ marginLeft: 4 }} />}</span> },
-    { key: 'hotel_requests', label: <span>Hotel {stats.hotelRequestsCount > 0 && <Badge count={stats.hotelRequestsCount} style={{ marginLeft: 4, backgroundColor: '#f59e0b' }} />}</span> },
-    { key: 'upcoming', label: 'Upcoming' },
-    { key: 'completed', label: 'Completed' },
+    { key: 'all', label: t('manager:accommodation.admin.tabs.all', { count: bookings.length }) },
+    { key: 'active', label: <span>{t('manager:accommodation.admin.tabs.active')} {stats.activeCount > 0 && <Badge count={stats.activeCount} style={{ marginLeft: 4 }} />}</span> },
+    { key: 'pending', label: <span>{t('manager:accommodation.admin.tabs.pending')} {stats.pendingCount > 0 && <Badge count={stats.pendingCount} style={{ marginLeft: 4 }} />}</span> },
+    { key: 'hotel_requests', label: <span>{t('manager:accommodation.admin.tabs.hotelRequests')} {stats.hotelRequestsCount > 0 && <Badge count={stats.hotelRequestsCount} style={{ marginLeft: 4, backgroundColor: '#f59e0b' }} />}</span> },
+    { key: 'upcoming', label: t('manager:accommodation.admin.tabs.upcoming') },
+    { key: 'completed', label: t('manager:accommodation.admin.tabs.completed') },
   ];
 
   if (loading) return <div style={{ padding: 32 }}><Skeleton active paragraph={{ rows: 8 }} /></div>;
@@ -525,13 +532,13 @@ function AccommodationAdminPage() {
       <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-            Stay Bookings
+            {t('manager:accommodation.admin.pageTitle')}
           </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748B' }}>Accommodation reservation management</p>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748B' }}>{t('manager:accommodation.admin.pageSubtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ display: 'flex', background: '#E2E8F0', borderRadius: 8, padding: 2, gap: 2 }}>
-            {[{ key: 'timeline', label: '⊟ Timeline' }, { key: 'list', label: '≡ List' }].map(v => (
+            {[{ key: 'timeline', label: `⊟ ${t('manager:accommodation.admin.timeline')}` }, { key: 'list', label: `≡ ${t('manager:accommodation.admin.list')}` }].map(v => (
               <button key={v.key} onClick={() => setViewMode(v.key)} style={{
                 padding: '5px 12px', border: 'none', borderRadius: 6, cursor: 'pointer',
                 fontSize: 12, fontWeight: 600,
@@ -542,17 +549,25 @@ function AccommodationAdminPage() {
               }}>{v.label}</button>
             ))}
           </div>
-          <Button icon={<SyncOutlined />} onClick={loadBookings} style={{ borderRadius: 8 }}>Refresh</Button>
+          <Button icon={<SyncOutlined />} onClick={loadBookings} style={{ borderRadius: 8 }}>{t('manager:accommodation.admin.refresh')}</Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setNewBookingOpen(true)}
+            style={{ borderRadius: 8, background: '#0284C7', borderColor: '#0284C7' }}
+          >
+            {t('manager:accommodation.admin.newBooking')}
+          </Button>
         </div>
       </div>
 
       {/* Stat Cards */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          { label: 'In-House',  value: stats.activeCount,                    sub: 'active stays',    accent: '#0284C7', bg: 'rgba(2,132,199,0.06)',   icon: '🏠' },
-          { label: 'Pending',   value: stats.pendingCount,                   sub: 'need review',     accent: '#D97706', bg: 'rgba(217,119,6,0.06)',   icon: '⏳' },
-          { label: 'Upcoming',  value: stats.upcomingCount,                  sub: 'confirmed',       accent: '#059669', bg: 'rgba(5,150,105,0.06)',   icon: '📅' },
-          { label: 'Revenue',   value: formatCurrency(stats.revenue, 'EUR'), sub: 'completed stays', accent: '#7C3AED', bg: 'rgba(124,58,237,0.06)', icon: '💰' },
+          { label: t('manager:accommodation.admin.stats.inHouse'),  value: stats.activeCount,                    sub: t('manager:accommodation.admin.stats.inHouseSub'),    accent: '#0284C7', bg: 'rgba(2,132,199,0.06)',   icon: '🏠' },
+          { label: t('manager:accommodation.admin.stats.pending'),   value: stats.pendingCount,                   sub: t('manager:accommodation.admin.stats.pendingSub'),     accent: '#D97706', bg: 'rgba(217,119,6,0.06)',   icon: '⏳' },
+          { label: t('manager:accommodation.admin.stats.upcoming'),  value: stats.upcomingCount,                  sub: t('manager:accommodation.admin.stats.upcomingSub'),    accent: '#059669', bg: 'rgba(5,150,105,0.06)',   icon: '📅' },
+          { label: t('manager:accommodation.admin.stats.revenue'),   value: formatCurrency(stats.revenue, 'EUR'), sub: t('manager:accommodation.admin.stats.revenueSub'), accent: '#7C3AED', bg: 'rgba(124,58,237,0.06)', icon: '💰' },
         ].map(s => (
           <div key={s.label} style={{
             flex: '1 1 140px', background: '#fff', borderRadius: 12, padding: '14px 18px',
@@ -572,7 +587,7 @@ function AccommodationAdminPage() {
       <div style={{ background: '#fff', borderRadius: 12, padding: '4px 16px 0', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} style={{ flex: 1, minWidth: 0 }} />
         <Input
-          placeholder="Search guests, units..."
+          placeholder={t('manager:accommodation.admin.searchPlaceholder')}
           prefix={<SearchOutlined style={{ color: '#94A3B8' }} />}
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
@@ -584,16 +599,16 @@ function AccommodationAdminPage() {
       {/* Timeline navigation */}
       {viewMode === 'timeline' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          <Button size="small" icon={<LeftOutlined />} onClick={() => setWindowStart(d => d.subtract(7, 'day'))} style={{ borderRadius: 6 }}>Prev week</Button>
+          <Button size="small" icon={<LeftOutlined />} onClick={() => setWindowStart(d => d.subtract(7, 'day'))} style={{ borderRadius: 6 }}>{t('manager:accommodation.admin.prevWeek')}</Button>
           <span style={{ fontSize: 12, color: '#64748B', fontWeight: 500 }}>
             {windowStart.format('D MMM')} – {windowStart.add(WINDOW_DAYS - 1, 'day').format('D MMM YYYY')}
           </span>
-          <Button size="small" icon={<RightOutlined />} onClick={() => setWindowStart(d => d.add(7, 'day'))} style={{ borderRadius: 6 }}>Next week</Button>
+          <Button size="small" icon={<RightOutlined />} onClick={() => setWindowStart(d => d.add(7, 'day'))} style={{ borderRadius: 6 }}>{t('manager:accommodation.admin.nextWeek')}</Button>
           <Button size="small" onClick={() => setWindowStart(dayjs().subtract(7, 'day').startOf('day'))} style={{ borderRadius: 6, fontSize: 11, color: '#0284C7', borderColor: '#BAE6FD' }}>
-            Jump to today
+            {t('manager:accommodation.admin.jumpToday')}
           </Button>
           <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 4 }}>
-            · {filteredBookings.length} booking{filteredBookings.length !== 1 ? 's' : ''} shown · click a bar for actions
+            · {t('manager:accommodation.admin.bookingsShown', { count: filteredBookings.length })}
           </span>
         </div>
       )}
@@ -619,12 +634,23 @@ function AccommodationAdminPage() {
             rowKey="id"
             dataSource={filteredBookings}
             columns={columns}
-            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: t => `${t} bookings` }}
+            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: total => t('manager:accommodation.admin.pagination.showTotal', { count: total }) }}
             scroll={{ x: 900 }}
             size="middle"
-            locale={{ emptyText: <Empty description="No bookings found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            locale={{ emptyText: <Empty description={t('manager:accommodation.admin.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </UnifiedTable>
+      )}
+
+      {newBookingOpen && (
+        <QuickAccommodationModal
+          open={newBookingOpen}
+          onClose={() => setNewBookingOpen(false)}
+          onSuccess={() => {
+            setNewBookingOpen(false);
+            loadBookings();
+          }}
+        />
       )}
     </div>
   );

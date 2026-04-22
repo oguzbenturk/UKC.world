@@ -1,30 +1,31 @@
 /**
- * QuickAccommodationModal - Quick accommodation booking form for Front Desk dashboard
- * Allows booking accommodation without navigating away from dashboard
+ * QuickAccommodationModal - Quick accommodation booking drawer for Front Desk dashboard
  */
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  Modal, 
-  Form, 
-  Select, 
-  DatePicker, 
-  InputNumber, 
-  Button, 
-  Row, 
-  Col, 
+import {
+  Drawer,
+  Form,
+  Select,
+  DatePicker,
+  InputNumber,
+  Button,
+  Row,
+  Col,
   Space,
   Divider,
   Tag,
   Spin,
-  Card
+  Card,
+  Input
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { 
-  HomeOutlined, 
-  UserOutlined, 
+import {
+  HomeOutlined,
+  UserOutlined,
   CalendarOutlined,
   DollarOutlined,
-  TeamOutlined
+  TeamOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import apiClient from '@/shared/services/apiClient';
@@ -40,9 +41,9 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
   const [customers, setCustomers] = useState([]);
   const [accommodations, setAccommodations] = useState([]);
   const [selectedAccommodation, setSelectedAccommodation] = useState(null);
+  const [priceOverride, setPriceOverride] = useState(null);
   const { formatCurrency, businessCurrency } = useCurrency();
 
-  // Load customers and accommodations on open
   useEffect(() => {
     if (!open) return;
 
@@ -54,16 +55,13 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
           apiClient.get('/accommodation/units')
         ]);
 
-        // Filter customers
         const users = Array.isArray(usersRes.data) ? usersRes.data : [];
-        const customersOnly = users.filter(
-          (user) => !user.user_role || user.user_role === 'student' || user.user_role === 'customer' || user.user_role === 'outsider'
-        );
-        setCustomers(customersOnly);
+        setCustomers(users.filter(
+          (u) => !u.user_role || u.user_role === 'student' || u.user_role === 'customer' || u.user_role === 'outsider'
+        ));
 
-        // Get available accommodations
-        const accommodationsList = Array.isArray(accommodationsRes.data) 
-          ? accommodationsRes.data 
+        const accommodationsList = Array.isArray(accommodationsRes.data)
+          ? accommodationsRes.data
           : accommodationsRes.data?.units || [];
         setAccommodations(accommodationsList.filter(a => a.status === 'Available'));
       } catch {
@@ -76,34 +74,36 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
     loadData();
   }, [open]);
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       form.resetFields();
       setSelectedAccommodation(null);
+      setPriceOverride(null);
     }
   }, [open, form]);
 
-  // Handle accommodation selection
   const handleAccommodationChange = (accommodationId) => {
     const selected = accommodations.find(a => a.id === accommodationId);
+    if (selected) {
+      const raw = selected.amenities;
+      selected.amenities = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'string' && raw.trim()
+          ? raw.startsWith('[') ? JSON.parse(raw) : raw.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+    }
     setSelectedAccommodation(selected);
+    setPriceOverride(null);
   };
 
-  // Calculate total price
   const calculateTotal = useCallback(() => {
     if (!selectedAccommodation) return 0;
-    
-    const values = form.getFieldsValue();
-    const dateRange = values.date_range;
-    
-    if (!dateRange || !dateRange[0] || !dateRange[1]) return 0;
-    
+    const dateRange = form.getFieldValue('date_range');
+    if (!dateRange?.[0] || !dateRange?.[1]) return 0;
     const nights = dateRange[1].diff(dateRange[0], 'day');
     return (selectedAccommodation.price_per_night || 0) * nights;
   }, [form, selectedAccommodation]);
 
-  // Handle form submission
   const handleSubmit = async (values) => {
     setSubmitting(true);
     try {
@@ -113,8 +113,13 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
         check_in_date: values.date_range[0].format('YYYY-MM-DD'),
         check_out_date: values.date_range[1].format('YYYY-MM-DD'),
         guests_count: values.guests_count || 1,
-        notes: values.notes
+        notes: values.notes,
+        payment_method: 'pay_later',
       };
+
+      if (priceOverride !== null && priceOverride !== '') {
+        payload.custom_price = parseFloat(priceOverride);
+      }
 
       await apiClient.post('/accommodation/bookings', payload);
       onSuccess?.();
@@ -127,18 +132,30 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
   };
 
   return (
-    <Modal
+    <Drawer
       title={
         <Space>
-          <HomeOutlined className="text-purple-500" />
+          <HomeOutlined style={{ color: '#7c3aed' }} />
           <span>Quick Accommodation Booking</span>
         </Space>
       }
       open={open}
-      onCancel={onClose}
-      footer={null}
-      width={700}
+      onClose={onClose}
+      width={520}
       destroyOnHidden
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            type="primary"
+            loading={submitting}
+            onClick={() => form.submit()}
+            style={{ background: '#7c3aed', borderColor: '#7c3aed' }}
+          >
+            Book Accommodation
+          </Button>
+        </div>
+      }
     >
       {loading ? (
         <div className="flex justify-center py-12">
@@ -149,11 +166,8 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{
-            guests_count: 1
-          }}
+          initialValues={{ guests_count: 1 }}
         >
-          {/* Customer Selection */}
           <Form.Item
             name="customer_id"
             label={<><UserOutlined /> Guest</>}
@@ -175,7 +189,6 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
             </Select>
           </Form.Item>
 
-          {/* Accommodation Selection */}
           <Form.Item
             name="accommodation_id"
             label={<><HomeOutlined /> Accommodation</>}
@@ -197,11 +210,9 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
             </Select>
           </Form.Item>
 
-          {/* Selected Accommodation Preview */}
           {selectedAccommodation && (
-            <Card size="small" className="mb-4 bg-purple-50 border-purple-200">
+            <Card size="small" className="mb-4" style={{ background: '#f5f3ff', borderColor: '#ddd6fe' }}>
               <div className="flex flex-col gap-3">
-                {/* Header Row - Name and Price */}
                 <div className="flex justify-between items-center">
                   <div>
                     <h4 className="font-semibold text-purple-800 text-base mb-0">
@@ -219,8 +230,6 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
                     <p className="text-xs text-purple-500 mb-0">per night</p>
                   </div>
                 </div>
-                
-                {/* Info Row - Capacity and Amenities */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Tag icon={<TeamOutlined />} color="purple" className="m-0">
                     Max {selectedAccommodation.capacity || 2} guests
@@ -237,84 +246,107 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
           )}
 
           <Row gutter={16}>
-            {/* Date Range */}
             <Col span={16}>
               <Form.Item
                 name="date_range"
                 label={<><CalendarOutlined /> Check-in / Check-out</>}
                 rules={[{ required: true, message: 'Please select dates' }]}
               >
-                <RangePicker 
-                  className="w-full" 
+                <RangePicker
+                  className="w-full"
                   disabledDate={(current) => current && current < dayjs().startOf('day')}
-                  onChange={() => form.setFieldsValue({})} // Trigger re-render for total
+                  onChange={() => {
+                    form.setFieldsValue({});
+                    setPriceOverride(null);
+                  }}
                 />
               </Form.Item>
             </Col>
-
-            {/* Guests Count */}
             <Col span={8}>
               <Form.Item
                 name="guests_count"
                 label={<><TeamOutlined /> Guests</>}
                 rules={[{ required: true }]}
               >
-                <InputNumber 
-                  min={1} 
-                  max={selectedAccommodation?.capacity || 10} 
+                <InputNumber
+                  min={1}
+                  max={selectedAccommodation?.capacity || 10}
                   className="w-full"
                 />
               </Form.Item>
             </Col>
           </Row>
 
+          <Form.Item
+            name="notes"
+            label="Notes"
+          >
+            <Input.TextArea rows={2} placeholder="Optional notes..." />
+          </Form.Item>
+
           <Divider />
 
-          {/* Total Price Display */}
+          {/* Total Price with editable override */}
           <Form.Item shouldUpdate>
             {() => {
-              const total = calculateTotal();
+              const calculatedTotal = calculateTotal();
               const dateRange = form.getFieldValue('date_range');
-              const nights = dateRange?.[0] && dateRange?.[1] 
-                ? dateRange[1].diff(dateRange[0], 'day') 
+              const nights = dateRange?.[0] && dateRange?.[1]
+                ? dateRange[1].diff(dateRange[0], 'day')
                 : 0;
-              
+              const displayTotal = priceOverride !== null && priceOverride !== ''
+                ? parseFloat(priceOverride) || 0
+                : calculatedTotal;
+
               return (
-                <div className="flex justify-between items-center p-4 bg-purple-50 rounded-xl">
-                  <div>
-                    <span className="text-lg font-medium">
-                      <DollarOutlined className="mr-2" />
-                      Total
+                <div className="p-4 rounded-xl" style={{ background: '#f5f3ff' }}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <span className="text-base font-medium">
+                        <DollarOutlined className="mr-2" />
+                        Total Price
+                      </span>
+                      {nights > 0 && (
+                        <p className="text-sm text-purple-600 mb-0">
+                          {nights} night{nights > 1 ? 's' : ''} × {formatCurrency(selectedAccommodation?.price_per_night || 0, businessCurrency)}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-2xl font-bold text-purple-600">
+                      {formatCurrency(displayTotal, businessCurrency)}
                     </span>
-                    {nights > 0 && (
-                      <p className="text-sm text-purple-600">
-                        {nights} night{nights > 1 ? 's' : ''} × {formatCurrency(selectedAccommodation?.price_per_night || 0, businessCurrency)}
-                      </p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-purple-700 font-medium flex items-center gap-1 mb-1">
+                      <EditOutlined /> Override price
+                    </label>
+                    <InputNumber
+                      placeholder={`Calculated: ${calculatedTotal}`}
+                      value={priceOverride}
+                      onChange={(val) => setPriceOverride(val)}
+                      min={0}
+                      precision={2}
+                      className="w-full"
+                      prefix={businessCurrency}
+                    />
+                    {priceOverride !== null && priceOverride !== '' && (
+                      <button
+                        type="button"
+                        className="text-xs text-purple-500 underline mt-1"
+                        onClick={() => setPriceOverride(null)}
+                      >
+                        Reset to calculated
+                      </button>
                     )}
                   </div>
-                  <span className="text-2xl font-bold text-purple-600">
-                    {formatCurrency(total, businessCurrency)}
-                  </span>
                 </div>
               );
             }}
           </Form.Item>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 mt-6">
-            <Button onClick={onClose}>Cancel</Button>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={submitting}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              Book Accommodation
-            </Button>
-          </div>
         </Form>
       )}
-    </Modal>
+    </Drawer>
   );
 }
 

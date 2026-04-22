@@ -1,5 +1,6 @@
 import { Alert, Button, Space } from 'antd';
 import { ReloadOutlined, DisconnectOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import useNetworkStatus from '@/shared/hooks/useNetworkStatus';
 
 const DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
@@ -19,6 +20,7 @@ const formatTimestamp = (date) => {
  * Sticky banner that surfaces offline state to the user.
  */
 const NetworkStatusBanner = () => {
+  const { t } = useTranslation(['common']);
   const { isOnline, effectiveType, lastChangedAt } = useNetworkStatus();
 
   if (isOnline) {
@@ -26,13 +28,13 @@ const NetworkStatusBanner = () => {
   }
 
   const descriptionParts = [
-    'Changes cannot be saved while offline.',
+    t('common:network.cannotSave'),
   ];
   if (effectiveType) {
-    descriptionParts.push(`Last detected connection: ${effectiveType}`);
+    descriptionParts.push(t('common:network.lastConnection', { type: effectiveType }));
   }
   if (lastChangedAt) {
-    descriptionParts.push(`Lost connection at ${formatTimestamp(lastChangedAt)}.`);
+    descriptionParts.push(t('common:network.lostAt', { time: formatTimestamp(lastChangedAt) }));
   }
 
   return (
@@ -42,7 +44,7 @@ const NetworkStatusBanner = () => {
         showIcon
         banner
         icon={<DisconnectOutlined />}
-        message="You are currently offline"
+        message={t('common:network.offline')}
         description={descriptionParts.join(' ')}
         action={(
           <Space>
@@ -51,7 +53,7 @@ const NetworkStatusBanner = () => {
               icon={<ReloadOutlined />}
               onClick={() => window.location.reload()}
             >
-              Retry Connection
+              {t('common:network.retry')}
             </Button>
           </Space>
         )}

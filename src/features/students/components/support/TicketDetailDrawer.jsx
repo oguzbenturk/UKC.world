@@ -6,20 +6,23 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 
-const statusConfig = {
-  open: { color: 'gold', icon: <ExclamationCircleOutlined />, label: 'Open' },
-  in_progress: { color: 'blue', icon: <SyncOutlined />, label: 'In Progress' },
-  resolved: { color: 'green', icon: <CheckCircleOutlined />, label: 'Resolved' },
-  closed: { color: 'default', icon: <ClockCircleOutlined />, label: 'Closed' },
-  pending: { color: 'blue', icon: <ClockCircleOutlined />, label: 'Pending' },
-};
+const buildStatusConfig = (t) => ({
+  open: { color: 'gold', icon: <ExclamationCircleOutlined />, label: t('student:support.ticketDetail.statusLabels.open') },
+  in_progress: { color: 'blue', icon: <SyncOutlined />, label: t('student:support.ticketDetail.statusLabels.in_progress') },
+  resolved: { color: 'green', icon: <CheckCircleOutlined />, label: t('student:support.ticketDetail.statusLabels.resolved') },
+  closed: { color: 'default', icon: <ClockCircleOutlined />, label: t('student:support.ticketDetail.statusLabels.closed') },
+  pending: { color: 'blue', icon: <ClockCircleOutlined />, label: t('student:support.ticketDetail.statusLabels.pending') },
+});
 
 const priorityColors = { urgent: 'red', high: 'orange', normal: 'blue', low: 'default' };
 
 const TicketDetailDrawer = ({ ticket, open, onClose }) => {
+  const { t } = useTranslation(['student']);
   if (!ticket) return null;
 
+  const statusConfig = buildStatusConfig(t);
   const st = statusConfig[ticket.status] || statusConfig.open;
   const createdDate = ticket.created_at || ticket.createdAt;
 
@@ -28,7 +31,7 @@ const TicketDetailDrawer = ({ ticket, open, onClose }) => {
       color: 'blue',
       children: (
         <div>
-          <p className="text-xs font-medium text-slate-700">Ticket opened</p>
+          <p className="text-xs font-medium text-slate-700">{t('student:support.ticketDetail.timeline.ticketOpened')}</p>
           <p className="text-[10px] text-slate-400">
             {createdDate ? dayjs(createdDate).format('MMM D, YYYY h:mm A') : ''}
           </p>
@@ -40,7 +43,7 @@ const TicketDetailDrawer = ({ ticket, open, onClose }) => {
   if (ticket.status === 'in_progress' || ticket.status === 'resolved' || ticket.status === 'closed') {
     timelineItems.push({
       color: 'blue',
-      children: <p className="text-xs font-medium text-slate-700">Being reviewed</p>,
+      children: <p className="text-xs font-medium text-slate-700">{t('student:support.ticketDetail.timeline.beingReviewed')}</p>,
     });
   }
   if (ticket.status === 'resolved' || ticket.status === 'closed') {
@@ -48,7 +51,7 @@ const TicketDetailDrawer = ({ ticket, open, onClose }) => {
       color: 'green',
       children: (
         <div>
-          <p className="text-xs font-medium text-slate-700">Resolved</p>
+          <p className="text-xs font-medium text-slate-700">{t('student:support.ticketDetail.timeline.resolved')}</p>
           {ticket.resolved_at && (
             <p className="text-[10px] text-slate-400">
               {dayjs(ticket.resolved_at).format('MMM D, YYYY h:mm A')}
@@ -80,16 +83,16 @@ const TicketDetailDrawer = ({ ticket, open, onClose }) => {
 
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
-            Your message
+            {t('student:support.ticketDetail.yourMessage')}
           </p>
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-700 whitespace-pre-wrap">
-            {ticket.message || 'No message provided.'}
+            {ticket.message || t('student:support.ticketDetail.noMessage')}
           </div>
         </div>
 
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-2">
-            Status timeline
+            {t('student:support.ticketDetail.statusTimeline')}
           </p>
           <Timeline items={timelineItems} />
         </div>
@@ -97,7 +100,7 @@ const TicketDetailDrawer = ({ ticket, open, onClose }) => {
         {ticket.metadata?.notes?.filter((n) => n.type === 'reply').length > 0 && (
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-2">
-              Team replies
+              {t('student:support.ticketDetail.teamReplies')}
             </p>
             <div className="space-y-2">
               {ticket.metadata.notes
@@ -118,7 +121,7 @@ const TicketDetailDrawer = ({ ticket, open, onClose }) => {
         )}
 
         <p className="text-[10px] text-slate-400">
-          Opened {createdDate ? dayjs(createdDate).format('MMMM D, YYYY') : ''}
+          {t('student:support.ticketDetail.timeline.openedOn', { date: createdDate ? dayjs(createdDate).format('MMMM D, YYYY') : '' })}
         </p>
       </div>
     </Drawer>

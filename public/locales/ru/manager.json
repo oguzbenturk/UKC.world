@@ -488,16 +488,208 @@
   },
   "products": {
     "title": "Товары",
-    "subtitle": "Управление инвентарём и товарами бэк-офиса"
+    "subtitle": "Управление инвентарём и товарами бэк-офиса",
+    "addProduct": "Добавить товар",
+    "refresh": "Обновить",
+    "editProduct": "Редактировать товар",
+    "addNewProduct": "Добавить новый товар",
+    "stats": {
+      "total": "Всего",
+      "lowStock": "Низкий запас",
+      "invValue": "Стоимость инвентаря",
+      "featured": "Рекомендуемые"
+    },
+    "filters": {
+      "searchPlaceholder": "Поиск по названию, SKU или бренду...",
+      "allStatus": "Все статусы",
+      "active": "Активный",
+      "inactive": "Неактивный",
+      "discontinued": "Снят с производства",
+      "allCreators": "Все создатели",
+      "createdBy": "Создал",
+      "lowStockOnly": "Только низкий запас"
+    },
+    "showing": "Показано {{count}} из {{total}} товаров",
+    "selected": "Выбрано {{count}}",
+    "bulk": {
+      "activate": "Активировать",
+      "activateSelected": "Активировать выбранные",
+      "deactivate": "Деактивировать",
+      "deactivateSelected": "Деактивировать выбранные",
+      "delete": "Удалить",
+      "deleteSelected": "Удалить выбранные",
+      "clear": "Сбросить"
+    },
+    "columns": {
+      "product": "Товар",
+      "sku": "SKU",
+      "category": "Категория",
+      "brand": "Бренд",
+      "price": "Цена",
+      "stock": "Запас",
+      "status": "Статус",
+      "actions": "Действия"
+    },
+    "status": {
+      "active": "Активный",
+      "inactive": "Неактивный",
+      "discontinued": "Снят с производства"
+    },
+    "empty": {
+      "noMatch": "Нет товаров, соответствующих фильтрам",
+      "noProducts": "Товаров пока нет",
+      "addFirst": "Добавить товар"
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} из {{total}} товаров"
+    },
+    "confirm": {
+      "deleteTitle": "Удалить товар",
+      "deleteContent": "Вы уверены, что хотите удалить «{{name}}»?",
+      "deleteOk": "Удалить",
+      "deleteCancel": "Отмена",
+      "bulkDeleteTitle": "Удалить выбранные товары",
+      "bulkDeleteContent": "Вы уверены, что хотите удалить {{count}} товар(ов)? Это действие необратимо.",
+      "bulkDeleteOk": "Удалить все",
+      "bulkActivateTitle": "Активировать выбранные товары",
+      "bulkDeactivateTitle": "Деактивировать выбранные товары",
+      "bulkStatusContent": "Вы уверены, что хотите {{action}} {{count}} товар(ов)?",
+      "bulkConfirmOk": "Подтвердить"
+    },
+    "messages": {
+      "loadError": "Не удалось загрузить товары",
+      "created": "Товар успешно создан!",
+      "updated": "Товар успешно обновлён!",
+      "deleted": "Товар успешно удалён!",
+      "createError": "Не удалось создать товар",
+      "updateError": "Не удалось обновить товар",
+      "deleteError": "Не удалось удалить товар",
+      "bulkDeleted": "Успешно удалено {{count}} товар(ов)",
+      "bulkDeleteError": "Не удалось удалить некоторые товары",
+      "bulkUpdated": "Успешно обновлено {{count}} товар(ов)",
+      "bulkUpdateError": "Не удалось обновить некоторые товары"
+    },
+    "form": {
+      "identity": "Идентификация",
+      "details": "Подробности",
+      "inventory": "Инвентарь",
+      "discount": "Скидка",
+      "productTab": "Товар",
+      "stockTab": "Запас и цены",
+      "cancelButton": "Отмена",
+      "updateButton": "Обновить товар",
+      "createButton": "+ Создать товар",
+      "imageUploaded": "Изображение успешно загружено!",
+      "imageUploadError": "Ошибка загрузки изображения",
+      "imagesUploaded": "{{count}} изображений загружено!",
+      "imagesUploadError": "Не удалось загрузить изображения",
+      "imageRemoved": "Изображение удалено",
+      "maxImagesError": "Максимум 10 изображений",
+      "colorPhotosAdded": "{{count}} фото добавлено для {{color}}",
+      "colorPhotoUploadError": "Ошибка загрузки изображения",
+      "subcategoryCreated": "Подкатегория «{{label}}» создана",
+      "subcategoryCreateError": "Не удалось создать подкатегорию",
+      "subcategoryRemoved": "Подкатегория удалена",
+      "subcategoryRemoveError": "Не удалось удалить подкатегорию",
+      "genderMen": "Мужской",
+      "genderWomen": "Женский",
+      "genderUnisex": "Унисекс",
+      "colorOptions": "Варианты цвета",
+      "addColor": "Добавить",
+      "colorPlaceholder": "напр. Чёрный, Океанский синий…",
+      "noColorsHint": "Добавьте цвета — затем вы сможете загрузить фото для каждого цвета на вкладке Склад",
+      "sizesLabel": "Размеры",
+      "totalStock": "Общий запас",
+      "syncedFromVariants": "Синхронизировано из вариантов: {{count}}",
+      "lowStockAlert": "Предупреждение о низком запасе",
+      "weightKg": "Вес (кг)",
+      "originalPrice": "Исходная цена (до скидки)",
+      "originalPriceHint": "Установите выше цены продажи, чтобы отобразить значок скидки. Оставьте пустым, если скидки нет.",
+      "mainImage": "Главное изображение",
+      "mainImageHint": "необходимо для отображения в карусели и горячих предложениях",
+      "photosPerColor": "Фото по цветам",
+      "gallery": "Галерея",
+      "uploadButton": "Загрузить",
+      "sizeVariants": "Варианты размера и склада",
+      "selectOrCreate": "Выбрать или создать",
+      "selectCategoryFirst": "Сначала выберите категорию",
+      "selectBrand": "Выбрать бренд",
+      "featuredTooltip": "Избранные товары отображаются в карусели на главной странице магазина",
+      "featuredYes": "Да",
+      "featuredNo": "Нет",
+      "namePlaceholder": "напр. Duotone Rebel D/LAB 2026",
+      "skuPlaceholder": "Создаётся автоматически",
+      "createCategory": "Создать категорию",
+      "createSubcategory": "Создать подкатегорию"
+    },
+    "colorTable": {
+      "colorCode": "Код цвета",
+      "colorName": "Название цвета",
+      "imageCount": "Количество изображений",
+      "action": "Действие",
+      "deleteConfirm": "Удалить этот цвет?",
+      "colorRemoved": "Цвет удалён",
+      "noColors": "Цвета не добавлены. У товаров может быть несколько вариантов цвета.",
+      "addColor": "Добавить цвет"
+    },
+    "variantTable": {
+      "sizeVariant": "Размер / Вариант",
+      "qty": "Кол-во",
+      "cost": "Себестоимость",
+      "sellingPrice": "Цена продажи",
+      "deleteConfirm": "Удалить этот вариант?",
+      "variantRemoved": "Вариант удалён",
+      "allSizesAdded": "Все размеры уже добавлены",
+      "sizesAdded": "Добавлено {{count}} размеров",
+      "addAll": "Добавить все",
+      "addVariant": "Добавить вариант",
+      "emptyHint": "Нажмите на размер выше или «Добавить вариант», чтобы начать.",
+      "unitsAcrossSizes": "единица в {{count}} размере",
+      "unitsAcrossSizesPlural": "единиц в {{count}} размерах"
+    }
   },
   "accommodation": {
     "title": "Проживание",
     "admin": {
-      "status": {
-        "pending": "Ожидает",
-        "confirmed": "Подтверждено",
-        "completed": "Завершено",
-        "cancelled": "Отменено"
+      "pageTitle": "Бронирования проживания",
+      "pageSubtitle": "Управление бронированиями проживания",
+      "refresh": "Обновить",
+      "timeline": "Хронология",
+      "list": "Список",
+      "prevWeek": "Предыдущая нед.",
+      "nextWeek": "Следующая нед.",
+      "jumpToday": "Перейти к сегодня",
+      "bookingsShown": "Показано {{count}} бронирований · нажмите на полосу для действий",
+      "unitRoom": "Номер / Комната",
+      "today": "Сегодня",
+      "noUnits": "Единицы размещения не найдены",
+      "searchPlaceholder": "Поиск гостей, номеров...",
+      "tabs": {
+        "all": "Все ({{count}})",
+        "active": "Активные",
+        "pending": "Ожидающие",
+        "hotelRequests": "Отель",
+        "upcoming": "Предстоящие",
+        "completed": "Завершённые"
+      },
+      "stats": {
+        "inHouse": "Проживают",
+        "inHouseSub": "активные пребывания",
+        "pending": "Ожидающие",
+        "pendingSub": "требуют проверки",
+        "upcoming": "Предстоящие",
+        "upcomingSub": "подтверждены",
+        "revenue": "Выручка",
+        "revenueSub": "завершённые пребывания"
+      },
+      "columns": {
+        "guest": "Гость",
+        "unit": "Номер",
+        "checkIn": "Заезд",
+        "checkOut": "Выезд",
+        "nights": "Ночей",
+        "total": "Итого",
+        "status": "Статус"
       },
       "actions": {
         "confirm": "Подтвердить",
@@ -505,12 +697,98 @@
         "cancel": "Отменить",
         "delete": "Удалить"
       },
+      "status": {
+        "pending": "Ожидает",
+        "confirmed": "Подтверждено",
+        "completed": "Завершено",
+        "cancelled": "Отменено"
+      },
       "nights": "{{count}}н",
-      "unknown": "Неизвестно"
+      "unknown": "Неизвестно",
+      "unassigned": "Не назначено",
+      "pagination": {
+        "showTotal": "{{count}} бронирований"
+      },
+      "empty": "Бронирований не найдено",
+      "deleteConfirm": {
+        "title": "Удалить бронирование",
+        "content": "Вы уверены, что хотите навсегда удалить это бронирование?",
+        "ok": "Удалить"
+      },
+      "messages": {
+        "loadError": "Не удалось загрузить бронирования",
+        "confirmed": "Бронирование подтверждено",
+        "confirmError": "Не удалось подтвердить бронирование",
+        "completed": "Бронирование завершено",
+        "completeError": "Не удалось завершить бронирование",
+        "cancelled": "Бронирование отменено",
+        "cancelError": "Не удалось отменить бронирование",
+        "deleted": "Бронирование удалено",
+        "notFound": "Бронирование не найдено или уже удалено",
+        "unauthorized": "Нет прав на удаление этого бронирования",
+        "deleteError": "Не удалось удалить бронирование"
+      }
     }
   },
   "marketing": {
-    "title": "Маркетинг"
+    "title": "Маркетинг",
+    "hub": "Маркетинговый центр",
+    "campaignBuilder": "Конструктор кампаний",
+    "campaignBuilderDesc": "Создавайте мощные кампании с предварительным просмотром — Email, Всплывающее окно, SMS и WhatsApp",
+    "newEmail": "Новый email",
+    "newPopup": "Новое всплывающее окно",
+    "newSMS": "Новый SMS",
+    "whatsapp": "WhatsApp",
+    "askQuestion": "Задать вопрос",
+    "campaigns": "Кампании",
+    "quickLinks": "Быстрые ссылки",
+    "analytics": "Аналитика",
+    "analyticsComingSoon": "Аналитика скоро появится...",
+    "noCampaigns": "Кампаний пока нет. Создайте первую!",
+    "stats": {
+      "totalSent": "Всего отправлено",
+      "totalOpens": "Всего открытий",
+      "avgOpenRate": "Сред. процент открытий",
+      "activeCampaigns": "Активные кампании"
+    },
+    "columns": {
+      "campaign": "Кампания",
+      "type": "Тип",
+      "status": "Статус",
+      "actions": "Действия"
+    },
+    "actions": {
+      "send": "Отправить",
+      "edit": "Редактировать",
+      "duplicate": "Дублировать"
+    },
+    "deleteConfirm": "Удалить эту кампанию?",
+    "sendModal": {
+      "title": "Отправить кампанию: {{name}}",
+      "description": "Выберите клиентов для отправки этой кампании. Можно выбрать несколько клиентов.",
+      "sendButton": "Отправить {{count}} клиент(ам)",
+      "cancelButton": "Отмена",
+      "noCustomerWarning": "Пожалуйста, выберите хотя бы одного клиента",
+      "sent": "Кампания отправлена {{count}} клиент(ам)",
+      "sendError": "Не удалось отправить кампанию",
+      "loadError": "Не удалось загрузить клиентов",
+      "pagination": {
+        "showTotal": "{{start}}-{{end}} из {{total}} клиентов"
+      }
+    },
+    "form": {
+      "campaignName": "Название кампании",
+      "targetAudience": "Целевая аудитория",
+      "livePreview": "Предварительный просмотр",
+      "cancel": "Отмена",
+      "create": "Создать кампанию",
+      "update": "Обновить кампанию",
+      "saved": "Кампания успешно создана",
+      "updated": "Кампания успешно обновлена",
+      "saveError": "Не удалось сохранить кампанию",
+      "deleted": "Кампания удалена",
+      "deleteError": "Не удалось удалить кампанию"
+    }
   },
   "events": {
     "title": "Общественные Мероприятия",
@@ -676,7 +954,86 @@
       "forms": "Формы",
       "links": "Ссылки",
       "submissions": "Отправки",
-      "registrations": "Регистрации"
+      "registrations": "Регистрации",
+      "myForms": "Мои формы",
+      "shareableLinks": "Общие ссылки",
+      "formAnswers": "Ответы на формы"
+    },
+    "forms": {
+      "heading": "Мои формы",
+      "headingDesc": "Создавайте формы для заявок, отказов, опросов и отзывов",
+      "createNew": "Создать форму",
+      "createFirst": "Создать первую форму",
+      "noForms": "Форм пока нет",
+      "noFormsDesc": "Создайте первую форму для сбора заявок, отзывов или отказов",
+      "deleteConfirm": "Удалить эту форму?",
+      "deleteDesc": "Это также удалит все ответы.",
+      "deleteOk": "Удалить",
+      "edit": "Изменить",
+      "preview": "Предпросмотр",
+      "copy": "Копировать",
+      "getLink": "Получить ссылку",
+      "sharedAt": "Поделиться по:",
+      "responses": "{{count}} ответ",
+      "responsesPlural": "{{count}} ответов",
+      "statusActive": "Активна",
+      "statusDraft": "Черновик"
+    },
+    "links": {
+      "heading": "Общие ссылки",
+      "headingDesc": "Прямые ссылки для бронирования и регистрации на услуги",
+      "createLink": "Создать ссылку",
+      "refresh": "Обновить",
+      "linkName": "Название ссылки",
+      "url": "URL",
+      "type": "Тип",
+      "typeForm": "Форма",
+      "typeServiceBuy": "Покупка услуги",
+      "typeService": "Услуга",
+      "typeRegistration": "Регистрация",
+      "status": "Статус",
+      "statusActive": "Активна",
+      "statusInactive": "Неактивна",
+      "uses": "Использований",
+      "expires": "Истекает",
+      "never": "Никогда",
+      "actions": "Действия",
+      "edit": "Изменить",
+      "copy": "Копировать",
+      "open": "Открыть",
+      "delete": "Удалить",
+      "deleteConfirm": "Удалить эту ссылку?",
+      "noLinks": "Ссылок нет. Создайте одну, чтобы поделиться с клиентами.",
+      "createFirstLink": "Создать первую ссылку"
+    },
+    "registrations": {
+      "heading": "Регистрации по ссылкам",
+      "headingDesc": "Регистрации на услуги через ваши общие ссылки",
+      "refresh": "Обновить",
+      "customer": "Клиент",
+      "service": "Услуга",
+      "general": "Общее",
+      "status": "Статус",
+      "date": "Дата",
+      "actions": "Действия",
+      "pending": "В ожидании",
+      "confirm": "Подтвердить",
+      "cancel": "Отменить",
+      "noRegistrations": "Регистраций пока нет. Поделитесь ссылками для получения заявок."
+    },
+    "formAnswers": {
+      "submittedBy": "Отправил",
+      "form": "Форма",
+      "unknownForm": "Неизвестная форма",
+      "status": "Статус",
+      "date": "Дата",
+      "actions": "Действия",
+      "view": "Просмотр",
+      "delete": "Удалить",
+      "createUser": "Создать пользователя",
+      "filterByForm": "Фильтр по форме",
+      "allForms": "Все формы",
+      "noSubmissions": "Ответов пока нет"
     }
   },
   "services": {
@@ -747,5 +1104,868 @@
   },
   "errors": {
     "loadFailed": "Не удалось загрузить данные. Попробуйте снова."
+  },
+  "payments": {
+    "earningsBreakdown": "Разбивка заработка",
+    "managerCommission": "Комиссия менеджера",
+    "instructorEarnings": "Заработок инструктора",
+    "totalEarned": "Всего заработано",
+    "paymentSummary": "Сводка платежей",
+    "totalPaidOut": "Всего выплачено",
+    "balanceOwed": "Остаток к оплате",
+    "paymentHistory": "История платежей",
+    "noPayments": "Платежи не зарегистрированы",
+    "pay": "Оплатить",
+    "deduct": "Вычесть",
+    "paymentType": "Платёж",
+    "deductionType": "Вычет",
+    "editPayment": "Редактировать платёж",
+    "recordPayment": "Зарегистрировать платёж — {{name}}",
+    "recordDeduction": "Зарегистрировать вычет — {{name}}",
+    "columns": {
+      "date": "Дата",
+      "amount": "Сумма",
+      "type": "Тип",
+      "method": "Метод",
+      "notes": "Заметки"
+    },
+    "form": {
+      "amount": "Сумма (€)",
+      "date": "Дата",
+      "paymentMethod": "Способ оплаты",
+      "notes": "Заметки",
+      "methods": {
+        "cash": "Наличные",
+        "bank_transfer": "Банковский перевод",
+        "check": "Чек",
+        "other": "Другое"
+      },
+      "notesPlaceholder": "Необязательные заметки...",
+      "validation": {
+        "enterAmount": "Введите сумму",
+        "mustBePositive": "Должно быть > 0",
+        "selectDate": "Выберите дату"
+      }
+    },
+    "actions": {
+      "update": "Обновить",
+      "recordPayment": "Зарегистрировать платёж",
+      "recordDeduction": "Зарегистрировать вычет",
+      "deletePayment": "Удалить этот платёж?"
+    },
+    "messages": {
+      "updated": "Платёж обновлён",
+      "deductionRecorded": "Вычет зарегистрирован",
+      "paymentRecorded": "Платёж зарегистрирован",
+      "deleted": "Платёж удалён",
+      "saveFailed": "Не удалось сохранить платёж",
+      "deleteFailed": "Не удалось удалить платёж"
+    }
+  },
+  "financePages": {
+    "rangeLabel": "{{start}} – {{end}}",
+    "to": "по",
+    "refresh": "Обновить",
+    "lessons": {
+      "title": "Финансы уроков",
+      "tag": "Уроки",
+      "subtitle": "Доход от уроков и бронирований · {{range}}",
+      "analyticsTitle": "Аналитика дохода от уроков",
+      "stats": {
+        "lessonRevenue": "Доход от уроков",
+        "totalBookings": "Всего бронирований",
+        "instructorCommissions": "Комиссии инструкторов",
+        "netLessonRevenue": "Чистый доход от уроков"
+      }
+    },
+    "rentals": {
+      "title": "Финансы аренды",
+      "tag": "Аренда",
+      "subtitle": "Доход от аренды оборудования · {{range}}",
+      "analyticsTitle": "Аналитика дохода от аренды",
+      "stats": {
+        "rentalRevenue": "Доход от аренды",
+        "totalRentals": "Всего аренд",
+        "avgRentalValue": "Ср. стоимость аренды",
+        "outstanding": "Задолженность"
+      }
+    },
+    "membership": {
+      "title": "Финансы членства",
+      "tag": "Членство",
+      "subtitle": "Продажи и доходы от членства · {{range}}",
+      "analyticsTitle": "Аналитика доходов от членства",
+      "stats": {
+        "membershipRevenue": "Доход от членства",
+        "totalPurchases": "Всего покупок",
+        "avgMembershipValue": "Ср. стоимость членства",
+        "outstanding": "Задолженность"
+      }
+    },
+    "shop": {
+      "title": "Финансы магазина",
+      "tag": "Магазин",
+      "subtitle": "Продажи товаров и сувениров · {{range}}",
+      "transactionsTitle": "Транзакции магазина",
+      "stats": {
+        "totalRevenue": "Общий доход",
+        "totalOrders": "Всего заказов",
+        "costOfGoods": "Себестоимость",
+        "netProfit": "Чистая прибыль"
+      }
+    },
+    "accommodation": {
+      "title": "Финансы размещения",
+      "tag": "Проживание",
+      "subtitle": "Доходы от размещения и проживания · {{range}}",
+      "stats": {
+        "accommodationRevenue": "Доход от размещения",
+        "totalBookings": "Всего бронирований",
+        "totalNights": "Всего ночей",
+        "avgRatePerNight": "Ср. тариф/ночь"
+      }
+    },
+    "events": {
+      "title": "Финансы мероприятий",
+      "tag": "Сообщество",
+      "subtitle": "Доходы от билетов и регистрации на мероприятия · {{range}}",
+      "stats": {
+        "eventRevenue": "Доход от мероприятий",
+        "totalEvents": "Всего мероприятий",
+        "totalRegistrations": "Всего регистраций",
+        "avgTicketPrice": "Ср. цена билета"
+      }
+    },
+    "paymentHistory": {
+      "title": "История платежей",
+      "tag": "Все платежи",
+      "subtitle": "Все транзакции кошелька · {{range}}",
+      "stats": {
+        "totalIncome": "Общий доход",
+        "totalCharges": "Общие расходы",
+        "netAmount": "Чистая сумма",
+        "transactions": "Транзакции"
+      },
+      "allTransactions": "Все транзакции"
+    },
+    "walletDeposits": {
+      "title": "Пополнения кошелька",
+      "tag": "Кредиты",
+      "subtitle": "Активность кредитов и пополнений кошелька · {{range}}",
+      "stats": {
+        "totalDeposited": "Всего пополнено",
+        "depositCount": "Количество пополнений",
+        "uniqueStudents": "Уникальные студенты",
+        "avgDeposit": "Ср. пополнение"
+      }
+    },
+    "paymentRefunds": {
+      "title": "Возвраты платежей",
+      "subtitle": "Управление возвратами карточных платежей Iyzico",
+      "tabs": {
+        "refundable": "Возвратные платежи",
+        "history": "История возвратов"
+      },
+      "columns": {
+        "date": "Дата",
+        "customer": "Клиент",
+        "amount": "Сумма",
+        "paymentId": "ID платежа",
+        "action": "Действие",
+        "type": "Тип",
+        "reason": "Причина",
+        "processedBy": "Обработал"
+      },
+      "refundTypes": {
+        "partial": "Частичный",
+        "full": "Полный"
+      },
+      "search": {
+        "placeholder": "Фильтр по ID пользователя",
+        "button": "Найти"
+      },
+      "refundModal": {
+        "title": "Обработать возврат",
+        "customer": "Клиент",
+        "originalPayment": "Исходный платёж",
+        "refundAmount": "Сумма возврата",
+        "reason": "Причина (необязательно)",
+        "reasonPlaceholder": "Введите причину возврата...",
+        "partialRefundNote": "Это будет частичный возврат",
+        "confirmTitle": "Подтвердить возврат",
+        "confirmContent": "Вы уверены, что хотите вернуть этот платёж?",
+        "partialRefundTag": "Частичный возврат",
+        "cardRefundNote": "Возврат будет обработан через Iyzico и зачислен на исходный способ оплаты клиента. Это может занять 3-10 рабочих дней.",
+        "processButton": "Обработать возврат",
+        "cancel": "Отмена"
+      },
+      "pagination": {
+        "total": "Всего {{count}} транзакций"
+      },
+      "empty": {
+        "noRefundable": "Возвратных платежей Iyzico не найдено",
+        "noHistory": "Возвраты ещё не обрабатывались"
+      },
+      "messages": {
+        "loadRefundableError": "Не удалось загрузить возвратные транзакции",
+        "loadHistoryError": "Не удалось загрузить историю возвратов",
+        "partialSuccess": "Частичный возврат успешно обработан",
+        "fullSuccess": "Полный возврат успешно обработан",
+        "refundFailed": "Возврат не удался"
+      }
+    },
+    "bankAccounts": {
+      "loadError": "Не удалось загрузить банковские счета",
+      "title": "Банковские счета",
+      "subtitle": "Управляйте банковскими счетами, на которые студенты могут переводить средства",
+      "noBankAccounts": "Банковские счета не настроены. Добавьте один, чтобы студенты могли делать банковские переводы.",
+      "refresh": "Обновить",
+      "addAccount": "Добавить счет",
+      "columns": {
+        "bank": "Банк",
+        "ibanAccount": "IBAN / Счет",
+        "currency": "Валюта",
+        "swift": "SWIFT",
+        "primary": "Основной",
+        "status": "Статус",
+        "actions": "Действия"
+      },
+      "statusLabels": {
+        "active": "Активен",
+        "inactive": "Неактивен"
+      },
+      "actions": {
+        "edit": "Изменить",
+        "disable": "Деактивировать",
+        "enable": "Активировать",
+        "cancel": "Отмена",
+        "update": "Обновить",
+        "create": "Создать"
+      },
+      "modal": {
+        "addTitle": "Добавить банковский счет",
+        "editTitle": "Изменить банковский счет",
+        "fields": {
+          "bankName": "Название банка",
+          "accountHolder": "Владелец счета",
+          "iban": "IBAN",
+          "currency": "Валюта",
+          "swift": "Код SWIFT / BIC",
+          "accountNumber": "Номер счета",
+          "routingNumber": "Маршрутный номер",
+          "instructions": "Инструкции по переводу",
+          "isActive": "Активен",
+          "isPrimary": "Основной",
+          "displayOrder": "Порядок отображения"
+        },
+        "placeholders": {
+          "bankName": "напр. Сбербанк, Deutsche Bank",
+          "accountHolder": "Полное имя владельца счета",
+          "iban": "RU00 0000 0000 0000 0000 00",
+          "swift": "напр. TCZBTR2A",
+          "accountNumber": "Необязательный номер счета",
+          "routingNumber": "Для банков США (необязательно)",
+          "instructions": "Специальные инструкции для студентов (необязательно)"
+        },
+        "validation": {
+          "bankNameRequired": "Название банка обязательно",
+          "accountHolderRequired": "Имя владельца счета обязательно",
+          "ibanRequired": "IBAN обязателен"
+        }
+      },
+      "messages": {
+        "updated": "Банковский счет обновлен",
+        "created": "Банковский счет создан",
+        "saveFailed": "Не удалось сохранить банковский счет",
+        "statusUpdated": "Банковский счет {{status}}",
+        "statusFailed": "Не удалось обновить статус счета",
+        "copied": "Скопировано в буфер обмена",
+        "copyTooltip": "Копировать"
+      }
+    },
+    "settings": {
+      "title": "Финансовые настройки",
+      "subtitle": "Просмотр настроек в зависимости от контекста.",
+      "hideForm": "Скрыть форму",
+      "editSettings": "Редактировать настройки"
+    }
+  },
+  "equipmentPage": {
+    "title": "Оборудование и снаряжение",
+    "subtitle": "Отслеживайте и управляйте всем инвентарём. Контролируйте наличие, состояние и графики обслуживания.",
+    "addEquipment": "Добавить оборудование",
+    "refresh": "Обновить",
+    "backToList": "Назад к списку",
+    "loading": "Загрузка данных оборудования...",
+    "tryAgain": "Попробовать снова",
+    "list": {
+      "searchPlaceholder": "Поиск оборудования...",
+      "allTypes": "Все типы оборудования",
+      "allSizes": "Все размеры",
+      "columns": {
+        "equipment": "Оборудование",
+        "type": "Тип",
+        "sizeSpecs": "Размер/Характеристики",
+        "status": "Статус",
+        "actions": "Действия"
+      },
+      "view": "Просмотр",
+      "edit": "Редактировать"
+    },
+    "detail": {
+      "brand": "Бренд",
+      "type": "Тип",
+      "size": "Размер",
+      "specifications": "Характеристики",
+      "windRange": "Диапазон ветра",
+      "windRangeValue": "{{low}} - {{high}} узлов",
+      "serialNumber": "Серийный номер",
+      "purchaseDate": "Дата покупки",
+      "maintenanceHistory": "История обслуживания",
+      "noMaintenance": "История обслуживания недоступна",
+      "backToList": "Назад к списку",
+      "editEquipment": "Редактировать оборудование"
+    },
+    "form": {
+      "addTitle": "Добавить новое оборудование",
+      "editTitle": "Редактировать оборудование",
+      "fields": {
+        "name": "Название оборудования *",
+        "brand": "Бренд *",
+        "type": "Тип оборудования *",
+        "size": "Размер *",
+        "windRange": "Диапазон ветра (узлы) *",
+        "windMin": "Мин",
+        "windMax": "Макс",
+        "status": "Статус *",
+        "serialNumber": "Серийный номер *",
+        "purchaseDate": "Дата покупки *",
+        "notes": "Заметки"
+      },
+      "status": {
+        "available": "Доступно",
+        "inUse": "В использовании",
+        "maintenance": "На обслуживании",
+        "retired": "Списано"
+      },
+      "validation": {
+        "nameRequired": "Название обязательно",
+        "brandRequired": "Бренд обязателен",
+        "typeRequired": "Тип обязателен",
+        "sizeRequired": "Размер обязателен",
+        "statusRequired": "Статус обязателен",
+        "serialRequired": "Серийный номер обязателен",
+        "purchaseDateRequired": "Дата покупки обязательна",
+        "required": "Обязательно"
+      },
+      "cancel": "Отмена",
+      "addButton": "Добавить оборудование",
+      "saveButton": "Сохранить изменения"
+    }
+  },
+  "rentalsPage": {
+    "newRental": "Новая аренда",
+    "tabs": {
+      "requests": "Запросы на аренду",
+      "recent": "Последние аренды",
+      "total": "Все аренды"
+    },
+    "columns": {
+      "customer": "Клиент",
+      "equipment": "Оборудование",
+      "date": "Дата",
+      "price": "Цена",
+      "status": "Статус",
+      "student": "Студент",
+      "service": "Услуга",
+      "period": "Период",
+      "amount": "Сумма",
+      "notes": "Заметки",
+      "actions": "Действия"
+    },
+    "statusLabels": {
+      "pending": "Ожидает",
+      "confirmed": "Одобрено",
+      "cancelled": "Отклонено",
+      "completed": "Завершено",
+      "noShow": "Не явился"
+    },
+    "filters": {
+      "pending": "Ожидает",
+      "confirmed": "Подтверждено",
+      "cancelled": "Отменено",
+      "completed": "Завершено"
+    },
+    "actions": {
+      "edit": "Изменить",
+      "complete": "Завершить",
+      "approve": "Одобрить",
+      "reject": "Отклонить",
+      "deleteConfirm": "Удалить?"
+    },
+    "tooltips": {
+      "approve": "Одобрить",
+      "decline": "Отклонить",
+      "markCompleted": "Отметить завершенным"
+    },
+    "confirm": {
+      "declineTitle": "Отклонить этот запрос на аренду?",
+      "declineDescription": "Студент будет уведомлен, а любая списанная сумма будет возвращена.",
+      "declineOk": "Отклонить",
+      "declineCancel": "Оставить"
+    },
+    "empty": {
+      "noRentals": "Аренды не найдены",
+      "noRequests": "Запросы на аренду не найдены"
+    },
+    "pagination": {
+      "requests": "из {{total}} запросов аренды",
+      "recent": "из {{total}} последних аренд",
+      "total": "из {{total}} аренд всего"
+    },
+    "messages": {
+      "loadError": "Не удалось загрузить данные об аренде",
+      "requestsError": "Не удалось загрузить запросы аренды",
+      "approved": "одобрен",
+      "declined": "отклонен",
+      "updateStatusError": "Не удалось обновить статус бронирования",
+      "rentalApproved": "Аренда успешно одобрена",
+      "rentalDeclined": "Аренда успешно отклонена",
+      "rentalStatusError": "Не удалось {{action}} аренду",
+      "statusChanged": "Аренда {{status}} успешно",
+      "statusChangeError": "Не удалось обновить статус аренды",
+      "deleted": "Аренда успешно удалена",
+      "deleteError": "Не удалось удалить аренду"
+    }
+  },
+  "dailyOperations": {
+    "title": "Ежедневные операции",
+    "todayTag": "Сегодня",
+    "todayButton": "Сегодня",
+    "refresh": "Обновить",
+    "stats": {
+      "totalIncome": "Общий доход",
+      "netRevenue": "Чистый доход",
+      "transactions": "Транзакции",
+      "rentals": "{{active}} активных / {{total}} всего"
+    },
+    "paymentHistoryCard": {
+      "incomeCount": "{{count}} транзакций дохода"
+    },
+    "rentalsCard": {
+      "count": "{{count}} аренд"
+    },
+    "empty": {
+      "noTransactions": "Транзакций дохода за этот день нет",
+      "noRentals": "Аренд за этот день нет"
+    },
+    "columns": {
+      "time": "Время",
+      "description": "Описание",
+      "type": "Тип",
+      "reference": "Ссылка",
+      "amount": "Сумма",
+      "customer": "Клиент",
+      "status": "Статус",
+      "payment": "Оплата",
+      "price": "Цена",
+      "paidToday": "Оплачено сегодня"
+    },
+    "error": "Не удалось загрузить данные: {{message}}"
+  },
+  "reportsCenter": {
+    "title": "Центр отчётов",
+    "generateReport": "Сформировать отчёт",
+    "generateShort": "Сформировать",
+    "scheduleReport": "Запланировать отчёт",
+    "scheduleShort": "Запланировать",
+    "availableReports": "Доступные отчёты",
+    "scheduledReports": "Запланированные отчёты",
+    "reportHistory": "История отчётов",
+    "generate": "Сформировать",
+    "updateSchedule": "Обновить расписание",
+    "cancel": "Отмена",
+    "download": "Скачать",
+    "preview": "Предпросмотр",
+    "runNow": "Запустить сейчас",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "recipients": "{{count}} получателей",
+    "notScheduled": "Не запланировано",
+    "reportTypes": {
+      "financial-summary": "Финансовый отчёт",
+      "revenue-analytics": "Анализ выручки",
+      "customer-analytics": "Анализ клиентов",
+      "operational-metrics": "Операционные показатели",
+      "instructor-performance": "Эффективность инструкторов",
+      "outstanding-balances": "Задолженности",
+      "inventory-valuation": "Оценка инвентаря",
+      "tax-report": "Налоговый отчёт"
+    },
+    "reportDescriptions": {
+      "financial-summary": "Полный финансовый обзор с анализом доходов, расходов и прибыли",
+      "revenue-analytics": "Детальный анализ выручки с трендами и прогнозами",
+      "customer-analytics": "Поведение клиентов, CLV и сегментация",
+      "operational-metrics": "Показатели эффективности, загрузки и производительности",
+      "instructor-performance": "Индивидуальные показатели инструкторов и комиссионные",
+      "outstanding-balances": "Анализ долгов и кредитов клиентов",
+      "inventory-valuation": "Финансовый анализ оборудования и инвентаря",
+      "tax-report": "Финансовые отчёты и сводки для налоговых целей"
+    },
+    "columns": {
+      "reportName": "Название отчёта",
+      "frequency": "Периодичность",
+      "format": "Формат",
+      "recipients": "Получатели",
+      "nextRun": "Следующий запуск",
+      "status": "Статус",
+      "actions": "Действия",
+      "report": "Отчёт",
+      "generated": "Сформирован",
+      "period": "Период",
+      "size": "Размер"
+    },
+    "frequency": {
+      "daily": "Ежедневно",
+      "weekly": "Еженедельно ({{day}})",
+      "monthly": "Ежемесячно ({{day}}-й день)",
+      "quarterly": "Ежеквартально",
+      "yearly": "Ежегодно"
+    },
+    "switchStatus": {
+      "active": "Активно",
+      "paused": "Приостановлено"
+    },
+    "form": {
+      "reportType": "Тип отчёта",
+      "dateRange": "Период",
+      "format": "Формат",
+      "includeCharts": "Включить графики",
+      "includeDetails": "Включить детали",
+      "reportName": "Название отчёта",
+      "time": "Время",
+      "emailRecipients": "Получатели по email",
+      "recipientsPlaceholder": "Введите адреса через запятую",
+      "selectReportType": "Выберите тип отчёта",
+      "selectFormat": "Выберите формат",
+      "selectFrequency": "Выберите периодичность",
+      "enterReportName": "Введите название отчёта",
+      "validation": {
+        "selectReportType": "Пожалуйста, выберите тип отчёта",
+        "selectDateRange": "Пожалуйста, выберите период",
+        "selectFormat": "Пожалуйста, выберите формат",
+        "enterName": "Пожалуйста, введите название отчёта",
+        "selectTime": "Пожалуйста, выберите время",
+        "enterRecipients": "Пожалуйста, введите получателей",
+        "selectFrequency": "Пожалуйста, выберите периодичность"
+      }
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} из {{total}} отчётов"
+    },
+    "messages": {
+      "generated": "Отчёт успешно сформирован",
+      "generateError": "Не удалось сформировать отчёт",
+      "scheduled": "Отчёт успешно запланирован",
+      "scheduleError": "Не удалось запланировать отчёт",
+      "activated": "Отчёт активирован",
+      "paused": "Отчёт приостановлен",
+      "toggleError": "Не удалось обновить расписание",
+      "deleted": "Запланированный отчёт удалён",
+      "deleteError": "Не удалось удалить запланированный отчёт",
+      "downloadError": "Не удалось скачать отчёт",
+      "runStarted": "Формирование отчёта запущено",
+      "runError": "Не удалось запустить отчёт",
+      "previewComingSoon": "Функция предпросмотра скоро появится"
+    }
+  },
+  "transactionHistory": {
+    "searchPlaceholder": "Поиск по транзакциям...",
+    "detailsTitle": "Детали транзакции",
+    "systemAuto": "Система (авто)",
+    "columns": {
+      "date": "Дата",
+      "type": "Тип",
+      "description": "Описание",
+      "customer": "Клиент",
+      "amount": "Сумма",
+      "createdBy": "Создал"
+    },
+    "detail": {
+      "date": "Дата",
+      "amount": "Сумма",
+      "customer": "Клиент",
+      "status": "Статус",
+      "direction": "Направление",
+      "createdBy": "Создал",
+      "description": "Описание",
+      "reference": "Ссылка"
+    },
+    "types": {
+      "manual_credit": "Пополнение",
+      "wallet_deposit": "Пополнение",
+      "credit": "Кредит",
+      "payment": "Оплата",
+      "package_purchase": "Покупка пакета",
+      "rental_charge": "Оплата аренды",
+      "booking_charge": "Оплата бронирования",
+      "charge": "Списание",
+      "debit": "Дебет",
+      "refund": "Возврат",
+      "booking_deleted_refund": "Возврат за бронирование",
+      "package_refund": "Возврат за пакет",
+      "wallet_lock": "Блокировка кошелька",
+      "service_payment": "Оплата услуги",
+      "rental_payment": "Оплата аренды"
+    }
+  },
+  "outstandingBalances": {
+    "title": "Задолженности",
+    "refresh": "Обновить",
+    "searchPlaceholder": "Поиск клиентов...",
+    "allStatuses": "Все статусы",
+    "positiveBalance": "Положительный баланс",
+    "creditBalance": "Кредитный баланс",
+    "overdue": "Просрочено",
+    "recent": "Недавние (≤7 дней)",
+    "critical": "Критические (>{{symbol}}100, >30 дней)",
+    "highestFirst": "Наибольшие первыми",
+    "lowestFirst": "Наименьшие первыми",
+    "sendReminders": "Отправить напоминания ({{count}})",
+    "export": "Экспорт",
+    "noPhone": "Номер телефона недоступен",
+    "stats": {
+      "totalOutstanding": "Общая задолженность",
+      "customersWithDebt": "Клиенты с долгом",
+      "averageDebt": "Средний долг",
+      "criticalCases": "Критические случаи"
+    },
+    "columns": {
+      "customer": "Клиент",
+      "outstandingBalance": "Задолженность",
+      "daysOverdue": "Дней просрочки",
+      "riskLevel": "Уровень риска",
+      "lastPayment": "Последний платёж",
+      "totalBookings": "Всего бронирований",
+      "actions": "Действия"
+    },
+    "riskLevels": {
+      "none": "НЕТ",
+      "low": "НИЗКИЙ",
+      "medium": "СРЕДНИЙ",
+      "high": "ВЫСОКИЙ"
+    },
+    "noPayments": "Платежей нет",
+    "days": "{{count}} дн.",
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} из {{total}} клиентов"
+    },
+    "actions": {
+      "recordPayment": "Записать платёж",
+      "sendReminder": "Отправить напоминание",
+      "callCustomer": "Позвонить клиенту",
+      "viewProfile": "Просмотр профиля"
+    },
+    "paymentModal": {
+      "title": "Записать платёж — {{name}}",
+      "amount": "Сумма платежа",
+      "date": "Дата платежа",
+      "method": "Способ оплаты",
+      "notes": "Примечания",
+      "methods": {
+        "cash": "Наличные",
+        "card": "Карта",
+        "bank_transfer": "Банковский перевод",
+        "online": "Онлайн-оплата",
+        "other": "Другое"
+      },
+      "validation": {
+        "enterAmount": "Пожалуйста, введите сумму платежа",
+        "amountMin": "Сумма должна быть больше 0",
+        "selectDate": "Пожалуйста, выберите дату платежа",
+        "selectMethod": "Пожалуйста, выберите способ оплаты"
+      },
+      "cancel": "Отмена",
+      "submit": "Записать платёж"
+    },
+    "messages": {
+      "loadError": "Не удалось загрузить задолженности",
+      "paymentRecorded": "Платёж успешно записан",
+      "paymentError": "Не удалось записать платёж",
+      "reminderSent": "Напоминание отправлено",
+      "reminderError": "Не удалось отправить напоминание",
+      "bulkReminderSent": "Напоминания отправлены {{count}} клиентам",
+      "bulkReminderError": "Не удалось отправить напоминания",
+      "exportSuccess": "Данные успешно экспортированы",
+      "exportError": "Не удалось экспортировать данные",
+      "selectCustomers": "Пожалуйста, выберите клиентов для отправки"
+    }
+  },
+  "rentalsCalendar": {
+    "today": "Сегодня",
+    "close": "Закрыть",
+    "noRentalsDay": "Аренды на этот день нет",
+    "noRentals": "Аренды нет",
+    "rentalCount": "{{count}} аренда",
+    "rentalCountPlural": "{{count}} аренд",
+    "moreRentals": "+{{count}} ещё",
+    "unknownCustomer": "Неизвестный клиент",
+    "rentalService": "Услуга аренды"
+  },
+  "newRentalDrawer": {
+    "titleNew": "Новая аренда",
+    "titleEdit": "Редактировать аренду",
+    "sectionCustomer": "Клиент",
+    "sectionEquipment": "Оборудование",
+    "sectionPackage": "Включено в пакет",
+    "single": "Один",
+    "multiple": "Несколько",
+    "multipleDisabled": "Недоступно при редактировании",
+    "searchCustomer": "Поиск по имени или email",
+    "selectCustomers": "Выбрать клиентов",
+    "addEquipment": "Добавить оборудование для аренды",
+    "equipmentSummary": {
+      "item": "позиция",
+      "items": "позиций"
+    },
+    "usingPackage": "Используется пакет",
+    "usePackage": "Использовать дни аренды из активного пакета",
+    "packageDaysLeft": "{{count}} дн. осталось",
+    "packageDayDeducted": "Будет списан 1 день аренды — без списания с кошелька.",
+    "checkingPackages": "Проверка пакетов…",
+    "selectPackage": "Выберите пакет",
+    "fields": {
+      "rentalDate": "Дата аренды",
+      "status": "Статус",
+      "totalPrice": "Итого",
+      "totalPriceTooltip": "Переопределить рассчитанную стоимость",
+      "notes": "Примечания",
+      "notesPlaceholder": "Заметки при передаче, пожелания клиента…"
+    },
+    "status": {
+      "active": "Активна",
+      "completed": "Завершена"
+    },
+    "placeholders": {
+      "chooseDate": "Выберите дату",
+      "status": "Статус",
+      "price": "напр. 100.00"
+    },
+    "noCustomers": "Клиенты недоступны",
+    "noEquipment": "Услуги аренды недоступны",
+    "cancel": "Отмена",
+    "createRental": "Создать аренду",
+    "updateRental": "Обновить аренду",
+    "validation": {
+      "selectCustomer": "Пожалуйста, выберите клиента",
+      "selectCustomers": "Выберите хотя бы одного клиента",
+      "selectEquipment": "Выберите хотя бы одну услугу аренды",
+      "selectDate": "Пожалуйста, выберите дату",
+      "selectStatus": "Обязательно"
+    },
+    "messages": {
+      "selectCustomerWarning": "Пожалуйста, выберите клиента",
+      "selectCustomersWarning": "Выберите хотя бы одного клиента",
+      "createdMultiple": "Создана {{count}} аренда",
+      "createdMultiplePlural": "Создано {{count}} аренд",
+      "updated": "Аренда успешно обновлена",
+      "created": "Аренда успешно создана",
+      "saveError": "Не удалось сохранить аренду: {{error}}",
+      "saveErrorGeneric": "Не удалось сохранить аренду"
+    }
+  },
+  "customers": {
+    "title": "Клиенты",
+    "searchPlaceholder": "Поиск клиентов...",
+    "addCustomer": "Добавить клиента",
+    "loadFailed": "Не удалось загрузить клиентов",
+    "noCustomers": "Клиенты не найдены",
+    "notFound": "Клиенты не найдены",
+    "newCustomer": "Новый клиент",
+    "loadMore": "Загрузить ещё",
+    "allLoaded": "Всё загружено",
+    "pageSize": "Размер страницы:",
+    "columns": {
+      "name": "Имя",
+      "role": "Роль",
+      "email": "Email",
+      "phone": "Телефон",
+      "balance": "Баланс",
+      "paymentStatus": "Статус оплаты",
+      "actions": "Действия"
+    },
+    "roles": {
+      "student": "Студент",
+      "outsider": "Сторонний",
+      "trusted": "Доверенный"
+    },
+    "paymentStatus": {
+      "paid": "Оплачено",
+      "package": "Пакет",
+      "partial": "Частично",
+      "pending": "Ожидает",
+      "overdue": "Просрочено",
+      "loading": "Загрузка...",
+      "timeout": "Требуется обновление",
+      "error": "Ошибка",
+      "na": "Н/Д"
+    },
+    "balanceFilter": {
+      "all": "Все",
+      "negative": "< 0",
+      "zero": "= 0",
+      "positive": "> 0"
+    },
+    "actions": {
+      "editCustomer": "Редактировать клиента",
+      "deleteCustomer": "Удалить клиента",
+      "edit": "Редактировать клиента",
+      "delete": "Удалить клиента"
+    },
+    "detail": {
+      "nav": {
+        "profile": "Профиль",
+        "packages": "Пакеты",
+        "bookings": "Бронирования",
+        "rentals": "Аренда",
+        "accommodation": "Размещение",
+        "shop": "Магазин",
+        "memberships": "Членства",
+        "financial": "Финансы"
+      },
+      "sectionDesc": {
+        "profile": "Контактная информация и ключевые данные",
+        "packages": "Назначенные пакеты уроков",
+        "bookings": "История уроков и расписание",
+        "rentals": "История аренды оборудования",
+        "accommodation": "История бронирований размещения",
+        "financial": "Транзакции, баланс и управление кошельком",
+        "shop": "История заказов магазина",
+        "memberships": "Покупки членства"
+      }
+    }
+  },
+  "popups": {
+    "title": "Всплывающие окна",
+    "chooseTemplate": "Выбрать шаблон",
+    "chooseTemplateDesc": "Выберите готовый шаблон для быстрого старта. После выбора можно настроить все параметры.",
+    "useTemplate": "Использовать шаблон",
+    "templates": {
+      "title": "Шаблоны всплывающих окон",
+      "selectTemplate": "Выбрать шаблон",
+      "preview": "Предпросмотр",
+      "welcome": {
+        "name": "Приветственное сообщение",
+        "description": "Простое приветственное всплывающее окно для новых пользователей"
+      },
+      "featureAnnouncement": {
+        "name": "Анонс функции",
+        "description": "Объявите о новых функциях и обновлениях"
+      },
+      "categories": {
+        "onboarding": "Адаптация",
+        "marketing": "Маркетинг"
+      }
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Spin, DatePicker, Upload, Select } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
@@ -61,6 +62,7 @@ const SectionCard = ({ icon, iconBg, title, badge, children }) => (
 );
 
 const InstructorFormPage = () => {
+  const { t } = useTranslation(['instructor']);
   const [form] = Form.useForm();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -118,7 +120,7 @@ const InstructorFormPage = () => {
           }
           setSkills(Array.isArray(skillsRes?.data) ? skillsRes.data : []);
         })
-        .catch(() => message.error('Failed to fetch instructor details'))
+        .catch(() => message.error(t('instructor:instructorForm.fetchFailed')))
         .finally(() => setLoading(false));
     }
   }, [id, form, fetchInstructorById]);
@@ -131,7 +133,7 @@ const InstructorFormPage = () => {
     }
     if (info.file.status === 'error') {
       if (avatarPreviewUrl) { URL.revokeObjectURL(avatarPreviewUrl); setAvatarPreviewUrl(null); }
-      message.error(`${info.file.name} upload failed.`);
+      message.error(`${info.file.name} ${t('instructor:addInstructor.uploadFailed')}`);
     }
   };
 
@@ -156,12 +158,12 @@ const InstructorFormPage = () => {
   const handleFinish = async (values) => {
     if (!id) {
       if (instructorRoleLoading) {
-        message.warning('Loading roles… please try again in a moment.');
+        message.warning(t('instructor:addInstructor.loadingRoles'));
         return;
       }
       if (!instructorRoleId) {
         message.error(
-          instructorRoleError?.message || 'Could not resolve instructor role. Check Roles in settings or try again.'
+          instructorRoleError?.message || t('instructor:addInstructor.couldNotResolveRole')
         );
         return;
       }
@@ -198,15 +200,15 @@ const InstructorFormPage = () => {
           await apiClient.put(`/instructors/${instructorId}/skills`, { skills });
         } catch (skillErr) {
           console.warn('Skills save failed:', skillErr);
-          message.warning('Profile saved, but skills could not be saved.');
+          message.warning(t('instructor:instructorForm.skillsSaveFailed'));
         }
       }
 
-      message.success(isEditing ? 'Instructor updated successfully!' : 'Instructor created successfully!');
+      message.success(isEditing ? t('instructor:instructorForm.updatedSuccessfully') : t('instructor:instructorForm.createdSuccessfully'));
       navigate('/instructors');
     } catch (error) {
       setLoading(false);
-      message.error(`Failed to save: ${error.response?.data?.error || error.message}`);
+      message.error(t('instructor:instructorForm.failedToSave', { error: error.response?.data?.error || error.message }));
     }
   };
 
@@ -228,7 +230,7 @@ const InstructorFormPage = () => {
           </button>
           <div className="h-4 w-px bg-slate-200" />
           <h1 className="text-sm font-semibold text-slate-800">
-            {isEditing ? 'Edit Instructor' : 'New Instructor'}
+            {isEditing ? t('instructor:instructorForm.editInstructor') : t('instructor:instructorForm.newInstructor')}
           </h1>
         </div>
       </div>
@@ -279,10 +281,10 @@ const InstructorFormPage = () => {
                   <Form.Item noStyle shouldUpdate={(prev, cur) => prev.first_name !== cur.first_name || prev.last_name !== cur.last_name}>
                     {({ getFieldValue }) => {
                       const name = `${getFieldValue('first_name') || ''} ${getFieldValue('last_name') || ''}`.trim();
-                      return <p className="text-base font-semibold text-slate-800 truncate">{name || 'New Instructor'}</p>;
+                      return <p className="text-base font-semibold text-slate-800 truncate">{name || t('instructor:instructorForm.newInstructor')}</p>;
                     }}
                   </Form.Item>
-                  <p className="text-xs text-slate-400 mt-0.5">Click avatar to upload a photo</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{t('instructor:instructorForm.clickAvatarHint')}</p>
                 </div>
               </div>
             </div>
@@ -291,25 +293,25 @@ const InstructorFormPage = () => {
             <SectionCard
               icon={<UserOutlined className="text-sky-500 text-xs" />}
               iconBg="bg-sky-50"
-              title="Personal Details"
+              title={t('instructor:instructorForm.personalDetails')}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0">
-                <Form.Item name="first_name" label={<Label required>First Name</Label>} rules={[{ required: true, message: 'Required' }]}>
+                <Form.Item name="first_name" label={<Label required>{t('instructor:instructorForm.firstName')}</Label>} rules={[{ required: true, message: t('instructor:instructorForm.required') }]}>
                   <Input prefix={<UserOutlined className="text-slate-300" />} placeholder="Alex" className="rounded-lg" />
                 </Form.Item>
-                <Form.Item name="last_name" label={<Label required>Last Name</Label>} rules={[{ required: true, message: 'Required' }]}>
+                <Form.Item name="last_name" label={<Label required>{t('instructor:instructorForm.lastName')}</Label>} rules={[{ required: true, message: t('instructor:instructorForm.required') }]}>
                   <Input placeholder="Johnson" className="rounded-lg" />
                 </Form.Item>
-                <Form.Item name="email" label={<Label required>Email</Label>} rules={[{ required: true, type: 'email', message: 'Valid email required' }]}>
+                <Form.Item name="email" label={<Label required>{t('instructor:instructorForm.email')}</Label>} rules={[{ required: true, type: 'email', message: t('instructor:instructorForm.validEmail') }]}>
                   <Input prefix={<MailOutlined className="text-slate-300" />} placeholder="instructor@academy.com" className="rounded-lg" />
                 </Form.Item>
-                <Form.Item name="phone" label={<Label>Phone</Label>}>
+                <Form.Item name="phone" label={<Label>{t('instructor:instructorForm.phone')}</Label>}>
                   <Input prefix={<PhoneOutlined className="text-slate-300" />} placeholder="+1 555 000 0000" className="rounded-lg" />
                 </Form.Item>
-                <Form.Item name="date_of_birth" label={<Label>Date of Birth</Label>}>
+                <Form.Item name="date_of_birth" label={<Label>{t('instructor:instructorForm.dateOfBirth')}</Label>}>
                   <DatePicker style={{ width: '100%' }} placeholder="Select date" className="rounded-lg" suffixIcon={<CalendarOutlined className="text-slate-300" />} />
                 </Form.Item>
-                <Form.Item name="preferred_currency" label={<Label>Preferred Currency</Label>} initialValue="EUR">
+                <Form.Item name="preferred_currency" label={<Label>{t('instructor:instructorForm.preferredCurrency')}</Label>} initialValue="EUR">
                   <Select>
                     {AVAILABLE_CURRENCIES.map(c => (
                       <Option key={c.value} value={c.value}>{c.label}</Option>
@@ -323,7 +325,7 @@ const InstructorFormPage = () => {
             <SectionCard
               icon={<LockOutlined className="text-amber-500 text-xs" />}
               iconBg="bg-amber-50"
-              title={isEditing ? 'Change Password' : 'Account Password'}
+              title={isEditing ? t('instructor:instructorForm.changePassword') : t('instructor:instructorForm.accountPassword')}
               badge={isEditing && (
                 <button
                   type="button"
@@ -341,7 +343,7 @@ const InstructorFormPage = () => {
                       : 'bg-slate-50 text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {changePassword ? 'Cancel' : 'Change'}
+                  {changePassword ? t('instructor:instructorForm.cancel') : t('instructor:instructorForm.change')}
                 </button>
               )}
             >
@@ -349,33 +351,33 @@ const InstructorFormPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0">
                   <Form.Item
                     name="password"
-                    label={<Label required={!isEditing}>New Password</Label>}
+                    label={<Label required={!isEditing}>{t('instructor:instructorForm.newPassword')}</Label>}
                     rules={[
-                      ...(!isEditing ? [{ required: true, message: 'Password is required' }] : []),
-                      { min: 8, message: 'Min. 8 characters' },
+                      ...(!isEditing ? [{ required: true, message: t('instructor:instructorForm.passwordRequired') }] : []),
+                      { min: 8, message: t('instructor:instructorForm.minChars') },
                     ]}
                   >
-                    <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Min. 8 characters" className="rounded-lg" />
+                    <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder={t('instructor:instructorForm.minChars')} className="rounded-lg" />
                   </Form.Item>
                   <Form.Item
                     name="confirm_password"
-                    label={<Label required={!isEditing}>Confirm Password</Label>}
+                    label={<Label required={!isEditing}>{t('instructor:instructorForm.confirmPassword')}</Label>}
                     dependencies={['password']}
                     rules={[
-                      ...(!isEditing ? [{ required: true, message: 'Please confirm password' }] : []),
+                      ...(!isEditing ? [{ required: true, message: t('instructor:instructorForm.confirmPasswordRequired') }] : []),
                       ({ getFieldValue }) => ({
                         validator(_, value) {
                           if (!value || getFieldValue('password') === value) return Promise.resolve();
-                          return Promise.reject(new Error('Passwords do not match'));
+                          return Promise.reject(new Error(t('instructor:instructorForm.passwordsDoNotMatch')));
                         },
                       }),
                     ]}
                   >
-                    <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Repeat password" className="rounded-lg" />
+                    <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder={t('instructor:instructorForm.confirmPassword')} className="rounded-lg" />
                   </Form.Item>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400">Click "Change" to set a new password for this instructor.</p>
+                <p className="text-xs text-slate-400">{t('instructor:instructorForm.changeToSetNewPassword')}</p>
               )}
             </SectionCard>
 
@@ -383,10 +385,10 @@ const InstructorFormPage = () => {
             <SectionCard
               icon={<BookOutlined className="text-violet-500 text-xs" />}
               iconBg="bg-violet-50"
-              title="Disciplines"
+              title={t('instructor:instructorForm.disciplines')}
               badge={
                 <span className="text-[10px] font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">
-                  {skills.length} selected
+                  {t('instructor:instructorForm.selected', { count: skills.length })}
                 </span>
               }
             >
@@ -420,7 +422,7 @@ const InstructorFormPage = () => {
                       {active && (
                         <div className="px-4 pb-3 grid grid-cols-2 gap-3">
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Max Level</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{t('instructor:instructorForm.maxLevel')}</p>
                             <Select
                               value={skill.max_level}
                               onChange={(val) => updateSkill(tag, 'max_level', val)}
@@ -433,7 +435,7 @@ const InstructorFormPage = () => {
                             </Select>
                           </div>
                           <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Lesson Types</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{t('instructor:addInstructor.lessonTypes')}</p>
                             <Select
                               mode="multiple"
                               value={skill.lesson_categories}
@@ -460,19 +462,19 @@ const InstructorFormPage = () => {
             <SectionCard
               icon={<EnvironmentOutlined className="text-emerald-500 text-xs" />}
               iconBg="bg-emerald-50"
-              title="Location"
+              title={t('instructor:addInstructor.location')}
             >
-              <Form.Item name="address" label={<Label>Street Address</Label>} className="mb-3">
+              <Form.Item name="address" label={<Label>{t('instructor:addInstructor.streetAddress')}</Label>} className="mb-3">
                 <Input.TextArea rows={2} placeholder="123 Main Street, Apt 4B" className="resize-none rounded-lg" />
               </Form.Item>
               <div className="grid grid-cols-3 gap-x-4">
-                <Form.Item name="city" label={<Label>City</Label>}>
+                <Form.Item name="city" label={<Label>{t('instructor:addInstructor.city')}</Label>}>
                   <Input placeholder="Barcelona" className="rounded-lg" />
                 </Form.Item>
-                <Form.Item name="postal_code" label={<Label>Postal Code</Label>}>
+                <Form.Item name="postal_code" label={<Label>{t('instructor:addInstructor.postalCode')}</Label>}>
                   <Input placeholder="08001" className="rounded-lg" />
                 </Form.Item>
-                <Form.Item name="country" label={<Label>Country</Label>}>
+                <Form.Item name="country" label={<Label>{t('instructor:addInstructor.country')}</Label>}>
                   <Input placeholder="Spain" className="rounded-lg" />
                 </Form.Item>
               </div>
@@ -482,17 +484,17 @@ const InstructorFormPage = () => {
             <SectionCard
               icon={<TeamOutlined className="text-sky-500 text-xs" />}
               iconBg="bg-sky-50"
-              title="Settings"
+              title={t('instructor:instructorForm.settings')}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-                <Form.Item name="status" label={<Label>Status</Label>} initialValue="active">
+                <Form.Item name="status" label={<Label>{t('instructor:instructorForm.status')}</Label>} initialValue="active">
                   <Select>
-                    <Option value="active">Active</Option>
-                    <Option value="inactive">Inactive</Option>
-                    <Option value="on_leave">On Leave</Option>
+                    <Option value="active">{t('instructor:instructorForm.statusActive')}</Option>
+                    <Option value="inactive">{t('instructor:instructorForm.statusInactive')}</Option>
+                    <Option value="on_leave">{t('instructor:instructorForm.statusOnLeave')}</Option>
                   </Select>
                 </Form.Item>
-                <Form.Item name="level" label={<Label>Level</Label>}>
+                <Form.Item name="level" label={<Label>{t('instructor:instructorForm.level')}</Label>}>
                   <Select placeholder="Select level">
                     <Option value="Beginner">Beginner</Option>
                     <Option value="Intermediate">Intermediate</Option>
@@ -513,7 +515,7 @@ const InstructorFormPage = () => {
                 onClick={() => navigate('/instructors')}
                 className="text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100"
               >
-                Cancel
+                {t('instructor:instructorForm.cancel')}
               </button>
               <Button
                 type="primary"
@@ -529,7 +531,7 @@ const InstructorFormPage = () => {
                   height: 36,
                 }}
               >
-                {isEditing ? 'Save Changes' : 'Create Instructor'}
+                {isEditing ? t('instructor:instructorForm.saveChanges') : t('instructor:instructorForm.createInstructor')}
               </Button>
             </div>
           </div>

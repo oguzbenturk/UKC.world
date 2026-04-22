@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Bars3Icon, UserCircleIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 import { Avatar, Modal } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
@@ -83,8 +84,9 @@ const resolvePageSectionIndicator = (pathname, userRole, permissions) => {
   if (pathname === '/guest') return null;
   if (pathname === '/shop' || pathname.startsWith('/shop/')) {
     return {
-      activeItem: { to: '/shop', label: 'Shop' },
+      activeItem: { to: '/shop', label: 'Shop', labelKey: 'common:nav.shop' },
       displayLabel: 'Shop',
+      displayLabelKey: 'common:nav.shop',
       textColor: '#ec4899',
     };
   }
@@ -120,11 +122,13 @@ const resolvePageSectionIndicator = (pathname, userRole, permissions) => {
   return {
     activeItem,
     displayLabel: activeItem.label,
+    displayLabelKey: activeItem.labelKey,
     textColor: activeItem.customStyle?.textColor || '#64748b',
   };
 };
 
-export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => { 
+export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
+  const { t } = useTranslation(['common']);
   // Mobile NavLinks menu is no longer used (only sidebar toggle remains)
   // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -265,7 +269,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
       setIsLogoutModalVisible(false);
       navigate('/login');
     } catch {
-      message.error('Logout failed');
+      message.error(t('common:app.logout') + ' failed');
     }
   };
 
@@ -306,10 +310,10 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                   onClick={handleSidebarToggle}
                   className="p-2 rounded-md text-white hover:text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#00a8c4] transition-colors duration-150 ease-in-out shrink-0"
                   aria-expanded={false}
-                  aria-label="Toggle sidebar"
+                  aria-label={t('common:nav.toggleSidebar')}
                   data-sidebar-toggle="true"
                 >
-                  <span className="sr-only">Toggle sidebar</span>
+                  <span className="sr-only">{t('common:nav.toggleSidebar')}</span>
                   <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
                 </button>
 
@@ -380,7 +384,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           navigate(pageSectionIndicator.activeItem.to);
                         }
                       }}
-                      title={`Go to ${pageSectionIndicator.displayLabel}`}
+                      title={t('common:nav.goTo', { target: t(pageSectionIndicator.displayLabelKey, pageSectionIndicator.displayLabel) })}
                     >
                       <span
                         className="font-gotham-bold whitespace-nowrap text-sm sm:text-base md:text-lg lg:text-xl truncate"
@@ -388,9 +392,9 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           color: pageSectionIndicator.textColor,
                           letterSpacing: '0.02em',
                         }}
-                        title={pageSectionIndicator.displayLabel}
+                        title={t(pageSectionIndicator.displayLabelKey, pageSectionIndicator.displayLabel)}
                       >
-                        {pageSectionIndicator.displayLabel}
+                        {t(pageSectionIndicator.displayLabelKey, pageSectionIndicator.displayLabel)}
                       </span>
                     </div>
                   )}
@@ -505,7 +509,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           }}
                         >
                           <span>{displayName}</span>
-                          <span className="ml-2 text-xs text-sky-500 dark:text-sky-400 font-medium">My Profile</span>
+                          <span className="ml-2 text-xs text-sky-500 dark:text-sky-400 font-medium">{t('common:nav.myProfile')}</span>
                         </button>
                       )}
                       {isAuthenticated && (
@@ -518,7 +522,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                           role="menuitem"
                         >
-                          <span>My Wallet</span>
+                          <span>{t('common:nav.myWallet')}</span>
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {walletBalance !== undefined && preferredCurrency ? `${preferredCurrency.symbol}${walletBalance.toFixed(2)}` : '...'}
                           </span>
@@ -534,7 +538,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           navigate('/shop/my-orders');
                         }}
                       >
-                        My Orders
+                        {t('common:nav.myOrders')}
                       </NavLink>
                       {(featureFlags.publicShopEnabled || isShopStaff(user?.role)) && (
                         <NavLink
@@ -553,7 +557,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                             });
                           }}
                         >
-                          <span>Shopping Cart</span>
+                          <span>{t('common:nav.shoppingCart')}</span>
                           {getCartCount() > 0 && (
                             <span className="text-xs font-semibold bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full dark:bg-sky-900/50 dark:text-sky-300">
                               {getCartCount()}
@@ -571,7 +575,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           navigate('/settings');
                         }}
                       >
-                        Settings
+                        {t('common:nav.settings')}
                       </NavLink>
                       <NavLink
                         to="/notifications"
@@ -583,7 +587,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           navigate('/notifications');
                         }}
                       >
-                        Notifications
+                        {t('common:nav.notifications')}
                       </NavLink>
                       <NavLink
                         to="/help"
@@ -595,7 +599,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           navigate('/help');
                         }}
                       >
-                        Help & Support
+                        {t('common:nav.helpSupport')}
                       </NavLink>
                       <NavLink
                         to="/privacy/gdpr"
@@ -607,7 +611,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           navigate('/privacy/gdpr');
                         }}
                       >
-                        Privacy & GDPR
+                        {t('common:nav.privacyGdpr')}
                       </NavLink>
                       <hr className="my-1 border-slate-200 dark:border-slate-700" />
                       <button
@@ -615,7 +619,7 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                         className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
                         role="menuitem"
                       >
-                        Logout
+                        {t('common:nav.logout')}
                       </button>
                     </div>
                   )}
@@ -632,9 +636,9 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                     }}
                     className="px-4 py-2 rounded-md font-duotone-bold text-sm transition-all duration-150 focus:outline-none"
                     style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 8px rgba(0,168,196,0.2)' }}
-                    aria-label="Sign In"
+                    aria-label={t('common:nav.signIn')}
                   >
-                    Sign In
+                    {t('common:nav.signIn')}
                   </button>
                 )}
 
@@ -646,14 +650,14 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
 
         {/* Logout Confirmation Modal */}
         <Modal
-          title="Confirm Logout"
+          title={t('common:nav.confirmLogout')}
           open={isLogoutModalVisible}
           onOk={handleLogoutConfirm}
           onCancel={handleLogoutCancel}
-          okText="Yes, Logout"
-          cancelText="Cancel"
+          okText={t('common:nav.yesLogout')}
+          cancelText={t('common:buttons.cancel')}
         >
-          <p>Are you sure you want to logout?</p>
+          <p>{t('common:nav.confirmLogoutMessage')}</p>
         </Modal>
 
         {/* Student self-profile drawer (read-only) */}

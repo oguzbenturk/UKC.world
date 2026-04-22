@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Tag, Empty } from 'antd';
 import {
   ExclamationCircleOutlined,
@@ -20,6 +21,8 @@ const statusConfig = {
 const priorityColors = { urgent: 'red', high: 'orange', normal: 'blue', low: 'default' };
 
 const TicketInbox = ({ tickets, selectedId, onSelect, loading }) => {
+  const { t } = useTranslation(['admin']);
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -31,7 +34,7 @@ const TicketInbox = ({ tickets, selectedId, onSelect, loading }) => {
   }
 
   if (!tickets?.length) {
-    return <Empty description="No tickets found" className="py-12" />;
+    return <Empty description={t('admin:support.inbox.noTickets')} className="py-12" />;
   }
 
   return (

@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import {
   App,
   Button,
@@ -34,6 +35,7 @@ const { Text, Paragraph } = Typography;
 const CHILD_RELATIONSHIPS = ['son', 'daughter', 'child', 'sibling'];
 
 const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting = false }) => {
+  const { t } = useTranslation(['student']);
   const [form] = Form.useForm();
   const { modal } = App.useApp();
   const { user } = useAuth();
@@ -43,11 +45,11 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
 
   const confirmClose = useCallback(() => new Promise((resolve) => {
     modal.confirm({
-      title: 'Discard changes?',
-      content: 'You have unsaved changes. Are you sure you want to close without saving?',
-      okText: 'Discard',
+      title: t('student:family.modal.discardConfirm.title'),
+      content: t('student:family.modal.discardConfirm.content'),
+      okText: t('student:family.modal.discardConfirm.okText'),
       okType: 'danger',
-      cancelText: 'Continue editing',
+      cancelText: t('student:family.modal.discardConfirm.cancelText'),
       onOk: () => resolve(true),
       onCancel: () => resolve(false),
     });
@@ -122,8 +124,8 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
         // Show a clearer error message for age restrictions
         if (validation.errors.some(err => err.includes('18'))) {
           modal.error({
-            title: 'Age Requirement Not Met',
-            content: 'Children, sons, daughters, and siblings must be under 18 years old. For adults, please select "Spouse" or "Parent" as the relationship.',
+            title: t('student:family.modal.ageError.title'),
+            content: t('student:family.modal.ageError.content'),
           });
         }
         return;
@@ -148,7 +150,7 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
       } else if (error?.message) {
         // Network or other errors
         modal.error({
-          title: 'Failed to Save',
+          title: t('student:family.modal.saveError.title'),
           content: error.message,
         });
       }
@@ -201,25 +203,25 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
         <h2 className="text-xl font-duotone-bold-extended text-white flex items-center gap-2">
           {isEditing ? (
             <>
-              <EditOutlined /> Edit Family Member
+              <EditOutlined /> {t('student:family.modal.editTitle')}
             </>
           ) : (
             <>
-              <UserAddOutlined /> Add Family Member
+              <UserAddOutlined /> {t('student:family.modal.addTitle')}
             </>
           )}
         </h2>
         <p className="text-emerald-100 text-sm mt-1">
-          {isEditing ? 'Update the family member details below' : 'Add a family member to book activities on their behalf'}
+          {isEditing ? t('student:family.modal.editSubtitle') : t('student:family.modal.addSubtitle')}
         </p>
       </div>
 
       <div className="px-6 py-5">
         <Alert
-          message={isChildRelationship ? "Age restriction applies" : "Add any family member"}
-          description={isChildRelationship 
-            ? "Children, sons, daughters, and siblings must be under 18 years old."
-            : "You can add a spouse, parent, or any adult family member."
+          message={isChildRelationship ? t('student:family.modal.ageAlert.childTitle') : t('student:family.modal.ageAlert.adultTitle')}
+          description={isChildRelationship
+            ? t('student:family.modal.ageAlert.childDesc')
+            : t('student:family.modal.ageAlert.adultDesc')
           }
           type="info"
           showIcon
@@ -239,22 +241,22 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
           {/* Section 1: Personal Info */}
           <section className="space-y-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 mb-5">
             <div className="border-b border-slate-200/70 pb-3 mb-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Personal</p>
-              <h3 className="text-base font-duotone-bold text-slate-800">Basic Information</h3>
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{t('student:family.modal.sections.personal')}</p>
+              <h3 className="text-base font-duotone-bold text-slate-800">{t('student:family.modal.sections.basicInfo')}</h3>
             </div>
             
             {/* Full Name */}
             <Form.Item
-              label={<span className="font-medium text-slate-700">Full Name</span>}
+              label={<span className="font-medium text-slate-700">{t('student:family.modal.fields.fullName')}</span>}
               name="full_name"
               rules={[
-                { required: true, message: 'Please enter the full name' },
-                { min: 2, message: 'Name must be at least 2 characters' },
-                { max: 255, message: 'Name must be less than 255 characters' },
+                { required: true, message: t('student:family.modal.validation.nameRequired') },
+                { min: 2, message: t('student:family.modal.validation.nameMin') },
+                { max: 255, message: t('student:family.modal.validation.nameMax') },
               ]}
             >
               <Input
-                placeholder="Enter full name"
+                placeholder={t('student:family.modal.fields.fullNamePlaceholder')}
                 maxLength={255}
                 autoFocus
                 className="rounded-lg"
@@ -263,35 +265,35 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
 
             {/* Relationship - placed before date so user sees age restriction info */}
             <Form.Item
-              label={<span className="font-medium text-slate-700">Relationship</span>}
+              label={<span className="font-medium text-slate-700">{t('student:family.modal.fields.relationship')}</span>}
               name="relationship"
               rules={[
-                { required: true, message: 'Please select relationship' },
+                { required: true, message: t('student:family.modal.validation.relationshipRequired') },
               ]}
             >
-              <Select 
-                placeholder="Select relationship" 
+              <Select
+                placeholder={t('student:family.modal.fields.relationshipPlaceholder')}
                 className="rounded-lg"
                 onChange={handleRelationshipChange}
               >
-                <Select.Option value="son">👦 Son</Select.Option>
-                <Select.Option value="daughter">👧 Daughter</Select.Option>
-                <Select.Option value="child">🧒 Child</Select.Option>
-                <Select.Option value="spouse">💑 Spouse/Wife</Select.Option>
-                <Select.Option value="sibling">👫 Sibling</Select.Option>
-                <Select.Option value="parent">👨‍👩‍👧 Parent</Select.Option>
-                <Select.Option value="other">👤 Other</Select.Option>
+                <Select.Option value="son">👦 {t('student:family.modal.relationships.son')}</Select.Option>
+                <Select.Option value="daughter">👧 {t('student:family.modal.relationships.daughter')}</Select.Option>
+                <Select.Option value="child">🧒 {t('student:family.modal.relationships.child')}</Select.Option>
+                <Select.Option value="spouse">💑 {t('student:family.modal.relationships.spouse')}</Select.Option>
+                <Select.Option value="sibling">👫 {t('student:family.modal.relationships.sibling')}</Select.Option>
+                <Select.Option value="parent">👨‍👩‍👧 {t('student:family.modal.relationships.parent')}</Select.Option>
+                <Select.Option value="other">👤 {t('student:family.modal.relationships.other')}</Select.Option>
               </Select>
             </Form.Item>
 
             {/* Date of Birth */}
             <Form.Item
-              label={<span className="font-medium text-slate-700">Date of Birth</span>}
+              label={<span className="font-medium text-slate-700">{t('student:family.modal.fields.dateOfBirth')}</span>}
               name="date_of_birth"
               rules={[
-                { required: true, message: 'Please select date of birth' },
+                { required: true, message: t('student:family.modal.validation.dobRequired') },
               ]}
-              extra={<Text type="secondary">{isChildRelationship ? 'Must be under 18 years old' : 'Enter date of birth'}</Text>}
+              extra={<Text type="secondary">{isChildRelationship ? t('student:family.modal.fields.dobUnderAge') : t('student:family.modal.fields.dobEnter')}</Text>}
             >
               <DatePicker
                 style={{ width: '100%' }}
@@ -306,14 +308,14 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
 
             {/* Gender */}
             <Form.Item
-              label={<span className="font-medium text-slate-700">Gender</span>}
+              label={<span className="font-medium text-slate-700">{t('student:family.modal.fields.gender')}</span>}
               name="gender"
             >
-              <Select placeholder="Select gender (optional)" allowClear className="rounded-lg">
-                <Select.Option value="male">Male</Select.Option>
-                <Select.Option value="female">Female</Select.Option>
-                <Select.Option value="other">Other</Select.Option>
-                <Select.Option value="prefer_not_to_say">Prefer not to say</Select.Option>
+              <Select placeholder={t('student:family.modal.fields.genderPlaceholder')} allowClear className="rounded-lg">
+                <Select.Option value="male">{t('student:family.modal.genderOptions.male')}</Select.Option>
+                <Select.Option value="female">{t('student:family.modal.genderOptions.female')}</Select.Option>
+                <Select.Option value="other">{t('student:family.modal.genderOptions.other')}</Select.Option>
+                <Select.Option value="prefer_not_to_say">{t('student:family.modal.genderOptions.preferNotToSay')}</Select.Option>
               </Select>
             </Form.Item>
           </section>
@@ -321,20 +323,20 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
           {/* Section 2: Contact & Medical */}
           <section className="space-y-4 rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 mb-5">
             <div className="border-b border-slate-200/70 pb-3 mb-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Safety</p>
-              <h3 className="text-base font-duotone-bold text-slate-800">Emergency & Medical</h3>
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">{t('student:family.modal.sections.safety')}</p>
+              <h3 className="text-base font-duotone-bold text-slate-800">{t('student:family.modal.sections.emergencyMedical')}</h3>
             </div>
 
             {/* Emergency Contact */}
             <Form.Item
-              label={<span className="font-medium text-slate-700">Emergency Contact</span>}
+              label={<span className="font-medium text-slate-700">{t('student:family.modal.fields.emergencyContact')}</span>}
               name="emergency_contact"
               rules={[
-                { max: 50, message: 'Emergency contact must be less than 50 characters' },
+                { max: 50, message: t('student:family.modal.validation.emergencyMax') },
               ]}
             >
               <Input
-                placeholder="Phone number or contact info (optional)"
+                placeholder={t('student:family.modal.fields.emergencyPlaceholder')}
                 maxLength={50}
                 className="rounded-lg"
               />
@@ -342,20 +344,20 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
 
             {/* Medical Notes */}
             <Form.Item
-              label={<span className="font-medium text-slate-700">Medical Notes</span>}
+              label={<span className="font-medium text-slate-700">{t('student:family.modal.fields.medicalNotes')}</span>}
               name="medical_notes"
               rules={[
-                { max: 2000, message: 'Medical notes must be less than 2000 characters' },
+                { max: 2000, message: t('student:family.modal.validation.medicalMax') },
               ]}
               extra={
                 <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 4 }}>
-                  🔒 Any allergies, medical conditions, or special needs. This information is encrypted and only accessible by authorized staff.
+                  🔒 {t('student:family.modal.fields.medicalHint')}
                 </Paragraph>
               }
             >
               <TextArea
                 rows={3}
-                placeholder="Enter any medical information, allergies, or special needs (optional)"
+                placeholder={t('student:family.modal.fields.medicalPlaceholder')}
                 maxLength={2000}
                 showCount
                 className="rounded-lg"
@@ -366,15 +368,15 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
           {/* Action buttons */}
           <div className="flex justify-end gap-3 pt-2 border-t border-slate-200">
             <Button onClick={handleCancel} className="rounded-lg">
-              Cancel
+              {t('student:family.modal.buttons.cancel')}
             </Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               onClick={handleOk}
               loading={submitting}
               className="rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 border-0 shadow-md hover:shadow-lg transition-all"
             >
-              {isEditing ? 'Update' : 'Add Family Member'}
+              {isEditing ? t('student:family.modal.buttons.update') : t('student:family.modal.buttons.add')}
             </Button>
           </div>
         </Form>

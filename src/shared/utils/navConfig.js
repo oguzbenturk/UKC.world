@@ -77,7 +77,7 @@ const filterNavByPermissions = (items, permissions) => {
 const getNavItemPermissionKey = (path, label) => {
   const p = path?.toLowerCase() || '';
   const l = label?.toLowerCase() || '';
-  
+
   if (p.includes('dashboard') || l === 'dashboard') return 'dashboard';
   if (p.includes('calendar') || l === 'academy') return 'academy';
   if (p.includes('member') || l === 'member' || l === 'membership') return 'membership';
@@ -91,182 +91,177 @@ const getNavItemPermissionKey = (path, label) => {
   if (p.includes('rating') || l.includes('rating') || l.includes('analytics')) return 'analytics';
   if (p.includes('chat') || l === 'chat') return 'chat';
   if (p.includes('admin') || l === 'settings') return 'settings';
-  
+
   // Default to showing the item
   return 'dashboard';
 };
 
+// Shared sub-item lists (reused across multiple roles)
+const SHOP_SUBITEMS = [
+  { to: '/shop/kitesurf', label: 'Kitesurf', labelKey: 'common:nav.kitesurf' },
+  { to: '/shop/wingfoil', label: 'Wing Foil', labelKey: 'common:nav.wingFoil' },
+  { to: '/shop/foiling', label: 'Foiling', labelKey: 'common:nav.foiling' },
+  { to: '/shop/efoil', label: 'E-Foiling', labelKey: 'common:nav.efoiling' },
+  { to: '/shop/ion', label: 'ION', labelKey: 'common:nav.ion' },
+  { to: '/shop/secondwind', label: 'SecondWind', labelKey: 'common:nav.secondwind' }
+];
+
+const ACADEMY_PUBLIC_SUBITEMS = [
+  { to: '/academy/kite-lessons', label: 'Kite Lessons', labelKey: 'common:nav.kiteLessons' },
+  { to: '/academy/foil-lessons', label: 'Foil Lessons', labelKey: 'common:nav.foilLessons' },
+  { to: '/academy/wing-lessons', label: 'Wing Lessons', labelKey: 'common:nav.wingLessons' },
+  { to: '/academy/efoil-lessons', label: 'E-Foil Lessons', labelKey: 'common:nav.efoilLessons' },
+  { to: '/academy/premium-lessons', label: 'Premium Lessons', labelKey: 'common:nav.premiumLessons' }
+];
+
+const RENTAL_SUBITEMS = [
+  { to: '/rental/standard', label: 'Standard Equipment', labelKey: 'common:nav.standardEquipment' },
+  { to: '/rental/sls', label: 'SLS Equipment', labelKey: 'common:nav.slsEquipment' },
+  { to: '/rental/dlab', label: 'D/LAB Equipment', labelKey: 'common:nav.dlabEquipment' },
+  { to: '/rental/efoil', label: 'E-Foil Equipment', labelKey: 'common:nav.efoilEquipment' }
+];
+
+const STAY_SUBITEMS = [
+  { to: '/stay/home', label: 'Home', labelKey: 'common:nav.home' },
+  { to: '/stay/hotel', label: 'Hotel', labelKey: 'common:nav.hotel' }
+];
+
+const EXPERIENCE_SUBITEMS = [
+  { to: '/experience/kite-packages', label: 'Kite Packages', labelKey: 'common:nav.kitePackages' },
+  { to: '/experience/wing-packages', label: 'Wing Packages', labelKey: 'common:nav.wingPackages' },
+  { to: '/experience/downwinders', label: 'DownWinders', labelKey: 'common:nav.downwinders' },
+  { to: '/experience/camps', label: 'Camps', labelKey: 'common:nav.camps' }
+];
+
+const COMMUNITY_SUBITEMS = [
+  { to: '/community/team', label: 'Team', labelKey: 'common:nav.team' },
+  { to: '/chat', label: 'Chat', labelKey: 'common:nav.chat' },
+  { to: '/services/events', label: 'Events', labelKey: 'common:nav.events' }
+];
+
 export const getNavItemsForRole = (role, userPermissions = null) => {
   const r = role?.toLowerCase?.();
-  
+
   // Outsider role OR unauthenticated (guest) - ukc.World custom menu structure with styled dots (colors from actual images)
   if (r === ROLES.OUTSIDER || !r || r === 'undefined') {
     return [
       ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' }, // pembe (pink) - TOP POSITION
-        isShopLink: true, // Special flag for shop - navigates directly
-        subItems: [
-          { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wingfoil', label: 'Wing Foil' },
-          { to: '/shop/foiling', label: 'Foiling' },
-          { to: '/shop/efoil', label: 'E-Foiling' },
-          { to: '/shop/ion', label: 'ION' },
-          { to: '/shop/secondwind', label: 'SecondWind' }
-        ]
+        labelKey: 'common:nav.shop',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
+        isShopLink: true,
+        subItems: SHOP_SUBITEMS
       })] : []),
       item('/academy', 'Academy', 'AcademicCapIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
+        labelKey: 'common:nav.academy',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
         isDirectLink: true,
-        subItems: [
-          { to: '/academy/kite-lessons', label: 'Kite Lessons' },
-          { to: '/academy/foil-lessons', label: 'Foil Lessons' },
-          { to: '/academy/wing-lessons', label: 'Wing Lessons' },
-          { to: '/academy/efoil-lessons', label: 'E-Foil Lessons' },
-          { to: '/academy/premium-lessons', label: 'Premium Lessons' }
-        ]
+        subItems: ACADEMY_PUBLIC_SUBITEMS
       }),
       item('/rental', 'Rental', 'CubeIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' }, // turuncu (orange)
+        labelKey: 'common:nav.rental',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' },
         isDirectLink: true,
-        subItems: [
-          { to: '/rental/standard', label: 'Standard Equipment' },
-          { to: '/rental/sls', label: 'SLS Equipment' },
-          { to: '/rental/dlab', label: 'D/LAB Equipment' },
-          { to: '/rental/efoil', label: 'E-Foil Equipment' }
-        ]
+        subItems: RENTAL_SUBITEMS
       }),
       item('/members/offerings', 'Member', 'UsersIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
+        labelKey: 'common:nav.member',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
       }),
       item('/care', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' } // teal
+        labelKey: 'common:nav.careRepairs',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
       }),
       item('/stay', 'Stay', 'HomeIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }, // mavi (blue)
+        labelKey: 'common:nav.stay',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' },
         isDirectLink: true,
-        subItems: [
-          { to: '/stay/home', label: 'Home' },
-          { to: '/stay/hotel', label: 'Hotel' }
-        ]
+        subItems: STAY_SUBITEMS
       }),
       item('/experience', 'Experience', 'CalendarDaysIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
+        labelKey: 'common:nav.experience',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' },
         isDirectLink: true,
-        subItems: [
-          { to: '/experience/kite-packages', label: 'Kite Packages' },
-          { to: '/experience/wing-packages', label: 'Wing Packages' },
-          { to: '/experience/downwinders', label: 'DownWinders' },
-          { to: '/experience/camps', label: 'Camps' }
-        ]
+        subItems: EXPERIENCE_SUBITEMS
       }),
-      // Community - Sky Blue (with dot styling like others)
       item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }, // sky blue with dot
-        subItems: [
-          { to: '/community/team', label: 'Team' },
-          { to: '/chat', label: 'Chat' },
-          { to: '/services/events', label: 'Events' }
-        ]
+        labelKey: 'common:nav.community',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' },
+        subItems: COMMUNITY_SUBITEMS
       }),
       item('/contact', 'Contact', 'EnvelopeIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' } // slate
+        labelKey: 'common:nav.contact',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' }
       })
     ];
   }
-  
+
   if ((r === ROLES.STUDENT || r === ROLES.TRUSTED_CUSTOMER) && featureFlags.studentPortal) {
     return [
-      // 1. Shop - Pink
       ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' }, // pembe (pink) - TOP POSITION
-        isShopLink: true, // Special flag for shop - navigates directly
-        subItems: [
-          { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wingfoil', label: 'Wing Foil' },
-          { to: '/shop/foiling', label: 'Foiling' },
-          { to: '/shop/efoil', label: 'E-Foiling' },
-          { to: '/shop/ion', label: 'ION' },
-          { to: '/shop/secondwind', label: 'SecondWind' }
-        ]
+        labelKey: 'common:nav.shop',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
+        isShopLink: true,
+        subItems: SHOP_SUBITEMS
       })] : []),
-      // 2. Academy - Light Green
       item('/academy', 'Academy', 'AcademicCapIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' }, // açık yeşil (light green)
+        labelKey: 'common:nav.academy',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
         isDirectLink: true,
         subItems: [
-          { to: '/student/dashboard', label: 'Dashboard' },
-          { to: '/student/schedule', label: 'My Lessons' },
-          { to: '/academy/kite-lessons', label: 'Kite Lessons' },
-          { to: '/academy/foil-lessons', label: 'Foil Lessons' },
-          { to: '/academy/wing-lessons', label: 'Wing Lessons' },
-          { to: '/academy/efoil-lessons', label: 'E-Foil Lessons' },
-          { to: '/academy/premium-lessons', label: 'Premium Lessons' }
+          { to: '/student/dashboard', label: 'Dashboard', labelKey: 'common:nav.dashboard' },
+          { to: '/student/schedule', label: 'My Lessons', labelKey: 'common:nav.myLessons' },
+          ...ACADEMY_PUBLIC_SUBITEMS
         ]
       }),
-      // 3. Rental - Orange
       item('/rental', 'Rental', 'CubeIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' }, // turuncu (orange)
+        labelKey: 'common:nav.rental',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' },
         isDirectLink: true,
-        subItems: [
-          { to: '/rental/standard', label: 'Standard Equipment' },
-          { to: '/rental/sls', label: 'SLS Equipment' },
-          { to: '/rental/dlab', label: 'D/LAB Equipment' },
-          { to: '/rental/efoil', label: 'E-Foil Equipment' },
-        ]
+        subItems: RENTAL_SUBITEMS
       }),
-      // 4. Member - Pistachio Green
       item('/members/offerings', 'Member', 'SparklesIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' } // fıstık yeşili (pistachio green)
+        labelKey: 'common:nav.member',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
       }),
-      // 5. Care - Teal
       item('/repairs', 'Care (Repairs)', 'WrenchScrewdriverIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' } // teal
+        labelKey: 'common:nav.careRepairs',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
       }),
-      // 6. Stay - Blue
       item('/stay', 'Stay', 'HomeIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }, // mavi (blue)
+        labelKey: 'common:nav.stay',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' },
         isDirectLink: true,
-        subItems: [
-          { to: '/stay/home', label: 'Home' },
-          { to: '/stay/hotel', label: 'Hotel' }
-        ]
+        subItems: STAY_SUBITEMS
       }),
-      // 7. Experience - Yellow
       item('/experience', 'Experience', 'CalendarDaysIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }, // sarı (yellow)
+        labelKey: 'common:nav.experience',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' },
         isDirectLink: true,
-        subItems: [
-          { to: '/experience/kite-packages', label: 'Kite Packages' },
-          { to: '/experience/wing-packages', label: 'Wing Packages' },
-          { to: '/experience/downwinders', label: 'DownWinders' },
-          { to: '/experience/camps', label: 'Camps' }
-        ]
+        subItems: EXPERIENCE_SUBITEMS
       }),
-      // 8. Community - Sky Blue (with dot styling like others)
       item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
-        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }, // sky blue with dot
-        subItems: [
-          { to: '/community/team', label: 'Team' },
-          { to: '/chat', label: 'Chat' },
-          { to: '/services/events', label: 'Events' }
-        ]
+        labelKey: 'common:nav.community',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' },
+        subItems: COMMUNITY_SUBITEMS
       }),
-      // --- System Items ---
       item('/student/payments', 'Wallet Payments', 'WalletIcon', {
-        customStyle: { textColor: '#10b981' } // emerald
+        labelKey: 'common:nav.walletPayments',
+        customStyle: { textColor: '#10b981' }
       }),
       item('/student/support', 'Support', 'LifebuoyIcon', {
-        customStyle: { textColor: '#f59e0b' } // amber
+        labelKey: 'common:nav.support',
+        customStyle: { textColor: '#f59e0b' }
       }),
-      // Contact Us - Slate
       item('/contact', 'Contact', 'EnvelopeIcon', {
-        customStyle: { textColor: '#94a3b8' } // slate
+        labelKey: 'common:nav.contact',
+        customStyle: { textColor: '#94a3b8' }
       }),
       item('/student/profile', 'Profile', 'UserCircleIcon', {
-        customStyle: { textColor: '#cbd5e1' }, // slate-300 (matches logout in dark mode)
+        labelKey: 'common:nav.profile',
+        customStyle: { textColor: '#cbd5e1' },
         subItems: [
-          { to: '/student/profile', label: 'Profile Overview' },
-          { to: '/student/family', label: 'Family' }
+          { to: '/student/profile', label: 'Profile Overview', labelKey: 'common:nav.profileOverview' },
+          { to: '/student/family', label: 'Family', labelKey: 'common:nav.family' }
         ]
       })
     ];
@@ -275,49 +270,42 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
 
   if (r === ROLES.INSTRUCTOR) {
     return [
-      // Shop - Pink - TOP POSITION (same as outsider/student)
       ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
+        labelKey: 'common:nav.shop',
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
         isShopLink: true,
-        subItems: [
-          { to: '/shop/kitesurf', label: 'Kitesurf' },
-          { to: '/shop/wingfoil', label: 'Wing Foil' },
-          { to: '/shop/foiling', label: 'Foiling' },
-          { to: '/shop/efoil', label: 'E-Foiling' },
-          { to: '/shop/ion', label: 'ION' },
-          { to: '/shop/secondwind', label: 'SecondWind' }
-        ]
+        subItems: SHOP_SUBITEMS
       })] : []),
-      // Dashboard - Blue
       item('/instructor/dashboard', 'Dashboard', 'HomeIcon', {
+        labelKey: 'common:nav.dashboard',
         customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }
       }),
-      // My Students - Cyan
       item('/instructor/students', 'My Students', 'UsersIcon', {
+        labelKey: 'common:nav.myStudents',
         customStyle: { dotColor: '#2d6a3e', textColor: '#06b6d4' }
       }),
-      // Academy - Light Green (Lessons, Calendar, Events)
       item('/calendars', 'Academy', 'AcademicCapIcon', {
+        labelKey: 'common:nav.academy',
         customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
         subItems: [
-          { to: '/bookings/calendar', label: 'Calendar View' },
-          { to: '/services/events', label: 'Events' }
+          { to: '/bookings/calendar', label: 'Calendar View', labelKey: 'common:nav.calendarView' },
+          { to: '/services/events', label: 'Events', labelKey: 'common:nav.events' }
         ]
       }),
-      // Care - Teal
       item('/repairs', 'Care', 'WrenchScrewdriverIcon', {
+        labelKey: 'common:nav.care',
         customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
       }),
-      // Finance - Emerald
       item('/finance', 'Finance', 'CurrencyDollarIcon', {
+        labelKey: 'common:nav.finance',
         customStyle: { dotColor: '#2d6a3e', textColor: '#10b981' }
       }),
-      // Messages - Sky Blue
       item('/chat', 'Messages', 'ChatBubbleLeftRightIcon', {
+        labelKey: 'common:nav.messages',
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
       }),
-      // Contact Us - Slate
       item('/contact', 'Contact', 'EnvelopeIcon', {
+        labelKey: 'common:nav.contact',
         customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' }
       })
     ];
@@ -325,81 +313,79 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
 
   if ([ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER].includes(r)) {
     return [
-      // --- Top Priority (icon only, no dots) ---
-      // Dashboard - Blue
       item('/dashboard', 'Dashboard', 'HomeIcon', {
+        labelKey: 'common:nav.dashboard',
         customStyle: { textColor: '#3b82f6' }
       }),
-      // Customers - Cyan
       item('/customers', 'Customers', 'UsersIcon', {
+        labelKey: 'common:nav.customers',
         customStyle: { textColor: '#06b6d4' }
       }),
-      // Instructors - Yellow
       item('/instructors', 'Instructors', 'AcademicCapIcon', {
+        labelKey: 'common:nav.instructors',
         customStyle: { textColor: '#eab308' },
         isDirectLink: true,
         subItems: [
-          { to: '/instructors/managers', label: 'Managers', noDot: true }
+          { to: '/instructors/managers', label: 'Managers', labelKey: 'common:nav.managers', noDot: true }
         ]
       }),
-      // Calendars - Teal (for calendar views)
       item('/calendars', 'Calendars', 'CalendarDaysIcon', {
+        labelKey: 'common:nav.calendars',
         customStyle: { textColor: '#14b8a6' },
         subItems: [
-          { to: '/calendars/shop-orders', label: 'Shop', dotColor: '#ec4899' },
-          { to: '/calendars/lessons', label: 'Academy', dotColor: '#4ade80' },
-          { to: '/calendars/rentals', label: 'Rental', dotColor: '#fb923c' },
-          { to: '/calendars/members', label: 'Member', dotColor: '#93c47d' },
-          { to: '/repairs', label: 'Care', dotColor: '#14b8a6' },
-          { to: '/calendars/stay', label: 'Stay', dotColor: '#3b82f6' },
-          { to: '/calendars/events', label: 'Community (Events)', dotColor: '#0ea5e9' }
+          { to: '/calendars/shop-orders', label: 'Shop', labelKey: 'common:nav.shop', dotColor: '#ec4899' },
+          { to: '/calendars/lessons', label: 'Academy', labelKey: 'common:nav.academy', dotColor: '#4ade80' },
+          { to: '/calendars/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
+          { to: '/calendars/members', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
+          { to: '/repairs', label: 'Care', labelKey: 'common:nav.care', dotColor: '#14b8a6' },
+          { to: '/calendars/stay', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
+          { to: '/calendars/events', label: 'Community (Events)', labelKey: 'common:nav.communityEvents', dotColor: '#0ea5e9' }
         ]
       }),
-      // --- Admin Tools (icon only, no dots) ---
-      // Services Parameters - Orange
       item('/services', 'Services Parameters', 'CogIcon', {
+        labelKey: 'common:nav.servicesParameters',
         customStyle: { textColor: '#fb923c' },
         subItems: [
-          { to: '/services/shop', label: 'Shop', dotColor: '#ec4899' },
-          { to: '/services/lessons', label: 'Academy', dotColor: '#4ade80' },
-          { to: '/services/rentals', label: 'Rental', dotColor: '#fb923c' },
-          { to: '/services/memberships', label: 'Member', dotColor: '#93c47d' },
-          { to: '/services/accommodation', label: 'Stay', dotColor: '#3b82f6' },
-          { to: '/services/packages', label: 'Experience', dotColor: '#eab308' },
-          { to: '/services/events', label: 'Events', dotColor: '#0ea5e9' }
+          { to: '/services/shop', label: 'Shop', labelKey: 'common:nav.shop', dotColor: '#ec4899' },
+          { to: '/services/lessons', label: 'Academy', labelKey: 'common:nav.academy', dotColor: '#4ade80' },
+          { to: '/services/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
+          { to: '/services/memberships', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
+          { to: '/services/accommodation', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
+          { to: '/services/packages', label: 'Experience', labelKey: 'common:nav.experience', dotColor: '#eab308' },
+          { to: '/services/events', label: 'Events', labelKey: 'common:nav.events', dotColor: '#0ea5e9' }
         ]
       }),
-      // Finance - Emerald
       item('/finance', 'Finance', 'CurrencyDollarIcon', {
+        labelKey: 'common:nav.finance',
         customStyle: { textColor: '#10b981' },
         subItems: [
-          { to: '/finance/shop', label: 'Shop', dotColor: '#ec4899' },
-          { to: '/finance/lessons', label: 'Academy', dotColor: '#4ade80' },
-          { to: '/finance/rentals', label: 'Rental', dotColor: '#fb923c' },
-          { to: '/finance/membership', label: 'Member', dotColor: '#93c47d' },
-          { to: '/finance/accommodation', label: 'Stay', dotColor: '#3b82f6' },
-          { to: '/finance/events', label: 'Community', dotColor: '#0ea5e9' },
-            { to: '/finance/payment-history', label: 'Payment History', icon: 'WalletIcon' },
-            { to: '/finance/wallet-deposits', label: 'Wallet Deposits', icon: 'WalletIcon' },
-            { to: '/finance/expenses', label: 'Expenses', icon: 'CurrencyDollarIcon' },
-          { to: '/finance', label: 'Overall', icon: 'PresentationChartBarIcon' }
+          { to: '/finance/shop', label: 'Shop', labelKey: 'common:nav.shop', dotColor: '#ec4899' },
+          { to: '/finance/lessons', label: 'Academy', labelKey: 'common:nav.academy', dotColor: '#4ade80' },
+          { to: '/finance/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
+          { to: '/finance/membership', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
+          { to: '/finance/accommodation', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
+          { to: '/finance/events', label: 'Community', labelKey: 'common:nav.community', dotColor: '#0ea5e9' },
+          { to: '/finance/payment-history', label: 'Payment History', labelKey: 'common:nav.paymentHistory', icon: 'WalletIcon' },
+          { to: '/finance/wallet-deposits', label: 'Wallet Deposits', labelKey: 'common:nav.walletDeposits', icon: 'WalletIcon' },
+          { to: '/finance/expenses', label: 'Expenses', labelKey: 'common:nav.expenses', icon: 'CurrencyDollarIcon' },
+          { to: '/finance', label: 'Overall', labelKey: 'common:nav.overall', icon: 'PresentationChartBarIcon' }
         ]
       }),
-      // Marketing - Rose
       item('/marketing', 'Marketing', 'MegaphoneIcon', {
+        labelKey: 'common:nav.marketing',
         customStyle: { textColor: '#f43f5e' },
         subItems: [
-          { to: '/marketing', label: 'Campaign Builder', icon: 'RocketLaunchIcon' },
-          { to: '/quick-links', label: 'Links & Forms', icon: 'LinkIcon' },
-          { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' }
+          { to: '/marketing', label: 'Campaign Builder', labelKey: 'common:nav.campaignBuilder', icon: 'RocketLaunchIcon' },
+          { to: '/quick-links', label: 'Links & Forms', labelKey: 'common:nav.linksAndForms', icon: 'LinkIcon' },
+          { to: '/admin/vouchers', label: 'Vouchers', labelKey: 'common:nav.vouchers', icon: 'SparklesIcon' }
         ]
       }),
-      // Rating Analytics - Amber
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
+        labelKey: 'common:nav.ratingAnalytics',
         customStyle: { textColor: '#f59e0b' }
       }),
-      // Shop - Pink (links to /shop - at bottom)
       item('/shop', 'Shop', 'ShoppingBagIcon', {
+        labelKey: 'common:nav.shop',
         customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
         isShopLink: true
       })
@@ -408,114 +394,99 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
 
   // For any custom/unrecognized roles (e.g., "Front Desk"), provide navigation
   // filtered by their actual permissions from the database.
-  // All items with full styling - only items they have permissions for will show.
   const allStaffNavItems = [
-    // Dashboard - Blue (icon only, no dot) - TOP PRIORITY
     item('/dashboard', 'Dashboard', 'HomeIcon', {
+      labelKey: 'common:nav.dashboard',
       customStyle: { textColor: '#3b82f6' }
     }),
-    // Customers - Cyan (icon only, no dot) - 2nd TOP PRIORITY
     item('/customers', 'Customers', 'UsersIcon', {
+      labelKey: 'common:nav.customers',
       customStyle: { textColor: '#06b6d4' }
     }),
-    // --- UKC Services in standard order ---
-    // 1. Shop - Pink
     ...(featureFlags.publicShopEnabled ? [item('/shop', 'Shop', 'ShoppingBagIcon', {
+      labelKey: 'common:nav.shop',
       customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
       isShopLink: true,
-      subItems: [
-        { to: '/shop/kitesurf', label: 'Kitesurf' },
-        { to: '/shop/wingfoil', label: 'Wing Foil' },
-        { to: '/shop/foiling', label: 'Foiling' },
-        { to: '/shop/efoil', label: 'E-Foiling' },
-        { to: '/shop/ion', label: 'ION' },
-        { to: '/shop/secondwind', label: 'SecondWind' }
-      ]
+      subItems: SHOP_SUBITEMS
     })] : []),
-    // 2. Academy - Light Green
     item('/calendars', 'Academy', 'AcademicCapIcon', {
+      labelKey: 'common:nav.academy',
       customStyle: { dotColor: '#2d6a3e', textColor: '#4ade80' },
       subItems: [
-        { to: '/calendars/lessons', label: 'Lessons' },
-        { to: '/inventory', label: 'Inventory' }
+        { to: '/calendars/lessons', label: 'Lessons', labelKey: 'common:nav.lessons' },
+        { to: '/inventory', label: 'Inventory', labelKey: 'common:nav.inventory' }
       ]
     }),
-    // 3. Rental - Orange (calendar view for rentals)
     item('/calendars/rentals', 'Rental', 'CubeIcon', {
+      labelKey: 'common:nav.rental',
       customStyle: { dotColor: '#2d6a3e', textColor: '#fb923c' }
     }),
-    // 4. Member - Pistachio Green
     item('/members/offerings', 'Member', 'SparklesIcon', {
+      labelKey: 'common:nav.member',
       customStyle: { dotColor: '#2d6a3e', textColor: '#93c47d' }
     }),
-    // 5. Care - Teal
     item('/repairs', 'Care', 'WrenchScrewdriverIcon', {
+      labelKey: 'common:nav.care',
       customStyle: { dotColor: '#2d6a3e', textColor: '#14b8a6' }
     }),
-    // 6. Stay - Blue
     item('/calendars/stay', 'Stay', 'HomeIcon', {
+      labelKey: 'common:nav.stay',
       customStyle: { dotColor: '#2d6a3e', textColor: '#3b82f6' }
     }),
-    // 7. Experience - Yellow (Packages/Events)
     item('/services/packages', 'Experience', 'CalendarDaysIcon', {
+      labelKey: 'common:nav.experience',
       customStyle: { dotColor: '#2d6a3e', textColor: '#eab308' }
     }),
-    // 8. Community - Sky Blue (with dot styling)
     item('/community', 'Community', 'ChatBubbleLeftRightIcon', {
+      labelKey: 'common:nav.community',
       customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' },
-      subItems: [
-        { to: '/community/team', label: 'Team' },
-        { to: '/chat', label: 'Chat' },
-        { to: '/services/events', label: 'Events' }
-      ]
+      subItems: COMMUNITY_SUBITEMS
     }),
-    // --- Staff/Admin Tools ---
-    // Instructors - Yellow (requires instructors permissions)
     item('/instructors', 'Instructors', 'AcademicCapIcon', {
+      labelKey: 'common:nav.instructors',
       customStyle: { textColor: '#eab308' },
       subItems: [
-        { to: '/instructors/managers', label: 'Managers', dotColor: '#8b5cf6' }
+        { to: '/instructors/managers', label: 'Managers', labelKey: 'common:nav.managers', dotColor: '#8b5cf6' }
       ]
     }),
-    // Services Settings - Orange (requires services:write or admin)
     item('/services', 'Services Settings', 'CogIcon', {
+      labelKey: 'common:nav.servicesSettings',
       customStyle: { textColor: '#fb923c' },
       subItems: [
-        { to: '/services/lessons', label: 'Lesson Parameters' },
-        { to: '/services/rentals', label: 'Rental Parameters' },
-        { to: '/services/packages', label: 'Package Manager' },
-        { to: '/services/accommodation', label: 'Accommodation' },
-        { to: '/services/shop', label: 'Shop Management' },
-        { to: '/services/memberships', label: 'Memberships' },
-        { to: '/services/categories', label: 'Category Parameters' },
-        { to: '/calendars/events', label: 'Event Manager' }
+        { to: '/services/lessons', label: 'Lesson Parameters', labelKey: 'common:nav.lessonParameters' },
+        { to: '/services/rentals', label: 'Rental Parameters', labelKey: 'common:nav.rentalParameters' },
+        { to: '/services/packages', label: 'Package Manager', labelKey: 'common:nav.packageManager' },
+        { to: '/services/accommodation', label: 'Accommodation', labelKey: 'common:nav.accommodation' },
+        { to: '/services/shop', label: 'Shop Management', labelKey: 'common:nav.shopManagement' },
+        { to: '/services/memberships', label: 'Memberships', labelKey: 'common:nav.memberships' },
+        { to: '/services/categories', label: 'Category Parameters', labelKey: 'common:nav.categoryParameters' },
+        { to: '/calendars/events', label: 'Event Manager', labelKey: 'common:nav.eventManager' }
       ]
     }),
-    // Finance - Emerald (requires finances permissions)
     item('/finance', 'Finance', 'CurrencyDollarIcon', {
+      labelKey: 'common:nav.finance',
       customStyle: { textColor: '#10b981' },
       subItems: [
-        { to: '/finance', label: 'Overall' },
-        { to: '/finance/lessons', label: 'Lessons' },
-        { to: '/finance/rentals', label: 'Rentals' },
-        { to: '/finance/membership', label: 'Membership' },
-        { to: '/finance/shop', label: 'Shop' },
-        { to: '/finance/daily-operations', label: 'Daily Operations' },
-        { to: '/finance/expenses', label: 'Expenses' }
-        // Note: Refunds only visible to admin/manager/owner - not in this menu
+        { to: '/finance', label: 'Overall', labelKey: 'common:nav.overall' },
+        { to: '/finance/lessons', label: 'Lessons', labelKey: 'common:nav.lessons' },
+        { to: '/finance/rentals', label: 'Rentals', labelKey: 'common:nav.rentals' },
+        { to: '/finance/membership', label: 'Membership', labelKey: 'common:nav.membership' },
+        { to: '/finance/shop', label: 'Shop', labelKey: 'common:nav.shop' },
+        { to: '/finance/daily-operations', label: 'Daily Operations', labelKey: 'common:nav.dailyOperations' },
+        { to: '/finance/expenses', label: 'Expenses', labelKey: 'common:nav.expenses' }
       ]
     }),
-    // Marketing - Rose (requires marketing or admin permissions)
     item('/marketing', 'Marketing', 'MegaphoneIcon', {
+      labelKey: 'common:nav.marketing',
       customStyle: { textColor: '#f43f5e' },
       subItems: [
-        { to: '/marketing', label: 'Campaign Builder', icon: 'RocketLaunchIcon' },
-        { to: '/quick-links', label: 'Links & Forms', icon: 'LinkIcon' },
-        { to: '/admin/vouchers', label: 'Vouchers', icon: 'SparklesIcon' }
+        { to: '/marketing', label: 'Campaign Builder', labelKey: 'common:nav.campaignBuilder', icon: 'RocketLaunchIcon' },
+        { to: '/quick-links', label: 'Links & Forms', labelKey: 'common:nav.linksAndForms', icon: 'LinkIcon' },
+        { to: '/admin/vouchers', label: 'Vouchers', labelKey: 'common:nav.vouchers', icon: 'SparklesIcon' }
       ]
     }),
-    // Rating Analytics - Amber (requires reports permissions)
     item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
+      labelKey: 'common:nav.ratingAnalytics',
       customStyle: { textColor: '#f59e0b' }
     })
   ];
@@ -524,29 +495,25 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
   if (userPermissions && typeof userPermissions === 'object') {
     return filterNavByPermissions(allStaffNavItems, userPermissions);
   }
-  
+
   // If no permissions provided, return all items (backward compatibility)
   return allStaffNavItems;
 };
 
 export const getSystemItemsForRole = (role, userPermissions = null) => {
   const r = role?.toLowerCase?.();
-  
-  // For outsider, student, trusted_customer roles, and unauthenticated users - no system items
+
   if (r === ROLES.OUTSIDER || r === ROLES.STUDENT || r === ROLES.TRUSTED_CUSTOMER || !r || r === 'undefined') {
     return [];
   }
-  
-  // For admin, manager, developer - settings moved to /settings page
+
   if ([ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER].includes(r)) {
     return [];
   }
-  
-  // For custom roles - settings moved to /settings page
+
   if (userPermissions && (userPermissions['admin:settings'] === true || userPermissions['admin:roles'] === true)) {
     return [];
   }
-  
-  // Custom roles without admin permissions - no settings menu
+
   return [];
 };

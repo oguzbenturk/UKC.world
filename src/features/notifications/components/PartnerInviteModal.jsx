@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, message } from 'antd';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -26,6 +27,7 @@ const formatDate = (dateStr) => {
 };
 
 const PartnerInviteModal = () => {
+  const { t } = useTranslation(['common']);
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [invite, setInvite] = useState(null);
@@ -69,13 +71,13 @@ const PartnerInviteModal = () => {
     setLoading(true);
     try {
       await apiClient.post(`/bookings/${invite.bookingId}/confirm-partner`);
-      message.success('Lesson accepted! It will appear on the calendar for confirmation.');
+      message.success(t('common:notifications.lessonInviteAccepted'));
       setVisible(false);
       setInvite(null);
       queryClient.invalidateQueries({ queryKey: ['partner-invites'] });
       queryClient.invalidateQueries({ queryKey: ['my-group-bookings'] });
     } catch (err) {
-      message.error(err.response?.data?.error || 'Failed to accept invite');
+      message.error(err.response?.data?.error || t('common:notifications.failAcceptInvite'));
     } finally {
       setLoading(false);
     }
@@ -86,12 +88,12 @@ const PartnerInviteModal = () => {
     setLoading(true);
     try {
       await apiClient.post(`/bookings/${invite.bookingId}/decline-partner`);
-      message.info('Invite declined. Package hours have been refunded.');
+      message.info(t('common:notifications.inviteDeclinedRefunded'));
       setVisible(false);
       setInvite(null);
       queryClient.invalidateQueries({ queryKey: ['partner-invites'] });
     } catch (err) {
-      message.error(err.response?.data?.error || 'Failed to decline invite');
+      message.error(err.response?.data?.error || t('common:notifications.failDeclineInvite'));
     } finally {
       setLoading(false);
     }
@@ -122,9 +124,9 @@ const PartnerInviteModal = () => {
             <UserOutlined className="text-blue-500 text-lg" />
           </div>
           <div>
-            <h3 className="text-gray-900 text-lg font-bold m-0">Lesson Invite</h3>
+            <h3 className="text-gray-900 text-lg font-bold m-0">{t('common:notifications.lessonInvite')}</h3>
             <p className="text-gray-500 text-sm m-0">
-              {invite.bookerName || 'Your friend'} wants to book a lesson with you
+              {t('common:notifications.inviteSubtitle', { name: invite.bookerName || t('common:notifications.friendWants') })}
             </p>
           </div>
         </div>
@@ -140,8 +142,8 @@ const PartnerInviteModal = () => {
               <UserOutlined className="text-blue-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-0 font-medium uppercase tracking-wide">Lesson</p>
-              <p className="text-sm text-gray-900 font-semibold mb-0">{invite.serviceName || 'Group Lesson'}</p>
+              <p className="text-xs text-gray-400 mb-0 font-medium uppercase tracking-wide">{t('common:notifications.lesson')}</p>
+              <p className="text-sm text-gray-900 font-semibold mb-0">{invite.serviceName || t('common:notifications.lesson')}</p>
             </div>
           </div>
 
@@ -150,7 +152,7 @@ const PartnerInviteModal = () => {
               <CalendarOutlined className="text-amber-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-0 font-medium uppercase tracking-wide">Date</p>
+              <p className="text-xs text-gray-400 mb-0 font-medium uppercase tracking-wide">{t('common:notifications.date')}</p>
               <p className="text-sm text-gray-900 font-semibold mb-0">{formatDate(invite.date)}</p>
             </div>
           </div>
@@ -160,7 +162,7 @@ const PartnerInviteModal = () => {
               <ClockCircleOutlined className="text-emerald-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-0 font-medium uppercase tracking-wide">Time &amp; Duration</p>
+              <p className="text-xs text-gray-400 mb-0 font-medium uppercase tracking-wide">{t('common:notifications.timeAndDuration')}</p>
               <p className="text-sm text-gray-900 font-semibold mb-0">
                 {formatTime(invite.startTime)} &middot; {invite.duration || 1}h
               </p>
@@ -170,7 +172,7 @@ const PartnerInviteModal = () => {
 
         {invite.packageRemainingHours != null && (
           <p className="text-xs text-gray-400 text-center mb-4">
-            {invite.duration || 1}h will be deducted from your package ({invite.packageRemainingHours}h remaining)
+            {t('common:notifications.hoursDeducted', { hours: invite.duration || 1, remaining: invite.packageRemainingHours })}
           </p>
         )}
 
@@ -184,7 +186,7 @@ const PartnerInviteModal = () => {
             onClick={handleDecline}
             className="!h-11 !rounded-xl"
           >
-            Decline
+            {t('common:notifications.decline')}
           </Button>
           <Button
             type="primary"
@@ -195,7 +197,7 @@ const PartnerInviteModal = () => {
             onClick={handleAccept}
             className="!bg-gray-900 !border-gray-900 hover:!bg-gray-800 !h-11 !font-semibold !rounded-xl"
           >
-            Accept
+            {t('common:notifications.accept')}
           </Button>
         </div>
       </div>

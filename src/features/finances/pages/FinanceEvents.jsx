@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import { CalendarOutlined } from '@ant-design/icons';
@@ -16,36 +17,16 @@ const accentStyles = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-// Quick date range presets
-const getQuickRanges = () => ({
-  today: {
-    label: 'Today',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
-  },
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
-
 const FinanceEvents = () => {
+  const { t } = useTranslation(['manager']);
+
+  const getQuickRanges = () => ({
+    today: { label: t('manager:finances.overview.quickRanges.today'), startDate: dayjs().format('YYYY-MM-DD'), endDate: dayjs().format('YYYY-MM-DD') },
+    thisWeek: { label: t('manager:finances.overview.quickRanges.thisWeek'), startDate: dayjs().startOf('week').format('YYYY-MM-DD'), endDate: dayjs().endOf('week').format('YYYY-MM-DD') },
+    thisMonth: { label: t('manager:finances.overview.quickRanges.thisMonth'), startDate: dayjs().startOf('month').format('YYYY-MM-DD'), endDate: dayjs().endOf('month').format('YYYY-MM-DD') },
+    thisYear: { label: t('manager:finances.overview.quickRanges.thisYear'), startDate: dayjs().startOf('year').format('YYYY-MM-DD'), endDate: dayjs().endOf('year').format('YYYY-MM-DD') },
+    allHistory: { label: t('manager:finances.overview.quickRanges.allHistory'), startDate: '2020-01-01', endDate: dayjs().endOf('year').format('YYYY-MM-DD') }
+  });
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -105,10 +86,10 @@ const FinanceEvents = () => {
   const headlineStats = useMemo(() => {
     if (events.length === 0 && loading) {
       return [
-        { key: 'revenue', label: 'Event Revenue', value: '--', accent: 'violet' },
-        { key: 'events', label: 'Total Events', value: '--', accent: 'blue' },
-        { key: 'registrations', label: 'Total Registrations', value: '--', accent: 'emerald' },
-        { key: 'avg', label: 'Avg. Ticket Price', value: '--', accent: 'slate' }
+        { key: 'revenue', label: t('manager:financePages.events.stats.eventRevenue'), value: '--', accent: 'violet' },
+        { key: 'events', label: t('manager:financePages.events.stats.totalEvents'), value: '--', accent: 'blue' },
+        { key: 'registrations', label: t('manager:financePages.events.stats.totalRegistrations'), value: '--', accent: 'emerald' },
+        { key: 'avg', label: t('manager:financePages.events.stats.avgTicketPrice'), value: '--', accent: 'slate' }
       ];
     }
 
@@ -123,10 +104,10 @@ const FinanceEvents = () => {
       : 0;
 
     return [
-      { key: 'revenue', label: 'Event Revenue', value: formatCurrency(totalRevenue), accent: 'violet' },
-      { key: 'events', label: 'Total Events', value: totalEvents.toLocaleString(), accent: 'blue' },
-      { key: 'registrations', label: 'Total Registrations', value: totalRegistrations.toLocaleString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg. Ticket Price', value: formatCurrency(avgTicketPrice), accent: 'slate' }
+      { key: 'revenue', label: t('manager:financePages.events.stats.eventRevenue'), value: formatCurrency(totalRevenue), accent: 'violet' },
+      { key: 'events', label: t('manager:financePages.events.stats.totalEvents'), value: totalEvents.toLocaleString(), accent: 'blue' },
+      { key: 'registrations', label: t('manager:financePages.events.stats.totalRegistrations'), value: totalRegistrations.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: t('manager:financePages.events.stats.avgTicketPrice'), value: formatCurrency(avgTicketPrice), accent: 'slate' }
     ];
   }, [events, loading]);
 
@@ -137,10 +118,10 @@ const FinanceEvents = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <CalendarOutlined style={{ fontSize: 24, color: '#8b5cf6' }} />
-              <h1 className="text-2xl font-semibold text-slate-900">Events Finance</h1>
-              <Tag color="purple" className="text-xs font-medium">Community</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">{t('manager:financePages.events.title')}</h1>
+              <Tag color="purple" className="text-xs font-medium">{t('manager:financePages.events.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500">Event Tickets & Registration Revenue · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">{t('manager:financePages.events.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">

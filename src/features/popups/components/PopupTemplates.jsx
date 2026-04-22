@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { Card, Row, Col, Button, Typography, Tag, Space } from 'antd';
 import { EyeOutlined, SelectOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 const PopupTemplates = ({ onSelectTemplate }) => {
+  const { t } = useTranslation(['manager']);
   const templates = [
     {
       id: 'welcome-basic',
@@ -321,9 +323,9 @@ const PopupTemplates = ({ onSelectTemplate }) => {
 
   return (
     <div style={{ padding: '16px' }}>
-      <Title level={4}>Choose a Template</Title>
+      <Title level={4}>{t('manager:popups.chooseTemplate')}</Title>
       <Text type="secondary">
-        Select a pre-built template to get started quickly. You can customize all aspects after selecting.
+        {t('manager:popups.chooseTemplateDesc')}
       </Text>
       
       {categories.map(category => (
@@ -364,7 +366,7 @@ const PopupTemplates = ({ onSelectTemplate }) => {
                         icon={<SelectOutlined />}
                         onClick={() => onSelectTemplate(template.config)}
                       >
-                        Use Template
+                        {t('manager:popups.useTemplate')}
                       </Button>
                     ]}
                   >

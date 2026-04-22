@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Button, Input, Space, Tag, Typography } from 'antd';
 import { 
   CheckCircleOutlined, 
@@ -99,6 +100,7 @@ const PromoCodeInput = ({
   appliedVoucher = null,
   variant = 'dark',
 }) => {
+  const { t } = useTranslation(['common']);
   const [code, setCode] = useState('');
   const [validating, setValidating] = useState(false);
   const [error, setError] = useState(null);
@@ -106,7 +108,7 @@ const PromoCodeInput = ({
 
   const handleValidate = async () => {
     if (!code.trim()) {
-      setError('Please enter a promo code');
+      setError(t('common:promo.errors.enterCode'));
       return;
     }
 
@@ -147,7 +149,7 @@ const PromoCodeInput = ({
           ? data.message.trim()
           : (data?.error && VOUCHER_VALIDATE_ERROR_TEXT[data.error])
             ? VOUCHER_VALIDATE_ERROR_TEXT[data.error]
-            : 'This promo code could not be applied.'
+            : t('common:promo.errors.couldNotApply')
       );
       setValidationResult(null);
     } catch (err) {
@@ -179,11 +181,11 @@ const PromoCodeInput = ({
           <Space className="w-full justify-between">
             <Space>
               <CheckCircleOutlined style={{ color: '#52c41a' }} />
-              <Text strong>Promo Code Applied</Text>
+              <Text strong>{t('common:promo.applied')}</Text>
             </Space>
             {!disabled && (
               <Button type="link" size="small" danger onClick={handleClear}>
-                Remove
+                {t('common:promo.remove')}
               </Button>
             )}
           </Space>
@@ -210,11 +212,11 @@ const PromoCodeInput = ({
           <Space className="w-full justify-between">
             <Space>
               <CheckCircleOutlined style={{ color: '#52c41a' }} />
-              <Text strong>Promo Code Applied</Text>
+              <Text strong>{t('common:promo.applied')}</Text>
             </Space>
             {!disabled && (
               <Button type="link" size="small" danger onClick={handleClear}>
-                Remove
+                {t('common:promo.remove')}
               </Button>
             )}
           </Space>
@@ -227,7 +229,7 @@ const PromoCodeInput = ({
           <Text type="success" strong>
             {discount.displayText}
             {discount.discountAmount > 0 && (
-              <> — You save {discount.discountAmount.toFixed(2)} {currency}</>
+              <> — {t('common:promo.youSave', { amount: discount.discountAmount.toFixed(2), currency })}</>
             )}
           </Text>
           {discount.walletCredit > 0 && (
@@ -235,7 +237,7 @@ const PromoCodeInput = ({
               type="info"
               showIcon
               icon={<WalletOutlined />}
-              message={`${discount.walletCredit} ${currency} will be added to your wallet`}
+              message={t('common:promo.walletCredit', { amount: discount.walletCredit, currency })}
               style={{ marginTop: 8 }}
             />
           )}
@@ -260,7 +262,7 @@ const PromoCodeInput = ({
     <div className="space-y-2">
       <Space.Compact className="w-full">
         <Input
-          placeholder="Enter promo code"
+          placeholder={t('common:promo.placeholder')}
           value={code}
           onChange={(e) => {
             setCode(e.target.value.toUpperCase());
@@ -280,7 +282,7 @@ const PromoCodeInput = ({
           disabled={disabled || !code.trim()}
           className={applyBtnClass}
         >
-          Apply
+          {t('common:promo.apply')}
         </Button>
       </Space.Compact>
       

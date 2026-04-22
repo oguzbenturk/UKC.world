@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/formatters';
 import {
@@ -8,25 +9,25 @@ import { Tag, Badge, Modal, Avatar } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
-const DEFAULT_SYSTEM_LABEL = 'System auto';
+const DEFAULT_SYSTEM_LABEL_KEY = 'manager:transactionHistory.systemAuto';
 const AVATAR_COLORS = ['#1677ff', '#52c41a', '#faad14', '#eb2f96', '#722ed1', '#13c2c2', '#fa541c', '#2f54eb'];
 
-const TYPE_CONFIG = {
-  manual_credit: { label: 'Deposit', color: 'green' },
-  wallet_deposit: { label: 'Deposit', color: 'green' },
-  credit: { label: 'Credit', color: 'cyan' },
-  payment: { label: 'Payment', color: 'geekblue' },
-  package_purchase: { label: 'Package Purchase', color: 'purple' },
-  rental_charge: { label: 'Rental Charge', color: 'orange' },
-  booking_charge: { label: 'Booking Charge', color: 'blue' },
-  charge: { label: 'Charge', color: 'magenta' },
-  debit: { label: 'Debit', color: 'red' },
-  refund: { label: 'Refund', color: 'gold' },
-  booking_deleted_refund: { label: 'Booking Refund', color: 'gold' },
-  package_refund: { label: 'Package Refund', color: 'gold' },
-  wallet_lock: { label: 'Wallet Lock', color: 'default' },
-  service_payment: { label: 'Service Payment', color: 'volcano' },
-  rental_payment: { label: 'Rental Payment', color: 'lime' },
+const TYPE_COLORS = {
+  manual_credit: 'green',
+  wallet_deposit: 'green',
+  credit: 'cyan',
+  payment: 'geekblue',
+  package_purchase: 'purple',
+  rental_charge: 'orange',
+  booking_charge: 'blue',
+  charge: 'magenta',
+  debit: 'red',
+  refund: 'gold',
+  booking_deleted_refund: 'gold',
+  package_refund: 'gold',
+  wallet_lock: 'default',
+  service_payment: 'volcano',
+  rental_payment: 'lime',
 };
 
 const toTitleCase = (value) =>
@@ -164,6 +165,7 @@ const findFirstIdentifier = (candidates) =>
   candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== '');
 
 function TransactionHistory({ transactions = [], customerDirectory }) {
+  const { t } = useTranslation(['manager']);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -272,14 +274,21 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
     );
   };
 
+  const getTypeLabel = useCallback((category) => {
+    const key = `manager:transactionHistory.types.${category}`;
+    const translated = t(key);
+    // If key not found, t() returns the key itself — fall back to title case
+    return translated === key ? toTitleCase(category) : translated;
+  }, [t]);
+
   const getTypeTag = (category) => {
-    const config = TYPE_CONFIG[category] || { label: toTitleCase(category), color: 'default' };
-    return <Tag color={config.color} className="m-0">{config.label}</Tag>;
+    const color = TYPE_COLORS[category] || 'default';
+    return <Tag color={color} className="m-0">{getTypeLabel(category)}</Tag>;
   };
 
   const columns = [
     {
-      title: 'Date',
+      title: t('manager:transactionHistory.columns.date'),
       key: 'date',
       width: 120,
       sorter: createTransactionComparator('date', 'asc', resolveCustomerName),
@@ -288,21 +297,21 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
       )
     },
     {
-      title: 'Type',
+      title: t('manager:transactionHistory.columns.type'),
       key: 'category',
       width: 140,
       sorter: createTransactionComparator('category', 'asc', resolveCustomerName),
       render: (_, record) => getTypeTag(getTransactionCategory(record))
     },
     {
-       title: 'Description',
+       title: t('manager:transactionHistory.columns.description'),
        dataIndex: 'description',
        key: 'description',
        sorter: createTransactionComparator('description', 'asc', resolveCustomerName),
        render: (text) => <span className="text-sm text-slate-700">{text || '—'}</span>
     },
     {
-       title: 'Customer',
+       title: t('manager:transactionHistory.columns.customer'),
        key: 'customer',
        width: 180,
        sorter: createTransactionComparator('customer', 'asc', resolveCustomerName),
@@ -321,7 +330,7 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
        }
     },
     {
-       title: 'Amount',
+       title: t('manager:transactionHistory.columns.amount'),
        key: 'amount',
        width: 130,
        sorter: createTransactionComparator('amount', 'asc', resolveCustomerName),
@@ -332,10 +341,10 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
        )
     },
     {
-        title: 'Created By',
+        title: t('manager:transactionHistory.columns.createdBy'),
         key: 'createdByLabel',
         width: 110,
-        render: (_, record) => <span className="text-xs text-slate-400">{record.createdByLabel || DEFAULT_SYSTEM_LABEL}</span>
+        render: (_, record) => <span className="text-xs text-slate-400">{record.createdByLabel || t(DEFAULT_SYSTEM_LABEL_KEY)}</span>
     }
   ];
 
@@ -380,7 +389,7 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
               <SearchIcon className="h-4 w-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search transactions..."
+                placeholder={t('manager:transactionHistory.searchPlaceholder')}
                 className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-white/80 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-400 transition-colors"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -391,9 +400,7 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
 
         {transactionTypes.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {transactionTypes.map(type => {
-              const config = TYPE_CONFIG[type] || { label: toTitleCase(type), color: 'default' };
-              return (
+            {transactionTypes.map(type => (
                 <button
                   key={type}
                   onClick={() => handleTypeToggle(type)}
@@ -403,10 +410,9 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
                       : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  {config.label}
+                  {getTypeLabel(type)}
                 </button>
-              );
-            })}
+              ))}
           </div>
         )}
       </div>
@@ -433,7 +439,7 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
         footer={null}
         title={
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold">Transaction Details</span>
+            <span className="text-lg font-semibold">{t('manager:transactionHistory.detailsTitle')}</span>
             {selectedTransaction && getTypeTag(getTransactionCategory(selectedTransaction))}
           </div>
         }
@@ -443,51 +449,51 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
           <div className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Date</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.date')}</p>
                 <p className="text-sm text-slate-800">
                   {safeFormatDate(deriveTransactionDate(selectedTransaction), 'MMMM d, yyyy') || '—'}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Amount</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.amount')}</p>
                 <p className={`text-lg font-semibold ${selectedTransaction.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                   {formatCurrency(selectedTransaction.amount)}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Customer</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.customer')}</p>
                 <p className="text-sm text-slate-800">{resolveCustomerName(selectedTransaction)}</p>
                 {selectedTransaction.user?.email && (
                   <p className="text-xs text-slate-400">{selectedTransaction.user.email}</p>
                 )}
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Status</p>
-                <Badge 
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.status')}</p>
+                <Badge
                   status={selectedTransaction.status === 'completed' ? 'success' : selectedTransaction.status === 'pending' ? 'warning' : 'error'}
                   text={toTitleCase(selectedTransaction.status)}
                 />
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Direction</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.direction')}</p>
                 <Tag color={selectedTransaction.direction === 'credit' ? 'green' : 'red'}>
                   {toTitleCase(selectedTransaction.direction || 'unknown')}
                 </Tag>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Created By</p>
-                <p className="text-sm text-slate-600">{selectedTransaction.createdByLabel || DEFAULT_SYSTEM_LABEL}</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.createdBy')}</p>
+                <p className="text-sm text-slate-600">{selectedTransaction.createdByLabel || t(DEFAULT_SYSTEM_LABEL_KEY)}</p>
               </div>
             </div>
             {selectedTransaction.description && (
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Description</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.description')}</p>
                 <p className="text-sm text-slate-700">{selectedTransaction.description}</p>
               </div>
             )}
             {selectedTransaction.reference_number && (
               <div>
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Reference</p>
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.reference')}</p>
                 <p className="text-sm text-slate-600 font-mono">{selectedTransaction.reference_number}</p>
               </div>
             )}

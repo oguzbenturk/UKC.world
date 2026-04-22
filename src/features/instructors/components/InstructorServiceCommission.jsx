@@ -1,5 +1,6 @@
 // src/features/instructors/components/InstructorServiceCommission.jsx
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Form, Select, Button, Spin, Modal, InputNumber, Radio, Tag,
   Typography, Tooltip, Space, Empty
@@ -24,6 +25,7 @@ const InstructorServiceCommission = forwardRef(({
   instructorId,
   onSave = () => {},
 }, ref) => {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const { businessCurrency, getCurrencySymbol } = useCurrency();
   const currencySymbol = getCurrencySymbol(businessCurrency || 'EUR');
@@ -79,7 +81,7 @@ const InstructorServiceCommission = forwardRef(({
         commissionValue: c.commissionValue,
       })));
     } catch (error) {
-      message.error(`Failed to load commissions: ${error.response?.data?.error || error.message}`);
+      message.error(t('instructor:commissions.failedToLoad', { error: error.response?.data?.error || error.message }));
     } finally {
       setLoading(false);
     }
@@ -131,7 +133,7 @@ const InstructorServiceCommission = forwardRef(({
       fetchData();
       onSave();
     } catch {
-      message.error('Failed to save commission');
+      message.error(t('instructor:commissions.failedToSave'));
     }
   };
 
@@ -139,10 +141,10 @@ const InstructorServiceCommission = forwardRef(({
     try {
       await apiClient.delete(`/instructor-commissions/instructors/${instructorId}/commissions/${serviceId}`);
       setCommissions(prev => prev.filter(c => c.serviceId !== serviceId));
-      message.success('Commission removed');
+      message.success(t('instructor:commissions.commissionRemoved'));
       onSave();
     } catch {
-      message.error('Failed to delete commission');
+      message.error(t('instructor:commissions.failedToDelete'));
     }
   };
 
@@ -150,7 +152,7 @@ const InstructorServiceCommission = forwardRef(({
     try {
       const values = await addForm.validateFields();
       const ids = Array.isArray(values.serviceIds) ? values.serviceIds : [];
-      if (!ids.length) { message.error('Select at least one service'); return; }
+      if (!ids.length) { message.error(t('instructor:commissions.selectAtLeastOneService')); return; }
 
       const tasks = ids.map(id => {
         const svc = services.find(s => s.id === id);
@@ -178,10 +180,10 @@ const InstructorServiceCommission = forwardRef(({
             commissionValue: values.commissionValue || 0,
           })),
         ]);
-        message.success(`Added ${ok.length} commission(s)`);
+        message.success(t('instructor:commissions.addedCount', { count: ok.length }));
         onSave();
       }
-      if (fail.length) message.warning(`${fail.length} service(s) failed`);
+      if (fail.length) message.warning(t('instructor:commissions.servicesFailed', { count: fail.length }));
       setAddModalVisible(false);
       addForm.resetFields();
     } catch { /* validation */ }
@@ -195,7 +197,7 @@ const InstructorServiceCommission = forwardRef(({
       setDefaultDirty(false);
       onSave();
     } catch {
-      message.error('Failed to save default commission');
+      message.error(t('instructor:commissions.failedToSaveDefault'));
     } finally {
       setSavingDefault(false);
     }
@@ -208,23 +210,23 @@ const InstructorServiceCommission = forwardRef(({
       await apiClient.put(`/instructor-commissions/instructors/${instructorId}/category-rates`, {
         rates: [{ lessonCategory: category, rateType: values.rateType, rateValue: values.rateValue }],
       });
-      message.success(`${category} rate saved`);
+      message.success(t('instructor:commissions.categoryRateSaved', { category }));
       setEditingCategory(null);
       fetchCategoryRates();
       onSave();
     } catch {
-      message.error('Failed to save category rate');
+      message.error(t('instructor:commissions.failedToSaveCategoryRate'));
     }
   };
 
   const handleDeleteCategoryRate = async (category) => {
     try {
       await apiClient.delete(`/instructor-commissions/instructors/${instructorId}/category-rates/${category}`);
-      message.success(`${category} rate removed`);
+      message.success(t('instructor:commissions.categoryRateRemoved', { category }));
       fetchCategoryRates();
       onSave();
     } catch {
-      message.error('Failed to delete category rate');
+      message.error(t('instructor:commissions.failedToDeleteCategoryRate'));
     }
   };
 
@@ -240,11 +242,11 @@ const InstructorServiceCommission = forwardRef(({
     <div className="flex items-center gap-2">
       <Form.Item name={typeField || 'commissionType'} noStyle>
         <Select size="small" className="w-28">
-          <Option value="fixed">Fixed /h</Option>
-          <Option value="percentage">Percentage</Option>
+          <Option value="fixed">{t('instructor:addInstructor.fixedPerHour')}</Option>
+          <Option value="percentage">{t('instructor:addInstructor.percentage')}</Option>
         </Select>
       </Form.Item>
-      <Form.Item name={valueField || 'commissionValue'} noStyle rules={[{ required: true, message: 'Required' }]}>
+      <Form.Item name={valueField || 'commissionValue'} noStyle rules={[{ required: true, message: t('instructor:addInstructor.required') }]}>
         <InputNumber
           size="small"
           min={0}
@@ -264,8 +266,8 @@ const InstructorServiceCommission = forwardRef(({
           <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-semibold text-gray-800">Default Commission</h4>
-                <p className="text-xs text-gray-400 mt-0.5">Applies to all services without a specific rate</p>
+                <h4 className="text-sm font-semibold text-gray-800">{t('instructor:commissions.defaultCommissionTitle')}</h4>
+                <p className="text-xs text-gray-400 mt-0.5">{t('instructor:commissions.defaultCommissionHint')}</p>
               </div>
               {defaultDirty && (
                 <Button
@@ -275,7 +277,7 @@ const InstructorServiceCommission = forwardRef(({
                   loading={savingDefault}
                   onClick={handleSaveDefault}
                 >
-                  Save
+                  {t('instructor:commissions.save')}
                 </Button>
               )}
             </div>
@@ -283,7 +285,7 @@ const InstructorServiceCommission = forwardRef(({
           <div className="p-5">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex-1">
-                <div className="text-xs text-gray-500 mb-2">Commission Type</div>
+                <div className="text-xs text-gray-500 mb-2">{t('instructor:addInstructor.commissionType')}</div>
                 <Radio.Group
                   value={defaultCommission.commissionType}
                   onChange={(e) => {
@@ -295,15 +297,15 @@ const InstructorServiceCommission = forwardRef(({
                   buttonStyle="solid"
                 >
                   <Radio.Button value="fixed">
-                    <DollarOutlined className="mr-1" /> Fixed /h
+                    <DollarOutlined className="mr-1" /> {t('instructor:addInstructor.fixedPerHour')}
                   </Radio.Button>
                   <Radio.Button value="percentage">
-                    <PercentageOutlined className="mr-1" /> Percentage
+                    <PercentageOutlined className="mr-1" /> {t('instructor:addInstructor.percentage')}
                   </Radio.Button>
                 </Radio.Group>
               </div>
               <div>
-                <div className="text-xs text-gray-500 mb-2">Value</div>
+                <div className="text-xs text-gray-500 mb-2">{t('instructor:bulkCommissions.value')}</div>
                 <InputNumber
                   min={0}
                   max={defaultCommission.commissionType === 'percentage' ? 100 : undefined}
@@ -323,8 +325,8 @@ const InstructorServiceCommission = forwardRef(({
         {/* ── SECTION 2: Category Rates ── */}
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-            <h4 className="text-sm font-semibold text-gray-800">Lesson Category Rates</h4>
-            <p className="text-xs text-gray-400 mt-0.5">Override the default rate by lesson type — applies to all services of that category</p>
+            <h4 className="text-sm font-semibold text-gray-800">{t('instructor:commissions.categoryRatesTitle')}</h4>
+            <p className="text-xs text-gray-400 mt-0.5">{t('instructor:commissions.categoryRatesHint')}</p>
           </div>
           <Spin spinning={categoryRatesLoading}>
             <div className="divide-y divide-gray-100">
@@ -369,7 +371,7 @@ const InstructorServiceCommission = forwardRef(({
                               setEditingCategory(cat);
                             }}
                           >
-                            Set rate
+                            {t('instructor:commissions.setRate')}
                           </Button>
                         )}
                       </div>
@@ -382,7 +384,7 @@ const InstructorServiceCommission = forwardRef(({
           <div className="px-5 py-2.5 bg-gray-50/70 border-t border-gray-100">
             <Text className="text-[11px] text-gray-400">
               <InfoCircleOutlined className="mr-1" />
-              Priority: Booking custom → Service-specific → <strong>Category rate</strong> → Default
+              {t('instructor:commissions.priorityNote')}
             </Text>
           </div>
         </div>
@@ -392,11 +394,11 @@ const InstructorServiceCommission = forwardRef(({
           <div className="px-5 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-semibold text-gray-800">Service Commissions</h4>
-                <p className="text-xs text-gray-400 mt-0.5">Override rates for specific services — highest priority after per-booking</p>
+                <h4 className="text-sm font-semibold text-gray-800">{t('instructor:commissions.serviceCommissionsTitle')}</h4>
+                <p className="text-xs text-gray-400 mt-0.5">{t('instructor:commissions.serviceCommissionsHint')}</p>
               </div>
               <Button size="small" icon={<PlusOutlined />} onClick={() => { addForm.resetFields(); setAddModalVisible(true); }}>
-                Add
+                {t('instructor:commissions.add')}
               </Button>
             </div>
           </div>
@@ -407,14 +409,14 @@ const InstructorServiceCommission = forwardRef(({
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
                   <span className="text-gray-400 text-sm">
-                    No service-specific commissions configured.
+                    {t('instructor:commissions.noServiceCommissions')}
                     <br />
-                    <span className="text-xs">All services will use the default or category rates above.</span>
+                    <span className="text-xs">{t('instructor:commissions.noServiceCommissionsHint')}</span>
                   </span>
                 }
               >
                 <Button type="dashed" icon={<PlusOutlined />} onClick={() => { addForm.resetFields(); setAddModalVisible(true); }}>
-                  Add Service Commission
+                  {t('instructor:commissions.addServiceCommission')}
                 </Button>
               </Empty>
             </div>
@@ -459,7 +461,7 @@ const InstructorServiceCommission = forwardRef(({
 
       {/* Add Commission Modal */}
       <Modal
-        title="Add Service Commissions"
+        title={t('instructor:commissions.addServiceCommissionsModal')}
         open={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
         onOk={handleAddCommissions}
@@ -467,8 +469,8 @@ const InstructorServiceCommission = forwardRef(({
         width={480}
       >
         <Form form={addForm} layout="vertical" initialValues={{ commissionType: 'fixed', commissionValue: 50 }}>
-          <Form.Item name="serviceIds" label="Select Services" rules={[{ required: true, message: 'Select at least one service' }]}>
-            <Select mode="multiple" placeholder="Search and select services..." showSearch optionFilterProp="children" maxTagCount="responsive">
+          <Form.Item name="serviceIds" label={t('instructor:commissions.selectServices')} rules={[{ required: true, message: t('instructor:commissions.selectAtLeastOneService') }]}>
+            <Select mode="multiple" placeholder={t('instructor:commissions.searchSelectServices')} showSearch optionFilterProp="children" maxTagCount="responsive">
               {services
                 .filter(s => !commissions.some(c => c.serviceId === s.id))
                 .map(s => (
@@ -476,21 +478,21 @@ const InstructorServiceCommission = forwardRef(({
                 ))}
             </Select>
           </Form.Item>
-          <Form.Item name="commissionType" label="Commission Type">
+          <Form.Item name="commissionType" label={t('instructor:addInstructor.commissionType')}>
             <Radio.Group optionType="button" buttonStyle="solid" size="small">
-              <Radio.Button value="fixed"><DollarOutlined className="mr-1" />Fixed /h</Radio.Button>
-              <Radio.Button value="percentage"><PercentageOutlined className="mr-1" />Percentage</Radio.Button>
+              <Radio.Button value="fixed"><DollarOutlined className="mr-1" />{t('instructor:addInstructor.fixedPerHour')}</Radio.Button>
+              <Radio.Button value="percentage"><PercentageOutlined className="mr-1" />{t('instructor:addInstructor.percentage')}</Radio.Button>
             </Radio.Group>
           </Form.Item>
           <Form.Item
             name="commissionValue"
-            label="Value"
+            label={t('instructor:bulkCommissions.value')}
             rules={[
-              { required: true, message: 'Enter a value' },
-              { type: 'number', min: 0, message: 'Must be positive' },
+              { required: true, message: t('instructor:commissions.enterValue') },
+              { type: 'number', min: 0, message: t('instructor:commissions.mustBePositive') },
               ({ getFieldValue }) => ({
                 validator(_, value) {
-                  if (getFieldValue('commissionType') === 'percentage' && value > 100) return Promise.reject('Max 100%');
+                  if (getFieldValue('commissionType') === 'percentage' && value > 100) return Promise.reject(t('instructor:commissions.max100'));
                   return Promise.resolve();
                 },
               }),

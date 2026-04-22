@@ -8,8 +8,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Spin } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 const StudentBookServicePage = () => {
+  const { t } = useTranslation(['student']);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,7 +27,7 @@ const StudentBookServicePage = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Spin size="large" tip="Opening booking..." />
+      <Spin size="large" tip={t('student:dashboard.bookingRedirect.openingBooking')} />
     </div>
   );
 };

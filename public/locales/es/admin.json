@@ -1183,7 +1183,9 @@
         "description": "Consulta el estado actual de tu exención y revisa las firmas anteriores. Si necesitas firmar o renovar tu exención, puedes hacerlo directamente a continuación.",
         "loadError": "No se pudieron cargar los detalles de la exención",
         "loadErrorDescription": "No pudimos encontrar la información de tu cuenta. Por favor, inicia sesión de nuevo y vuelve a esta página.",
-        "accountError": "No pudimos determinar tu cuenta para cargar la exención. Por favor, inicia sesión de nuevo."
+        "accountError": "No pudimos determinar tu cuenta para cargar la exención. Por favor, inicia sesión de nuevo.",
+        "successToast": "Thanks! Your liability waiver is now up to date.",
+        "cancelToast": "You can sign the waiver whenever you need from this page."
       },
       "export": {
         "title": "Exportar tus datos (Artículo 15 - Derecho de acceso)",

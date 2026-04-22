@@ -1,5 +1,6 @@
 // src/pages/Equipment.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Space, Card } from 'antd';
 import { ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -9,6 +10,7 @@ import EquipmentDetail from '../components/EquipmentDetail';
 import EquipmentForm from '../components/EquipmentForm';
 
 function Equipment() {
+  const { t } = useTranslation(['manager']);
   const { user } = useAuth();
   const { equipment, loading, error, refreshData } = useData();
   const [selectedEquipment, setSelectedEquipment] = useState(null);
@@ -80,19 +82,19 @@ function Equipment() {
           <div className="relative space-y-4">
             <div className="flex justify-between items-start">
               <div className="space-y-2 max-w-2xl">
-                <h1 className="text-3xl font-bold text-slate-900">Equipment & Gear</h1>
+                <h1 className="text-3xl font-bold text-slate-900">{t('manager:equipmentPage.title')}</h1>
                 <p className="text-slate-600 text-base">
-                  Track and manage all equipment inventory. Monitor availability, condition, and maintenance schedules.
+                  {t('manager:equipmentPage.subtitle')}
                 </p>
               </div>
               <Space>
-                <Button 
+                <Button
                   icon={<ReloadOutlined />}
                   onClick={refreshData}
                   loading={loading}
                   size="large"
                 >
-                  Refresh
+                  {t('manager:equipmentPage.refresh')}
                 </Button>
                 {isManagerOrOwner && (
                   <Button
@@ -101,7 +103,7 @@ function Equipment() {
                     onClick={handleAddEquipment}
                     size="large"
                   >
-                    Add Equipment
+                    {t('manager:equipmentPage.addEquipment')}
                   </Button>
                 )}
               </Space>
@@ -116,7 +118,7 @@ function Equipment() {
             onClick={handleBackToList}
             size="large"
           >
-            ← Back to List
+            ← {t('manager:equipmentPage.backToList')}
           </Button>
         </div>
       )}
@@ -124,13 +126,13 @@ function Equipment() {
       {loading ? (
         <div className="text-center py-8">
           <div className="spinner" />
-          <p className="mt-2 text-gray-600">Loading equipment data...</p>
+          <p className="mt-2 text-gray-600">{t('manager:equipmentPage.loading')}</p>
         </div>
       ) : error ? (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
           <p>{error}</p>
           <button className="text-red-700 underline mt-2" onClick={() => window.location.reload()}>
-            Try again
+            {t('manager:equipmentPage.tryAgain')}
           </button>
         </div>
       ) : (

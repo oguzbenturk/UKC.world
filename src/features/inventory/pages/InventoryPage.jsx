@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Card,
   Table,
@@ -86,11 +87,18 @@ const conditionOptions = [
   { value: 'poor', label: 'Poor' },
 ];
 
-const statusConfig = {
-  available: { color: 'success', icon: <CheckCircleOutlined />, label: 'Available' },
-  'in-use': { color: 'processing', icon: <ClockCircleOutlined />, label: 'In Use' },
-  maintenance: { color: 'warning', icon: <ToolOutlined />, label: 'Maintenance' },
-  retired: { color: 'default', icon: <StopOutlined />, label: 'Retired' },
+const STATUS_KEYS = {
+  available: 'statusAvailable',
+  'in-use': 'statusInUse',
+  maintenance: 'statusMaintenance',
+  retired: 'statusRetired',
+};
+
+const STATUS_COLORS = {
+  available: 'success',
+  'in-use': 'processing',
+  maintenance: 'warning',
+  retired: 'default',
 };
 
 const getSizeOptions = (type) => {
@@ -108,6 +116,7 @@ const getSizeOptions = (type) => {
 };
 
 const InventoryPage = () => {
+  const { t } = useTranslation(['common']);
   const { user } = useAuth();
   const { equipment, loading, error, refreshData } = useData();
   const [viewMode, setViewMode] = useState('table');
@@ -122,6 +131,15 @@ const InventoryPage = () => {
   const [imageUrl, setImageUrl] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [form] = Form.useForm();
+
+  const getStatusConfig = (status) => ({
+    color: STATUS_COLORS[status] || 'default',
+    icon: status === 'available' ? <CheckCircleOutlined />
+      : status === 'in-use' ? <ClockCircleOutlined />
+      : status === 'maintenance' ? <ToolOutlined />
+      : <StopOutlined />,
+    label: t(`common:inventory.${STATUS_KEYS[status] || 'statusAvailable'}`),
+  });
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'owner';
   const watchType = Form.useWatch('type', form);
@@ -198,18 +216,18 @@ const InventoryPage = () => {
 
       if (isEditing && selectedItem) {
         await apiClient.put(`/equipment/${selectedItem.id}`, payload);
-        message.success('Equipment updated successfully');
+        message.success(t('common:inventory.equipmentUpdated'));
       } else {
         await apiClient.post('/equipment', payload);
-        message.success('Equipment added successfully');
+        message.success(t('common:inventory.equipmentAdded'));
       }
-      
+
       setFormModalOpen(false);
       form.resetFields();
       setImageUrl(null);
       refreshData();
     } catch (err) {
-      message.error(err.response?.data?.error || err.response?.data?.message || 'Failed to save equipment');
+      message.error(err.response?.data?.error || err.response?.data?.message || t('common:inventory.failSave'));
     } finally {
       setSaving(false);
     }
@@ -218,16 +236,16 @@ const InventoryPage = () => {
   const handleDelete = async (id) => {
     try {
       await apiClient.delete(`/equipment/${id}`);
-      message.success('Equipment deleted successfully');
+      message.success(t('common:inventory.equipmentDeleted'));
       refreshData();
     } catch {
-      message.error('Failed to delete equipment');
+      message.error(t('common:inventory.failDelete'));
     }
   };
 
   const columns = [
     {
-      title: 'Equipment',
+      title: t('common:inventory.title'),
       key: 'equipment',
       render: (_, record) => (
         <div className="flex items-center gap-3">
@@ -254,7 +272,7 @@ const InventoryPage = () => {
       ),
     },
     {
-      title: 'Type',
+      title: t('common:inventory.equipmentType'),
       dataIndex: 'type',
       key: 'type',
       render: (type) => (
@@ -263,13 +281,13 @@ const InventoryPage = () => {
       responsive: ['md'],
     },
     {
-      title: 'Size',
+      title: t('common:inventory.size'),
       dataIndex: 'size',
       key: 'size',
       responsive: ['lg'],
     },
     {
-      title: 'Condition',
+      title: t('common:inventory.condition'),
       dataIndex: 'condition',
       key: 'condition',
       render: (condition) => {
@@ -289,11 +307,11 @@ const InventoryPage = () => {
       responsive: ['lg'],
     },
     {
-      title: 'Status',
+      title: t('common:inventory.statusField'),
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        const config = statusConfig[status] || statusConfig.available;
+        const config = getStatusConfig(status);
         return (
           <Tag color={config.color} icon={config.icon}>
             {config.label}
@@ -302,12 +320,12 @@ const InventoryPage = () => {
       },
     },
     {
-      title: 'Actions',
+      title: t('common:table.actions'),
       key: 'actions',
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="View Details">
+          <Tooltip title={t('common:inventory.viewDetails')}>
             <Button
               type="text"
               icon={<EyeOutlined />}
@@ -316,7 +334,7 @@ const InventoryPage = () => {
           </Tooltip>
           {isAdmin && (
             <>
-              <Tooltip title="Edit">
+              <Tooltip title={t('common:inventory.editTooltip')}>
                 <Button
                   type="text"
                   icon={<EditOutlined />}
@@ -324,14 +342,14 @@ const InventoryPage = () => {
                 />
               </Tooltip>
               <Popconfirm
-                title="Delete this equipment?"
-                description="This action cannot be undone."
+                title={t('common:inventory.deleteConfirmTitle')}
+                description={t('common:inventory.deleteConfirmDesc')}
                 onConfirm={() => handleDelete(record.id)}
-                okText="Delete"
-                cancelText="Cancel"
+                okText={t('common:buttons.delete')}
+                cancelText={t('common:buttons.cancel')}
                 okButtonProps={{ danger: true }}
               >
-                <Tooltip title="Delete">
+                <Tooltip title={t('common:inventory.deleteTooltip')}>
                   <Button
                     type="text"
                     icon={<DeleteOutlined />}
@@ -350,7 +368,7 @@ const InventoryPage = () => {
   const renderCardView = () => (
     <Row gutter={[16, 16]}>
       {filteredEquipment.map((item) => {
-        const config = statusConfig[item.status] || statusConfig.available;
+        const config = getStatusConfig(item.status);
         return (
           <Col xs={24} sm={12} md={8} lg={6} key={item.id}>
             <Card
@@ -395,7 +413,7 @@ const InventoryPage = () => {
       })}
       {filteredEquipment.length === 0 && (
         <Col span={24}>
-          <Empty description="No equipment found" />
+          <Empty description={t('common:inventory.noEquipment')} />
         </Col>
       )}
     </Row>
@@ -408,11 +426,11 @@ const InventoryPage = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-              <AppstoreOutlined /> Inventory Management
+              <AppstoreOutlined /> {t('common:inventory.badge')}
             </div>
-            <h1 className="text-3xl font-semibold">Inventory</h1>
+            <h1 className="text-3xl font-semibold">{t('common:inventory.title')}</h1>
             <p className="text-sm text-white/75">
-              Track and manage all equipment and gear. Monitor availability, condition, and maintenance.
+              {t('common:inventory.subtitle')}
             </p>
           </div>
           <div className="flex gap-3">
@@ -422,7 +440,7 @@ const InventoryPage = () => {
               loading={loading}
               className="h-11 rounded-2xl bg-white/20 text-white border-white/30 hover:bg-white/30"
             >
-              Refresh
+              {t('common:inventory.refresh')}
             </Button>
             {isAdmin && (
               <Button
@@ -431,7 +449,7 @@ const InventoryPage = () => {
                 onClick={handleAddNew}
                 className="h-11 rounded-2xl bg-white text-emerald-600 border-0 shadow-lg hover:bg-slate-100"
               >
-                Add Equipment
+                {t('common:inventory.addEquipment')}
               </Button>
             )}
           </div>
@@ -443,7 +461,7 @@ const InventoryPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title="Total Items"
+              title={t('common:inventory.totalItems')}
               value={stats.total}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -452,7 +470,7 @@ const InventoryPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title="Available"
+              title={t('common:inventory.available')}
               value={stats.available}
               valueStyle={{ color: '#52c41a' }}
               prefix={<CheckCircleOutlined />}
@@ -462,7 +480,7 @@ const InventoryPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title="In Use"
+              title={t('common:inventory.inUse')}
               value={stats.inUse}
               valueStyle={{ color: '#1890ff' }}
               prefix={<ClockCircleOutlined />}
@@ -472,7 +490,7 @@ const InventoryPage = () => {
         <Col xs={12} sm={6}>
           <Card className="rounded-2xl">
             <Statistic
-              title="Maintenance"
+              title={t('common:inventory.maintenance')}
               value={stats.maintenance}
               valueStyle={{ color: '#faad14' }}
               prefix={<ToolOutlined />}
@@ -486,7 +504,7 @@ const InventoryPage = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={24} md={8} lg={6}>
             <Input
-              placeholder="Search equipment..."
+              placeholder={t('common:inventory.searchPlaceholder')}
               prefix={<SearchOutlined />}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -495,7 +513,7 @@ const InventoryPage = () => {
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
             <Select
-              placeholder="Type"
+              placeholder={t('common:inventory.filterType')}
               allowClear
               style={{ width: '100%' }}
               value={filterType}
@@ -505,16 +523,16 @@ const InventoryPage = () => {
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
             <Select
-              placeholder="Status"
+              placeholder={t('common:inventory.filterStatus')}
               allowClear
               style={{ width: '100%' }}
               value={filterStatus}
               onChange={setFilterStatus}
               options={[
-                { value: 'available', label: 'Available' },
-                { value: 'in-use', label: 'In Use' },
-                { value: 'maintenance', label: 'Maintenance' },
-                { value: 'retired', label: 'Retired' },
+                { value: 'available', label: t('common:inventory.statusAvailable') },
+                { value: 'in-use', label: t('common:inventory.statusInUse') },
+                { value: 'maintenance', label: t('common:inventory.statusMaintenance') },
+                { value: 'retired', label: t('common:inventory.statusRetired') },
               ]}
             />
           </Col>
@@ -536,13 +554,13 @@ const InventoryPage = () => {
         {loading ? (
           <div className="text-center py-12">
             <Spin size="large" />
-            <p className="mt-4 text-gray-500">Loading inventory...</p>
+            <p className="mt-4 text-gray-500">{t('common:inventory.loading')}</p>
           </div>
         ) : error ? (
           <div className="text-center py-12">
             <ExclamationCircleOutlined className="text-4xl text-red-500" />
             <p className="mt-4 text-red-500">{error}</p>
-            <Button onClick={refreshData} className="mt-4">Try Again</Button>
+            <Button onClick={refreshData} className="mt-4">{t('common:inventory.tryAgain')}</Button>
           </div>
         ) : viewMode === 'table' ? (
           <Table
@@ -559,7 +577,7 @@ const InventoryPage = () => {
 
       {/* Detail Drawer */}
       <Drawer
-        title="Equipment Details"
+        title={t('common:inventory.details')}
         placement="right"
         width={450}
         onClose={() => setDetailDrawerOpen(false)}
@@ -570,7 +588,7 @@ const InventoryPage = () => {
               setDetailDrawerOpen(false);
               handleEdit(selectedItem);
             }}>
-              Edit
+              {t('common:inventory.edit')}
             </Button>
           )
         }
@@ -596,21 +614,21 @@ const InventoryPage = () => {
             </div>
 
             <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="Type">
+              <Descriptions.Item label={t('common:inventory.equipmentType')}>
                 {selectedItem.type?.charAt(0).toUpperCase() + selectedItem.type?.slice(1)}
               </Descriptions.Item>
-              <Descriptions.Item label="Size">{selectedItem.size || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Condition">
-                {selectedItem.condition 
+              <Descriptions.Item label={t('common:inventory.size')}>{selectedItem.size || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label={t('common:inventory.condition')}>
+                {selectedItem.condition
                   ? selectedItem.condition.charAt(0).toUpperCase() + selectedItem.condition.slice(1)
                   : 'N/A'}
               </Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={statusConfig[selectedItem.status]?.color}>
-                  {statusConfig[selectedItem.status]?.label || selectedItem.status}
+              <Descriptions.Item label={t('common:inventory.statusField')}>
+                <Tag color={getStatusConfig(selectedItem.status).color}>
+                  {getStatusConfig(selectedItem.status).label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Register Date">
+              <Descriptions.Item label={t('common:inventory.registerDate')}>
                 {selectedItem.registerDate
                   ? dayjs(selectedItem.registerDate).format('MMM DD, YYYY')
                   : selectedItem.purchaseDate
@@ -621,7 +639,7 @@ const InventoryPage = () => {
 
             {selectedItem.specifications && (
               <div>
-                <Text strong>Specifications</Text>
+                <Text strong>{t('common:inventory.specifications')}</Text>
                 <Paragraph className="mt-2 p-3 bg-gray-50 rounded-lg">
                   {selectedItem.specifications}
                 </Paragraph>
@@ -630,7 +648,7 @@ const InventoryPage = () => {
 
             {selectedItem.notes && (
               <div>
-                <Text strong>Notes</Text>
+                <Text strong>{t('common:inventory.notes')}</Text>
                 <Paragraph className="mt-2 p-3 bg-gray-50 rounded-lg">
                   {selectedItem.notes}
                 </Paragraph>
@@ -642,7 +660,7 @@ const InventoryPage = () => {
 
       {/* Add/Edit Form Modal */}
       <Modal
-        title={isEditing ? 'Edit Equipment' : 'Add New Equipment'}
+        title={isEditing ? t('common:inventory.editEquipment') : t('common:inventory.addNewEquipment')}
         open={formModalOpen}
         onCancel={() => {
           setFormModalOpen(false);
@@ -668,12 +686,12 @@ const InventoryPage = () => {
               beforeUpload={(file) => {
                 const isImage = file.type.startsWith('image/');
                 if (!isImage) {
-                  message.error('You can only upload image files!');
+                  message.error(t('common:inventory.imageTypeError'));
                   return false;
                 }
                 const isLt5M = file.size / 1024 / 1024 < 5;
                 if (!isLt5M) {
-                  message.error('Image must be smaller than 5MB!');
+                  message.error(t('common:inventory.imageSizeError'));
                   return false;
                 }
                 return true;
@@ -696,10 +714,10 @@ const InventoryPage = () => {
                     setImageUrl(newUrl);
                   }
                   onSuccess?.(response.data);
-                  message.success('Image uploaded successfully');
+                  message.success(t('common:inventory.imageUploaded'));
                 } catch (err) {
                   onError?.(err);
-                  message.error('Failed to upload image');
+                  message.error(t('common:inventory.imageUploadFailed'));
                 } finally {
                   setImageLoading(false);
                 }
@@ -716,30 +734,30 @@ const InventoryPage = () => {
               ) : (
                 <div>
                   {imageLoading ? <LoadingOutlined /> : <UploadOutlined />}
-                  <div style={{ marginTop: 8 }}>Upload Photo</div>
+                  <div style={{ marginTop: 8 }}>{t('common:inventory.uploadPhoto')}</div>
                 </div>
               )}
             </Upload>
-            <Text type="secondary" className="text-xs">Click to upload equipment image</Text>
+            <Text type="secondary" className="text-xs">{t('common:inventory.uploadHint')}</Text>
           </div>
 
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="name"
-                label="Equipment Name"
-                rules={[{ required: true, message: 'Please enter equipment name' }]}
+                label={t('common:inventory.equipmentName')}
+                rules={[{ required: true, message: t('common:inventory.nameRequired') }]}
               >
-                <Input placeholder="e.g., Core XR7" />
+                <Input placeholder={t('common:inventory.namePlaceholder')} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="brand"
-                label="Brand"
-                rules={[{ required: true, message: 'Please select brand' }]}
+                label={t('common:inventory.brand')}
+                rules={[{ required: true, message: t('common:inventory.brandRequired') }]}
               >
-                <Select options={brandOptions} placeholder="Select brand" />
+                <Select options={brandOptions} placeholder={t('common:inventory.selectBrand')} />
               </Form.Item>
             </Col>
           </Row>
@@ -748,24 +766,24 @@ const InventoryPage = () => {
             <Col span={12}>
               <Form.Item
                 name="type"
-                label="Equipment Type"
-                rules={[{ required: true, message: 'Please select type' }]}
+                label={t('common:inventory.equipmentType')}
+                rules={[{ required: true, message: t('common:inventory.typeRequired') }]}
               >
-                <Select options={equipmentTypes} placeholder="Select type" />
+                <Select options={equipmentTypes} placeholder={t('common:inventory.selectType')} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="size"
-                label="Size"
+                label={t('common:inventory.size')}
               >
                 {getSizeOptions(watchType).length > 0 ? (
                   <Select
                     options={getSizeOptions(watchType).map(s => ({ value: s, label: s }))}
-                    placeholder="Select size"
+                    placeholder={t('common:inventory.selectSize')}
                   />
                 ) : (
-                  <Input placeholder="Enter size" />
+                  <Input placeholder={t('common:inventory.enterSize')} />
                 )}
               </Form.Item>
             </Col>
@@ -775,25 +793,25 @@ const InventoryPage = () => {
             <Col span={12}>
               <Form.Item
                 name="condition"
-                label="Condition"
+                label={t('common:inventory.condition')}
               >
-                <Select options={conditionOptions} placeholder="Select condition" />
+                <Select options={conditionOptions} placeholder={t('common:inventory.selectCondition')} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="status"
-                label="Status"
-                rules={[{ required: true, message: 'Please select status' }]}
+                label={t('common:inventory.statusField')}
+                rules={[{ required: true, message: t('common:inventory.statusRequired') }]}
               >
                 <Select
                   options={[
-                    { value: 'available', label: 'Available' },
-                    { value: 'in-use', label: 'In Use' },
-                    { value: 'maintenance', label: 'Maintenance' },
-                    { value: 'retired', label: 'Retired' },
+                    { value: 'available', label: t('common:inventory.statusAvailable') },
+                    { value: 'in-use', label: t('common:inventory.statusInUse') },
+                    { value: 'maintenance', label: t('common:inventory.statusMaintenance') },
+                    { value: 'retired', label: t('common:inventory.statusRetired') },
                   ]}
-                  placeholder="Select status"
+                  placeholder={t('common:inventory.selectStatus')}
                 />
               </Form.Item>
             </Col>
@@ -801,25 +819,25 @@ const InventoryPage = () => {
 
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="registerDate" label="Register Date">
+              <Form.Item name="registerDate" label={t('common:inventory.registerDate')}>
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="specifications" label="Specifications">
-                <Input placeholder="e.g., Carbon construction" />
+              <Form.Item name="specifications" label={t('common:inventory.specifications')}>
+                <Input placeholder={t('common:inventory.specsPlaceholder')} />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="notes" label="Notes">
-            <TextArea rows={3} placeholder="Additional notes about the equipment..." />
+          <Form.Item name="notes" label={t('common:inventory.notes')}>
+            <TextArea rows={3} placeholder={t('common:inventory.notesPlaceholder')} />
           </Form.Item>
 
           <div className="flex justify-end gap-3 mt-6">
-            <Button onClick={() => setFormModalOpen(false)}>Cancel</Button>
+            <Button onClick={() => setFormModalOpen(false)}>{t('common:buttons.cancel')}</Button>
             <Button type="primary" htmlType="submit" loading={saving}>
-              {isEditing ? 'Update Equipment' : 'Add Equipment'}
+              {isEditing ? t('common:inventory.editEquipment') : t('common:inventory.addEquipment')}
             </Button>
           </div>
         </Form>

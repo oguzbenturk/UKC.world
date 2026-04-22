@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Button } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 const STORAGE_KEY = 'cookie_consent_accepted';
 
 export default function CookieConsentBanner() {
+  const { t } = useTranslation(['common']);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -46,12 +48,12 @@ export default function CookieConsentBanner() {
       <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700/60 px-4 py-3 sm:px-6 sm:py-4">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-slate-300 text-sm leading-relaxed text-center sm:text-left m-0">
-            We use essential cookies to make this site work. By continuing to use this site, you consent to our use of cookies.{' '}
+            {t('common:cookie.message')}{' '}
             <a
               href="/privacy"
               className="text-sky-400 hover:text-sky-300 underline underline-offset-2 transition-colors"
             >
-              Learn more
+              {t('common:cookie.learnMore')}
             </a>
           </p>
 
@@ -61,7 +63,7 @@ export default function CookieConsentBanner() {
             onClick={handleAccept}
             className="shrink-0"
           >
-            Got it
+            {t('common:cookie.accept')}
           </Button>
         </div>
       </div>

@@ -488,16 +488,208 @@
   },
   "products": {
     "title": "Ürünler",
-    "subtitle": "Stok ve arka ofis ürünlerini yönetin"
+    "subtitle": "Stok ve arka ofis ürünlerini yönetin",
+    "addProduct": "Ürün Ekle",
+    "refresh": "Yenile",
+    "editProduct": "Ürünü Düzenle",
+    "addNewProduct": "Yeni Ürün Ekle",
+    "stats": {
+      "total": "Toplam",
+      "lowStock": "Düşük Stok",
+      "invValue": "Envanter Değeri",
+      "featured": "Öne Çıkan"
+    },
+    "filters": {
+      "searchPlaceholder": "İsim, SKU veya markaya göre ara...",
+      "allStatus": "Tüm Durumlar",
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "discontinued": "Üretimi Durdurulan",
+      "allCreators": "Tüm Oluşturanlar",
+      "createdBy": "Oluşturan",
+      "lowStockOnly": "Yalnızca Düşük Stok"
+    },
+    "showing": "{{total}} üründen {{count}} gösteriliyor",
+    "selected": "{{count}} seçildi",
+    "bulk": {
+      "activate": "Etkinleştir",
+      "activateSelected": "Seçilenleri Etkinleştir",
+      "deactivate": "Devre Dışı Bırak",
+      "deactivateSelected": "Seçilenleri Devre Dışı Bırak",
+      "delete": "Sil",
+      "deleteSelected": "Seçilenleri Sil",
+      "clear": "Temizle"
+    },
+    "columns": {
+      "product": "Ürün",
+      "sku": "SKU",
+      "category": "Kategori",
+      "brand": "Marka",
+      "price": "Fiyat",
+      "stock": "Stok",
+      "status": "Durum",
+      "actions": "İşlemler"
+    },
+    "status": {
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "discontinued": "Üretimi Durdurulan"
+    },
+    "empty": {
+      "noMatch": "Filtrelere uyan ürün bulunamadı",
+      "noProducts": "Henüz ürün yok",
+      "addFirst": "Ürün Ekle"
+    },
+    "pagination": {
+      "showTotal": "{{total}} üründen {{start}}-{{end}}"
+    },
+    "confirm": {
+      "deleteTitle": "Ürünü Sil",
+      "deleteContent": "\"{{name}}\" ürününü silmek istediğinizden emin misiniz?",
+      "deleteOk": "Sil",
+      "deleteCancel": "İptal",
+      "bulkDeleteTitle": "Seçili Ürünleri Sil",
+      "bulkDeleteContent": "{{count}} ürünü silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      "bulkDeleteOk": "Tümünü Sil",
+      "bulkActivateTitle": "Seçili Ürünleri Etkinleştir",
+      "bulkDeactivateTitle": "Seçili Ürünleri Devre Dışı Bırak",
+      "bulkStatusContent": "{{count}} ürünü {{action}} yapmak istediğinizden emin misiniz?",
+      "bulkConfirmOk": "Onayla"
+    },
+    "messages": {
+      "loadError": "Ürünler yüklenemedi",
+      "created": "Ürün başarıyla oluşturuldu!",
+      "updated": "Ürün başarıyla güncellendi!",
+      "deleted": "Ürün başarıyla silindi!",
+      "createError": "Ürün oluşturulamadı",
+      "updateError": "Ürün güncellenemedi",
+      "deleteError": "Ürün silinemedi",
+      "bulkDeleted": "{{count}} ürün başarıyla silindi",
+      "bulkDeleteError": "Bazı ürünler silinemedi",
+      "bulkUpdated": "{{count}} ürün başarıyla güncellendi",
+      "bulkUpdateError": "Bazı ürünler güncellenemedi"
+    },
+    "form": {
+      "identity": "Kimlik",
+      "details": "Detaylar",
+      "inventory": "Envanter",
+      "discount": "İndirim",
+      "productTab": "Ürün",
+      "stockTab": "Stok ve Fiyatlandırma",
+      "cancelButton": "İptal",
+      "updateButton": "Ürünü Güncelle",
+      "createButton": "+ Ürün Oluştur",
+      "imageUploaded": "Görsel başarıyla yüklendi!",
+      "imageUploadError": "Görsel yükleme başarısız",
+      "imagesUploaded": "{{count}} görsel yüklendi!",
+      "imagesUploadError": "Görseller yüklenemedi",
+      "imageRemoved": "Görsel kaldırıldı",
+      "maxImagesError": "En fazla 10 görsel",
+      "colorPhotosAdded": "{{color}} için {{count}} fotoğraf eklendi",
+      "colorPhotoUploadError": "Görsel yükleme başarısız",
+      "subcategoryCreated": "\"{{label}}\" alt kategorisi oluşturuldu",
+      "subcategoryCreateError": "Alt kategori oluşturulamadı",
+      "subcategoryRemoved": "Alt kategori kaldırıldı",
+      "subcategoryRemoveError": "Alt kategori silinemedi",
+      "genderMen": "Erkek",
+      "genderWomen": "Kadın",
+      "genderUnisex": "Uniseks",
+      "colorOptions": "Renk Seçenekleri",
+      "addColor": "Ekle",
+      "colorPlaceholder": "ör. Siyah, Okyanus Mavisi…",
+      "noColorsHint": "Renk ekleyin — ardından Stok sekmesinde her renge fotoğraf yükleyebilirsiniz",
+      "sizesLabel": "Bedenler",
+      "totalStock": "Toplam Stok",
+      "syncedFromVariants": "Varyantlardan senkronize edildi: {{count}}",
+      "lowStockAlert": "Düşük Stok Uyarısı",
+      "weightKg": "Ağırlık (kg)",
+      "originalPrice": "Orijinal Fiyat (indirimden önce)",
+      "originalPriceHint": "İndirim rozeti göstermek için satış fiyatından yüksek girin. İndirim yoksa boş bırakın.",
+      "mainImage": "Ana Görsel",
+      "mainImageHint": "karüsel ve sıcak fırsatlarda görünmesi için gerekli",
+      "photosPerColor": "Renge Göre Fotoğraflar",
+      "gallery": "Galeri",
+      "uploadButton": "Yükle",
+      "sizeVariants": "Beden ve Stok Varyantları",
+      "selectOrCreate": "Seç veya oluştur",
+      "selectCategoryFirst": "Önce kategori seçin",
+      "selectBrand": "Marka seçin",
+      "featuredTooltip": "Öne çıkan ürünler mağaza ana sayfasının karuselinde gösterilir",
+      "featuredYes": "Evet",
+      "featuredNo": "Hayır",
+      "namePlaceholder": "ör. Duotone Rebel D/LAB 2026",
+      "skuPlaceholder": "Otomatik oluşturulur",
+      "createCategory": "Kategori oluştur",
+      "createSubcategory": "Alt kategori oluştur"
+    },
+    "colorTable": {
+      "colorCode": "Renk Kodu",
+      "colorName": "Renk Adı",
+      "imageCount": "Görsel Sayısı",
+      "action": "İşlem",
+      "deleteConfirm": "Bu rengi silinsin mi?",
+      "colorRemoved": "Renk kaldırıldı",
+      "noColors": "Renk eklenmedi. Ürünlerin birden fazla renk seçeneği olabilir.",
+      "addColor": "Renk Ekle"
+    },
+    "variantTable": {
+      "sizeVariant": "Beden / Varyant",
+      "qty": "Adet",
+      "cost": "Maliyet",
+      "sellingPrice": "Satış Fiyatı",
+      "deleteConfirm": "Bu varyant silinsin mi?",
+      "variantRemoved": "Varyant kaldırıldı",
+      "allSizesAdded": "Tüm bedenler zaten eklendi",
+      "sizesAdded": "{{count}} beden eklendi",
+      "addAll": "Tümünü ekle",
+      "addVariant": "Varyant Ekle",
+      "emptyHint": "Başlamak için yukarıdan bir beden seçin veya \"Varyant Ekle\"ye tıklayın.",
+      "unitsAcrossSizes": "{{count}} bedende adet",
+      "unitsAcrossSizesPlural": "{{count}} bedende adet"
+    }
   },
   "accommodation": {
     "title": "Konaklama",
     "admin": {
-      "status": {
+      "pageTitle": "Konaklama Rezervasyonları",
+      "pageSubtitle": "Konaklama rezervasyon yönetimi",
+      "refresh": "Yenile",
+      "timeline": "Zaman Çizelgesi",
+      "list": "Liste",
+      "prevWeek": "Önceki hafta",
+      "nextWeek": "Sonraki hafta",
+      "jumpToday": "Bugüne git",
+      "bookingsShown": "{{count}} rezervasyon gösteriliyor · işlem için bir çubuğa tıklayın",
+      "unitRoom": "Ünite / Oda",
+      "today": "Bugün",
+      "noUnits": "Konaklama ünitesi bulunamadı",
+      "searchPlaceholder": "Misafir, ünite ara...",
+      "tabs": {
+        "all": "Tümü ({{count}})",
+        "active": "Aktif",
         "pending": "Beklemede",
-        "confirmed": "Onaylandı",
-        "completed": "Tamamlandı",
-        "cancelled": "İptal Edildi"
+        "hotelRequests": "Otel",
+        "upcoming": "Yaklaşan",
+        "completed": "Tamamlandı"
+      },
+      "stats": {
+        "inHouse": "Konukta",
+        "inHouseSub": "aktif konaklama",
+        "pending": "Beklemede",
+        "pendingSub": "inceleme gerekiyor",
+        "upcoming": "Yaklaşan",
+        "upcomingSub": "onaylandı",
+        "revenue": "Gelir",
+        "revenueSub": "tamamlanan konaklamalar"
+      },
+      "columns": {
+        "guest": "Misafir",
+        "unit": "Ünite",
+        "checkIn": "Giriş",
+        "checkOut": "Çıkış",
+        "nights": "Gece",
+        "total": "Toplam",
+        "status": "Durum"
       },
       "actions": {
         "confirm": "Onayla",
@@ -505,12 +697,98 @@
         "cancel": "İptal Et",
         "delete": "Sil"
       },
+      "status": {
+        "pending": "Beklemede",
+        "confirmed": "Onaylandı",
+        "completed": "Tamamlandı",
+        "cancelled": "İptal Edildi"
+      },
       "nights": "{{count}} gece",
-      "unknown": "Bilinmiyor"
+      "unknown": "Bilinmiyor",
+      "unassigned": "Atanmamış",
+      "pagination": {
+        "showTotal": "{{count}} rezervasyon"
+      },
+      "empty": "Rezervasyon bulunamadı",
+      "deleteConfirm": {
+        "title": "Rezervasyonu sil",
+        "content": "Bu rezervasyonu kalıcı olarak silmek istediğinizden emin misiniz?",
+        "ok": "Sil"
+      },
+      "messages": {
+        "loadError": "Rezervasyonlar yüklenemedi",
+        "confirmed": "Rezervasyon onaylandı",
+        "confirmError": "Rezervasyon onaylanamadı",
+        "completed": "Rezervasyon tamamlandı",
+        "completeError": "Rezervasyon tamamlanamadı",
+        "cancelled": "Rezervasyon iptal edildi",
+        "cancelError": "Rezervasyon iptal edilemedi",
+        "deleted": "Rezervasyon silindi",
+        "notFound": "Rezervasyon bulunamadı veya zaten silindi",
+        "unauthorized": "Bu rezervasyonu silme yetkiniz yok",
+        "deleteError": "Rezervasyon silinemedi"
+      }
     }
   },
   "marketing": {
-    "title": "Pazarlama"
+    "title": "Pazarlama",
+    "hub": "Pazarlama Merkezi",
+    "campaignBuilder": "Kampanya Oluşturucu",
+    "campaignBuilderDesc": "Canlı önizleme ile güçlü kampanyalar oluşturun - E-posta, Açılır Pencere, SMS ve WhatsApp",
+    "newEmail": "Yeni E-posta",
+    "newPopup": "Yeni Açılır Pencere",
+    "newSMS": "Yeni SMS",
+    "whatsapp": "WhatsApp",
+    "askQuestion": "Soru Sor",
+    "campaigns": "Kampanyalar",
+    "quickLinks": "Hızlı Bağlantılar",
+    "analytics": "Analitik",
+    "analyticsComingSoon": "Analitik yakında geliyor...",
+    "noCampaigns": "Henüz kampanya yok. İlkini oluşturun!",
+    "stats": {
+      "totalSent": "Toplam Gönderilen",
+      "totalOpens": "Toplam Açılma",
+      "avgOpenRate": "Ort. Açılma Oranı",
+      "activeCampaigns": "Aktif Kampanyalar"
+    },
+    "columns": {
+      "campaign": "Kampanya",
+      "type": "Tür",
+      "status": "Durum",
+      "actions": "İşlemler"
+    },
+    "actions": {
+      "send": "Gönder",
+      "edit": "Düzenle",
+      "duplicate": "Çoğalt"
+    },
+    "deleteConfirm": "Bu kampanyayı silinsin mi?",
+    "sendModal": {
+      "title": "Kampanya Gönder: {{name}}",
+      "description": "Bu kampanyayı göndermek için müşterileri seçin. Birden fazla müşteri seçebilirsiniz.",
+      "sendButton": "{{count}} Müşteriye Gönder",
+      "cancelButton": "İptal",
+      "noCustomerWarning": "Lütfen en az bir müşteri seçin",
+      "sent": "Kampanya {{count}} müşteriye gönderildi",
+      "sendError": "Kampanya gönderilemedi",
+      "loadError": "Müşteriler yüklenemedi",
+      "pagination": {
+        "showTotal": "{{total}} müşteriden {{start}}-{{end}}"
+      }
+    },
+    "form": {
+      "campaignName": "Kampanya Adı",
+      "targetAudience": "Hedef Kitle",
+      "livePreview": "Canlı Önizleme",
+      "cancel": "İptal",
+      "create": "Kampanya Oluştur",
+      "update": "Kampanyayı Güncelle",
+      "saved": "Kampanya başarıyla oluşturuldu",
+      "updated": "Kampanya başarıyla güncellendi",
+      "saveError": "Kampanya kaydedilemedi",
+      "deleted": "Kampanya silindi",
+      "deleteError": "Kampanya silinemedi"
+    }
   },
   "events": {
     "title": "Topluluk Etkinlikleri",
@@ -676,7 +954,86 @@
       "forms": "Formlar",
       "links": "Bağlantılar",
       "submissions": "Gönderiler",
+      "myForms": "Formlarım",
+      "shareableLinks": "Paylaşılabilir Bağlantılar",
+      "formAnswers": "Form Yanıtları",
       "registrations": "Kayıtlar"
+    },
+    "forms": {
+      "heading": "Formlarım",
+      "headingDesc": "Başvuru, feragatname, anket ve geri bildirim formları oluşturun",
+      "createNew": "Yeni Form Oluştur",
+      "createFirst": "İlk Formunuzu Oluşturun",
+      "noForms": "Henüz form yok",
+      "noFormsDesc": "Başvuru, geri bildirim veya feragatname toplamak için ilk formunuzu oluşturun",
+      "deleteConfirm": "Bu form silinsin mi?",
+      "deleteDesc": "Bu işlem tüm yanıtları da silecektir.",
+      "deleteOk": "Sil",
+      "edit": "Düzenle",
+      "preview": "Önizleme",
+      "copy": "Kopyala",
+      "getLink": "Bağlantı Al",
+      "sharedAt": "Paylaşıldı:",
+      "responses": "{{count}} yanıt",
+      "responsesPlural": "{{count}} yanıt",
+      "statusActive": "Aktif",
+      "statusDraft": "Taslak"
+    },
+    "links": {
+      "heading": "Paylaşılabilir Bağlantılar",
+      "headingDesc": "Hizmetler için doğrudan rezervasyon ve kayıt bağlantıları",
+      "createLink": "Bağlantı Oluştur",
+      "refresh": "Yenile",
+      "linkName": "Bağlantı Adı",
+      "url": "URL",
+      "type": "Tür",
+      "typeForm": "Form",
+      "typeServiceBuy": "Hizmet Satın Al",
+      "typeService": "Hizmet",
+      "typeRegistration": "Kayıt",
+      "status": "Durum",
+      "statusActive": "Aktif",
+      "statusInactive": "Pasif",
+      "uses": "Kullanım",
+      "expires": "Bitiş",
+      "never": "Hiçbir zaman",
+      "actions": "İşlemler",
+      "edit": "Düzenle",
+      "copy": "Kopyala",
+      "open": "Aç",
+      "delete": "Sil",
+      "deleteConfirm": "Bu bağlantı silinsin mi?",
+      "noLinks": "Henüz bağlantı yok. Müşterilerle paylaşmak için bir tane oluşturun.",
+      "createFirstLink": "İlk Bağlantınızı Oluşturun"
+    },
+    "registrations": {
+      "heading": "Bağlantı Kayıtları",
+      "headingDesc": "Paylaşılabilir bağlantılardan gelen hizmet kayıtları",
+      "refresh": "Yenile",
+      "customer": "Müşteri",
+      "service": "Hizmet",
+      "general": "Genel",
+      "status": "Durum",
+      "date": "Tarih",
+      "actions": "İşlemler",
+      "pending": "Beklemede",
+      "confirm": "Onayla",
+      "cancel": "İptal",
+      "noRegistrations": "Henüz kayıt yok. Kayıt almak için bağlantılarınızı paylaşın."
+    },
+    "formAnswers": {
+      "submittedBy": "Gönderen",
+      "form": "Form",
+      "unknownForm": "Bilinmeyen Form",
+      "status": "Durum",
+      "date": "Tarih",
+      "actions": "İşlemler",
+      "view": "Görüntüle",
+      "delete": "Sil",
+      "createUser": "Kullanıcı Oluştur",
+      "filterByForm": "Forma göre filtrele",
+      "allForms": "Tüm Formlar",
+      "noSubmissions": "Henüz yanıt yok"
     }
   },
   "services": {
@@ -747,5 +1104,868 @@
   },
   "errors": {
     "loadFailed": "Veriler yüklenemedi. Lütfen tekrar deneyin."
+  },
+  "payments": {
+    "earningsBreakdown": "Kazanç Dökümü",
+    "managerCommission": "Yönetici Komisyonu",
+    "instructorEarnings": "Eğitmen Kazançları",
+    "totalEarned": "Toplam Kazanılan",
+    "paymentSummary": "Ödeme Özeti",
+    "totalPaidOut": "Toplam Ödenen",
+    "balanceOwed": "Kalan Bakiye",
+    "paymentHistory": "Ödeme Geçmişi",
+    "noPayments": "Henüz kayıtlı ödeme yok",
+    "pay": "Öde",
+    "deduct": "Kesinti",
+    "paymentType": "Ödeme",
+    "deductionType": "Kesinti",
+    "editPayment": "Ödemeyi Düzenle",
+    "recordPayment": "Ödeme Kaydet — {{name}}",
+    "recordDeduction": "Kesinti Kaydet — {{name}}",
+    "columns": {
+      "date": "Tarih",
+      "amount": "Tutar",
+      "type": "Tür",
+      "method": "Yöntem",
+      "notes": "Notlar"
+    },
+    "form": {
+      "amount": "Tutar (€)",
+      "date": "Tarih",
+      "paymentMethod": "Ödeme Yöntemi",
+      "notes": "Notlar",
+      "methods": {
+        "cash": "Nakit",
+        "bank_transfer": "Banka Transferi",
+        "check": "Çek",
+        "other": "Diğer"
+      },
+      "notesPlaceholder": "İsteğe bağlı notlar...",
+      "validation": {
+        "enterAmount": "Tutar girin",
+        "mustBePositive": "0'dan büyük olmalı",
+        "selectDate": "Tarih seçin"
+      }
+    },
+    "actions": {
+      "update": "Güncelle",
+      "recordPayment": "Ödeme Kaydet",
+      "recordDeduction": "Kesinti Kaydet",
+      "deletePayment": "Bu ödeme silinsin mi?"
+    },
+    "messages": {
+      "updated": "Ödeme güncellendi",
+      "deductionRecorded": "Kesinti kaydedildi",
+      "paymentRecorded": "Ödeme kaydedildi",
+      "deleted": "Ödeme silindi",
+      "saveFailed": "Ödeme kaydedilemedi",
+      "deleteFailed": "Ödeme silinemedi"
+    }
+  },
+  "financePages": {
+    "rangeLabel": "{{start}} – {{end}}",
+    "to": "ile",
+    "refresh": "Yenile",
+    "lessons": {
+      "title": "Ders Finansı",
+      "tag": "Dersler",
+      "subtitle": "Ders ve Rezervasyon Geliri · {{range}}",
+      "analyticsTitle": "Ders Gelir Analizi",
+      "stats": {
+        "lessonRevenue": "Ders Geliri",
+        "totalBookings": "Toplam Rezervasyon",
+        "instructorCommissions": "Eğitmen Komisyonları",
+        "netLessonRevenue": "Net Ders Geliri"
+      }
+    },
+    "rentals": {
+      "title": "Kiralama Finansı",
+      "tag": "Kiralama",
+      "subtitle": "Ekipman Kiralama Geliri · {{range}}",
+      "analyticsTitle": "Kiralama Gelir Analizi",
+      "stats": {
+        "rentalRevenue": "Kiralama Geliri",
+        "totalRentals": "Toplam Kiralama",
+        "avgRentalValue": "Ort. Kiralama Değeri",
+        "outstanding": "Bekleyen"
+      }
+    },
+    "membership": {
+      "title": "Üyelik Finansı",
+      "tag": "Üyelik",
+      "subtitle": "Üyelik Satışları ve Geliri · {{range}}",
+      "analyticsTitle": "Üyelik Gelir Analizi",
+      "stats": {
+        "membershipRevenue": "Üyelik Geliri",
+        "totalPurchases": "Toplam Satın Alma",
+        "avgMembershipValue": "Ort. Üyelik Değeri",
+        "outstanding": "Bekleyen"
+      }
+    },
+    "shop": {
+      "title": "Mağaza Finansı",
+      "tag": "Mağaza",
+      "subtitle": "Ürün ve Mal Satışları · {{range}}",
+      "transactionsTitle": "Mağaza İşlemleri",
+      "stats": {
+        "totalRevenue": "Toplam Gelir",
+        "totalOrders": "Toplam Sipariş",
+        "costOfGoods": "Mal Maliyeti",
+        "netProfit": "Net Kâr"
+      }
+    },
+    "accommodation": {
+      "title": "Konaklama Finansı",
+      "tag": "Konaklama",
+      "subtitle": "Konaklama ve Kalma Geliri · {{range}}",
+      "stats": {
+        "accommodationRevenue": "Konaklama Geliri",
+        "totalBookings": "Toplam Rezervasyon",
+        "totalNights": "Toplam Gece",
+        "avgRatePerNight": "Ort. Gecelik Ücret"
+      }
+    },
+    "events": {
+      "title": "Etkinlik Finansı",
+      "tag": "Topluluk",
+      "subtitle": "Etkinlik Biletleri ve Kayıt Geliri · {{range}}",
+      "stats": {
+        "eventRevenue": "Etkinlik Geliri",
+        "totalEvents": "Toplam Etkinlik",
+        "totalRegistrations": "Toplam Kayıt",
+        "avgTicketPrice": "Ort. Bilet Fiyatı"
+      }
+    },
+    "paymentHistory": {
+      "title": "Ödeme Geçmişi",
+      "tag": "Tüm Ödemeler",
+      "subtitle": "Tüm Cüzdan İşlemleri · {{range}}",
+      "stats": {
+        "totalIncome": "Toplam Gelir",
+        "totalCharges": "Toplam Ücretler",
+        "netAmount": "Net Tutar",
+        "transactions": "İşlemler"
+      },
+      "allTransactions": "Tum Islemler"
+    },
+    "walletDeposits": {
+      "title": "Cüzdan Yüklemeleri",
+      "tag": "Krediler",
+      "subtitle": "Cüzdan Kredi ve Yükleme Aktivitesi · {{range}}",
+      "stats": {
+        "totalDeposited": "Toplam Yüklenen",
+        "depositCount": "Yükleme Sayısı",
+        "uniqueStudents": "Benzersiz Öğrenciler",
+        "avgDeposit": "Ort. Yükleme"
+      }
+    },
+    "paymentRefunds": {
+      "title": "Ödeme İadeleri",
+      "subtitle": "Iyzico kart ödeme iadelerini yönetin",
+      "tabs": {
+        "refundable": "İade Edilebilir Ödemeler",
+        "history": "İade Geçmişi"
+      },
+      "columns": {
+        "date": "Tarih",
+        "customer": "Müşteri",
+        "amount": "Tutar",
+        "paymentId": "Ödeme ID",
+        "action": "İşlem",
+        "type": "Tür",
+        "reason": "Neden",
+        "processedBy": "İşlemi Yapan"
+      },
+      "refundTypes": {
+        "partial": "Kısmi",
+        "full": "Tam"
+      },
+      "search": {
+        "placeholder": "Kullanıcı ID'ye göre filtrele",
+        "button": "Ara"
+      },
+      "refundModal": {
+        "title": "İade İşle",
+        "customer": "Müşteri",
+        "originalPayment": "Orijinal Ödeme",
+        "refundAmount": "İade Tutarı",
+        "reason": "Neden (İsteğe Bağlı)",
+        "reasonPlaceholder": "İade nedenini girin...",
+        "partialRefundNote": "Bu kısmi bir iade olacak",
+        "confirmTitle": "İadeyi Onayla",
+        "confirmContent": "Bu ödemeyi iade etmek istediğinizden emin misiniz?",
+        "partialRefundTag": "Kısmi İade",
+        "cardRefundNote": "İade Iyzico üzerinden işlenecek ve müşterinin orijinal ödeme yöntemine iade edilecektir. Hesap ekstresinde görünmesi 3-10 iş günü sürebilir.",
+        "processButton": "İadeyi İşle",
+        "cancel": "İptal"
+      },
+      "pagination": {
+        "total": "Toplam {{count}} işlem"
+      },
+      "empty": {
+        "noRefundable": "İade edilebilir Iyzico ödemesi bulunamadı",
+        "noHistory": "Henüz işlenmiş iade yok"
+      },
+      "messages": {
+        "loadRefundableError": "İade edilebilir işlemler yüklenemedi",
+        "loadHistoryError": "İade geçmişi yüklenemedi",
+        "partialSuccess": "Kısmi iade başarıyla işlendi",
+        "fullSuccess": "Tam iade başarıyla işlendi",
+        "refundFailed": "İade başarısız"
+      }
+    },
+    "bankAccounts": {
+      "loadError": "Banka hesaplari yuklenemedi",
+      "title": "Banka Hesaplari",
+      "subtitle": "Ogrencilerin para transferi yapabilecegi banka hesaplarini yonetin",
+      "noBankAccounts": "Henuz banka hesabi yapilandirilmamis. Ogrencilerin banka transferi yapabilmesi icin bir tane ekleyin.",
+      "refresh": "Yenile",
+      "addAccount": "Hesap Ekle",
+      "columns": {
+        "bank": "Banka",
+        "ibanAccount": "IBAN / Hesap",
+        "currency": "Para Birimi",
+        "swift": "SWIFT",
+        "primary": "Birincil",
+        "status": "Durum",
+        "actions": "Islemler"
+      },
+      "statusLabels": {
+        "active": "Aktif",
+        "inactive": "Pasif"
+      },
+      "actions": {
+        "edit": "Duzenle",
+        "disable": "Devre Disi Birak",
+        "enable": "Etkinlestir",
+        "cancel": "Iptal",
+        "update": "Guncelle",
+        "create": "Olustur"
+      },
+      "modal": {
+        "addTitle": "Banka Hesabi Ekle",
+        "editTitle": "Banka Hesabini Duzenle",
+        "fields": {
+          "bankName": "Banka Adi",
+          "accountHolder": "Hesap Sahibi",
+          "iban": "IBAN",
+          "currency": "Para Birimi",
+          "swift": "SWIFT / BIC Kodu",
+          "accountNumber": "Hesap Numarasi",
+          "routingNumber": "Yonlendirme Numarasi",
+          "instructions": "Transfer Talimatlari",
+          "isActive": "Aktif",
+          "isPrimary": "Birincil",
+          "displayOrder": "Gorunum Sirasi"
+        },
+        "placeholders": {
+          "bankName": "orn. Ziraat Bankasi, Deutsche Bank",
+          "accountHolder": "Hesap sahibi tam adi",
+          "iban": "TR00 0000 0000 0000 0000 00",
+          "swift": "orn. TCZBTR2A",
+          "accountNumber": "Opsiyonel hesap numarasi",
+          "routingNumber": "ABD bankalari icin (opsiyonel)",
+          "instructions": "Ogrenciler icin ozel talimatlar (opsiyonel)"
+        },
+        "validation": {
+          "bankNameRequired": "Banka adi gereklidir",
+          "accountHolderRequired": "Hesap sahibi adi gereklidir",
+          "ibanRequired": "IBAN gereklidir"
+        }
+      },
+      "messages": {
+        "updated": "Banka hesabi guncellendi",
+        "created": "Banka hesabi olusturuldu",
+        "saveFailed": "Banka hesabi kaydedilemedi",
+        "statusUpdated": "Banka hesabi {{status}}",
+        "statusFailed": "Banka hesabi durumu guncellenemedi",
+        "copied": "Panoya kopyalandi",
+        "copyTooltip": "Kopyala"
+      }
+    },
+    "settings": {
+      "title": "Finans Ayarları",
+      "subtitle": "Bağlama göre çözümlenmiş ayarları görüntüleyin.",
+      "hideForm": "Formu Gizle",
+      "editSettings": "Ayarları Düzenle"
+    }
+  },
+  "equipmentPage": {
+    "title": "Ekipman ve Donanım",
+    "subtitle": "Tüm ekipman envanterini takip edin ve yönetin. Müsaitlik, durum ve bakım programlarını izleyin.",
+    "addEquipment": "Ekipman Ekle",
+    "refresh": "Yenile",
+    "backToList": "Listeye Dön",
+    "loading": "Ekipman verileri yükleniyor...",
+    "tryAgain": "Tekrar dene",
+    "list": {
+      "searchPlaceholder": "Ekipman ara...",
+      "allTypes": "Tüm Ekipman Türleri",
+      "allSizes": "Tüm Bedenler",
+      "columns": {
+        "equipment": "Ekipman",
+        "type": "Tür",
+        "sizeSpecs": "Beden/Özellikler",
+        "status": "Durum",
+        "actions": "İşlemler"
+      },
+      "view": "Görüntüle",
+      "edit": "Düzenle"
+    },
+    "detail": {
+      "brand": "Marka",
+      "type": "Tür",
+      "size": "Beden",
+      "specifications": "Özellikler",
+      "windRange": "Rüzgar Aralığı",
+      "windRangeValue": "{{low}} - {{high}} knot",
+      "serialNumber": "Seri Numarası",
+      "purchaseDate": "Satın Alma Tarihi",
+      "maintenanceHistory": "Bakım Geçmişi",
+      "noMaintenance": "Bakım geçmişi mevcut değil",
+      "backToList": "Listeye Dön",
+      "editEquipment": "Ekipmanı Düzenle"
+    },
+    "form": {
+      "addTitle": "Yeni Ekipman Ekle",
+      "editTitle": "Ekipmanı Düzenle",
+      "fields": {
+        "name": "Ekipman Adı *",
+        "brand": "Marka *",
+        "type": "Ekipman Türü *",
+        "size": "Beden *",
+        "windRange": "Rüzgar Aralığı (Knot) *",
+        "windMin": "Min",
+        "windMax": "Max",
+        "status": "Durum *",
+        "serialNumber": "Seri Numarası *",
+        "purchaseDate": "Satın Alma Tarihi *",
+        "notes": "Notlar"
+      },
+      "status": {
+        "available": "Müsait",
+        "inUse": "Kullanımda",
+        "maintenance": "Bakımda",
+        "retired": "Emekli"
+      },
+      "validation": {
+        "nameRequired": "Ad gerekli",
+        "brandRequired": "Marka gerekli",
+        "typeRequired": "Tür gerekli",
+        "sizeRequired": "Beden gerekli",
+        "statusRequired": "Durum gerekli",
+        "serialRequired": "Seri numarası gerekli",
+        "purchaseDateRequired": "Satın alma tarihi gerekli",
+        "required": "Gerekli"
+      },
+      "cancel": "İptal",
+      "addButton": "Ekipman Ekle",
+      "saveButton": "Değişiklikleri Kaydet"
+    }
+  },
+  "rentalsPage": {
+    "newRental": "Yeni Kiralama",
+    "tabs": {
+      "requests": "Kiralama Talepleri",
+      "recent": "Son Kiralamalar",
+      "total": "Tum Kiralamalar"
+    },
+    "columns": {
+      "customer": "Musteri",
+      "equipment": "Ekipman",
+      "date": "Tarih",
+      "price": "Fiyat",
+      "status": "Durum",
+      "student": "Ogrenci",
+      "service": "Hizmet",
+      "period": "Sure",
+      "amount": "Tutar",
+      "notes": "Notlar",
+      "actions": "Islemler"
+    },
+    "statusLabels": {
+      "pending": "Beklemede",
+      "confirmed": "Onaylandi",
+      "cancelled": "Reddedildi",
+      "completed": "Tamamlandi",
+      "noShow": "Gelmedi"
+    },
+    "filters": {
+      "pending": "Beklemede",
+      "confirmed": "Onaylandi",
+      "cancelled": "Iptal Edildi",
+      "completed": "Tamamlandi"
+    },
+    "actions": {
+      "edit": "Duzenle",
+      "complete": "Tamamla",
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "deleteConfirm": "Sil?"
+    },
+    "tooltips": {
+      "approve": "Onayla",
+      "decline": "Reddet",
+      "markCompleted": "Tamamlandi Olarak Isaretle"
+    },
+    "confirm": {
+      "declineTitle": "Bu kiralama talebini reddet?",
+      "declineDescription": "Ogrenci bilgilendirilecek ve tahsil edilen tutar iade edilecektir.",
+      "declineOk": "Reddet",
+      "declineCancel": "Iptal Etme"
+    },
+    "empty": {
+      "noRentals": "Kiralama bulunamadi",
+      "noRequests": "Kiralama rezervasyon talebi bulunamadi"
+    },
+    "pagination": {
+      "requests": "toplam {{total}} kiralama talebi",
+      "recent": "toplam {{total}} son kiralama",
+      "total": "toplam {{total}} kiralama"
+    },
+    "messages": {
+      "loadError": "Kiralama verileri yuklenemedi",
+      "requestsError": "Kiralama talepleri yuklenemedi",
+      "approved": "onaylandi",
+      "declined": "reddedildi",
+      "updateStatusError": "Rezervasyon durumu guncellenemedi",
+      "rentalApproved": "Kiralama basariyla onaylandi",
+      "rentalDeclined": "Kiralama basariyla reddedildi",
+      "rentalStatusError": "{{action}} kiralamasi basarisiz",
+      "statusChanged": "Kiralama {{status}} basariyla",
+      "statusChangeError": "Kiralama durumu guncellenemedi",
+      "deleted": "Kiralama basariyla silindi",
+      "deleteError": "Kiralama silinemedi"
+    }
+  },
+  "dailyOperations": {
+    "title": "Gunluk Operasyonlar",
+    "todayTag": "Bugun",
+    "todayButton": "Bugun",
+    "refresh": "Yenile",
+    "stats": {
+      "totalIncome": "Toplam Gelir",
+      "netRevenue": "Net Gelir",
+      "transactions": "Islemler",
+      "rentals": "{{active}} aktif / {{total}} toplam"
+    },
+    "paymentHistoryCard": {
+      "incomeCount": "{{count}} gelir islemi"
+    },
+    "rentalsCard": {
+      "count": "{{count}} kiralama"
+    },
+    "empty": {
+      "noTransactions": "Bu gun icin gelir islemi yok",
+      "noRentals": "Bu gun icin kiralama yok"
+    },
+    "columns": {
+      "time": "Saat",
+      "description": "Aciklama",
+      "type": "Tur",
+      "reference": "Referans",
+      "amount": "Tutar",
+      "customer": "Musteri",
+      "status": "Durum",
+      "payment": "Odeme",
+      "price": "Fiyat",
+      "paidToday": "Bugun Odendi"
+    },
+    "error": "Veri yuklenemedi: {{message}}"
+  },
+  "reportsCenter": {
+    "title": "Rapor Merkezi",
+    "generateReport": "Rapor Olustur",
+    "generateShort": "Olustur",
+    "scheduleReport": "Rapor Zamanla",
+    "scheduleShort": "Zamanla",
+    "availableReports": "Mevcut Raporlar",
+    "scheduledReports": "Zamanlanmis Raporlar",
+    "reportHistory": "Rapor Gecmisi",
+    "generate": "Olustur",
+    "updateSchedule": "Zamanlamayi Guncelle",
+    "cancel": "Iptal",
+    "download": "Indir",
+    "preview": "Onizle",
+    "runNow": "Simdi Calistir",
+    "edit": "Duzenle",
+    "delete": "Sil",
+    "recipients": "{{count}} alici",
+    "notScheduled": "Zamanlanmamis",
+    "reportTypes": {
+      "financial-summary": "Finansal Ozet",
+      "revenue-analytics": "Gelir Analitigi",
+      "customer-analytics": "Musteri Analitigi",
+      "operational-metrics": "Operasyonel Metrikler",
+      "instructor-performance": "Egitmen Performansi",
+      "outstanding-balances": "Odenmemis Bakiyeler",
+      "inventory-valuation": "Envanter Degerleme",
+      "tax-report": "Vergi Raporu"
+    },
+    "reportDescriptions": {
+      "financial-summary": "Gelir, gider ve kar analiziyle tam finansal genel bakis",
+      "revenue-analytics": "Trendler ve tahminleme ile detayli gelir analizi",
+      "customer-analytics": "Musteri davranisi, CLV ve segmentasyon analizi",
+      "operational-metrics": "Verimlilik, kullanim ve performans metrikleri",
+      "instructor-performance": "Bireysel egitmen metrikleri ve komisyonlar",
+      "outstanding-balances": "Musteri borc ve alacak analizi",
+      "inventory-valuation": "Ekipman ve envanter finansal analizi",
+      "tax-report": "Vergi odakli finansal tablolar ve ozetler"
+    },
+    "columns": {
+      "reportName": "Rapor Adi",
+      "frequency": "Siklik",
+      "format": "Format",
+      "recipients": "Alicilar",
+      "nextRun": "Sonraki Calistirma",
+      "status": "Durum",
+      "actions": "Islemler",
+      "report": "Rapor",
+      "generated": "Olusturuldu",
+      "period": "Donem",
+      "size": "Boyut"
+    },
+    "frequency": {
+      "daily": "Gunluk",
+      "weekly": "Haftalik ({{day}})",
+      "monthly": "Aylik ({{day}}. gun)",
+      "quarterly": "Ucaylik",
+      "yearly": "Yillik"
+    },
+    "switchStatus": {
+      "active": "Aktif",
+      "paused": "Duraklatildi"
+    },
+    "form": {
+      "reportType": "Rapor Turu",
+      "dateRange": "Tarih Araligi",
+      "format": "Format",
+      "includeCharts": "Grafikler Dahil",
+      "includeDetails": "Detaylar Dahil",
+      "reportName": "Rapor Adi",
+      "time": "Saat",
+      "emailRecipients": "E-posta Alicilari",
+      "recipientsPlaceholder": "E-posta adreslerini virgille ayirarak girin",
+      "selectReportType": "Rapor turu secin",
+      "selectFormat": "Format secin",
+      "selectFrequency": "Siklik secin",
+      "enterReportName": "Rapor adi girin",
+      "validation": {
+        "selectReportType": "Lutfen bir rapor turu secin",
+        "selectDateRange": "Lutfen tarih araligi secin",
+        "selectFormat": "Lutfen format secin",
+        "enterName": "Lutfen rapor adi girin",
+        "selectTime": "Lutfen saat secin",
+        "enterRecipients": "Lutfen e-posta alicilari girin",
+        "selectFrequency": "Lutfen siklik secin"
+      }
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} / {{total}} rapor"
+    },
+    "messages": {
+      "generated": "Rapor basariyla olusturuldu",
+      "generateError": "Rapor olusturulamadi",
+      "scheduled": "Rapor basariyla zamanlanadi",
+      "scheduleError": "Rapor zamanlanamaadi",
+      "activated": "Rapor aktif edildi",
+      "paused": "Rapor duraklatildi",
+      "toggleError": "Rapor zamanlama guncellenemedii",
+      "deleted": "Zamanlanmis rapor silindi",
+      "deleteError": "Zamanlanmis rapor silinemedi",
+      "downloadError": "Rapor indirilemedi",
+      "runStarted": "Rapor olusturma baslatildi",
+      "runError": "Rapor calistirilamadi",
+      "previewComingSoon": "Onizleme ozelligi yakinda geliyor"
+    }
+  },
+  "transactionHistory": {
+    "searchPlaceholder": "Islemlerde ara...",
+    "detailsTitle": "Islem Detaylari",
+    "systemAuto": "Sistem otomatik",
+    "columns": {
+      "date": "Tarih",
+      "type": "Tur",
+      "description": "Aciklama",
+      "customer": "Musteri",
+      "amount": "Tutar",
+      "createdBy": "Olusturan"
+    },
+    "detail": {
+      "date": "Tarih",
+      "amount": "Tutar",
+      "customer": "Musteri",
+      "status": "Durum",
+      "direction": "Yon",
+      "createdBy": "Olusturan",
+      "description": "Aciklama",
+      "reference": "Referans"
+    },
+    "types": {
+      "manual_credit": "Depozito",
+      "wallet_deposit": "Depozito",
+      "credit": "Alacak",
+      "payment": "Odeme",
+      "package_purchase": "Paket Alimi",
+      "rental_charge": "Kiralama Ucreti",
+      "booking_charge": "Rezervasyon Ucreti",
+      "charge": "Ucret",
+      "debit": "Borc",
+      "refund": "Iade",
+      "booking_deleted_refund": "Rezervasyon Iadesi",
+      "package_refund": "Paket Iadesi",
+      "wallet_lock": "Cuzdaan Kilidi",
+      "service_payment": "Hizmet Odemesi",
+      "rental_payment": "Kiralama Odemesi"
+    }
+  },
+  "outstandingBalances": {
+    "title": "Odenmemis Bakiyeler",
+    "refresh": "Yenile",
+    "searchPlaceholder": "Musteri ara...",
+    "allStatuses": "Tum Durumlar",
+    "positiveBalance": "Pozitif Bakiye",
+    "creditBalance": "Alacak Bakiyesi",
+    "overdue": "Gecikmiş",
+    "recent": "Yakin (≤7 gun)",
+    "critical": "Kritik (>{{symbol}}100, >30 gun)",
+    "highestFirst": "En Yuksekten",
+    "lowestFirst": "En Dusukten",
+    "sendReminders": "Hatirlatici Gonder ({{count}})",
+    "export": "Disa Aktar",
+    "noPhone": "Telefon numarasi mevcut degil",
+    "stats": {
+      "totalOutstanding": "Toplam Odenmemis",
+      "customersWithDebt": "Borclu Musteriler",
+      "averageDebt": "Ortalama Borc",
+      "criticalCases": "Kritik Vakalar"
+    },
+    "columns": {
+      "customer": "Musteri",
+      "outstandingBalance": "Odenmemis Bakiye",
+      "daysOverdue": "Gecikme Gunu",
+      "riskLevel": "Risk Seviyesi",
+      "lastPayment": "Son Odeme",
+      "totalBookings": "Toplam Rezervasyon",
+      "actions": "Islemler"
+    },
+    "riskLevels": {
+      "none": "YOK",
+      "low": "DUSUK",
+      "medium": "ORTA",
+      "high": "YUKSEK"
+    },
+    "noPayments": "Odeme yok",
+    "days": "{{count}} gun",
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} / {{total}} musteri"
+    },
+    "actions": {
+      "recordPayment": "Odeme Kaydet",
+      "sendReminder": "Hatirlatici Gonder",
+      "callCustomer": "Musteri Ara",
+      "viewProfile": "Profili Goruntule"
+    },
+    "paymentModal": {
+      "title": "Odeme Kaydet — {{name}}",
+      "amount": "Odeme Tutari",
+      "date": "Odeme Tarihi",
+      "method": "Odeme Yontemi",
+      "notes": "Notlar",
+      "methods": {
+        "cash": "Nakit",
+        "card": "Kart",
+        "bank_transfer": "Banka Transferi",
+        "online": "Online Odeme",
+        "other": "Diger"
+      },
+      "validation": {
+        "enterAmount": "Lutfen odeme tutarini girin",
+        "amountMin": "Tutar 0'dan buyuk olmalidir",
+        "selectDate": "Lutfen odeme tarihi secin",
+        "selectMethod": "Lutfen odeme yontemi secin"
+      },
+      "cancel": "Iptal",
+      "submit": "Odeme Kaydet"
+    },
+    "messages": {
+      "loadError": "Odenmemis bakiyeler yuklenemedi",
+      "paymentRecorded": "Odeme basariyla kaydedildi",
+      "paymentError": "Odeme kaydedilemedi",
+      "reminderSent": "Hatirlatici e-posta gonderildi",
+      "reminderError": "Hatirlatici e-posta gonderilemedi",
+      "bulkReminderSent": "{{count}} musteriye hatirlatici gonderildi",
+      "bulkReminderError": "Hatirlatici e-postalar gonderilemedi",
+      "exportSuccess": "Veriler basariyla disa aktarildi",
+      "exportError": "Veriler disa aktarilamadi",
+      "selectCustomers": "Lutfen e-posta gonderilecek musterileri secin"
+    }
+  },
+  "rentalsCalendar": {
+    "today": "Bugun",
+    "close": "Kapat",
+    "noRentalsDay": "Bu gun kiralama yok",
+    "noRentals": "Kiralama yok",
+    "rentalCount": "{{count}} kiralama",
+    "rentalCountPlural": "{{count}} kiralama",
+    "moreRentals": "+{{count}} daha",
+    "unknownCustomer": "Bilinmeyen Musteri",
+    "rentalService": "Kiralama Hizmeti"
+  },
+  "newRentalDrawer": {
+    "titleNew": "Yeni Kiralama",
+    "titleEdit": "Kiralamayı Duzenle",
+    "sectionCustomer": "Musteri",
+    "sectionEquipment": "Ekipman",
+    "sectionPackage": "Pakete Dahil",
+    "single": "Tekil",
+    "multiple": "Coklu",
+    "multipleDisabled": "Duzenlerken kullanamaz",
+    "searchCustomer": "Musteri adi veya e-posta ara",
+    "selectCustomers": "Musteri sec",
+    "addEquipment": "Kiralama ekipmani ekle",
+    "equipmentSummary": {
+      "item": "kalem",
+      "items": "kalem"
+    },
+    "usingPackage": "Paket Kullaniliyor",
+    "usePackage": "Aktif paketten kiralama gunu kullan",
+    "packageDaysLeft": "{{count}} gun kaldi",
+    "packageDayDeducted": "1 kiralama gunu dusilecek — cuzdan ucreti alinmayacak.",
+    "checkingPackages": "Paketler kontrol ediliyor…",
+    "selectPackage": "Paket sec",
+    "fields": {
+      "rentalDate": "Kiralama tarihi",
+      "status": "Durum",
+      "totalPrice": "Toplam fiyat",
+      "totalPriceTooltip": "Hesaplanan kiralama fiyatini gecersiz kil",
+      "notes": "Notlar",
+      "notesPlaceholder": "Teslim notlari, musteri tercihleri…"
+    },
+    "status": {
+      "active": "Aktif",
+      "completed": "Tamamlandi"
+    },
+    "placeholders": {
+      "chooseDate": "Tarih sec",
+      "status": "Durum",
+      "price": "orn. 100.00"
+    },
+    "noCustomers": "Musteri mevcut degil",
+    "noEquipment": "Kiralama hizmeti mevcut degil",
+    "cancel": "Iptal",
+    "createRental": "Kiralama Olustur",
+    "updateRental": "Kiralamayı Guncelle",
+    "validation": {
+      "selectCustomer": "Lutfen bir musteri secin",
+      "selectCustomers": "En az bir musteri secin",
+      "selectEquipment": "En az bir kiralama hizmeti secin",
+      "selectDate": "Lutfen tarih secin",
+      "selectStatus": "Zorunlu"
+    },
+    "messages": {
+      "selectCustomerWarning": "Lutfen bir musteri secin",
+      "selectCustomersWarning": "En az bir musteri secin",
+      "createdMultiple": "{{count}} kiralama olusturuldu",
+      "createdMultiplePlural": "{{count}} kiralama olusturuldu",
+      "updated": "Kiralama basariyla guncellendi",
+      "created": "Kiralama basariyla olusturuldu",
+      "saveError": "Kiralama kaydedilemedi: {{error}}",
+      "saveErrorGeneric": "Kiralama kaydedilemedi"
+    }
+  },
+  "customers": {
+    "title": "Müşteriler",
+    "searchPlaceholder": "Müşteri ara...",
+    "addCustomer": "Müşteri Ekle",
+    "loadFailed": "Müşteriler yüklenemedi",
+    "noCustomers": "Müşteri bulunamadı",
+    "notFound": "Müşteri bulunamadı",
+    "newCustomer": "Yeni Müşteri",
+    "loadMore": "Daha fazla yükle",
+    "allLoaded": "Tümü yüklendi",
+    "pageSize": "Sayfa boyutu:",
+    "columns": {
+      "name": "Ad",
+      "role": "Rol",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "balance": "Bakiye",
+      "paymentStatus": "Ödeme Durumu",
+      "actions": "İşlemler"
+    },
+    "roles": {
+      "student": "Öğrenci",
+      "outsider": "Dışarıdan",
+      "trusted": "Güvenilir"
+    },
+    "paymentStatus": {
+      "paid": "Ödendi",
+      "package": "Paket",
+      "partial": "Kısmi",
+      "pending": "Beklemede",
+      "overdue": "Gecikmiş",
+      "loading": "Yükleniyor...",
+      "timeout": "Yenileme gerekli",
+      "error": "Hata",
+      "na": "Yok"
+    },
+    "balanceFilter": {
+      "all": "Tümü",
+      "negative": "< 0",
+      "zero": "= 0",
+      "positive": "> 0"
+    },
+    "actions": {
+      "editCustomer": "Müşteriyi Düzenle",
+      "deleteCustomer": "Müşteriyi Sil",
+      "edit": "Müşteriyi Düzenle",
+      "delete": "Müşteriyi Sil"
+    },
+    "detail": {
+      "nav": {
+        "profile": "Profil",
+        "packages": "Paketler",
+        "bookings": "Rezervasyonlar",
+        "rentals": "Kiralamalar",
+        "accommodation": "Konaklama",
+        "shop": "Mağaza",
+        "memberships": "Üyelikler",
+        "financial": "Finansal"
+      },
+      "sectionDesc": {
+        "profile": "İletişim bilgileri ve öne çıkan bilgiler",
+        "packages": "Atanmış ders paketleri",
+        "bookings": "Ders geçmişi ve planlama",
+        "rentals": "Ekipman kiralama geçmişi",
+        "accommodation": "Konaklama rezervasyon geçmişi",
+        "financial": "İşlemler, bakiye ve cüzdan yönetimi",
+        "shop": "Mağaza sipariş geçmişi",
+        "memberships": "Üyelik satın alımları"
+      }
+    }
+  },
+  "popups": {
+    "title": "Açılır Pencereler",
+    "chooseTemplate": "Şablon Seç",
+    "chooseTemplateDesc": "Hızlı başlamak için hazır bir şablon seçin. Seçtikten sonra tüm özellikleri özelleştirebilirsiniz.",
+    "useTemplate": "Şablonu Kullan",
+    "templates": {
+      "title": "Açılır Pencere Şablonları",
+      "selectTemplate": "Şablon Seç",
+      "preview": "Önizleme",
+      "welcome": {
+        "name": "Hoş Geldiniz Mesajı",
+        "description": "Yeni kullanıcılar için basit karşılama açılır penceresi"
+      },
+      "featureAnnouncement": {
+        "name": "Özellik Duyurusu",
+        "description": "Yeni özellikler ve güncellemeler duyurun"
+      },
+      "categories": {
+        "onboarding": "Alıştırma",
+        "marketing": "Pazarlama"
+      }
+    }
   }
 }

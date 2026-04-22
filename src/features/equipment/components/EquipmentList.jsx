@@ -1,8 +1,10 @@
 // src/components/EquipmentList.jsx
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getStatusColor } from '@/shared/utils/formatters';
 
 function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
+  const { t } = useTranslation(['manager']);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterSize, setFilterSize] = useState('all');
@@ -29,7 +31,7 @@ function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
         <input
           type="text"
-          placeholder="Search equipment..."
+          placeholder={t('manager:equipmentPage.list.searchPlaceholder')}
           className="px-4 py-2 border rounded-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -39,7 +41,7 @@ function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
         >
-          <option value="all">All Equipment Types</option>
+          <option value="all">{t('manager:equipmentPage.list.allTypes')}</option>
           {kitesurfEquipmentTypes.map(type => (
             <option key={type} value={type}>
               {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -51,7 +53,7 @@ function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
           value={filterSize}
           onChange={(e) => setFilterSize(e.target.value)}
         >
-          <option value="all">All Sizes</option>
+          <option value="all">{t('manager:equipmentPage.list.allSizes')}</option>
           {['XS', 'S', 'M', 'L', 'XL'].map(size => (
             <option key={size} value={size}>{size}</option>
           ))}
@@ -63,19 +65,19 @@ function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Equipment
+                {t('manager:equipmentPage.list.columns.equipment')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
+                {t('manager:equipmentPage.list.columns.type')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Size/Specs
+                {t('manager:equipmentPage.list.columns.sizeSpecs')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                {t('manager:equipmentPage.list.columns.status')}
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                {t('manager:equipmentPage.list.columns.actions')}
               </th>
             </tr>
           </thead>
@@ -106,14 +108,14 @@ function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
                     className="text-indigo-600 hover:text-indigo-900 mr-4"
                     onClick={() => onEquipmentSelect(item.id)}
                   >
-                    View
+                    {t('manager:equipmentPage.list.view')}
                   </button>
                   {onEditEquipment && (
                     <button
                       className="text-green-600 hover:text-green-900"
                       onClick={() => onEditEquipment(item.id)}
                     >
-                      Edit
+                      {t('manager:equipmentPage.list.edit')}
                     </button>
                   )}
                 </td>

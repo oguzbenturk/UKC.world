@@ -1,9 +1,11 @@
 // Minimal Real Time Status Indicator (now polls backend stats)
 import { useState, useEffect, useRef } from 'react';
 import { Popover } from 'antd';
+import { useTranslation } from 'react-i18next';
 import apiClient from '@/shared/services/apiClient';
 
 const RealTimeStatusIndicator = () => {
+  const { t } = useTranslation(['common']);
   const [isConnected, setIsConnected] = useState(true);
   const [activeUsers, setActiveUsers] = useState(1);
   const [connectedUserList, setConnectedUserList] = useState([]);
@@ -42,7 +44,7 @@ const RealTimeStatusIndicator = () => {
   const popoverContent = (
     <div style={{ maxHeight: 300, overflowY: 'auto', minWidth: 200 }}>
       <div className="text-xs font-semibold text-slate-500 mb-2">
-        {activeUsers} user{activeUsers !== 1 ? 's' : ''} online
+        {t('common:realtime.usersOnline', { count: activeUsers })}
       </div>
       {connectedUserList.length > 0 ? (
         <ul className="space-y-1.5 list-none p-0 m-0">
@@ -60,7 +62,7 @@ const RealTimeStatusIndicator = () => {
         </ul>
       ) : (
         <p className="text-xs text-slate-400 m-0">
-          {isConnected ? 'Active user details not available' : 'Connection lost'}
+          {isConnected ? t('common:realtime.noDetails') : t('common:realtime.connectionLost')}
         </p>
       )}
     </div>
@@ -69,7 +71,7 @@ const RealTimeStatusIndicator = () => {
   return (
     <Popover
       content={popoverContent}
-      title="Active Users"
+      title={t('common:realtime.activeUsers')}
       trigger="click"
       open={popoverOpen}
       onOpenChange={setPopoverOpen}
@@ -82,7 +84,7 @@ const RealTimeStatusIndicator = () => {
       >
         <div className="flex items-center space-x-1.5">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="font-semibold text-slate-600 dark:text-slate-200">{isConnected ? 'Live' : 'Offline'}</span>
+          <span className="font-semibold text-slate-600 dark:text-slate-200">{isConnected ? t('common:realtime.live') : t('common:realtime.offline')}</span>
           <span
             className="text-slate-500 text-xs"
             title={`${activeUsers} ${isConnected ? 'online' : 'offline'}`}

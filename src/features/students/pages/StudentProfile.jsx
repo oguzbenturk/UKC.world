@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOutletContext } from 'react-router-dom';
 import {
   Alert,
@@ -38,16 +39,17 @@ import {
 
 const { Text } = Typography;
 
-const statusMap = {
-  active: { color: 'green', label: 'Active' },
-  completed: { color: 'green', label: 'Completed' },
-  returned: { color: 'green', label: 'Returned' },
-  cancelled: { color: 'red', label: 'Cancelled' },
-};
+const buildStatusMap = (t) => ({
+  active: { color: 'green', label: t('student:profile.status.active') },
+  completed: { color: 'green', label: t('student:profile.status.completed') },
+  returned: { color: 'green', label: t('student:profile.status.returned') },
+  cancelled: { color: 'red', label: t('student:profile.status.cancelled') },
+});
 
-const getStatusTag = (status) => {
-  if (!status) return <Tag>Unknown</Tag>;
+const getStatusTag = (status, t) => {
+  if (!status) return <Tag>{t ? t('student:profile.status.unknown') : 'Unknown'}</Tag>;
   const key = String(status).toLowerCase();
+  const statusMap = t ? buildStatusMap(t) : {};
   const meta = statusMap[key];
   if (!meta) return <Tag>{status}</Tag>;
   return <Tag color={meta.color}>{meta.label}</Tag>;
@@ -150,14 +152,14 @@ const buildActivityRows = (bookings = [], rentals = []) => {
   });
 };
 
-const buildProfileFields = (student = {}) => [
-  { label: 'Email', value: student.email || 'Not provided' },
-  { label: 'Phone', value: student.phone || 'Not provided' },
-  { label: 'Preferred Language', value: student.language ? student.language.toUpperCase() : 'Not set' },
-  { label: 'Customer Since', value: student.createdAt ? formatDateOnly(student.createdAt) : 'Unknown' },
+const buildProfileFields = (student = {}, t) => [
+  { label: t('student:profile.fields.email'), value: student.email || t('student:profile.fields.notProvided') },
+  { label: t('student:profile.fields.phone'), value: student.phone || t('student:profile.fields.notProvided') },
+  { label: t('student:profile.fields.preferredLanguage'), value: student.language ? student.language.toUpperCase() : t('student:profile.fields.notSet') },
+  { label: t('student:profile.fields.customerSince'), value: student.createdAt ? formatDateOnly(student.createdAt) : t('student:profile.fields.unknown') },
 ];
 
-const buildAccountHighlights = (account = {}, formatCurrency, currency, storageCurrency, convertCurrency) => {
+const buildAccountHighlights = (account = {}, formatCurrency, currency, storageCurrency, convertCurrency, t) => {
   const showDual = currency !== storageCurrency && convertCurrency;
   const formatDual = (amount) => {
     if (!showDual) return formatCurrency(amount, currency);
@@ -166,33 +168,34 @@ const buildAccountHighlights = (account = {}, formatCurrency, currency, storageC
   };
   return [
     {
-      label: 'Current Balance',
+      label: t('student:profile.account.currentBalance'),
       value: formatDual(account.balance || 0),
       valueClass: (account.balance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600',
     },
     {
-      label: 'Lifetime Value',
+      label: t('student:profile.account.lifetimeValue'),
       value: formatDual(account.totalSpent || account.lifetimeValue || 0),
       valueClass: 'text-blue-600',
     },
     {
-      label: 'Last Payment',
-      value: account.lastPaymentAt ? formatDateOnly(account.lastPaymentAt) : 'No payments yet',
+      label: t('student:profile.account.lastPayment'),
+      value: account.lastPaymentAt ? formatDateOnly(account.lastPaymentAt) : t('student:profile.account.noPaymentsYet'),
       valueClass: 'text-gray-800',
     },
   ];
 };
 
-const buildStatCards = (stats = {}) => [
-  { label: 'Hours Attended', value: `${(stats.hoursAttended ?? 0).toFixed(1)} h`, valueClass: 'text-emerald-600' },
-  { label: 'Attendance Rate', value: `${stats.attendanceRate ?? 0}%`, valueClass: 'text-indigo-600' },
-  { label: 'Total Lessons', value: stats.totalLessons ?? 0, valueClass: 'text-indigo-600' },
-  { label: 'Total Rentals', value: stats.totalRentals ?? 0, valueClass: 'text-amber-600' },
+const buildStatCards = (stats = {}, t) => [
+  { label: t('student:profile.stats.hoursAttended'), value: `${(stats.hoursAttended ?? 0).toFixed(1)} h`, valueClass: 'text-emerald-600' },
+  { label: t('student:profile.stats.attendanceRate'), value: `${stats.attendanceRate ?? 0}%`, valueClass: 'text-indigo-600' },
+  { label: t('student:profile.stats.totalLessons'), value: stats.totalLessons ?? 0, valueClass: 'text-indigo-600' },
+  { label: t('student:profile.stats.totalRentals'), value: stats.totalRentals ?? 0, valueClass: 'text-amber-600' },
 ];
 
 const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, convertCurrency) => {
+  const { t } = useTranslation(['student']);
   const showDualCurrency = displayCurrency !== storageCurrency && convertCurrency;
-  
+
   const formatDualPrice = useMemo(() => (value, baseCurrency) => {
     const txCurrency = baseCurrency != null && baseCurrency !== '' ? baseCurrency : displayCurrency;
     if (!showDualCurrency) {
@@ -205,7 +208,7 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
   const bookingColumns = useMemo(
     () => [
       {
-        title: 'Date & Time',
+        title: t('student:profile.history.columns.dateTime'),
         key: 'datetime',
         render: (_, record) => {
           const dt = getBookingDateTime(record);
@@ -227,57 +230,57 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Service',
+        title: t('student:profile.history.columns.service'),
         dataIndex: 'service_name',
         key: 'service_name',
-        render: (value, record) => value || record.serviceName || record.service_name || 'Lesson',
+        render: (value, record) => value || record.serviceName || record.service_name || t('student:profile.payments.lesson'),
       },
       {
-        title: 'Instructor',
+        title: t('student:profile.history.columns.instructor'),
         dataIndex: 'instructor_name',
         key: 'instructor',
-        render: (value, record) => value || record.instructorName || 'Not assigned',
+        render: (value, record) => value || record.instructorName || t('student:profile.payments.notAssigned'),
       },
       {
-        title: 'Duration',
+        title: t('student:profile.history.columns.duration'),
         dataIndex: 'duration',
         key: 'duration',
         render: (value) => {
           const duration = Number.parseFloat(value ?? 0);
-          if (!Number.isFinite(duration) || duration <= 0) return 'N/A';
-          return `${duration} ${duration === 1 ? 'hour' : 'hours'}`;
+          if (!Number.isFinite(duration) || duration <= 0) return t('student:profile.status.na');
+          return t('student:profile.payments.hoursUnit', { count: duration });
         },
       },
       {
-        title: 'Price',
+        title: t('student:profile.history.columns.price'),
         dataIndex: 'total_price',
         key: 'total_price',
         render: (value, record) => {
           const price = Number(value || record.totalPrice || record.price || record.final_amount || record.amount || 0);
-          if (!Number.isFinite(price)) return 'N/A';
+          if (!Number.isFinite(price)) return t('student:profile.status.na');
           const baseCurrency = record.currency || displayCurrency;
           return formatDualPrice(price, baseCurrency);
         },
       },
       {
-        title: 'Status',
+        title: t('student:profile.history.columns.status'),
         dataIndex: 'status',
         key: 'status',
-        render: (status) => getStatusTag(status),
+        render: (status) => getStatusTag(status, t),
       },
       {
-        title: 'Payment',
+        title: t('student:profile.history.columns.payment'),
         key: 'payment',
         render: (_, record) => renderPaymentTag(record),
       },
     ],
-    [formatDualPrice, displayCurrency],
+    [formatDualPrice, displayCurrency, t],
   );
 
   const rentalColumns = useMemo(
     () => [
       {
-        title: 'Equipment',
+        title: t('student:profile.history.columns.equipment'),
         dataIndex: 'equipment',
         key: 'equipment',
         render: (equipment, record) => {
@@ -288,11 +291,11 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
             return record.equipment_names.length === 1 ? record.equipment_names[0] : `${record.equipment_names.length} items`;
           }
           if (record.equipment_name) return record.equipment_name;
-          return 'Equipment';
+          return t('student:profile.payments.equipment');
         },
       },
       {
-        title: 'Rental Date',
+        title: t('student:profile.history.columns.rentalDate'),
         dataIndex: 'rental_date',
         key: 'rental_date',
         render: (value, record) => formatDateTime(value || record.start_date || record.created_at),
@@ -313,28 +316,28 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Price',
+        title: t('student:profile.history.columns.price'),
         dataIndex: 'total_price',
         key: 'total_price',
         render: (value, record) =>
           Number.isFinite(Number(value))
             ? formatDualPrice(Number(value), record.currency || displayCurrency)
-            : 'N/A',
+            : t('student:profile.status.na'),
       },
       {
-        title: 'Status',
+        title: t('student:profile.history.columns.status'),
         dataIndex: 'status',
         key: 'status',
-        render: (status) => getStatusTag(status),
+        render: (status) => getStatusTag(status, t),
       },
     ],
-    [formatDualPrice, displayCurrency],
+    [formatDualPrice, displayCurrency, t],
   );
 
   const financialColumns = useMemo(
     () => [
       {
-        title: 'Date',
+        title: t('student:profile.history.columns.date'),
         dataIndex: 'createdAt',
         key: 'createdAt',
         render: (value) => formatDateTime(value),
@@ -345,7 +348,7 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Amount',
+        title: t('student:profile.history.columns.amount'),
         dataIndex: 'amount',
         key: 'amount',
         render: (value, record) => {
@@ -356,29 +359,29 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         sorter: (a, b) => Number(a.amount || 0) - Number(b.amount || 0),
       },
       {
-        title: 'Status',
+        title: t('student:profile.history.columns.status'),
         dataIndex: 'status',
         key: 'status',
         render: (status) => {
           const lower = String(status || '').toLowerCase();
           const color = lower === 'succeeded' || lower === 'completed' ? 'green' : lower === 'pending' ? 'orange' : 'default';
-          return <Tag color={color}>{status ? status.toUpperCase() : 'N/A'}</Tag>;
+          return <Tag color={color}>{status ? status.toUpperCase() : t('student:profile.status.na')}</Tag>;
         },
       },
       {
-        title: 'Description',
+        title: t('student:profile.history.columns.description'),
         dataIndex: 'description',
         key: 'description',
-        render: (value) => value || 'Payment',
+        render: (value) => value || t('student:profile.payments.payment'),
       },
     ],
-    [formatDualPrice, displayCurrency],
+    [formatDualPrice, displayCurrency, t],
   );
 
   const membershipColumns = useMemo(
     () => [
       {
-        title: 'Purchased',
+        title: t('student:profile.history.columns.purchased'),
         dataIndex: 'purchased_at',
         key: 'purchased_at',
         render: (value) => formatDateTime(value),
@@ -389,7 +392,7 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Membership',
+        title: t('student:profile.history.columns.membership'),
         key: 'offering',
         render: (_, record) => (
           <div>
@@ -399,7 +402,7 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         ),
       },
       {
-        title: 'Price',
+        title: t('student:profile.history.columns.price'),
         dataIndex: 'offering_price',
         key: 'offering_price',
         render: (value, record) => {
@@ -408,48 +411,48 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Status',
+        title: t('student:profile.history.columns.status'),
         dataIndex: 'status',
         key: 'status',
         render: (status) => {
           const lower = String(status || '').toLowerCase();
           const color = lower === 'active' ? 'green' : lower === 'expired' ? 'orange' : 'default';
-          return <Tag color={color}>{status ? status.toUpperCase() : 'N/A'}</Tag>;
+          return <Tag color={color}>{status ? status.toUpperCase() : t('student:profile.status.na')}</Tag>;
         },
       },
       {
-        title: 'Expires',
+        title: t('student:profile.history.columns.expires'),
         dataIndex: 'expires_at',
         key: 'expires_at',
-        render: (value) => value ? formatDateOnly(value) : 'No expiry',
+        render: (value) => value ? formatDateOnly(value) : t('student:profile.payments.noExpiry'),
       },
     ],
-    [displayCurrency, formatCurrency, formatDualPrice],
+    [displayCurrency, formatCurrency, formatDualPrice, t],
   );
 
   const shopColumns = useMemo(
     () => [
       {
-        title: 'Date',
+        title: t('student:profile.history.columns.date'),
         dataIndex: 'created_at',
         key: 'date',
         render: (val) => formatDateTime(val),
         sorter: (a, b) => new Date(b.created_at) - new Date(a.created_at),
       },
       {
-        title: 'Item',
+        title: t('student:profile.history.columns.item'),
         dataIndex: 'metadata',
         key: 'item',
-        render: (metadata, record) => metadata?.product_name || record.description || 'Product',
+        render: (metadata, record) => metadata?.product_name || record.description || t('student:profile.payments.product'),
       },
       {
-        title: 'Quantity',
+        title: t('student:profile.history.columns.quantity'),
         dataIndex: 'metadata',
         key: 'quantity',
         render: (metadata) => metadata?.quantity || 1,
       },
       {
-        title: 'Price',
+        title: t('student:profile.history.columns.price'),
         dataIndex: 'amount',
         key: 'amount',
         render: (val, record) => {
@@ -458,29 +461,29 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Status',
+        title: t('student:profile.history.columns.status'),
         dataIndex: 'status',
         key: 'status',
         render: (status) => (
           <Tag color={status === 'completed' ? 'green' : 'orange'}>
-            {status ? status.toUpperCase() : 'UNKNOWN'}
+            {status ? status.toUpperCase() : t('student:profile.status.unknown').toUpperCase()}
           </Tag>
         ),
       },
     ],
-    [formatDualPrice, displayCurrency],
+    [formatDualPrice, displayCurrency, t],
   );
 
   const eventColumns = useMemo(
     () => [
       {
-        title: 'Event',
+        title: t('student:profile.history.columns.event'),
         dataIndex: 'title',
         key: 'title',
-        render: (value) => value || 'Event',
+        render: (value) => value || t('student:profile.payments.lesson'),
       },
       {
-        title: 'Date',
+        title: t('student:profile.history.columns.date'),
         dataIndex: 'start_at',
         key: 'start_at',
         render: (value) => formatDateTime(value),
@@ -491,34 +494,34 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         },
       },
       {
-        title: 'Location',
+        title: t('student:profile.history.columns.location'),
         dataIndex: 'location',
         key: 'location',
-        render: (value) => value || 'TBA',
+        render: (value) => value || t('student:profile.payments.tba'),
       },
       {
-        title: 'Price',
+        title: t('student:profile.history.columns.price'),
         dataIndex: 'price',
         key: 'price',
         render: (value, record) => {
           const price = Number(value || 0);
-          if (price === 0) return <Tag color="green">Free</Tag>;
+          if (price === 0) return <Tag color="green">{t('student:profile.payments.free')}</Tag>;
           const baseCurrency = record.currency || displayCurrency;
           return formatDualPrice(price, baseCurrency);
         },
       },
       {
-        title: 'Registration',
+        title: t('student:profile.history.columns.registration'),
         dataIndex: 'status',
         key: 'status',
         render: (status) => {
           const lower = String(status || '').toLowerCase();
           const color = lower === 'registered' ? 'green' : lower === 'cancelled' ? 'red' : 'default';
-          return <Tag color={color}>{status ? status.toUpperCase() : 'N/A'}</Tag>;
+          return <Tag color={color}>{status ? status.toUpperCase() : t('student:profile.status.na')}</Tag>;
         },
       },
     ],
-    [formatDualPrice, displayCurrency],
+    [formatDualPrice, displayCurrency, t],
   );
 
   return { bookingColumns, rentalColumns, financialColumns, membershipColumns, shopColumns, eventColumns, formatDualPrice };
@@ -568,7 +571,7 @@ const useStudentActivity = (studentId) => {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err?.message || 'Failed to load profile details.');
+          setError(err?.message || err?.toString() || 'Failed to load profile details.');
         }
       } finally {
         if (!cancelled) {
@@ -588,12 +591,13 @@ const useStudentActivity = (studentId) => {
 };
 
 const ProfileInfoCard = ({ student, stats, account, formatCurrency, displayCurrency, storageCurrency, convertCurrency }) => {
-  const profileFields = useMemo(() => buildProfileFields(student), [student]);
+  const { t } = useTranslation(['student']);
+  const profileFields = useMemo(() => buildProfileFields(student, t), [student, t]);
   const accountHighlights = useMemo(
-    () => buildAccountHighlights(account, formatCurrency, displayCurrency, storageCurrency, convertCurrency),
-    [account, displayCurrency, formatCurrency, storageCurrency, convertCurrency],
+    () => buildAccountHighlights(account, formatCurrency, displayCurrency, storageCurrency, convertCurrency, t),
+    [account, displayCurrency, formatCurrency, storageCurrency, convertCurrency, t],
   );
-  const statCards = useMemo(() => buildStatCards(stats), [stats]);
+  const statCards = useMemo(() => buildStatCards(stats, t), [stats, t]);
 
   return (
     <Card variant="outlined" className="h-full rounded-3xl border border-slate-200/80 shadow-sm">
@@ -639,7 +643,7 @@ const ProfileInfoCard = ({ student, stats, account, formatCurrency, displayCurre
 
         {student.notes && (
           <div>
-            <Text type="secondary">Notes</Text>
+            <Text type="secondary">{t('student:profile.fields.notes')}</Text>
             <p>{student.notes}</p>
           </div>
         )}
@@ -649,17 +653,18 @@ const ProfileInfoCard = ({ student, stats, account, formatCurrency, displayCurre
 };
 
 const PackagesCard = ({ packages }) => {
+  const { t } = useTranslation(['student']);
   // Debug: Log packages to see what data we're receiving
   console.log('PackagesCard packages:', packages);
   if (packages && packages.length > 0) {
     console.log('First package full object:', JSON.stringify(packages[0], null, 2));
   }
-  
+
   return (
     <Card variant="outlined" className="rounded-3xl border border-slate-200/80 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-duotone-bold">Package Summary</h3>
-        <Tag color="cyan">View only</Tag>
+        <h3 className="text-lg font-duotone-bold">{t('student:profile.packages.title')}</h3>
+        <Tag color="cyan">{t('student:profile.packages.viewOnly')}</Tag>
       </div>
       {packages.length > 0 ? (
         <div className="space-y-3">
@@ -689,9 +694,9 @@ const PackagesCard = ({ packages }) => {
                 <div>
                   <div className="font-semibold text-gray-900">{pkg.name}</div>
                   <div className="text-sm text-gray-500">
-                    {pkg.lessonType || 'General package'}
-                    {includesRental && ' + Rental'}
-                    {includesAccommodation && ' + Accommodation'}
+                    {pkg.lessonType || t('student:profile.packages.generalPackage')}
+                    {includesRental && t('student:profile.packages.plusRental')}
+                    {includesAccommodation && t('student:profile.packages.plusAccommodation')}
                   </div>
                 </div>
                 <Space size="small">
@@ -700,7 +705,7 @@ const PackagesCard = ({ packages }) => {
                   </Tag>
                   {pkg.expiresAt && (
                     <Tag color={pkg.expiryWarning ? 'red' : 'default'}>
-                      Expires {formatDateOnly(pkg.expiresAt)}
+                      {t('student:profile.packages.expiresOn', { date: formatDateOnly(pkg.expiresAt) })}
                     </Tag>
                   )}
                 </Space>
@@ -710,66 +715,66 @@ const PackagesCard = ({ packages }) => {
               {includesLessons && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t border-slate-100 pt-3">
                   <div>
-                    <Text type="secondary">🎓 Total Hours</Text>
+                    <Text type="secondary">🎓 {t('student:profile.packages.totalHours')}</Text>
                     <p className="font-medium">{(pkg.totalHours ?? 0).toFixed(1)}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Used</Text>
+                    <Text type="secondary">{t('student:profile.packages.used')}</Text>
                     <p className="font-medium">{(pkg.usedHours ?? 0).toFixed(1)}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Remaining</Text>
+                    <Text type="secondary">{t('student:profile.packages.remaining')}</Text>
                     <p className="font-medium text-blue-600">{(pkg.remainingHours ?? 0).toFixed(1)}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Utilisation</Text>
+                    <Text type="secondary">{t('student:profile.packages.utilisation')}</Text>
                     <p className="font-medium">{utilisation}%</p>
                   </div>
                 </div>
               )}
-              
+
               {/* Rental Days Section */}
               {includesRental && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t border-slate-100 pt-3">
                   <div>
-                    <Text type="secondary">🏄 Total Days</Text>
+                    <Text type="secondary">🏄 {t('student:profile.packages.totalDays')}</Text>
                     <p className="font-medium">{(pkg.rentalDaysTotal ?? 0).toFixed(0)}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Used</Text>
+                    <Text type="secondary">{t('student:profile.packages.used')}</Text>
                     <p className="font-medium">{(pkg.rentalDaysUsed ?? 0).toFixed(0)}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Remaining</Text>
+                    <Text type="secondary">{t('student:profile.packages.remaining')}</Text>
                     <p className="font-medium text-green-600">{(pkg.rentalDaysRemaining ?? 0).toFixed(0)}</p>
                   </div>
                   {pkg.rentalServiceName && (
                     <div>
-                      <Text type="secondary">Equipment</Text>
+                      <Text type="secondary">{t('student:profile.packages.equipment')}</Text>
                       <p className="font-medium text-xs">{pkg.rentalServiceName}</p>
                     </div>
                   )}
                 </div>
               )}
-              
+
               {/* Accommodation Nights Section */}
               {includesAccommodation && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm border-t border-slate-100 pt-3">
                   <div>
-                    <Text type="secondary">🏨 Total Nights</Text>
+                    <Text type="secondary">🏨 {t('student:profile.packages.totalNights')}</Text>
                     <p className="font-medium">{pkg.accommodationNightsTotal ?? 0}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Used</Text>
+                    <Text type="secondary">{t('student:profile.packages.used')}</Text>
                     <p className="font-medium">{pkg.accommodationNightsUsed ?? 0}</p>
                   </div>
                   <div>
-                    <Text type="secondary">Remaining</Text>
+                    <Text type="secondary">{t('student:profile.packages.remaining')}</Text>
                     <p className="font-medium text-orange-600">{pkg.accommodationNightsRemaining ?? 0}</p>
                   </div>
                   {pkg.accommodationUnitName && (
                     <div>
-                      <Text type="secondary">Unit</Text>
+                      <Text type="secondary">{t('student:profile.packages.unit')}</Text>
                       <p className="font-medium text-xs">{pkg.accommodationUnitName}</p>
                     </div>
                   )}
@@ -780,23 +785,25 @@ const PackagesCard = ({ packages }) => {
           })}
         </div>
       ) : (
-        <Empty description="No packages assigned" />
+        <Empty description={t('student:profile.packages.none')} />
       )}
     </Card>
   );
 };
 
-const UpcomingLessonsCard = ({ sessions }) => (
+const UpcomingLessonsCard = ({ sessions }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <Card variant="outlined" className="rounded-3xl border border-slate-200/80 shadow-sm">
     <div className="mb-4 flex items-center justify-between">
-      <h3 className="text-lg font-duotone-bold">Upcoming Lessons</h3>
-      <Tag color="cyan">View only</Tag>
+      <h3 className="text-lg font-duotone-bold">{t('student:profile.upcomingLessons.title')}</h3>
+      <Tag color="cyan">{t('student:profile.upcomingLessons.viewOnly')}</Tag>
     </div>
     {sessions.length > 0 ? (
       <div className="space-y-3">
         {sessions.map((session) => {
           const start = toDate(session.startTime);
-          const serviceName = session.service?.name || 'Lesson';
+          const serviceName = session.service?.name || t('student:profile.payments.lesson');
           const instructorName = session.instructor?.name || 'Instructor';
           return (
             <div
@@ -807,21 +814,22 @@ const UpcomingLessonsCard = ({ sessions }) => (
                 <div>
                   <div className="font-medium text-gray-900">{serviceName}</div>
                   <div className="text-sm text-gray-600">
-                    {start ? formatDateTime(start) : 'Scheduled'}
+                    {start ? formatDateTime(start) : t('student:profile.upcomingLessons.scheduled')}
                   </div>
-                  <div className="text-xs text-gray-500">Instructor: {instructorName}</div>
+                  <div className="text-xs text-gray-500">{t('student:profile.upcomingLessons.instructor', { name: instructorName })}</div>
                 </div>
-                <div className="text-right">{getStatusTag(session.status)}</div>
+                <div className="text-right">{getStatusTag(session.status, t)}</div>
               </div>
             </div>
           );
         })}
       </div>
     ) : (
-      <Empty description="No upcoming lessons" />
+      <Empty description={t('student:profile.upcomingLessons.none')} />
     )}
   </Card>
-);
+  );
+};
 
 const HistorySection = ({
   activityRows,
@@ -839,7 +847,9 @@ const HistorySection = ({
   financialColumns,
   formatDualPrice,
   storageCurrency,
-}) => (
+}) => {
+  const { t } = useTranslation(['student']);
+  return (
   <Card variant="outlined" className="rounded-3xl border border-slate-200/80 shadow-sm">
     <Tabs
       defaultActiveKey="total"
@@ -848,17 +858,17 @@ const HistorySection = ({
           key: 'total',
           label: (
             <span>
-              <ClockCircleOutlined /> Total History
+              <ClockCircleOutlined /> {t('student:profile.history.totalHistory')}
             </span>
           ),
           children:
             activityRows.length > 0 ? (
               <UnifiedResponsiveTable
-                title="All Activity"
+                title={t('student:profile.history.allActivity')}
                 density="comfortable"
                 columns={[
                   {
-                    title: 'Date',
+                    title: t('student:profile.history.columns.date'),
                     dataIndex: 'date',
                     key: 'date',
                     render: (value) => formatDateOnly(value),
@@ -869,7 +879,7 @@ const HistorySection = ({
                     },
                   },
                   {
-                    title: 'Type',
+                    title: t('student:profile.history.columns.type'),
                     dataIndex: 'type',
                     key: 'type',
                     render: (type) => (
@@ -877,26 +887,26 @@ const HistorySection = ({
                     ),
                   },
                   {
-                    title: 'Description',
+                    title: t('student:profile.history.columns.description'),
                     dataIndex: 'description',
                     key: 'description',
                   },
                   {
-                    title: 'Price',
+                    title: t('student:profile.history.columns.price'),
                     dataIndex: 'price',
                     key: 'price',
                     render: (value, record) => {
                       const price = Number(value || record.total_price || record.totalPrice || 0);
-                      if (!Number.isFinite(price)) return 'N/A';
+                      if (!Number.isFinite(price)) return t('student:profile.status.na');
                       const baseCurrency = record.currency || storageCurrency;
                       return formatDualPrice(price, baseCurrency);
                     },
                   },
                   {
-                    title: 'Status',
+                    title: t('student:profile.history.columns.status'),
                     dataIndex: 'status',
                     key: 'status',
-                    render: (status) => getStatusTag(status),
+                    render: (status) => getStatusTag(status, t),
                   },
                 ]}
                 dataSource={activityRows}
@@ -905,20 +915,20 @@ const HistorySection = ({
                 pagination={{ pageSize: 5 }}
               />
             ) : (
-              <Empty description="No activity history" />
+              <Empty description={t('student:profile.history.noActivity')} />
             ),
         },
         {
           key: 'lessons',
           label: (
             <span>
-              <CalendarOutlined /> Lesson History
+              <CalendarOutlined /> {t('student:profile.history.lessonHistory')}
             </span>
           ),
           children:
             bookings.length > 0 ? (
               <UnifiedResponsiveTable
-                title="Lesson History"
+                title={t('student:profile.history.lessonHistory')}
                 density="comfortable"
                 columns={bookingColumns}
                 dataSource={bookings}
@@ -927,20 +937,20 @@ const HistorySection = ({
                 pagination={{ pageSize: 5 }}
               />
             ) : (
-              <Empty description="No lesson history" />
+              <Empty description={t('student:profile.history.noLessons')} />
             ),
         },
         {
           key: 'rentals',
           label: (
             <span>
-              <ShoppingOutlined /> Rental History
+              <ShoppingOutlined /> {t('student:profile.history.rentalHistory')}
             </span>
           ),
           children:
             rentals.length > 0 ? (
               <UnifiedResponsiveTable
-                title="Rental History"
+                title={t('student:profile.history.rentalHistory')}
                 density="comfortable"
                 columns={rentalColumns}
                 dataSource={rentals}
@@ -949,20 +959,20 @@ const HistorySection = ({
                 pagination={{ pageSize: 5 }}
               />
             ) : (
-              <Empty description="No rental history" />
+              <Empty description={t('student:profile.history.noRentals')} />
             ),
         },
         {
           key: 'shop',
           label: (
             <span>
-              <ShoppingOutlined /> Shop History
+              <ShoppingOutlined /> {t('student:profile.history.shopHistory')}
             </span>
           ),
           children:
             shopHistory && shopHistory.length > 0 ? (
               <UnifiedResponsiveTable
-                title="Shop Purchases"
+                title={t('student:profile.history.shopPurchases')}
                 density="comfortable"
                 columns={shopColumns}
                 dataSource={shopHistory}
@@ -971,20 +981,20 @@ const HistorySection = ({
                 pagination={{ pageSize: 5 }}
               />
             ) : (
-              <Empty description="No shop purchases" />
+              <Empty description={t('student:profile.history.noShop')} />
             ),
         },
         {
           key: 'memberships',
           label: (
             <span>
-              <CrownOutlined /> Membership History
+              <CrownOutlined /> {t('student:profile.history.membershipHistory')}
             </span>
           ),
           children:
             memberships.length > 0 ? (
               <UnifiedResponsiveTable
-                title="Membership Purchases"
+                title={t('student:profile.history.membershipPurchases')}
                 density="comfortable"
                 columns={membershipColumns}
                 dataSource={memberships}
@@ -993,20 +1003,20 @@ const HistorySection = ({
                 pagination={{ pageSize: 5 }}
               />
             ) : (
-              <Empty description="No membership purchases" />
+              <Empty description={t('student:profile.history.noMemberships')} />
             ),
         },
         {
           key: 'events',
           label: (
             <span>
-              <ScheduleOutlined /> Event History
+              <ScheduleOutlined /> {t('student:profile.history.eventHistory')}
             </span>
           ),
           children:
             events && events.length > 0 ? (
               <UnifiedResponsiveTable
-                title="Event Registrations"
+                title={t('student:profile.history.eventRegistrations')}
                 density="comfortable"
                 columns={eventColumns}
                 dataSource={events}
@@ -1015,20 +1025,20 @@ const HistorySection = ({
                 pagination={{ pageSize: 5 }}
               />
             ) : (
-              <Empty description="No event registrations" />
+              <Empty description={t('student:profile.history.noEvents')} />
             ),
         },
         {
           key: 'financial',
           label: (
             <span>
-              <DollarOutlined /> Financial History
+              <DollarOutlined /> {t('student:profile.history.financialHistory')}
             </span>
           ),
           children:
             transactions.length > 0 ? (
               <UnifiedResponsiveTable
-                title="Financial History"
+                title={t('student:profile.history.financialHistory')}
                 density="comfortable"
                 columns={financialColumns}
                 dataSource={transactions}
@@ -1037,40 +1047,41 @@ const HistorySection = ({
                 pagination={{ pageSize: 10 }}
               />
             ) : (
-              <Empty description="No payments recorded" />
+              <Empty description={t('student:profile.history.noPayments')} />
             ),
         },
       ]}
     />
   </Card>
-);
+  );
+};
 
 const parseNumericAmount = (value) => {
   const parsedAmount = Number.parseFloat(`${value ?? 0}`);
   return Number.isFinite(parsedAmount) ? parsedAmount : 0;
 };
 
-const buildServiceDescription = (type, serviceName) => {
+const buildServiceDescription = (type, serviceName, t) => {
   if (!serviceName) return null;
-  if (type === 'refund') return `Refund for ${serviceName}`;
-  if (type === 'charge') return `Charge for ${serviceName}`;
-  return `Payment for ${serviceName}`;
+  if (type === 'refund') return t('student:profile.payments.refundFor', { name: serviceName });
+  if (type === 'charge') return t('student:profile.payments.chargeFor', { name: serviceName });
+  return t('student:profile.payments.paymentFor', { name: serviceName });
 };
 
-const buildGenericDescription = (type) => {
-  if (type === 'refund') return 'Refund';
-  if (type === 'charge') return 'Charge';
-  if (type === 'pending') return 'Pending payment';
-  return 'Payment';
+const buildGenericDescription = (type, t) => {
+  if (type === 'refund') return t('student:profile.payments.refund');
+  if (type === 'charge') return t('student:profile.payments.charge');
+  if (type === 'pending') return t('student:profile.payments.pendingPayment');
+  return t('student:profile.payments.payment');
 };
 
 const resolvePaymentType = (payment, amount) => payment?.type || (amount >= 0 ? 'credit' : 'charge');
 
 const resolvePaymentStatus = (payment, type) => payment?.status || (type === 'pending' ? 'pending' : 'completed');
 
-const resolvePaymentDescription = (payment, type, serviceName) => {
+const resolvePaymentDescription = (payment, type, serviceName, t) => {
   if (payment?.description) return payment.description;
-  return buildServiceDescription(type, serviceName) || buildGenericDescription(type);
+  return buildServiceDescription(type, serviceName, t) || buildGenericDescription(type, t);
 };
 
 const StudentProfileContent = ({
@@ -1097,7 +1108,9 @@ const StudentProfileContent = ({
   eventColumns,
   financialColumns,
   formatDualPrice
-}) => (
+}) => {
+  const { t } = useTranslation(['student']);
+  return (
   <div className="space-y-6">
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={8}>
@@ -1129,8 +1142,8 @@ const StudentProfileContent = ({
         <Alert
           type="info"
           showIcon
-          message="Looking for family members?"
-          description="Manage family details from the sidebar by navigating to Profile → Family."
+          message={t('student:profile.alert.familyMessage')}
+          description={t('student:profile.alert.familyDescription')}
         />
       </Col>
     </Row>
@@ -1153,15 +1166,16 @@ const StudentProfileContent = ({
       storageCurrency={storageCurrency}
     />
   </div>
-);
+  );
+};
 
 // eslint-disable-next-line complexity
-const normalizePaymentEntry = (payment, index, displayCurrency) => {
+const normalizePaymentEntry = (payment, index, displayCurrency, t) => {
   const amount = parseNumericAmount(payment?.amount);
   const normalizedType = resolvePaymentType(payment, amount);
   const normalizedStatus = resolvePaymentStatus(payment, normalizedType);
   const serviceName = payment?.serviceName ?? payment?.service_name ?? null;
-  const description = resolvePaymentDescription(payment, normalizedType, serviceName);
+  const description = resolvePaymentDescription(payment, normalizedType, serviceName, t);
 
   return {
     id: payment?.id ?? payment?.paymentIntentId ?? `payment-${index}`,
@@ -1181,6 +1195,7 @@ const normalizePaymentEntry = (payment, index, displayCurrency) => {
 };
 
 const useStudentDisplayData = (overview, bookings, rentals, businessCurrency) => {
+  const { t } = useTranslation(['student']);
   // Prefer the student's wallet/display currency (e.g. TRY) over business base (EUR) for profile tables
   const displayCurrency = useMemo(
     () =>
@@ -1228,8 +1243,8 @@ const useStudentDisplayData = (overview, bookings, rentals, businessCurrency) =>
 
   const transactions = useMemo(() => {
     const payments = overview?.payments || [];
-    return payments.map((payment, index) => normalizePaymentEntry(payment, index, displayCurrency));
-  }, [overview?.payments, displayCurrency]);
+    return payments.map((payment, index) => normalizePaymentEntry(payment, index, displayCurrency, t));
+  }, [overview?.payments, displayCurrency, t]);
 
   return {
     displayCurrency,
@@ -1242,6 +1257,7 @@ const useStudentDisplayData = (overview, bookings, rentals, businessCurrency) =>
 };
 
 const StudentProfile = () => {
+  const { t } = useTranslation(['student']);
   const { overview, walletSummary } = useOutletContext() || {};
   const { user } = useAuth();
   const { formatCurrency, businessCurrency, userCurrency, convertCurrency } = useCurrency();
@@ -1288,7 +1304,7 @@ const StudentProfile = () => {
   if (!overview || !overview.student) {
     return (
       <div className="p-6">
-        <Alert message="Profile unavailable" type="warning" showIcon />
+        <Alert message={t('student:profile.alert.unavailable')} type="warning" showIcon />
       </div>
     );
   }
@@ -1300,14 +1316,14 @@ const StudentProfile = () => {
       {error && (
         <Alert
           className="mb-4"
-          message="We had trouble loading some of your history"
+          message={t('student:profile.alert.loadError')}
           description={error}
           type="warning"
           showIcon
         />
       )}
 
-      <Spin spinning={dataLoading} tip="Loading your activity...">
+      <Spin spinning={dataLoading} tip={t('student:profile.alert.loadingActivity')}>
         <StudentProfileContent
           student={student}
           stats={stats}

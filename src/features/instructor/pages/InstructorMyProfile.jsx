@@ -1,6 +1,7 @@
 // src/features/instructor/pages/InstructorMyProfile.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Avatar, Tag, Spin, Tooltip, Form, Input, DatePicker, Button, Empty, Select
 } from 'antd';
@@ -19,22 +20,14 @@ import { useData } from '@/shared/hooks/useData';
 import { message } from '@/shared/utils/antdStatic';
 import { logger } from '@/shared/utils/logger';
 
-// ── Nav items ──────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { key: 'info',     icon: <UserOutlined />,      label: 'Profile'   },
-  { key: 'skills',   icon: <ThunderboltOutlined />, label: 'Skills'   },
-  { key: 'lessons',  icon: <BookOutlined />,       label: 'Upcoming'  },
-  { key: 'students', icon: <TeamOutlined />,        label: 'Students'  },
-  { key: 'earnings', icon: <BarChartOutlined />,    label: 'Earnings'  },
+// ── Nav items — labels injected via hook below ──────────────────────────────
+const NAV_KEYS = [
+  { key: 'info',     icon: <UserOutlined />       },
+  { key: 'skills',   icon: <ThunderboltOutlined /> },
+  { key: 'lessons',  icon: <BookOutlined />        },
+  { key: 'students', icon: <TeamOutlined />        },
+  { key: 'earnings', icon: <BarChartOutlined />    },
 ];
-
-const SECTION_DESCRIPTIONS = {
-  info:     'View and edit your personal information',
-  skills:   'Your skills and certifications',
-  lessons:  'Upcoming scheduled lessons',
-  students: 'Your student roster at a glance',
-  earnings: 'Earnings overview and recent payouts',
-};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const profileImageCandidateKeys = [
@@ -88,6 +81,7 @@ const InfoCell = ({ icon, label, value }) => {
 
 // ── Profile section ────────────────────────────────────────────────────────
 function ProfileSection({ user, onSaved }) {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const { refreshUser } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -124,13 +118,13 @@ function ProfileSection({ user, onSaved }) {
       };
       await apiClient.put(`/users/${user.id}`, payload);
       await refreshUser();
-      message.success('Profile updated');
+      message.success(t('instructor:profile.profileUpdated'));
       setEditing(false);
       onSaved?.();
     } catch (err) {
       if (err?.errorFields) return; // validation error, stay open
       logger.error('Failed to update profile', { error: String(err) });
-      message.error('Failed to save changes');
+      message.error(t('instructor:profile.failedToSave'));
     } finally {
       setSaving(false);
     }
@@ -171,7 +165,7 @@ function ProfileSection({ user, onSaved }) {
               onClick={startEdit}
               className="text-blue-600 hover:bg-blue-50"
             >
-              Edit
+              {t('instructor:profile.edit')}
             </Button>
           )}
         </div>
@@ -184,40 +178,40 @@ function ProfileSection({ user, onSaved }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
               <Form.Item
                 name="first_name"
-                label="First Name"
-                rules={[{ required: true, message: 'Required' }]}
+                label={t('instructor:profile.formFields.firstName')}
+                rules={[{ required: true, message: t('instructor:profile.formFields.required') }]}
               >
-                <Input placeholder="First name" />
+                <Input placeholder={t('instructor:profile.formFields.firstNamePlaceholder')} />
               </Form.Item>
               <Form.Item
                 name="last_name"
-                label="Last Name"
-                rules={[{ required: true, message: 'Required' }]}
+                label={t('instructor:profile.formFields.lastName')}
+                rules={[{ required: true, message: t('instructor:profile.formFields.required') }]}
               >
-                <Input placeholder="Last name" />
+                <Input placeholder={t('instructor:profile.formFields.lastNamePlaceholder')} />
               </Form.Item>
               <Form.Item
                 name="email"
-                label="Email"
-                rules={[{ required: true, type: 'email', message: 'Valid email required' }]}
+                label={t('instructor:profile.formFields.email')}
+                rules={[{ required: true, type: 'email', message: t('instructor:profile.formFields.validEmail') }]}
               >
-                <Input placeholder="email@example.com" />
+                <Input placeholder={t('instructor:profile.formFields.emailPlaceholder')} />
               </Form.Item>
-              <Form.Item name="phone" label="Phone">
-                <Input placeholder="+1 234 567 8900" />
+              <Form.Item name="phone" label={t('instructor:profile.formFields.phone')}>
+                <Input placeholder={t('instructor:profile.formFields.phonePlaceholder')} />
               </Form.Item>
-              <Form.Item name="date_of_birth" label="Date of Birth">
+              <Form.Item name="date_of_birth" label={t('instructor:profile.formFields.dateOfBirth')}>
                 <DatePicker className="w-full" format="YYYY-MM-DD" />
               </Form.Item>
-              <Form.Item name="city" label="City">
-                <Input placeholder="City" />
+              <Form.Item name="city" label={t('instructor:profile.formFields.city')}>
+                <Input placeholder={t('instructor:profile.formFields.cityPlaceholder')} />
               </Form.Item>
-              <Form.Item name="country" label="Country" className="sm:col-span-1">
-                <Input placeholder="Country" />
+              <Form.Item name="country" label={t('instructor:profile.formFields.country')} className="sm:col-span-1">
+                <Input placeholder={t('instructor:profile.formFields.countryPlaceholder')} />
               </Form.Item>
             </div>
-            <Form.Item name="bio" label="Bio">
-              <Input.TextArea rows={3} placeholder="Tell students a bit about yourself…" />
+            <Form.Item name="bio" label={t('instructor:profile.formFields.bio')}>
+              <Input.TextArea rows={3} placeholder={t('instructor:profile.formFields.bioPlaceholder')} />
             </Form.Item>
             <div className="flex gap-2 justify-end">
               <Button
@@ -225,7 +219,7 @@ function ProfileSection({ user, onSaved }) {
                 onClick={() => setEditing(false)}
                 disabled={saving}
               >
-                Cancel
+                {t('instructor:profile.cancel')}
               </Button>
               <Button
                 type="primary"
@@ -233,7 +227,7 @@ function ProfileSection({ user, onSaved }) {
                 loading={saving}
                 onClick={handleSave}
               >
-                Save changes
+                {t('instructor:profile.saveChanges')}
               </Button>
             </div>
           </Form>
@@ -242,12 +236,12 @@ function ProfileSection({ user, onSaved }) {
         /* ── Read-only info grid ── */
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
-            <InfoCell icon={<MailOutlined />}        label="Email"         value={user?.email} />
-            <InfoCell icon={<PhoneOutlined />}        label="Phone"         value={user?.phone} />
-            <InfoCell icon={<CalendarOutlined />}     label="Date of Birth" value={user?.date_of_birth ? formatDate(user.date_of_birth) : null} />
-            <InfoCell icon={<EnvironmentOutlined />}  label="Location"      value={[user?.city, user?.country].filter(Boolean).join(', ') || null} />
-            <InfoCell icon={<CalendarOutlined />}     label="Member Since"  value={user?.created_at ? formatDate(user.created_at) : null} />
-            <InfoCell icon={<IdcardOutlined />}       label="Role"          value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null} />
+            <InfoCell icon={<MailOutlined />}        label={t('instructor:profile.infoFields.email')}       value={user?.email} />
+            <InfoCell icon={<PhoneOutlined />}        label={t('instructor:profile.infoFields.phone')}       value={user?.phone} />
+            <InfoCell icon={<CalendarOutlined />}     label={t('instructor:profile.infoFields.dateOfBirth')} value={user?.date_of_birth ? formatDate(user.date_of_birth) : null} />
+            <InfoCell icon={<EnvironmentOutlined />}  label={t('instructor:profile.infoFields.location')}    value={[user?.city, user?.country].filter(Boolean).join(', ') || null} />
+            <InfoCell icon={<CalendarOutlined />}     label={t('instructor:profile.infoFields.memberSince')} value={user?.created_at ? formatDate(user.created_at) : null} />
+            <InfoCell icon={<IdcardOutlined />}       label={t('instructor:profile.infoFields.role')}        value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null} />
           </div>
         </div>
       )}
@@ -255,7 +249,7 @@ function ProfileSection({ user, onSaved }) {
       {/* Bio */}
       {!editing && user?.bio && (
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Biography</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:profile.biography')}</div>
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{user.bio}</p>
         </div>
       )}
@@ -265,6 +259,7 @@ function ProfileSection({ user, onSaved }) {
 
 // ── Skills section ─────────────────────────────────────────────────────────
 function SkillsSection({ user }) {
+  const { t } = useTranslation(['instructor']);
   const hasContent = (
     user?.specializations?.length > 0 ||
     user?.certificates?.length > 0 ||
@@ -275,7 +270,7 @@ function SkillsSection({ user }) {
     return (
       <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="No skills or certifications on file"
+        description={t('instructor:profile.noSkills')}
         className="py-10"
       />
     );
@@ -286,7 +281,7 @@ function SkillsSection({ user }) {
       {user?.specializations?.length > 0 && (
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-            <TrophyOutlined /> Specializations
+            <TrophyOutlined /> {t('instructor:profile.specializations')}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {user.specializations.map((s) => (
@@ -298,7 +293,7 @@ function SkillsSection({ user }) {
       {user?.certificates?.length > 0 && (
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
           <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-            <IdcardOutlined /> Certificates
+            <IdcardOutlined /> {t('instructor:profile.certificates')}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {user.certificates.map((c) => (
@@ -309,7 +304,7 @@ function SkillsSection({ user }) {
       )}
       {user?.languages?.length > 0 && (
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Languages</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:profile.languages')}</div>
           <div className="flex flex-wrap gap-1.5">
             {user.languages.map((l) => (
               <Tag key={l} color="cyan" bordered={false} className="rounded-full">{l}</Tag>
@@ -323,13 +318,14 @@ function SkillsSection({ user }) {
 
 // ── Upcoming lessons section ───────────────────────────────────────────────
 function LessonsSection({ lessons = [] }) {
+  const { t } = useTranslation(['instructor']);
   const statusColor = { pending: 'orange', confirmed: 'blue', completed: 'green', cancelled: 'red' };
 
   if (!lessons.length) {
     return (
       <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="No upcoming lessons scheduled"
+        description={t('instructor:profile.noLessons')}
         className="py-10"
       />
     );
@@ -370,17 +366,18 @@ function LessonsSection({ lessons = [] }) {
 
 // ── Students section ───────────────────────────────────────────────────────
 function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWindowDays = 30, navigate }) {
+  const { t } = useTranslation(['instructor']);
   return (
     <div className="space-y-5">
       {/* Quick stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">{studentStats.uniqueStudents ?? '—'}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Students</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('instructor:profile.totalStudents')}</div>
         </div>
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-center">
           <div className="text-2xl font-bold text-emerald-600">{studentStats.activeThisMonth ?? '—'}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Active This Month</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('instructor:profile.activeThisMonth')}</div>
         </div>
       </div>
 
@@ -388,7 +385,7 @@ function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWin
       <div>
         <div className="flex items-center justify-between mb-2">
           <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-            Inactive {inactiveWindowDays}+ days
+            {t('instructor:profile.inactive', { days: inactiveWindowDays })}
           </div>
           <Button
             type="link"
@@ -397,12 +394,12 @@ function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWin
             onClick={() => navigate('/instructor/students')}
             className="text-blue-600 p-0 h-auto"
           >
-            View all
+            {t('instructor:profile.viewAll')}
           </Button>
         </div>
         {inactiveStudents.length === 0 ? (
           <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-6 text-center text-sm text-gray-400">
-            All students have been active recently
+            {t('instructor:profile.allActive')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -416,12 +413,12 @@ function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWin
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{s.name}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Last lesson: {s.lastLessonAt ? formatDate(s.lastLessonAt) : 'Never'}
-                      &nbsp;·&nbsp;{s.completedLessons} completed
+                      {t('instructor:profile.last', { date: s.lastLessonAt ? formatDate(s.lastLessonAt) : t('instructor:profile.never') })}
+                      &nbsp;·&nbsp;{s.completedLessons} {t('instructor:profile.completed')}
                     </div>
                   </div>
                 </div>
-                <Tag color="orange" bordered={false} className="rounded-full text-xs flex-shrink-0">Inactive</Tag>
+                <Tag color="orange" bordered={false} className="rounded-full text-xs flex-shrink-0">{t('instructor:profile.inactive_tag')}</Tag>
               </div>
             ))}
           </div>
@@ -433,27 +430,28 @@ function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWin
 
 // ── Earnings section ───────────────────────────────────────────────────────
 function EarningsSection({ finance = {}, formatAmt }) {
+  const { t } = useTranslation(['instructor']);
   const { recentEarnings = [], recentPayments = [] } = finance;
 
   return (
     <div className="space-y-5">
       {/* Balance grid */}
       <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
-        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Earnings Balance</div>
+        <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">{t('instructor:finance.earningsBalance')}</div>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <div className="text-sm font-bold text-gray-800 dark:text-gray-100">{formatAmt(finance.totalEarned || 0)}</div>
-            <div className="text-[11px] text-gray-400 mt-0.5">Total Earned</div>
+            <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:finance.totalEarned')}</div>
           </div>
           <div>
             <div className="text-sm font-bold text-green-600">{formatAmt(finance.totalPaid || 0)}</div>
-            <div className="text-[11px] text-gray-400 mt-0.5">Paid Out</div>
+            <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:finance.paidOut')}</div>
           </div>
           <div>
             <div className={`text-sm font-bold ${(finance.pending || 0) > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
               {formatAmt(finance.pending || 0)}
             </div>
-            <div className="text-[11px] text-gray-400 mt-0.5">Pending</div>
+            <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:finance.pending')}</div>
           </div>
         </div>
       </div>
@@ -462,18 +460,18 @@ function EarningsSection({ finance = {}, formatAmt }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-center">
           <div className="text-xl font-bold text-sky-600">{(finance.totalHours || 0).toFixed(1)}h</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Hours</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('instructor:finance.totalHours')}</div>
         </div>
         <div className="rounded-xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-center">
           <div className="text-xl font-bold text-emerald-600">{formatAmt(finance.monthToDate || 0)}</div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">This Month</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('instructor:finance.thisMonth')}</div>
         </div>
       </div>
 
       {/* Recent earnings */}
       {recentEarnings.length > 0 && (
         <div>
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Recent Earnings</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:finance.recentEarnings')}</div>
           <div className="space-y-2">
             {recentEarnings.map((e, i) => (
               <div
@@ -496,7 +494,7 @@ function EarningsSection({ finance = {}, formatAmt }) {
       {/* Recent payouts */}
       {recentPayments.length > 0 && (
         <div>
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Recent Payouts</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:finance.recentPayouts')}</div>
           <div className="space-y-2">
             {recentPayments.map((p) => (
               <div
@@ -519,7 +517,7 @@ function EarningsSection({ finance = {}, formatAmt }) {
       )}
 
       {recentEarnings.length === 0 && recentPayments.length === 0 && (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No earnings data yet" className="py-6" />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('instructor:finance.noEarningsData')} className="py-6" />
       )}
     </div>
   );
@@ -527,11 +525,25 @@ function EarningsSection({ finance = {}, formatAmt }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function InstructorMyProfile() {
+  const { t } = useTranslation(['instructor']);
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const { data: dashData, loading: dashLoading } = useInstructorDashboard();
   const { businessCurrency } = useCurrency();
   const { formatCurrency } = useCurrency();
+
+  const NAV_ITEMS = NAV_KEYS.map((item) => ({
+    ...item,
+    label: t(`instructor:profile.navItems.${item.key}`),
+  }));
+
+  const SECTION_DESCRIPTIONS = {
+    info:     t('instructor:profile.sectionDescriptions.info'),
+    skills:   t('instructor:profile.sectionDescriptions.skills'),
+    lessons:  t('instructor:profile.sectionDescriptions.lessons'),
+    students: t('instructor:profile.sectionDescriptions.students'),
+    earnings: t('instructor:profile.sectionDescriptions.earnings'),
+  };
 
   const [activeSection, setActiveSection] = useState('info');
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -591,7 +603,7 @@ export default function InstructorMyProfile() {
           <button
             onClick={() => setSidebarExpanded((prev) => !prev)}
             className="border-0 bg-transparent p-0 cursor-pointer flex-shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 transition-shadow"
-            title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            title={sidebarExpanded ? t('instructor:profile.collapseSidebar') : t('instructor:profile.expandSidebar')}
           >
             <Avatar
               size={36}

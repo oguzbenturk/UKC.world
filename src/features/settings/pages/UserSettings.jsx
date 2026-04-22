@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, memo, useMemo, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, Switch, Select, Button, Typography, Divider, Alert, Spin, App } from 'antd';
 import {
   BellOutlined,
@@ -84,13 +85,10 @@ const HOUR_OPTIONS = (() => {
   return opts;
 })();
 
-const FORM_CONTEXTS = [
-  { key: 'staff_booking', label: 'Staff Booking Wizard', description: 'Instructor picker when staff create a new booking' },
-  { key: 'customer_modal', label: 'Customer Booking Modal', description: 'Booking from a customer profile page' },
-  { key: 'public_booking', label: 'Public Booking Form', description: 'Outsider / guest booking form' },
-];
+const FORM_CONTEXT_KEYS = ['staff_booking', 'customer_modal', 'public_booking'];
 
 const CalendarSettingsSection = memo(function CalendarSettingsSection() {
+  const { t } = useTranslation(['admin']);
   const [instructors, setInstructors] = useState([]);
 
   // Working hours state — HH:MM strings
@@ -134,7 +132,7 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
 
   const onSaveWorkingHours = async () => {
     if (workingHours.end <= workingHours.start) { // string comparison works for HH:MM
-      message.error('Closing time must be after opening time');
+      message.error(t('admin:settings.calendarSection.toast.closingAfterOpening'));
       return;
     }
     setSavingWH(true);
@@ -143,9 +141,9 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
       // Apply immediately to in-memory config
       const { applyWorkingHours } = await import('@/config/calendarConfig');
       applyWorkingHours(workingHours.start, workingHours.end);
-      message.success('Working hours saved');
+      message.success(t('admin:settings.calendarSection.toast.workingHoursSaved'));
     } catch {
-      message.error('Failed to save working hours');
+      message.error(t('admin:settings.calendarSection.toast.workingHoursError'));
     } finally {
       setSavingWH(false);
     }
@@ -155,9 +153,9 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
     setSavingFV(true);
     try {
       await apiClient.put('/settings/instructor_form_visibility', { value: formVisibility });
-      message.success('Instructor visibility saved');
+      message.success(t('admin:settings.calendarSection.toast.visibilitySaved'));
     } catch {
-      message.error('Failed to save instructor visibility');
+      message.error(t('admin:settings.calendarSection.toast.visibilityError'));
     } finally {
       setSavingFV(false);
     }
@@ -167,15 +165,15 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
     <div className="space-y-6">
       {/* ── Working Hours ── */}
       <Card
-        title={<span className="flex items-center gap-2"><CalendarOutlined className="text-sky-500" />Working Hours</span>}
+        title={<span className="flex items-center gap-2"><CalendarOutlined className="text-sky-500" />{t('admin:settings.calendarSection.workingHours')}</span>}
         className="rounded-xl shadow-sm"
       >
         <Paragraph className="text-slate-600 mb-4">
-          Set the daily opening and closing times for the booking calendar and available time slots.
+          {t('admin:settings.calendarSection.workingHoursDescription')}
         </Paragraph>
         <div className="grid grid-cols-2 gap-4 max-w-sm">
           <div>
-            <Text strong className="block mb-2">Opens at</Text>
+            <Text strong className="block mb-2">{t('admin:settings.calendarSection.opensAt')}</Text>
             <Select
               value={workingHours.start}
               onChange={v => setWorkingHours(prev => ({ ...prev, start: v }))}
@@ -184,7 +182,7 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
             />
           </div>
           <div>
-            <Text strong className="block mb-2">Closes at</Text>
+            <Text strong className="block mb-2">{t('admin:settings.calendarSection.closesAt')}</Text>
             <Select
               value={workingHours.end}
               onChange={v => setWorkingHours(prev => ({ ...prev, end: v }))}
@@ -195,27 +193,27 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
         </div>
         <div className="flex justify-end mt-4">
           <Button type="primary" onClick={onSaveWorkingHours} loading={savingWH} icon={<SaveOutlined />}>
-            Save Working Hours
+            {t('admin:settings.calendarSection.saveWorkingHours')}
           </Button>
         </div>
       </Card>
 
       {/* ── Instructor Visibility per Form ── */}
       <Card
-        title={<span className="flex items-center gap-2"><TeamOutlined className="text-sky-500" />Instructor Visibility per Form</span>}
+        title={<span className="flex items-center gap-2"><TeamOutlined className="text-sky-500" />{t('admin:settings.calendarSection.instructorVisibility')}</span>}
         className="rounded-xl shadow-sm"
       >
         <Paragraph className="text-slate-600 mb-4">
-          Restrict which instructors appear in each booking form. Leave empty to show all instructors.
+          {t('admin:settings.calendarSection.instructorVisibilityDescription')}
         </Paragraph>
         <div className="space-y-5">
-          {FORM_CONTEXTS.map(({ key, label, description }) => (
+          {FORM_CONTEXT_KEYS.map((key) => (
             <div key={key}>
-              <Text strong className="block mb-1">{label}</Text>
-              <Paragraph className="!mb-2 text-sm text-slate-500">{description}</Paragraph>
+              <Text strong className="block mb-1">{t(`admin:settings.calendarSection.formContexts.${key}.label`)}</Text>
+              <Paragraph className="!mb-2 text-sm text-slate-500">{t(`admin:settings.calendarSection.formContexts.${key}.description`)}</Paragraph>
               <Select
                 mode="multiple"
-                placeholder="All instructors (no restriction)"
+                placeholder={t('admin:settings.calendarSection.allInstructors')}
                 value={formVisibility[key] || []}
                 onChange={ids => setFormVisibility(prev => ({ ...prev, [key]: ids }))}
                 style={{ width: '100%' }}
@@ -231,7 +229,7 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
         </div>
         <div className="flex justify-end mt-4">
           <Button type="primary" onClick={onSaveFormVisibility} loading={savingFV} icon={<SaveOutlined />}>
-            Save Visibility
+            {t('admin:settings.calendarSection.saveVisibility')}
           </Button>
         </div>
       </Card>
@@ -242,6 +240,7 @@ const CalendarSettingsSection = memo(function CalendarSettingsSection() {
 
 // Business Currency Section
 const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }) {
+  const { t } = useTranslation(['admin']);
   const { businessCurrency, setBusinessCurrency, getCurrencySymbol, getSupportedCurrencies, currencies, loading: currenciesLoading } = useCurrency();
   const [saving, setSaving] = useState(false);
   const [allowedRegistrationCurrencies, setAllowedRegistrationCurrencies] = useState([]);
@@ -274,9 +273,9 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
     setSaving(true);
     try {
       await onSave(businessCurrency);
-      message.success('Business currency updated');
+      message.success(t('admin:settings.currencySection.toast.currencyUpdated'));
     } catch (e) {
-      message.error('Failed to update currency');
+      message.error(t('admin:settings.currencySection.toast.currencyError'));
     } finally {
       setSaving(false);
     }
@@ -296,13 +295,13 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
       });
       
       if (response.ok) {
-        message.success('Registration currencies updated');
+        message.success(t('admin:settings.currencySection.toast.currencyUpdated'));
         setAllowedRegistrationCurrencies(currencies);
       } else {
-        message.error('Failed to update registration currencies');
+        message.error(t('admin:settings.currencySection.toast.currencyError'));
       }
     } catch (error) {
-      message.error('Failed to update registration currencies');
+      message.error(t('admin:settings.currencySection.toast.currencyError'));
     } finally {
       setLoadingRegCurrencies(false);
     }
@@ -311,32 +310,32 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
   return (
     <div className="space-y-6">
       <div>
-        <Title level={5} className="!mb-2">Default Business Currency</Title>
+        <Title level={5} className="!mb-2">{t('admin:settings.currencySection.defaultTitle')}</Title>
         <Paragraph className="text-slate-600 mb-4">
-          This currency is used as the default for new services, bookings, and transactions. Existing records keep their original currency.
+          {t('admin:settings.currencySection.defaultDescription')}
         </Paragraph>
         {currencyCount <= 1 && (
           <Alert
             type="warning"
-            message="Only one currency is active. Go to Admin > Currencies to activate more currencies."
+            message={t('admin:settings.currencySection.oneCurrencyWarning')}
             className="rounded-lg mb-4"
           />
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
           <div>
-            <Text strong className="block mb-2">Preferred Currency</Text>
+            <Text strong className="block mb-2">{t('admin:settings.currencySection.preferredCurrency')}</Text>
             <CurrencySelector
               value={businessCurrency}
               onChange={(val) => setBusinessCurrency(val)}
               style={{ width: '100%' }}
             />
             <Text type="secondary" className="text-xs mt-1 block">
-              Current: {getCurrencySymbol(businessCurrency || 'EUR')} ({businessCurrency || 'EUR'})
+              {t('admin:settings.currencySection.currentCurrency', { symbol: getCurrencySymbol(businessCurrency || 'EUR'), code: businessCurrency || 'EUR' })}
             </Text>
           </div>
           <div className="flex justify-end sm:justify-start">
             <Button type="primary" onClick={handleSave} loading={saving}>
-              Save Preferred Currency
+              {t('admin:settings.currencySection.savePreferredCurrency')}
             </Button>
           </div>
         </div>
@@ -345,23 +344,23 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
       <Divider />
 
       <div>
-        <Title level={5} className="!mb-2">Registration Currency Options</Title>
+        <Title level={5} className="!mb-2">{t('admin:settings.currencySection.registrationTitle')}</Title>
         <Paragraph className="text-slate-600 mb-4">
-          Control which currencies users can select when creating a new account. Only active currencies can be selected.
+          {t('admin:settings.currencySection.registrationDescription')}
         </Paragraph>
-        
+
         <div className="space-y-4">
           <div>
-            <Text strong className="block mb-2">Allowed Currencies for New Users</Text>
+            <Text strong className="block mb-2">{t('admin:settings.currencySection.allowedCurrencies')}</Text>
             <Select
               mode="multiple"
-              placeholder={currenciesLoading ? "Loading currencies..." : "Select currencies available during registration"}
+              placeholder={currenciesLoading ? t('admin:settings.currencySection.loadingPlaceholder') : t('admin:settings.currencySection.registrationCurrenciesPlaceholder')}
               value={allowedRegistrationCurrencies}
               onChange={updateRegistrationCurrencies}
               style={{ width: '100%' }}
               loading={loadingRegCurrencies || currenciesLoading}
               disabled={currenciesLoading}
-              notFoundContent={currenciesLoading ? "Loading..." : "No currencies available"}
+              notFoundContent={currenciesLoading ? t('admin:settings.currencySection.loadingPlaceholder') : undefined}
             >
               {currencies
                 .filter(c => c.is_active)
@@ -372,11 +371,11 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
                 ))}
             </Select>
           </div>
-          
+
           <Alert
             type="info"
-            message="Registration Currencies"
-            description={`New users can choose from: ${allowedRegistrationCurrencies.join(', ')}`}
+            message={t('admin:settings.currencySection.registrationInfo')}
+            description={t('admin:settings.currencySection.registrationInfoDescription', { currencies: allowedRegistrationCurrencies.join(', ') })}
             className="rounded-lg"
           />
         </div>
@@ -387,6 +386,7 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
 
 // Booking Defaults Section
 const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSettings }) {
+  const { t } = useTranslation(['admin']);
   const [saving, setSaving] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState(businessSettings?.booking_defaults?.defaultDuration || 120);
   const [allowedDurations, setAllowedDurations] = useState(
@@ -396,7 +396,7 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
 
   const handleSubmit = async () => {
     if (!allowedDurations.includes(defaultDuration)) {
-      message.error('Default duration must be one of the allowed durations');
+      message.error(t('admin:settings.bookingDefaults.toast.durationMismatch'));
       return;
     }
 
@@ -405,9 +405,9 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
       await apiClient.put('/settings/booking_defaults', {
         value: { defaultDuration, allowedDurations }
       });
-      message.success('Booking defaults updated');
+      message.success(t('admin:settings.bookingDefaults.toast.saved'));
     } catch (err) {
-      message.error('Failed to update booking defaults');
+      message.error(t('admin:settings.bookingDefaults.toast.error'));
     } finally {
       setSaving(false);
     }
@@ -424,22 +424,19 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
   return (
     <div className="space-y-4">
       <Paragraph className="text-slate-600">
-        Configure default booking duration and available options.
+        {t('admin:settings.bookingDefaults.description')}
       </Paragraph>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <Text strong className="block mb-2">Default Duration</Text>
+          <Text strong className="block mb-2">{t('admin:settings.bookingDefaults.defaultDuration')}</Text>
           <Select value={defaultDuration} onChange={setDefaultDuration} style={{ width: '100%' }}>
-            <Option value={60}>1 hour</Option>
-            <Option value={90}>1.5 hours</Option>
-            <Option value={120}>2 hours</Option>
-            <Option value={150}>2.5 hours</Option>
-            <Option value={180}>3 hours</Option>
-            <Option value={240}>4 hours</Option>
+            {[60, 90, 120, 150, 180, 240].map(v => (
+              <Option key={v} value={v}>{t(`admin:settings.bookingDefaults.durations.${v}`)}</Option>
+            ))}
           </Select>
         </div>
         <div>
-          <Text strong className="block mb-2">Available Durations</Text>
+          <Text strong className="block mb-2">{t('admin:settings.bookingDefaults.availableDurations')}</Text>
           <div className="space-y-2">
             {[60, 90, 120, 150, 180, 240].map(value => (
               <label key={value} className="flex items-center cursor-pointer">
@@ -450,7 +447,7 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
                   className="h-4 w-4 text-blue-600 rounded border-gray-300"
                 />
                 <span className="ml-2 text-sm text-gray-700">
-                  {value === 60 ? '1 hour' : value === 90 ? '1.5 hours' : `${value / 60} hours`}
+                  {t(`admin:settings.bookingDefaults.durations.${value}`)}
                 </span>
               </label>
             ))}
@@ -459,7 +456,7 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
       </div>
       <div className="flex justify-end pt-2">
         <Button type="primary" onClick={handleSubmit} loading={saving}>
-          Save Booking Defaults
+          {t('admin:settings.bookingDefaults.save')}
         </Button>
       </div>
     </div>
@@ -467,6 +464,7 @@ const BookingDefaultsSection = memo(function BookingDefaultsSection({ businessSe
 });
 
 const UserSettings = () => {
+  const { t } = useTranslation(['admin']);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'general';
   const { user, refreshUser } = useAuth();
@@ -523,16 +521,16 @@ const UserSettings = () => {
     try {
       await studentPortalApi.updateProfile({ preferredCurrency: selectedCurrency });
       await refreshUser();
-      message.success('Currency preference updated successfully');
+      message.success(t('admin:settings.currencySection.toast.preferredUpdated'));
     } catch (error) {
-      message.error('Failed to update currency preference');
+      message.error(t('admin:settings.currencySection.toast.preferredError'));
     } finally {
       setSavingCurrency(false);
     }
   }, [selectedCurrency, refreshUser, message]);
 
   usePageSEO({
-    title: 'Settings | Plannivo',
+    title: `${t('admin:settings.title')} | Plannivo`,
     description: 'Manage your account settings and preferences'
   });
 
@@ -583,9 +581,9 @@ const UserSettings = () => {
     setSaving(true);
     try {
       await apiClient.put('/users/preferences', settings);
-      message.success('Settings saved successfully');
+      message.success(t('admin:account.personalInfo.toast.saved'));
     } catch (error) {
-      message.error('Failed to save settings');
+      message.error(t('admin:account.personalInfo.toast.saveError'));
     } finally {
       setSaving(false);
     }
@@ -613,70 +611,70 @@ const UserSettings = () => {
     
     try {
       await apiClient.put('/notifications/settings', newSettings);
-      message.success('Notification settings updated');
+      message.success(t('admin:settings.notifications.title'));
     } catch (error) {
       // Revert on error
       setNotificationSettings(prev => ({ ...prev, [key]: !value }));
-      message.error('Failed to update notification settings');
+      message.error(t('admin:settings.notifications.title'));
     }
   };
 
   // Tab configuration for sidebar navigation — must be before early returns
   const tabConfig = useMemo(() => {
     const tabs = [
-      { key: 'general', label: 'General', icon: <UserOutlined />, group: 'Personal' },
+      { key: 'general', label: t('admin:settings.tabs.general'), icon: <UserOutlined />, group: t('admin:settings.groups.personal') },
     ];
     // Manager-accessible tabs (subset of admin)
     if (isAdmin || isManager) {
       tabs.push(
-        { key: 'calendar', label: 'Calendar', icon: <CalendarOutlined />, group: 'Business' },
-        { key: 'booking-defaults', label: 'Booking Defaults', icon: <ToolOutlined />, group: 'Business' },
+        { key: 'calendar', label: t('admin:settings.tabs.calendar'), icon: <CalendarOutlined />, group: t('admin:settings.groups.business') },
+        { key: 'booking-defaults', label: t('admin:settings.tabs.bookingDefaults'), icon: <ToolOutlined />, group: t('admin:settings.groups.business') },
       );
     }
     // Admin-only tabs
     if (isAdmin) {
       tabs.push(
-        { key: 'forecast', label: 'Forecast', icon: <CloudOutlined />, group: 'Business' },
-{ key: 'finance', label: 'Finance', icon: <DollarOutlined />, group: 'Business' },
-        { key: 'currency', label: 'Currency', icon: <DollarOutlined />, group: 'Business' },
-        { key: 'services', label: 'Service Creation', icon: <AppstoreOutlined />, group: 'Services' },
-        { key: 'roles', label: 'Roles & Permissions', icon: <TeamOutlined />, group: 'Access' },
-        { key: 'waivers', label: 'Waivers', icon: <SafetyOutlined />, group: 'Legal' },
-        { key: 'legal', label: 'Legal Documents', icon: <FileTextOutlined />, group: 'Legal' },
-        { key: 'refunds', label: 'Payment Refunds', icon: <RollbackOutlined />, group: 'Payments' },
-        { key: 'bank-accounts', label: 'Bank Accounts', icon: <BankOutlined />, group: 'Payments' },
-        { key: 'kai-logs', label: 'Kai Logs', icon: <RobotOutlined />, group: 'AI' },
+        { key: 'forecast', label: t('admin:settings.tabs.forecast'), icon: <CloudOutlined />, group: t('admin:settings.groups.business') },
+        { key: 'finance', label: t('admin:settings.tabs.finance'), icon: <DollarOutlined />, group: t('admin:settings.groups.business') },
+        { key: 'currency', label: t('admin:settings.tabs.currency'), icon: <DollarOutlined />, group: t('admin:settings.groups.business') },
+        { key: 'services', label: t('admin:settings.tabs.services'), icon: <AppstoreOutlined />, group: t('admin:settings.groups.services') },
+        { key: 'roles', label: t('admin:settings.tabs.roles'), icon: <TeamOutlined />, group: t('admin:settings.groups.access') },
+        { key: 'waivers', label: t('admin:settings.tabs.waivers'), icon: <SafetyOutlined />, group: t('admin:settings.groups.legal') },
+        { key: 'legal', label: t('admin:settings.tabs.legal'), icon: <FileTextOutlined />, group: t('admin:settings.groups.legal') },
+        { key: 'refunds', label: t('admin:settings.tabs.refunds'), icon: <RollbackOutlined />, group: t('admin:settings.groups.payments') },
+        { key: 'bank-accounts', label: t('admin:settings.tabs.bankAccounts'), icon: <BankOutlined />, group: t('admin:settings.groups.payments') },
+        { key: 'kai-logs', label: t('admin:settings.tabs.kaiLogs'), icon: <RobotOutlined />, group: t('admin:settings.groups.ai') },
       );
     }
     // Deleted Bookings: manager + admin
     if (isAdmin || isManager) {
       tabs.push(
-        { key: 'deleted-bookings', label: 'Deleted Bookings', icon: <DeleteOutlined />, group: 'Operations' },
+        { key: 'deleted-bookings', label: t('admin:settings.tabs.deletedBookings'), icon: <DeleteOutlined />, group: t('admin:settings.groups.operations') },
       );
     }
     // Student tabs
     if (isStudent) {
       tabs.push(
-        { key: 'safety', label: 'Safety & Medical', icon: <MedicineBoxOutlined />, group: 'Personal' },
+        { key: 'safety', label: t('admin:settings.tabs.safety'), icon: <MedicineBoxOutlined />, group: t('admin:settings.groups.personal') },
       );
     }
     // Instructor tabs
     if (isInstructor) {
       tabs.push(
-        { key: 'availability', label: 'Availability', icon: <CalendarOutlined />, group: 'Schedule' },
-        { key: 'teaching-prefs', label: 'Teaching Preferences', icon: <BookOutlined />, group: 'Teaching' },
-        { key: 'instructor-notifications', label: 'Notifications', icon: <BellOutlined />, group: 'Personal' },
+        { key: 'availability', label: t('admin:settings.tabs.availability'), icon: <CalendarOutlined />, group: t('admin:settings.groups.schedule') },
+        { key: 'teaching-prefs', label: t('admin:settings.tabs.teachingPrefs'), icon: <BookOutlined />, group: t('admin:settings.groups.teaching') },
+        { key: 'instructor-notifications', label: t('admin:settings.tabs.instructorNotifications'), icon: <BellOutlined />, group: t('admin:settings.groups.personal') },
       );
     }
     // Manager-specific tabs
     if (isManager) {
       tabs.push(
-        { key: 'team-notifications', label: 'Team Notifications', icon: <TeamOutlined />, group: 'Operations' },
-        { key: 'operational-defaults', label: 'Operational Defaults', icon: <ToolOutlined />, group: 'Operations' },
+        { key: 'team-notifications', label: t('admin:settings.tabs.teamNotifications'), icon: <TeamOutlined />, group: t('admin:settings.groups.operations') },
+        { key: 'operational-defaults', label: t('admin:settings.tabs.operationalDefaults'), icon: <ToolOutlined />, group: t('admin:settings.groups.operations') },
       );
     }
     return tabs;
-  }, [isAdmin, isManager, isStudent, isInstructor]);
+  }, [isAdmin, isManager, isStudent, isInstructor, t]);
 
   const groupedTabs = useMemo(() => {
     const groups = [];
@@ -700,7 +698,7 @@ const UserSettings = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Spin size="large" />
-        <div className="text-slate-500">Loading settings...</div>
+        <div className="text-slate-500">{t('admin:settings.loading')}</div>
       </div>
     );
   }
@@ -715,30 +713,30 @@ const UserSettings = () => {
             <AccountSettings />
 
             <Card
-              title={<span className="flex items-center gap-2"><BellOutlined className="text-sky-500" />Notification Preferences</span>}
+              title={<span className="flex items-center gap-2"><BellOutlined className="text-sky-500" />{t('admin:settings.notifications.title')}</span>}
               className="rounded-xl shadow-sm"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <Text strong>Email Notifications</Text>
-                    <Paragraph className="!mb-0 text-sm text-slate-500">Receive booking confirmations and updates via email</Paragraph>
+                    <Text strong>{t('admin:settings.notifications.email')}</Text>
+                    <Paragraph className="!mb-0 text-sm text-slate-500">{t('admin:settings.notifications.emailDescription')}</Paragraph>
                   </div>
                   <Switch checked={settings.emailNotifications} onChange={(checked) => updateSetting('emailNotifications', checked)} />
                 </div>
                 <Divider className="!my-3" />
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <Text strong>SMS Notifications</Text>
-                    <Paragraph className="!mb-0 text-sm text-slate-500">Get text messages for important updates</Paragraph>
+                    <Text strong>{t('admin:settings.notifications.sms')}</Text>
+                    <Paragraph className="!mb-0 text-sm text-slate-500">{t('admin:settings.notifications.smsDescription')}</Paragraph>
                   </div>
                   <Switch checked={settings.smsNotifications} onChange={(checked) => updateSetting('smsNotifications', checked)} />
                 </div>
                 <Divider className="!my-3" />
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <Text strong>Push Notifications</Text>
-                    <Paragraph className="!mb-0 text-sm text-slate-500">Receive real-time notifications in your browser</Paragraph>
+                    <Text strong>{t('admin:settings.notifications.push')}</Text>
+                    <Paragraph className="!mb-0 text-sm text-slate-500">{t('admin:settings.notifications.pushDescription')}</Paragraph>
                   </div>
                   <Switch checked={settings.pushNotifications} onChange={(checked) => updateSetting('pushNotifications', checked)} />
                 </div>
@@ -747,8 +745,8 @@ const UserSettings = () => {
                     <Divider className="!my-3" />
                     <div className="flex items-center justify-between py-2">
                       <div>
-                        <Text strong>New Booking Alerts</Text>
-                        <Paragraph className="!mb-0 text-sm text-slate-500">Get notified when students request new bookings</Paragraph>
+                        <Text strong>{t('admin:settings.notifications.newBookingAlerts')}</Text>
+                        <Paragraph className="!mb-0 text-sm text-slate-500">{t('admin:settings.notifications.newBookingAlertsDescription')}</Paragraph>
                       </div>
                       <Switch checked={notificationSettings.new_booking_alerts} onChange={(checked) => updateNotificationSetting('new_booking_alerts', checked)} />
                     </div>
@@ -757,14 +755,13 @@ const UserSettings = () => {
               </div>
             </Card>
 
-
             <Card
-              title={<span className="flex items-center gap-2"><GlobalOutlined className="text-sky-500" />Language & Region</span>}
+              title={<span className="flex items-center gap-2"><GlobalOutlined className="text-sky-500" />{t('admin:settings.languageRegion.title')}</span>}
               className="rounded-xl shadow-sm"
             >
               <div>
-                <Text strong className="block mb-2">Language</Text>
-                <Paragraph className="!mb-3 text-sm text-slate-500">Choose your preferred language for the interface</Paragraph>
+                <Text strong className="block mb-2">{t('admin:settings.languageRegion.languageLabel')}</Text>
+                <Paragraph className="!mb-3 text-sm text-slate-500">{t('admin:settings.languageRegion.languageDescription')}</Paragraph>
                 <Select value={settings.language} onChange={(value) => updateSetting('language', value)} style={{ width: '100%' }}>
                   <Option value="en">English</Option>
                   <Option value="tr">Türkçe</Option>
@@ -777,7 +774,7 @@ const UserSettings = () => {
 
             <div className="flex justify-end">
               <Button type="primary" size="large" icon={<SaveOutlined />} onClick={handleSave} loading={saving} className="rounded-lg">
-                Save Personal Settings
+                {t('admin:settings.savePersonalSettings')}
               </Button>
             </div>
           </div>
@@ -787,7 +784,7 @@ const UserSettings = () => {
         return (isAdmin || isManager) ? <CalendarSettingsSection /> : null;
 
       case 'forecast':
-        return isAdmin ? <ForecastSettings onSave={() => message.success('Forecast settings saved!')} /> : null;
+        return isAdmin ? <ForecastSettings onSave={() => message.success(t('admin:settings.tabs.forecast'))} /> : null;
 
 case 'finance':
         return isAdmin ? <FinanceSettingsView /> : null;
@@ -798,9 +795,9 @@ case 'finance':
             <BusinessCurrencySection onSave={handlePreferredCurrencySave} />
             <Divider />
             <div>
-              <Title level={5} className="!mb-2">Exchange Rates</Title>
+              <Title level={5} className="!mb-2">{t('admin:settings.currencySection.exchangeRates')}</Title>
               <Paragraph className="text-slate-600 mb-4">
-                Manage exchange rates relative to EUR (base currency). Enable auto-update to fetch rates automatically.
+                {t('admin:settings.currencySection.exchangeRatesDescription')}
               </Paragraph>
               <CurrencyManagementSection />
             </div>
@@ -863,7 +860,7 @@ case 'finance':
       <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center gap-2 mb-3">
           <SettingOutlined className="text-sky-500 text-lg" />
-          <Title level={4} className="!mb-0">Settings</Title>
+          <Title level={4} className="!mb-0">{t('admin:settings.title')}</Title>
         </div>
         <Select
           value={activeTab}
@@ -879,7 +876,7 @@ case 'finance':
           <div className="p-5 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <SettingOutlined className="text-sky-500 text-xl" />
-              <Title level={4} className="!mb-0">Settings</Title>
+              <Title level={4} className="!mb-0">{t('admin:settings.title')}</Title>
             </div>
           </div>
           <nav className="flex-1 overflow-y-auto py-2">
@@ -908,11 +905,11 @@ case 'finance':
             ))}
           </nav>
           <div className="p-4 border-t border-gray-100 text-xs text-gray-500">
-            Logged in as <strong className="text-gray-700">{user?.email}</strong>
-            {isAdmin && <span className="ml-1 text-sky-600">(Admin)</span>}
-            {isManager && !isAdmin && <span className="ml-1 text-sky-600">(Manager)</span>}
-            {isInstructor && <span className="ml-1 text-emerald-600">(Instructor)</span>}
-            {isStudent && <span className="ml-1 text-violet-600">(Student)</span>}
+            {t('admin:settings.loggedInAs')} <strong className="text-gray-700">{user?.email}</strong>
+            {isAdmin && <span className="ml-1 text-sky-600">{t('admin:settings.roleLabels.admin')}</span>}
+            {isManager && !isAdmin && <span className="ml-1 text-sky-600">{t('admin:settings.roleLabels.manager')}</span>}
+            {isInstructor && <span className="ml-1 text-emerald-600">{t('admin:settings.roleLabels.instructor')}</span>}
+            {isStudent && <span className="ml-1 text-violet-600">{t('admin:settings.roleLabels.student')}</span>}
           </div>
         </aside>
 
@@ -923,29 +920,27 @@ case 'finance':
             <div className="mb-6">
               <Title level={3} className="!mb-1">{activeTabLabel}</Title>
               <Paragraph className="text-slate-500 !mb-0">
-                {(activeTab === 'account' || activeTab === 'general') && (isAdmin
-                  ? 'Manage your account, personal preferences, and notification settings'
-                  : 'Manage your account details, preferences, and notification settings')}
-                {activeTab === 'calendar' && 'Configure instructor colors for calendar views'}
-                {activeTab === 'forecast' && 'Configure wind forecast settings including units, data sources, and display options'}
-{activeTab === 'finance' && 'Configure calculation rates and payment fees'}
-                {activeTab === 'currency' && 'Manage business currency, registration currencies, and exchange rates'}
-                {activeTab === 'booking-defaults' && 'Configure default booking duration and available options'}
-                {activeTab === 'services' && 'Manage service categories and types'}
-                {activeTab === 'roles' && 'Manage user roles and permissions'}
-                {activeTab === 'waivers' && 'Manage waiver templates and submissions'}
-                {activeTab === 'legal' && 'Manage terms of service, privacy policy, and legal documents'}
-                {activeTab === 'deleted-bookings' && 'View and manage deleted bookings'}
-                {activeTab === 'refunds' && 'Process and track payment refunds'}
-                {activeTab === 'bank-accounts' && 'Manage bank accounts for payments'}
-                {activeTab === 'booking-prefs' && 'Set your default preferences for booking lessons'}
-                {activeTab === 'instructor-prefs' && 'Choose your preferred instructor and lesson language'}
-                {activeTab === 'safety' && 'Provide emergency contact and medical information for your safety'}
-                {activeTab === 'availability' && 'Manage your weekly working hours and time-off requests'}
-                {activeTab === 'teaching-prefs' && 'Configure your teaching preferences and specializations'}
-                {activeTab === 'instructor-notifications' && 'Choose which notifications you receive as an instructor'}
-                {activeTab === 'team-notifications' && 'Configure team activity and operational notifications'}
-                {activeTab === 'operational-defaults' && 'Set default values for daily booking operations'}
+                {(activeTab === 'account' || activeTab === 'general') && t(isAdmin ? 'admin:settings.tabDescriptions.generalAdmin' : 'admin:settings.tabDescriptions.general')}
+                {activeTab === 'calendar' && t('admin:settings.tabDescriptions.calendar')}
+                {activeTab === 'forecast' && t('admin:settings.tabDescriptions.forecast')}
+                {activeTab === 'finance' && t('admin:settings.tabDescriptions.finance')}
+                {activeTab === 'currency' && t('admin:settings.tabDescriptions.currency')}
+                {activeTab === 'booking-defaults' && t('admin:settings.tabDescriptions.bookingDefaults')}
+                {activeTab === 'services' && t('admin:settings.tabDescriptions.services')}
+                {activeTab === 'roles' && t('admin:settings.tabDescriptions.roles')}
+                {activeTab === 'waivers' && t('admin:settings.tabDescriptions.waivers')}
+                {activeTab === 'legal' && t('admin:settings.tabDescriptions.legal')}
+                {activeTab === 'deleted-bookings' && t('admin:settings.tabDescriptions.deletedBookings')}
+                {activeTab === 'refunds' && t('admin:settings.tabDescriptions.refunds')}
+                {activeTab === 'bank-accounts' && t('admin:settings.tabDescriptions.bankAccounts')}
+                {activeTab === 'booking-prefs' && t('admin:settings.tabDescriptions.bookingPrefs')}
+                {activeTab === 'instructor-prefs' && t('admin:settings.tabDescriptions.instructorPrefs')}
+                {activeTab === 'safety' && t('admin:settings.tabDescriptions.safety')}
+                {activeTab === 'availability' && t('admin:settings.tabDescriptions.availability')}
+                {activeTab === 'teaching-prefs' && t('admin:settings.tabDescriptions.teachingPrefs')}
+                {activeTab === 'instructor-notifications' && t('admin:settings.tabDescriptions.instructorNotifications')}
+                {activeTab === 'team-notifications' && t('admin:settings.tabDescriptions.teamNotifications')}
+                {activeTab === 'operational-defaults' && t('admin:settings.tabDescriptions.operationalDefaults')}
               </Paragraph>
             </div>
 

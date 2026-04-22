@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tag, Spin } from 'antd';
 import dpsLogo from '../../../../DuotoneFonts/DPSLOGOS/DPS-transparenton-black.svg';
 import {
@@ -60,13 +61,14 @@ const parseLanguages = (langStr) => {
 };
 
 const TeamPage = () => {
+  const { t } = useTranslation(['admin']);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInstructor, setSelectedInstructor] = useState(null);
 
   usePageSEO({
-    title: 'Our Team | Community | UKC',
-    description: 'Meet the team behind UKC — our passionate instructors and staff who make your experience unforgettable.',
+    title: t('admin:community.team.pageTitle'),
+    description: t('admin:community.team.pageDescription'),
   });
 
   useEffect(() => {
@@ -113,13 +115,10 @@ const TeamPage = () => {
       <div className="relative z-10 py-12 pb-6 pt-24 md:pt-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mt-20 md:mt-24">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-duotone-bold-extended text-white mb-3 tracking-tight uppercase">
-            MEET THE{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00a8c4] to-cyan-400">
-              DPC-URLA TEAM
-            </span>
+            {t('admin:community.team.heading')}
           </h1>
           <p className="text-lg text-gray-300 font-duotone-regular max-w-2xl mx-auto leading-relaxed">
-            Our passionate instructors and staff are here to make your water sports experience unforgettable.
+            {t('admin:community.team.subtitle')}
           </p>
         </div>
       </div>
@@ -129,14 +128,14 @@ const TeamPage = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Spin size="large" />
-            <p className="text-gray-400 text-sm">Loading team...</p>
+            <p className="text-gray-400 text-sm">{t('admin:community.team.loading')}</p>
           </div>
         ) : sortedMembers.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-[#1a1d26] p-10 text-center">
             <TeamOutlined className="text-4xl text-gray-500 mb-3" />
-            <h3 className="text-xl font-bold text-white mb-2">Team info coming soon</h3>
+            <h3 className="text-xl font-bold text-white mb-2">{t('admin:community.team.teamInfoComingSoon')}</h3>
             <p className="text-gray-400 max-w-md mx-auto">
-              Our team information is being updated. Check back soon!
+              {t('admin:community.team.teamInfoComingSoonDescription')}
             </p>
           </div>
         ) : (
@@ -145,7 +144,7 @@ const TeamPage = () => {
             <div className="mb-6 flex items-center justify-center">
               <Tag className="!bg-white/10 !border-white/20 !text-white !px-4 !py-1 !rounded-full !text-sm">
                 <TeamOutlined className="mr-1.5" />
-                {sortedMembers.length} Team Member{sortedMembers.length !== 1 ? 's' : ''}
+                {t('admin:community.team.teamMemberCount', { count: sortedMembers.length })}
               </Tag>
             </div>
 
@@ -189,11 +188,11 @@ const TeamPage = () => {
 
                       {/* Role badge */}
                       <Tag className="absolute top-3 left-3 !bg-sky-500/15 !border-sky-500/30 !text-sky-300 !rounded-full !text-[10px] !font-bold backdrop-blur-sm uppercase tracking-wide">
-                        Instructor
+                        {t('admin:community.team.instructor')}
                       </Tag>
                       {member.featured && (
                         <Tag className="absolute top-3 right-3 !bg-amber-500/20 !border-amber-500/40 !text-amber-300 !rounded-full !text-[10px] !font-bold backdrop-blur-sm uppercase tracking-wide">
-                          <StarFilled className="mr-0.5" /> Featured
+                          <StarFilled className="mr-0.5" /> {t('admin:community.team.featured')}
                         </Tag>
                       )}
                     </div>

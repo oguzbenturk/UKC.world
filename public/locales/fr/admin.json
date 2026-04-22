@@ -1183,7 +1183,9 @@
         "description": "Consultez votre statut de décharge actuel et examinez les signatures précédentes. Si vous devez signer ou renouveler votre décharge, vous pouvez le faire directement ci-dessous.",
         "loadError": "Impossible de charger les détails de la décharge",
         "loadErrorDescription": "Nous n'avons pas trouvé les informations de votre compte. Veuillez vous reconnecter et revisiter cette page.",
-        "accountError": "Nous n'avons pas pu déterminer votre compte pour charger la décharge. Veuillez vous reconnecter."
+        "accountError": "Nous n'avons pas pu déterminer votre compte pour charger la décharge. Veuillez vous reconnecter.",
+        "successToast": "Thanks! Your liability waiver is now up to date.",
+        "cancelToast": "You can sign the waiver whenever you need from this page."
       },
       "export": {
         "title": "Exporter vos données (Article 15 - Droit d'accès)",

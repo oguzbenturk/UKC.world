@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Rate, Input, Button, Form, Select, Alert, Spin, Modal } from 'antd';
-import { 
-  StarOutlined, 
-  MessageOutlined, 
+import {
+  StarOutlined,
+  MessageOutlined,
   TrophyOutlined,
   UserOutlined,
   WindPowerOutlined,
   BookOutlined
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
+  const { t } = useTranslation(['student']);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [existingFeedback, setExistingFeedback] = useState(null);
@@ -95,8 +97,8 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
     } catch (error) {
       console.error('Error submitting feedback:', error);
       Modal.error({
-        title: 'Error',
-        content: 'Failed to submit feedback. Please try again.'
+        title: t('student:feedback.form.errors.errorTitle'),
+        content: t('student:feedback.form.errors.submitFailed')
       });
     } finally {
       setLoading(false);
@@ -131,7 +133,7 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
 
   const showAchievementModal = (achievements) => {
     Modal.success({
-      title: '🏆 Achievement Unlocked!',
+      title: t('student:feedback.achievements.modalTitle'),
       content: (
         <div>
           {achievements.map((achievement, index) => (
@@ -151,12 +153,12 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
         <div className="mb-6">
           <TrophyOutlined style={{ fontSize: '48px', color: '#52c41a' }} />
         </div>
-        <h2 className="text-2xl font-bold mb-4">Thank You for Your Feedback!</h2>
+        <h2 className="text-2xl font-bold mb-4">{t('student:feedback.thankYou.heading')}</h2>
         <p className="text-gray-600 mb-6">
-          Your feedback helps us improve our kitesurfing lessons and provide better experiences for all students.
+          {t('student:feedback.thankYou.body')}
         </p>
         <Button type="primary" onClick={() => setShowThankYou(false)}>
-          Continue
+          {t('student:feedback.thankYou.continueButton')}
         </Button>
       </Card>
     );
@@ -168,7 +170,7 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
         title={
           <div className="flex items-center">
             <StarOutlined className="mr-2" />
-            {existingFeedback ? 'Update Your Feedback' : 'Share Your Experience'}
+            {existingFeedback ? t('student:feedback.form.updateTitle') : t('student:feedback.form.title')}
           </div>
         }
         className="shadow-lg"
@@ -186,55 +188,55 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Form.Item
               name="overall_rating"
-              label="Overall Experience"
-              rules={[{ required: true, message: 'Please rate your overall experience' }]}
+              label={t('student:feedback.form.overallExperience')}
+              rules={[{ required: true, message: t('student:feedback.form.validation.overallRequired') }]}
             >
               <Rate allowHalf />
             </Form.Item>
 
             <Form.Item
               name="would_recommend"
-              label="Would you recommend us to friends?"
+              label={t('student:feedback.form.wouldRecommend')}
               rules={[{ required: true }]}
             >
               <Select>
-                <Option value={true}>Yes, definitely!</Option>
-                <Option value={false}>No, probably not</Option>
+                <Option value={true}>{t('student:feedback.form.recommendYes')}</Option>
+                <Option value={false}>{t('student:feedback.form.recommendNo')}</Option>
               </Select>
             </Form.Item>
           </div>
 
           {/* Detailed Ratings */}
-          <Card title="Detailed Ratings" className="mb-6">
+          <Card title={t('student:feedback.form.detailedRatings')} className="mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Form.Item
                 name="instructor_rating"
-                label="Instructor"
-                rules={[{ required: true, message: 'Please rate your instructor' }]}
+                label={t('student:feedback.form.instructorRating')}
+                rules={[{ required: true, message: t('student:feedback.form.validation.instructorRequired') }]}
               >
                 <Rate allowHalf />
               </Form.Item>
 
               <Form.Item
                 name="equipment_rating"
-                label="Equipment Quality"
-                rules={[{ required: true, message: 'Please rate the equipment' }]}
+                label={t('student:feedback.form.equipmentRating')}
+                rules={[{ required: true, message: t('student:feedback.form.validation.equipmentRequired') }]}
               >
                 <Rate allowHalf />
               </Form.Item>
 
               <Form.Item
                 name="location_rating"
-                label="Location & Conditions"
-                rules={[{ required: true, message: 'Please rate the location' }]}
+                label={t('student:feedback.form.locationRating')}
+                rules={[{ required: true, message: t('student:feedback.form.validation.locationRequired') }]}
               >
                 <Rate allowHalf />
               </Form.Item>
 
               <Form.Item
                 name="value_rating"
-                label="Value for Money"
-                rules={[{ required: true, message: 'Please rate the value' }]}
+                label={t('student:feedback.form.valueRating')}
+                rules={[{ required: true, message: t('student:feedback.form.validation.valueRequired') }]}
               >
                 <Rate allowHalf />
               </Form.Item>
@@ -242,66 +244,66 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
           </Card>
 
           {/* Skill Progress */}
-          <Card title="Your Kitesurfing Progress" className="mb-6">
+          <Card title={t('student:feedback.form.skillProgress')} className="mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Form.Item
                 name="skill_level_before"
-                label="Skill Level Before Lesson"
+                label={t('student:feedback.form.skillBefore')}
                 rules={[{ required: true }]}
               >
-                <Select placeholder="Select your skill level before the lesson">
-                  <Option value="complete_beginner">Complete Beginner</Option>
-                  <Option value="beginner">Beginner</Option>
-                  <Option value="intermediate">Intermediate</Option>
-                  <Option value="advanced">Advanced</Option>
-                  <Option value="expert">Expert</Option>
+                <Select placeholder={t('student:feedback.form.skillPlaceholderBefore')}>
+                  <Option value="complete_beginner">{t('student:feedback.form.skillLevels.complete_beginner')}</Option>
+                  <Option value="beginner">{t('student:feedback.form.skillLevels.beginner')}</Option>
+                  <Option value="intermediate">{t('student:feedback.form.skillLevels.intermediate')}</Option>
+                  <Option value="advanced">{t('student:feedback.form.skillLevels.advanced')}</Option>
+                  <Option value="expert">{t('student:feedback.form.skillLevels.expert')}</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="skill_level_after"
-                label="Skill Level After Lesson"
+                label={t('student:feedback.form.skillAfter')}
                 rules={[{ required: true }]}
               >
-                <Select placeholder="Select your skill level after the lesson">
-                  <Option value="complete_beginner">Complete Beginner</Option>
-                  <Option value="beginner">Beginner</Option>
-                  <Option value="intermediate">Intermediate</Option>
-                  <Option value="advanced">Advanced</Option>
-                  <Option value="expert">Expert</Option>
+                <Select placeholder={t('student:feedback.form.skillPlaceholderAfter')}>
+                  <Option value="complete_beginner">{t('student:feedback.form.skillLevels.complete_beginner')}</Option>
+                  <Option value="beginner">{t('student:feedback.form.skillLevels.beginner')}</Option>
+                  <Option value="intermediate">{t('student:feedback.form.skillLevels.intermediate')}</Option>
+                  <Option value="advanced">{t('student:feedback.form.skillLevels.advanced')}</Option>
+                  <Option value="expert">{t('student:feedback.form.skillLevels.expert')}</Option>
                 </Select>
               </Form.Item>
             </div>
           </Card>
 
           {/* Weather and Conditions */}
-          <Card title="Lesson Conditions" className="mb-6">
+          <Card title={t('student:feedback.form.lessonConditions')} className="mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Form.Item
                 name="weather_conditions"
-                label="How were the weather conditions?"
+                label={t('student:feedback.form.weatherConditions')}
                 rules={[{ required: true }]}
               >
                 <Select>
-                  <Option value="excellent">Excellent - Perfect for kitesurfing</Option>
-                  <Option value="good">Good - Nice conditions</Option>
-                  <Option value="fair">Fair - Acceptable conditions</Option>
-                  <Option value="poor">Poor - Challenging conditions</Option>
-                  <Option value="unsuitable">Unsuitable - Should have been cancelled</Option>
+                  <Option value="excellent">{t('student:feedback.form.weatherOptions.excellent')}</Option>
+                  <Option value="good">{t('student:feedback.form.weatherOptions.good')}</Option>
+                  <Option value="fair">{t('student:feedback.form.weatherOptions.fair')}</Option>
+                  <Option value="poor">{t('student:feedback.form.weatherOptions.poor')}</Option>
+                  <Option value="unsuitable">{t('student:feedback.form.weatherOptions.unsuitable')}</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="favorite_aspect"
-                label="Favorite Aspect of the Lesson"
+                label={t('student:feedback.form.favoriteAspect')}
               >
-                <Select placeholder="What did you enjoy most?">
-                  <Option value="instructor_teaching">Instructor's teaching style</Option>
-                  <Option value="equipment_quality">High quality equipment</Option>
-                  <Option value="location_beauty">Beautiful location</Option>
-                  <Option value="safety_measures">Safety measures</Option>
-                  <Option value="skill_progress">Learning progress</Option>
-                  <Option value="overall_experience">Overall experience</Option>
+                <Select placeholder={t('student:feedback.form.favoriteAspectPlaceholder')}>
+                  <Option value="instructor_teaching">{t('student:feedback.form.favoriteOptions.instructor_teaching')}</Option>
+                  <Option value="equipment_quality">{t('student:feedback.form.favoriteOptions.equipment_quality')}</Option>
+                  <Option value="location_beauty">{t('student:feedback.form.favoriteOptions.location_beauty')}</Option>
+                  <Option value="safety_measures">{t('student:feedback.form.favoriteOptions.safety_measures')}</Option>
+                  <Option value="skill_progress">{t('student:feedback.form.favoriteOptions.skill_progress')}</Option>
+                  <Option value="overall_experience">{t('student:feedback.form.favoriteOptions.overall_experience')}</Option>
                 </Select>
               </Form.Item>
             </div>
@@ -311,35 +313,35 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Form.Item
               name="comments"
-              label="Tell us about your experience"
+              label={t('student:feedback.form.commentsLabel')}
             >
               <TextArea
                 rows={4}
-                placeholder="Share details about your lesson, what you learned, how you felt..."
+                placeholder={t('student:feedback.form.commentsPlaceholder')}
               />
             </Form.Item>
 
             <Form.Item
               name="improvement_suggestions"
-              label="How can we improve?"
+              label={t('student:feedback.form.improvementLabel')}
             >
               <TextArea
                 rows={4}
-                placeholder="Any suggestions to make our lessons even better?"
+                placeholder={t('student:feedback.form.improvementPlaceholder')}
               />
             </Form.Item>
           </div>
 
           {/* Submit Button */}
           <div className="text-center">
-            <Button 
-              type="primary" 
-              htmlType="submit" 
+            <Button
+              type="primary"
+              htmlType="submit"
               loading={loading}
               size="large"
               className="px-8"
             >
-              {existingFeedback ? 'Update Feedback' : 'Submit Feedback'}
+              {existingFeedback ? t('student:feedback.form.updateButton') : t('student:feedback.form.submitButton')}
             </Button>
           </div>
         </Form>
@@ -350,6 +352,7 @@ const FeedbackSystem = ({ bookingId, onFeedbackSubmitted }) => {
 
 // Feedback Summary Component for Instructors/Admins
 export const FeedbackSummary = ({ instructorId, period = '30' }) => {
+  const { t } = useTranslation(['student']);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -385,7 +388,7 @@ export const FeedbackSummary = ({ instructorId, period = '30' }) => {
     return (
       <Card className="text-center p-8">
         <Spin size="large" />
-        <p className="mt-4">Loading feedback summary...</p>
+        <p className="mt-4">{t('student:feedback.summary.loading')}</p>
       </Card>
     );
   }
@@ -394,8 +397,8 @@ export const FeedbackSummary = ({ instructorId, period = '30' }) => {
     return (
       <Card>
         <Alert
-          message="No feedback data available"
-          description="No feedback has been received for the selected period."
+          message={t('student:feedback.summary.noFeedback')}
+          description={t('student:feedback.summary.noFeedbackDesc')}
           type="info"
           showIcon
         />
@@ -409,32 +412,32 @@ export const FeedbackSummary = ({ instructorId, period = '30' }) => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="text-center">
           <div className="text-2xl font-bold text-blue-600">{summary.total_reviews}</div>
-          <div className="text-gray-600">Total Reviews</div>
+          <div className="text-gray-600">{t('student:feedback.summary.totalReviews')}</div>
         </Card>
-        
+
         <Card className="text-center">
           <div className="text-2xl font-bold text-green-600">
             {summary.average_rating?.toFixed(1) || 'N/A'}
           </div>
-          <div className="text-gray-600">Average Rating</div>
+          <div className="text-gray-600">{t('student:feedback.summary.averageRating')}</div>
           <Rate disabled value={summary.average_rating} allowHalf />
         </Card>
-        
+
         <Card className="text-center">
           <div className="text-2xl font-bold text-purple-600">
             {summary.recommendation_rate}%
           </div>
-          <div className="text-gray-600">Recommendation Rate</div>
+          <div className="text-gray-600">{t('student:feedback.summary.recommendationRate')}</div>
         </Card>
-        
+
         <Card className="text-center">
           <div className="text-2xl font-bold text-orange-600">{summary.response_rate}%</div>
-          <div className="text-gray-600">Response Rate</div>
+          <div className="text-gray-600">{t('student:feedback.summary.responseRate')}</div>
         </Card>
       </div>
 
       {/* Detailed Ratings */}
-      <Card title="Rating Breakdown">
+      <Card title={t('student:feedback.summary.ratingBreakdown')}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {summary.category_averages && Object.entries(summary.category_averages).map(([category, rating]) => (
             <div key={category} className="text-center">
@@ -452,7 +455,7 @@ export const FeedbackSummary = ({ instructorId, period = '30' }) => {
 
       {/* Recent Comments */}
       {summary.recent_comments && summary.recent_comments.length > 0 && (
-        <Card title="Recent Comments">
+        <Card title={t('student:feedback.summary.recentComments')}>
           <div className="space-y-4">
             {summary.recent_comments.map((comment, index) => (
               <div key={index} className="border-l-4 border-blue-500 pl-4">
@@ -465,7 +468,7 @@ export const FeedbackSummary = ({ instructorId, period = '30' }) => {
                 <p className="text-gray-700">{comment.comments}</p>
                 {comment.improvement_suggestions && (
                   <p className="text-sm text-gray-600 mt-2">
-                    <strong>Suggestion:</strong> {comment.improvement_suggestions}
+                    <strong>{t('student:feedback.summary.suggestionPrefix')}</strong> {comment.improvement_suggestions}
                   </p>
                 )}
               </div>

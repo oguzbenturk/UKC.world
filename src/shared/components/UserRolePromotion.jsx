@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import apiClient from '@/shared/services/apiClient';
 
 const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClose }) => {
+  const { t } = useTranslation(['common']);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +34,7 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
       }
     } catch (err) {
       console.error('Error fetching roles:', err);
-      setError('Failed to load available roles');
+      setError(t('common:userRole.failedToLoad'));
     }
   };
 
@@ -40,7 +42,7 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
     e.preventDefault();
     
     if (!selectedRole) {
-      setError('Please select a role');
+      setError(t('common:userRole.selectRole'));
       return;
     }
 
@@ -63,7 +65,7 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
       }
     } catch (err) {
       console.error('Error promoting user role:', err);
-      setError(err.response?.data?.error || 'Failed to change user role');
+      setError(err.response?.data?.error || t('common:userRole.failedToChange'));
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +76,7 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-900">
-            Change User Role
+            {t('common:userRole.changeRole')}
           </h3>
           <button
             onClick={onClose}
@@ -86,10 +88,10 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
 
         <div className="mb-4">
           <p className="text-sm text-gray-600 mb-2">
-            User: <span className="font-medium">{userName}</span>
+            {t('common:userRole.user')}: <span className="font-medium">{userName}</span>
           </p>
           <p className="text-sm text-gray-600">
-            Current Role: <span className="font-medium capitalize">{currentRole}</span>
+            {t('common:userRole.currentRole')}: <span className="font-medium capitalize">{currentRole}</span>
           </p>
         </div>
 
@@ -102,7 +104,7 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
         <form onSubmit={handlePromoteRole}>
           <div className="mb-4">
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-              New Role
+              {t('common:userRole.newRole')}
             </label>
             <select
               id="role"
@@ -126,14 +128,14 @@ const UserRolePromotion = ({ userId, currentRole, userName, onRoleChanged, onClo
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
               disabled={isLoading}
             >
-              Cancel
+              {t('common:buttons.cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || !selectedRole}
             >
-              {isLoading ? 'Changing...' : 'Change Role'}
+              {isLoading ? t('common:userRole.changing') : t('common:userRole.changeRoleButton')}
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import LessonAnalytics from '../components/LessonAnalytics';
@@ -16,39 +17,40 @@ const accentStyles = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-// Quick date range presets
-const getQuickRanges = () => ({
-  today: {
-    label: 'Today',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
-  },
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
-
 /**
  * FinanceLessons - Finance view for lesson revenue
  */
 const FinanceLessons = () => {
+  const { t } = useTranslation(['manager']);
+
+  // Quick date range presets
+  const getQuickRanges = () => ({
+    today: {
+      label: t('manager:finances.overview.quickRanges.today'),
+      startDate: dayjs().format('YYYY-MM-DD'),
+      endDate: dayjs().format('YYYY-MM-DD')
+    },
+    thisWeek: {
+      label: t('manager:finances.overview.quickRanges.thisWeek'),
+      startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('week').format('YYYY-MM-DD')
+    },
+    thisMonth: {
+      label: t('manager:finances.overview.quickRanges.thisMonth'),
+      startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('month').format('YYYY-MM-DD')
+    },
+    thisYear: {
+      label: t('manager:finances.overview.quickRanges.thisYear'),
+      startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('year').format('YYYY-MM-DD')
+    },
+    allHistory: {
+      label: t('manager:finances.overview.quickRanges.allHistory'),
+      startDate: '2020-01-01',
+      endDate: dayjs().endOf('year').format('YYYY-MM-DD')
+    }
+  });
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -114,10 +116,10 @@ const FinanceLessons = () => {
   const headlineStats = useMemo(() => {
     if (!summaryData) {
       return [
-        { key: 'lessons', label: 'Lesson Revenue', value: '--', accent: 'indigo' },
-        { key: 'bookings', label: 'Total Bookings', value: '--', accent: 'emerald' },
-        { key: 'commission', label: 'Instructor Commissions', value: '--', accent: 'amber' },
-        { key: 'net', label: 'Net Lesson Revenue', value: '--', accent: 'slate' }
+        { key: 'lessons', label: t('manager:financePages.lessons.stats.lessonRevenue'), value: '--', accent: 'indigo' },
+        { key: 'bookings', label: t('manager:financePages.lessons.stats.totalBookings'), value: '--', accent: 'emerald' },
+        { key: 'commission', label: t('manager:financePages.lessons.stats.instructorCommissions'), value: '--', accent: 'amber' },
+        { key: 'net', label: t('manager:financePages.lessons.stats.netLessonRevenue'), value: '--', accent: 'slate' }
       ];
     }
 
@@ -132,10 +134,10 @@ const FinanceLessons = () => {
     const netRevenue = lessonRevenue - instructorCommission;
 
     return [
-      { key: 'lessons', label: 'Lesson Revenue', value: formatCurrency(lessonRevenue), accent: 'indigo' },
-      { key: 'bookings', label: 'Total Bookings', value: totalBookings.toLocaleString(), accent: 'emerald' },
-      { key: 'commission', label: 'Instructor Commissions', value: formatCurrency(instructorCommission), accent: 'amber' },
-      { key: 'net', label: 'Net Lesson Revenue', value: formatCurrency(netRevenue), accent: 'slate' }
+      { key: 'lessons', label: t('manager:financePages.lessons.stats.lessonRevenue'), value: formatCurrency(lessonRevenue), accent: 'indigo' },
+      { key: 'bookings', label: t('manager:financePages.lessons.stats.totalBookings'), value: totalBookings.toLocaleString(), accent: 'emerald' },
+      { key: 'commission', label: t('manager:financePages.lessons.stats.instructorCommissions'), value: formatCurrency(instructorCommission), accent: 'amber' },
+      { key: 'net', label: t('manager:financePages.lessons.stats.netLessonRevenue'), value: formatCurrency(netRevenue), accent: 'slate' }
     ];
   }, [summaryData]);
 
@@ -145,10 +147,10 @@ const FinanceLessons = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">Lesson Finance</h1>
-              <Tag color="green" className="text-xs font-medium">Lessons</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">{t('manager:financePages.lessons.title')}</h1>
+              <Tag color="green" className="text-xs font-medium">{t('manager:financePages.lessons.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500">Lesson & Booking Revenue · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">{t('manager:financePages.lessons.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             {/* Quick Range Buttons */}
@@ -218,7 +220,7 @@ const FinanceLessons = () => {
       </Card>
 
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">Lesson Revenue Analytics</h3>
+        <h3 className="mb-4 text-lg font-semibold text-slate-900">{t('manager:financePages.lessons.analyticsTitle')}</h3>
         <LessonAnalytics
           summaryData={summaryData}
           chartData={[]}

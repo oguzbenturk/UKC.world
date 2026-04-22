@@ -488,16 +488,208 @@
   },
   "products": {
     "title": "Produkte",
-    "subtitle": "Inventar und Back-Office-Produkte verwalten"
+    "subtitle": "Inventar und Back-Office-Produkte verwalten",
+    "addProduct": "Produkt hinzufügen",
+    "refresh": "Aktualisieren",
+    "editProduct": "Produkt bearbeiten",
+    "addNewProduct": "Neues Produkt hinzufügen",
+    "stats": {
+      "total": "Gesamt",
+      "lowStock": "Niedriger Bestand",
+      "invValue": "Inventarwert",
+      "featured": "Hervorgehoben"
+    },
+    "filters": {
+      "searchPlaceholder": "Nach Name, SKU oder Marke suchen...",
+      "allStatus": "Alle Status",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "discontinued": "Eingestellt",
+      "allCreators": "Alle Ersteller",
+      "createdBy": "Erstellt von",
+      "lowStockOnly": "Nur niedriger Bestand"
+    },
+    "showing": "{{count}} von {{total}} Produkten",
+    "selected": "{{count}} ausgewählt",
+    "bulk": {
+      "activate": "Aktivieren",
+      "activateSelected": "Auswahl aktivieren",
+      "deactivate": "Deaktivieren",
+      "deactivateSelected": "Auswahl deaktivieren",
+      "delete": "Löschen",
+      "deleteSelected": "Auswahl löschen",
+      "clear": "Zurücksetzen"
+    },
+    "columns": {
+      "product": "Produkt",
+      "sku": "SKU",
+      "category": "Kategorie",
+      "brand": "Marke",
+      "price": "Preis",
+      "stock": "Bestand",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "discontinued": "Eingestellt"
+    },
+    "empty": {
+      "noMatch": "Keine Produkte entsprechen den Filtern",
+      "noProducts": "Noch keine Produkte",
+      "addFirst": "Produkt hinzufügen"
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} von {{total}} Produkten"
+    },
+    "confirm": {
+      "deleteTitle": "Produkt löschen",
+      "deleteContent": "Möchten Sie «{{name}}» wirklich löschen?",
+      "deleteOk": "Löschen",
+      "deleteCancel": "Abbrechen",
+      "bulkDeleteTitle": "Ausgewählte Produkte löschen",
+      "bulkDeleteContent": "Möchten Sie {{count}} Produkt(e) wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "bulkDeleteOk": "Alle löschen",
+      "bulkActivateTitle": "Ausgewählte Produkte aktivieren",
+      "bulkDeactivateTitle": "Ausgewählte Produkte deaktivieren",
+      "bulkStatusContent": "Möchten Sie {{count}} Produkt(e) wirklich {{action}}?",
+      "bulkConfirmOk": "Bestätigen"
+    },
+    "messages": {
+      "loadError": "Produkte konnten nicht geladen werden",
+      "created": "Produkt erfolgreich erstellt!",
+      "updated": "Produkt erfolgreich aktualisiert!",
+      "deleted": "Produkt erfolgreich gelöscht!",
+      "createError": "Produkt konnte nicht erstellt werden",
+      "updateError": "Produkt konnte nicht aktualisiert werden",
+      "deleteError": "Produkt konnte nicht gelöscht werden",
+      "bulkDeleted": "{{count}} Produkt(e) erfolgreich gelöscht",
+      "bulkDeleteError": "Einige Produkte konnten nicht gelöscht werden",
+      "bulkUpdated": "{{count}} Produkt(e) erfolgreich aktualisiert",
+      "bulkUpdateError": "Einige Produkte konnten nicht aktualisiert werden"
+    },
+    "form": {
+      "identity": "Identität",
+      "details": "Details",
+      "inventory": "Inventar",
+      "discount": "Rabatt",
+      "productTab": "Produkt",
+      "stockTab": "Bestand & Preise",
+      "cancelButton": "Abbrechen",
+      "updateButton": "Produkt aktualisieren",
+      "createButton": "+ Produkt erstellen",
+      "imageUploaded": "Bild erfolgreich hochgeladen!",
+      "imageUploadError": "Bild-Upload fehlgeschlagen",
+      "imagesUploaded": "{{count}} Bild(er) hochgeladen!",
+      "imagesUploadError": "Bilder konnten nicht hochgeladen werden",
+      "imageRemoved": "Bild entfernt",
+      "maxImagesError": "Maximal 10 Bilder",
+      "colorPhotosAdded": "{{count}} Foto(s) für {{color}} hinzugefügt",
+      "colorPhotoUploadError": "Bild-Upload fehlgeschlagen",
+      "subcategoryCreated": "Unterkategorie «{{label}}» erstellt",
+      "subcategoryCreateError": "Unterkategorie konnte nicht erstellt werden",
+      "subcategoryRemoved": "Unterkategorie entfernt",
+      "subcategoryRemoveError": "Unterkategorie konnte nicht gelöscht werden",
+      "genderMen": "Herren",
+      "genderWomen": "Damen",
+      "genderUnisex": "Unisex",
+      "colorOptions": "Farboptionen",
+      "addColor": "Hinzufügen",
+      "colorPlaceholder": "z.B. Schwarz, Ozeanblau…",
+      "noColorsHint": "Farben hinzufügen — anschließend können Sie im Tab Lager Fotos je Farbe hochladen",
+      "sizesLabel": "Größen",
+      "totalStock": "Gesamtbestand",
+      "syncedFromVariants": "Aus Varianten synchronisiert: {{count}}",
+      "lowStockAlert": "Bestandswarnung",
+      "weightKg": "Gewicht (kg)",
+      "originalPrice": "Originalpreis (vor Rabatt)",
+      "originalPriceHint": "Höher als den Verkaufspreis setzen, um ein Rabatt-Abzeichen anzuzeigen. Leer lassen, wenn kein Rabatt.",
+      "mainImage": "Hauptbild",
+      "mainImageHint": "erforderlich für Karussell und Highlights",
+      "photosPerColor": "Fotos pro Farbe",
+      "gallery": "Galerie",
+      "uploadButton": "Hochladen",
+      "sizeVariants": "Größen- und Lagervarianten",
+      "selectOrCreate": "Auswählen oder erstellen",
+      "selectCategoryFirst": "Zuerst Kategorie auswählen",
+      "selectBrand": "Marke auswählen",
+      "featuredTooltip": "Hervorgehobene Produkte erscheinen im Karussell der Shop-Startseite",
+      "featuredYes": "Ja",
+      "featuredNo": "Nein",
+      "namePlaceholder": "z.B. Duotone Rebel D/LAB 2026",
+      "skuPlaceholder": "Wird automatisch generiert",
+      "createCategory": "Kategorie erstellen",
+      "createSubcategory": "Unterkategorie erstellen"
+    },
+    "colorTable": {
+      "colorCode": "Farbcode",
+      "colorName": "Farbname",
+      "imageCount": "Bildanzahl",
+      "action": "Aktion",
+      "deleteConfirm": "Diese Farbe löschen?",
+      "colorRemoved": "Farbe entfernt",
+      "noColors": "Keine Farben hinzugefügt. Produkte können mehrere Farboptionen haben.",
+      "addColor": "Farbe hinzufügen"
+    },
+    "variantTable": {
+      "sizeVariant": "Größe / Variante",
+      "qty": "Menge",
+      "cost": "Kosten",
+      "sellingPrice": "Verkaufspreis",
+      "deleteConfirm": "Diese Variante löschen?",
+      "variantRemoved": "Variante entfernt",
+      "allSizesAdded": "Alle Größen bereits hinzugefügt",
+      "sizesAdded": "{{count}} Größe(n) hinzugefügt",
+      "addAll": "Alle hinzufügen",
+      "addVariant": "Variante hinzufügen",
+      "emptyHint": "Klicken Sie oben auf eine Größe oder auf «Variante hinzufügen», um zu beginnen.",
+      "unitsAcrossSizes": "Einheit in {{count}} Größe",
+      "unitsAcrossSizesPlural": "Einheiten in {{count}} Größen"
+    }
   },
   "accommodation": {
     "title": "Unterkunft",
     "admin": {
-      "status": {
+      "pageTitle": "Aufenthaltsbuchungen",
+      "pageSubtitle": "Verwaltung von Unterkunftsbuchungen",
+      "refresh": "Aktualisieren",
+      "timeline": "Zeitplan",
+      "list": "Liste",
+      "prevWeek": "Vorh. Woche",
+      "nextWeek": "Nächste Woche",
+      "jumpToday": "Zu heute springen",
+      "bookingsShown": "{{count}} Buchung(en) angezeigt · auf einen Balken klicken für Aktionen",
+      "unitRoom": "Einheit / Zimmer",
+      "today": "Heute",
+      "noUnits": "Keine Unterkunftseinheiten gefunden",
+      "searchPlaceholder": "Gäste, Einheiten suchen...",
+      "tabs": {
+        "all": "Alle ({{count}})",
+        "active": "Aktiv",
         "pending": "Ausstehend",
-        "confirmed": "Bestätigt",
-        "completed": "Abgeschlossen",
-        "cancelled": "Storniert"
+        "hotelRequests": "Hotel",
+        "upcoming": "Bevorstehend",
+        "completed": "Abgeschlossen"
+      },
+      "stats": {
+        "inHouse": "Im Haus",
+        "inHouseSub": "aktive Aufenthalte",
+        "pending": "Ausstehend",
+        "pendingSub": "Prüfung erforderlich",
+        "upcoming": "Bevorstehend",
+        "upcomingSub": "bestätigt",
+        "revenue": "Einnahmen",
+        "revenueSub": "abgeschlossene Aufenthalte"
+      },
+      "columns": {
+        "guest": "Gast",
+        "unit": "Einheit",
+        "checkIn": "Check-in",
+        "checkOut": "Check-out",
+        "nights": "Nächte",
+        "total": "Gesamt",
+        "status": "Status"
       },
       "actions": {
         "confirm": "Bestätigen",
@@ -505,12 +697,98 @@
         "cancel": "Stornieren",
         "delete": "Löschen"
       },
+      "status": {
+        "pending": "Ausstehend",
+        "confirmed": "Bestätigt",
+        "completed": "Abgeschlossen",
+        "cancelled": "Storniert"
+      },
       "nights": "{{count}}N",
-      "unknown": "Unbekannt"
+      "unknown": "Unbekannt",
+      "unassigned": "Nicht zugewiesen",
+      "pagination": {
+        "showTotal": "{{count}} Buchungen"
+      },
+      "empty": "Keine Buchungen gefunden",
+      "deleteConfirm": {
+        "title": "Buchung löschen",
+        "content": "Möchten Sie diese Buchung wirklich dauerhaft löschen?",
+        "ok": "Löschen"
+      },
+      "messages": {
+        "loadError": "Buchungen konnten nicht geladen werden",
+        "confirmed": "Buchung bestätigt",
+        "confirmError": "Buchung konnte nicht bestätigt werden",
+        "completed": "Buchung abgeschlossen",
+        "completeError": "Buchung konnte nicht abgeschlossen werden",
+        "cancelled": "Buchung storniert",
+        "cancelError": "Buchung konnte nicht storniert werden",
+        "deleted": "Buchung gelöscht",
+        "notFound": "Buchung nicht gefunden oder bereits gelöscht",
+        "unauthorized": "Nicht autorisiert, diese Buchung zu löschen",
+        "deleteError": "Buchung konnte nicht gelöscht werden"
+      }
     }
   },
   "marketing": {
-    "title": "Marketing"
+    "title": "Marketing",
+    "hub": "Marketing-Hub",
+    "campaignBuilder": "Kampagnen-Builder",
+    "campaignBuilderDesc": "Erstellen Sie leistungsstarke Kampagnen mit Live-Vorschau - E-Mail, Popup, SMS und WhatsApp",
+    "newEmail": "Neue E-Mail",
+    "newPopup": "Neues Popup",
+    "newSMS": "Neue SMS",
+    "whatsapp": "WhatsApp",
+    "askQuestion": "Frage stellen",
+    "campaigns": "Kampagnen",
+    "quickLinks": "Schnelllinks",
+    "analytics": "Analytik",
+    "analyticsComingSoon": "Analytik demnächst verfügbar...",
+    "noCampaigns": "Noch keine Kampagnen. Erstellen Sie die erste!",
+    "stats": {
+      "totalSent": "Gesamt gesendet",
+      "totalOpens": "Gesamte Öffnungen",
+      "avgOpenRate": "Durchschn. Öffnungsrate",
+      "activeCampaigns": "Aktive Kampagnen"
+    },
+    "columns": {
+      "campaign": "Kampagne",
+      "type": "Typ",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "actions": {
+      "send": "Senden",
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren"
+    },
+    "deleteConfirm": "Diese Kampagne löschen?",
+    "sendModal": {
+      "title": "Kampagne senden: {{name}}",
+      "description": "Wählen Sie Kunden aus, an die diese Kampagne gesendet werden soll. Sie können mehrere Kunden auswählen.",
+      "sendButton": "An {{count}} Kunde(n) senden",
+      "cancelButton": "Abbrechen",
+      "noCustomerWarning": "Bitte mindestens einen Kunden auswählen",
+      "sent": "Kampagne an {{count}} Kunde(n) gesendet",
+      "sendError": "Kampagne konnte nicht gesendet werden",
+      "loadError": "Kunden konnten nicht geladen werden",
+      "pagination": {
+        "showTotal": "{{start}}-{{end}} von {{total}} Kunden"
+      }
+    },
+    "form": {
+      "campaignName": "Kampagnenname",
+      "targetAudience": "Zielgruppe",
+      "livePreview": "Live-Vorschau",
+      "cancel": "Abbrechen",
+      "create": "Kampagne erstellen",
+      "update": "Kampagne aktualisieren",
+      "saved": "Kampagne erfolgreich erstellt",
+      "updated": "Kampagne erfolgreich aktualisiert",
+      "saveError": "Kampagne konnte nicht gespeichert werden",
+      "deleted": "Kampagne gelöscht",
+      "deleteError": "Kampagne konnte nicht gelöscht werden"
+    }
   },
   "events": {
     "title": "Community-Events",
@@ -676,7 +954,86 @@
       "forms": "Formulare",
       "links": "Links",
       "submissions": "Einsendungen",
-      "registrations": "Anmeldungen"
+      "registrations": "Anmeldungen",
+      "myForms": "Meine Formulare",
+      "shareableLinks": "Teilbare Links",
+      "formAnswers": "Formularantworten"
+    },
+    "forms": {
+      "heading": "Meine Formulare",
+      "headingDesc": "Erstellen Sie Formulare für Bewerbungen, Verzichtserklärungen, Umfragen und Feedback",
+      "createNew": "Neues Formular erstellen",
+      "createFirst": "Erstes Formular erstellen",
+      "noForms": "Noch keine Formulare",
+      "noFormsDesc": "Erstellen Sie Ihr erstes Formular zum Sammeln von Bewerbungen, Feedback oder Verzichtserklärungen",
+      "deleteConfirm": "Dieses Formular löschen?",
+      "deleteDesc": "Dadurch werden auch alle Einsendungen gelöscht.",
+      "deleteOk": "Löschen",
+      "edit": "Bearbeiten",
+      "preview": "Vorschau",
+      "copy": "Kopieren",
+      "getLink": "Link erhalten",
+      "sharedAt": "Geteilt unter:",
+      "responses": "{{count}} Antwort",
+      "responsesPlural": "{{count}} Antworten",
+      "statusActive": "Aktiv",
+      "statusDraft": "Entwurf"
+    },
+    "links": {
+      "heading": "Teilbare Links",
+      "headingDesc": "Direkte Buchungs- und Anmeldelinks für Ihre Dienste",
+      "createLink": "Link erstellen",
+      "refresh": "Aktualisieren",
+      "linkName": "Link-Name",
+      "url": "URL",
+      "type": "Typ",
+      "typeForm": "Formular",
+      "typeServiceBuy": "Dienstkauf",
+      "typeService": "Dienst",
+      "typeRegistration": "Anmeldung",
+      "status": "Status",
+      "statusActive": "Aktiv",
+      "statusInactive": "Inaktiv",
+      "uses": "Nutzungen",
+      "expires": "Läuft ab",
+      "never": "Nie",
+      "actions": "Aktionen",
+      "edit": "Bearbeiten",
+      "copy": "Kopieren",
+      "open": "Öffnen",
+      "delete": "Löschen",
+      "deleteConfirm": "Diesen Link löschen?",
+      "noLinks": "Noch keine Links. Erstellen Sie einen zum Teilen mit Kunden.",
+      "createFirstLink": "Ersten Link erstellen"
+    },
+    "registrations": {
+      "heading": "Link-Anmeldungen",
+      "headingDesc": "Dienstanmeldungen über Ihre teilbaren Links",
+      "refresh": "Aktualisieren",
+      "customer": "Kunde",
+      "service": "Dienst",
+      "general": "Allgemein",
+      "status": "Status",
+      "date": "Datum",
+      "actions": "Aktionen",
+      "pending": "Ausstehend",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen",
+      "noRegistrations": "Noch keine Anmeldungen. Teilen Sie Ihre Links, um Anmeldungen zu erhalten."
+    },
+    "formAnswers": {
+      "submittedBy": "Eingereicht von",
+      "form": "Formular",
+      "unknownForm": "Unbekanntes Formular",
+      "status": "Status",
+      "date": "Datum",
+      "actions": "Aktionen",
+      "view": "Ansehen",
+      "delete": "Löschen",
+      "createUser": "Benutzer erstellen",
+      "filterByForm": "Nach Formular filtern",
+      "allForms": "Alle Formulare",
+      "noSubmissions": "Noch keine Einsendungen"
     }
   },
   "services": {
@@ -747,5 +1104,868 @@
   },
   "errors": {
     "loadFailed": "Daten konnten nicht geladen werden. Bitte erneut versuchen."
+  },
+  "payments": {
+    "earningsBreakdown": "Verdienstaufschlüsselung",
+    "managerCommission": "Manager-Provision",
+    "instructorEarnings": "Instructor-Verdienst",
+    "totalEarned": "Gesamt verdient",
+    "paymentSummary": "Zahlungsübersicht",
+    "totalPaidOut": "Gesamt ausgezahlt",
+    "balanceOwed": "Ausstehender Betrag",
+    "paymentHistory": "Zahlungsverlauf",
+    "noPayments": "Keine Zahlungen erfasst",
+    "pay": "Zahlen",
+    "deduct": "Abziehen",
+    "paymentType": "Zahlung",
+    "deductionType": "Abzug",
+    "editPayment": "Zahlung bearbeiten",
+    "recordPayment": "Zahlung erfassen — {{name}}",
+    "recordDeduction": "Abzug erfassen — {{name}}",
+    "columns": {
+      "date": "Datum",
+      "amount": "Betrag",
+      "type": "Typ",
+      "method": "Methode",
+      "notes": "Notizen"
+    },
+    "form": {
+      "amount": "Betrag (€)",
+      "date": "Datum",
+      "paymentMethod": "Zahlungsmethode",
+      "notes": "Notizen",
+      "methods": {
+        "cash": "Bargeld",
+        "bank_transfer": "Banküberweisung",
+        "check": "Scheck",
+        "other": "Sonstiges"
+      },
+      "notesPlaceholder": "Optionale Notizen...",
+      "validation": {
+        "enterAmount": "Betrag eingeben",
+        "mustBePositive": "Muss > 0 sein",
+        "selectDate": "Datum auswählen"
+      }
+    },
+    "actions": {
+      "update": "Aktualisieren",
+      "recordPayment": "Zahlung erfassen",
+      "recordDeduction": "Abzug erfassen",
+      "deletePayment": "Diese Zahlung löschen?"
+    },
+    "messages": {
+      "updated": "Zahlung aktualisiert",
+      "deductionRecorded": "Abzug erfasst",
+      "paymentRecorded": "Zahlung erfasst",
+      "deleted": "Zahlung gelöscht",
+      "saveFailed": "Zahlung konnte nicht gespeichert werden",
+      "deleteFailed": "Zahlung konnte nicht gelöscht werden"
+    }
+  },
+  "financePages": {
+    "rangeLabel": "{{start}} – {{end}}",
+    "to": "bis",
+    "refresh": "Aktualisieren",
+    "lessons": {
+      "title": "Unterrichtsfinanzen",
+      "tag": "Unterricht",
+      "subtitle": "Einnahmen aus Unterricht und Buchungen · {{range}}",
+      "analyticsTitle": "Unterrichtseinnahmen-Analyse",
+      "stats": {
+        "lessonRevenue": "Unterrichtseinnahmen",
+        "totalBookings": "Buchungen gesamt",
+        "instructorCommissions": "Instructor-Provisionen",
+        "netLessonRevenue": "Netto-Unterrichtseinnahmen"
+      }
+    },
+    "rentals": {
+      "title": "Verleihfinanzen",
+      "tag": "Verleih",
+      "subtitle": "Einnahmen aus Geräteverleih · {{range}}",
+      "analyticsTitle": "Verleiheinnahmen-Analyse",
+      "stats": {
+        "rentalRevenue": "Verleiheinnahmen",
+        "totalRentals": "Verleihvorgänge gesamt",
+        "avgRentalValue": "Durchschn. Verleihwert",
+        "outstanding": "Ausstehend"
+      }
+    },
+    "membership": {
+      "title": "Mitgliedschaftsfinanzen",
+      "tag": "Mitgliedschaft",
+      "subtitle": "Mitgliedschaftsverkäufe und -einnahmen · {{range}}",
+      "analyticsTitle": "Mitgliedschaftseinnahmen-Analyse",
+      "stats": {
+        "membershipRevenue": "Mitgliedschaftseinnahmen",
+        "totalPurchases": "Käufe gesamt",
+        "avgMembershipValue": "Durchschn. Mitgliedschaftswert",
+        "outstanding": "Ausstehend"
+      }
+    },
+    "shop": {
+      "title": "Shop-Finanzen",
+      "tag": "Shop",
+      "subtitle": "Produkt- und Warenverkäufe · {{range}}",
+      "transactionsTitle": "Shop-Transaktionen",
+      "stats": {
+        "totalRevenue": "Gesamtumsatz",
+        "totalOrders": "Bestellungen gesamt",
+        "costOfGoods": "Warenkosten",
+        "netProfit": "Nettogewinn"
+      }
+    },
+    "accommodation": {
+      "title": "Unterkunftsfinanzen",
+      "tag": "Unterkunft",
+      "subtitle": "Einnahmen aus Unterkunft und Aufenthalten · {{range}}",
+      "stats": {
+        "accommodationRevenue": "Unterkunftseinnahmen",
+        "totalBookings": "Buchungen gesamt",
+        "totalNights": "Nächte gesamt",
+        "avgRatePerNight": "Durchschn. Preis/Nacht"
+      }
+    },
+    "events": {
+      "title": "Veranstaltungsfinanzen",
+      "tag": "Community",
+      "subtitle": "Einnahmen aus Tickets und Anmeldungen · {{range}}",
+      "stats": {
+        "eventRevenue": "Veranstaltungseinnahmen",
+        "totalEvents": "Veranstaltungen gesamt",
+        "totalRegistrations": "Anmeldungen gesamt",
+        "avgTicketPrice": "Durchschn. Ticketpreis"
+      }
+    },
+    "paymentHistory": {
+      "title": "Zahlungsverlauf",
+      "tag": "Alle Zahlungen",
+      "subtitle": "Alle Wallet-Transaktionen · {{range}}",
+      "stats": {
+        "totalIncome": "Gesamteinnahmen",
+        "totalCharges": "Gesamtbelastungen",
+        "netAmount": "Nettobetrag",
+        "transactions": "Transaktionen"
+      },
+      "allTransactions": "Alle Transaktionen"
+    },
+    "walletDeposits": {
+      "title": "Wallet-Einzahlungen",
+      "tag": "Guthaben",
+      "subtitle": "Wallet-Gutschriften und Einzahlungsaktivitäten · {{range}}",
+      "stats": {
+        "totalDeposited": "Gesamt eingezahlt",
+        "depositCount": "Anzahl Einzahlungen",
+        "uniqueStudents": "Einzigartige Schüler",
+        "avgDeposit": "Durchschn. Einzahlung"
+      }
+    },
+    "paymentRefunds": {
+      "title": "Zahlungsrückerstattungen",
+      "subtitle": "Iyzico-Kartenzahlungsrückerstattungen verwalten",
+      "tabs": {
+        "refundable": "Erstattungsfähige Zahlungen",
+        "history": "Rückerstattungsverlauf"
+      },
+      "columns": {
+        "date": "Datum",
+        "customer": "Kunde",
+        "amount": "Betrag",
+        "paymentId": "Zahlungs-ID",
+        "action": "Aktion",
+        "type": "Typ",
+        "reason": "Grund",
+        "processedBy": "Bearbeitet von"
+      },
+      "refundTypes": {
+        "partial": "Teilweise",
+        "full": "Vollständig"
+      },
+      "search": {
+        "placeholder": "Nach Benutzer-ID filtern",
+        "button": "Suchen"
+      },
+      "refundModal": {
+        "title": "Rückerstattung verarbeiten",
+        "customer": "Kunde",
+        "originalPayment": "Ursprüngliche Zahlung",
+        "refundAmount": "Rückerstattungsbetrag",
+        "reason": "Grund (Optional)",
+        "reasonPlaceholder": "Grund für Rückerstattung eingeben...",
+        "partialRefundNote": "Dies wird eine Teilrückerstattung sein",
+        "confirmTitle": "Rückerstattung bestätigen",
+        "confirmContent": "Bist du sicher, dass du diese Zahlung erstatten möchtest?",
+        "partialRefundTag": "Teilrückerstattung",
+        "cardRefundNote": "Die Rückerstattung wird über Iyzico verarbeitet und an die ursprüngliche Zahlungsmethode des Kunden zurückgegeben. Dies kann 3-10 Werktage dauern.",
+        "processButton": "Rückerstattung verarbeiten",
+        "cancel": "Abbrechen"
+      },
+      "pagination": {
+        "total": "Gesamt {{count}} Transaktionen"
+      },
+      "empty": {
+        "noRefundable": "Keine erstattungsfähigen Iyzico-Zahlungen gefunden",
+        "noHistory": "Noch keine Rückerstattungen verarbeitet"
+      },
+      "messages": {
+        "loadRefundableError": "Erstattungsfähige Transaktionen konnten nicht geladen werden",
+        "loadHistoryError": "Rückerstattungsverlauf konnte nicht geladen werden",
+        "partialSuccess": "Teilrückerstattung erfolgreich verarbeitet",
+        "fullSuccess": "Vollständige Rückerstattung erfolgreich verarbeitet",
+        "refundFailed": "Rückerstattung fehlgeschlagen"
+      }
+    },
+    "bankAccounts": {
+      "loadError": "Bankkonten konnten nicht geladen werden",
+      "title": "Bankkonten",
+      "subtitle": "Verwalten Sie Bankkonten, auf die Studenten Geld uberweisen konnen",
+      "noBankAccounts": "Keine Bankkonten konfiguriert. Fugen Sie eines hinzu, damit Studenten Banktransfers durchfuhren konnen.",
+      "refresh": "Aktualisieren",
+      "addAccount": "Konto hinzufugen",
+      "columns": {
+        "bank": "Bank",
+        "ibanAccount": "IBAN / Konto",
+        "currency": "Wahrung",
+        "swift": "SWIFT",
+        "primary": "Hauptkonto",
+        "status": "Status",
+        "actions": "Aktionen"
+      },
+      "statusLabels": {
+        "active": "Aktiv",
+        "inactive": "Inaktiv"
+      },
+      "actions": {
+        "edit": "Bearbeiten",
+        "disable": "Deaktivieren",
+        "enable": "Aktivieren",
+        "cancel": "Abbrechen",
+        "update": "Aktualisieren",
+        "create": "Erstellen"
+      },
+      "modal": {
+        "addTitle": "Bankkonto hinzufugen",
+        "editTitle": "Bankkonto bearbeiten",
+        "fields": {
+          "bankName": "Bankname",
+          "accountHolder": "Kontoinhaber",
+          "iban": "IBAN",
+          "currency": "Wahrung",
+          "swift": "SWIFT / BIC-Code",
+          "accountNumber": "Kontonummer",
+          "routingNumber": "Routing-Nummer",
+          "instructions": "Uberweisungsanweisungen",
+          "isActive": "Aktiv",
+          "isPrimary": "Hauptkonto",
+          "displayOrder": "Anzeigereihenfolge"
+        },
+        "placeholders": {
+          "bankName": "z.B. Deutsche Bank, Sparkasse",
+          "accountHolder": "Vollstandiger Name des Kontoinhabers",
+          "iban": "DE00 0000 0000 0000 0000 00",
+          "swift": "z.B. DEUTDEDB",
+          "accountNumber": "Optionale Kontonummer",
+          "routingNumber": "Fur US-Banken (optional)",
+          "instructions": "Besondere Anweisungen fur Studenten (optional)"
+        },
+        "validation": {
+          "bankNameRequired": "Bankname ist erforderlich",
+          "accountHolderRequired": "Name des Kontoinhabers ist erforderlich",
+          "ibanRequired": "IBAN ist erforderlich"
+        }
+      },
+      "messages": {
+        "updated": "Bankkonto aktualisiert",
+        "created": "Bankkonto erstellt",
+        "saveFailed": "Bankkonto konnte nicht gespeichert werden",
+        "statusUpdated": "Bankkonto {{status}}",
+        "statusFailed": "Kontostatus konnte nicht aktualisiert werden",
+        "copied": "In Zwischenablage kopiert",
+        "copyTooltip": "Kopieren"
+      }
+    },
+    "settings": {
+      "title": "Finanzeinstellungen",
+      "subtitle": "Aufgelöste Einstellungen nach Kontext anzeigen.",
+      "hideForm": "Formular ausblenden",
+      "editSettings": "Einstellungen bearbeiten"
+    }
+  },
+  "equipmentPage": {
+    "title": "Ausrüstung und Zubehör",
+    "subtitle": "Verfolge und verwalte den gesamten Inventar. Überwache Verfügbarkeit, Zustand und Wartungspläne.",
+    "addEquipment": "Ausrüstung hinzufügen",
+    "refresh": "Aktualisieren",
+    "backToList": "Zurück zur Liste",
+    "loading": "Ausrüstungsdaten werden geladen...",
+    "tryAgain": "Erneut versuchen",
+    "list": {
+      "searchPlaceholder": "Ausrüstung suchen...",
+      "allTypes": "Alle Ausrüstungstypen",
+      "allSizes": "Alle Größen",
+      "columns": {
+        "equipment": "Ausrüstung",
+        "type": "Typ",
+        "sizeSpecs": "Größe/Specs",
+        "status": "Status",
+        "actions": "Aktionen"
+      },
+      "view": "Ansehen",
+      "edit": "Bearbeiten"
+    },
+    "detail": {
+      "brand": "Marke",
+      "type": "Typ",
+      "size": "Größe",
+      "specifications": "Spezifikationen",
+      "windRange": "Windbereich",
+      "windRangeValue": "{{low}} - {{high}} Knoten",
+      "serialNumber": "Seriennummer",
+      "purchaseDate": "Kaufdatum",
+      "maintenanceHistory": "Wartungshistorie",
+      "noMaintenance": "Keine Wartungshistorie verfügbar",
+      "backToList": "Zurück zur Liste",
+      "editEquipment": "Ausrüstung bearbeiten"
+    },
+    "form": {
+      "addTitle": "Neue Ausrüstung hinzufügen",
+      "editTitle": "Ausrüstung bearbeiten",
+      "fields": {
+        "name": "Ausrüstungsname *",
+        "brand": "Marke *",
+        "type": "Ausrüstungstyp *",
+        "size": "Größe *",
+        "windRange": "Windbereich (Knoten) *",
+        "windMin": "Min",
+        "windMax": "Max",
+        "status": "Status *",
+        "serialNumber": "Seriennummer *",
+        "purchaseDate": "Kaufdatum *",
+        "notes": "Notizen"
+      },
+      "status": {
+        "available": "Verfügbar",
+        "inUse": "In Benutzung",
+        "maintenance": "In Wartung",
+        "retired": "Ausgemustert"
+      },
+      "validation": {
+        "nameRequired": "Name ist erforderlich",
+        "brandRequired": "Marke ist erforderlich",
+        "typeRequired": "Typ ist erforderlich",
+        "sizeRequired": "Größe ist erforderlich",
+        "statusRequired": "Status ist erforderlich",
+        "serialRequired": "Seriennummer ist erforderlich",
+        "purchaseDateRequired": "Kaufdatum ist erforderlich",
+        "required": "Erforderlich"
+      },
+      "cancel": "Abbrechen",
+      "addButton": "Ausrüstung hinzufügen",
+      "saveButton": "Änderungen speichern"
+    }
+  },
+  "rentalsPage": {
+    "newRental": "Neue Miete",
+    "tabs": {
+      "requests": "Mietanfragen",
+      "recent": "Aktuelle Mieten",
+      "total": "Alle Mieten"
+    },
+    "columns": {
+      "customer": "Kunde",
+      "equipment": "Ausrustung",
+      "date": "Datum",
+      "price": "Preis",
+      "status": "Status",
+      "student": "Student",
+      "service": "Service",
+      "period": "Zeitraum",
+      "amount": "Betrag",
+      "notes": "Notizen",
+      "actions": "Aktionen"
+    },
+    "statusLabels": {
+      "pending": "Ausstehend",
+      "confirmed": "Genehmigt",
+      "cancelled": "Abgelehnt",
+      "completed": "Abgeschlossen",
+      "noShow": "Nicht erschienen"
+    },
+    "filters": {
+      "pending": "Ausstehend",
+      "confirmed": "Bestatigt",
+      "cancelled": "Storniert",
+      "completed": "Abgeschlossen"
+    },
+    "actions": {
+      "edit": "Bearbeiten",
+      "complete": "Abschliessen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "deleteConfirm": "Loschen?"
+    },
+    "tooltips": {
+      "approve": "Genehmigen",
+      "decline": "Ablehnen",
+      "markCompleted": "Als abgeschlossen markieren"
+    },
+    "confirm": {
+      "declineTitle": "Diese Mietanfrage ablehnen?",
+      "declineDescription": "Der Student wird benachrichtigt und jeder berechnete Betrag wird erstattet.",
+      "declineOk": "Ablehnen",
+      "declineCancel": "Behalten"
+    },
+    "empty": {
+      "noRentals": "Keine Mieten gefunden",
+      "noRequests": "Keine Mietanfragen gefunden"
+    },
+    "pagination": {
+      "requests": "von {{total}} Mietanfragen",
+      "recent": "von {{total}} aktuellen Mieten",
+      "total": "von {{total}} Mieten insgesamt"
+    },
+    "messages": {
+      "loadError": "Mietdaten konnten nicht geladen werden",
+      "requestsError": "Mietanfragen konnten nicht geladen werden",
+      "approved": "genehmigt",
+      "declined": "abgelehnt",
+      "updateStatusError": "Buchungsstatus konnte nicht aktualisiert werden",
+      "rentalApproved": "Miete erfolgreich genehmigt",
+      "rentalDeclined": "Miete erfolgreich abgelehnt",
+      "rentalStatusError": "Miete konnte nicht {{action}} werden",
+      "statusChanged": "Miete {{status}} erfolgreich",
+      "statusChangeError": "Mietstatus konnte nicht aktualisiert werden",
+      "deleted": "Miete erfolgreich geloscht",
+      "deleteError": "Miete konnte nicht geloscht werden"
+    }
+  },
+  "dailyOperations": {
+    "title": "Tagliche Betriebsablaufe",
+    "todayTag": "Heute",
+    "todayButton": "Heute",
+    "refresh": "Aktualisieren",
+    "stats": {
+      "totalIncome": "Gesamteinnahmen",
+      "netRevenue": "Nettoumsatz",
+      "transactions": "Transaktionen",
+      "rentals": "{{active}} aktiv / {{total}} gesamt"
+    },
+    "paymentHistoryCard": {
+      "incomeCount": "{{count}} Einnahmentransaktionen"
+    },
+    "rentalsCard": {
+      "count": "{{count}} Mieten"
+    },
+    "empty": {
+      "noTransactions": "Keine Einnahmentransaktionen fur diesen Tag",
+      "noRentals": "Keine Mieten fur diesen Tag"
+    },
+    "columns": {
+      "time": "Zeit",
+      "description": "Beschreibung",
+      "type": "Typ",
+      "reference": "Referenz",
+      "amount": "Betrag",
+      "customer": "Kunde",
+      "status": "Status",
+      "payment": "Zahlung",
+      "price": "Preis",
+      "paidToday": "Heute bezahlt"
+    },
+    "error": "Daten konnten nicht geladen werden: {{message}}"
+  },
+  "reportsCenter": {
+    "title": "Berichtszentrum",
+    "generateReport": "Bericht generieren",
+    "generateShort": "Generieren",
+    "scheduleReport": "Bericht planen",
+    "scheduleShort": "Planen",
+    "availableReports": "Verfugbare Berichte",
+    "scheduledReports": "Geplante Berichte",
+    "reportHistory": "Berichtsverlauf",
+    "generate": "Generieren",
+    "updateSchedule": "Zeitplan aktualisieren",
+    "cancel": "Abbrechen",
+    "download": "Herunterladen",
+    "preview": "Vorschau",
+    "runNow": "Jetzt ausfuhren",
+    "edit": "Bearbeiten",
+    "delete": "Loschen",
+    "recipients": "{{count}} Empfanger",
+    "notScheduled": "Nicht geplant",
+    "reportTypes": {
+      "financial-summary": "Finanzzusammenfassung",
+      "revenue-analytics": "Umsatzanalyse",
+      "customer-analytics": "Kundenanalyse",
+      "operational-metrics": "Betriebskennzahlen",
+      "instructor-performance": "Leistung der Kursleiter",
+      "outstanding-balances": "Ausstehende Salden",
+      "inventory-valuation": "Inventarbewertung",
+      "tax-report": "Steuerbericht"
+    },
+    "reportDescriptions": {
+      "financial-summary": "Vollstandige Finanzubersicht mit Einnahmen, Ausgaben und Gewinnanalyse",
+      "revenue-analytics": "Detaillierte Umsatzanalyse mit Trends und Prognosen",
+      "customer-analytics": "Kundenverhalten, CLV und Segmentierungsanalyse",
+      "operational-metrics": "Effizienz-, Auslastungs- und Leistungskennzahlen",
+      "instructor-performance": "Individuelle Kursleiterkennzahlen und Provisionen",
+      "outstanding-balances": "Kundenschulden- und Guthaben-Analyse",
+      "inventory-valuation": "Finanzanalyse von Ausrustung und Inventar",
+      "tax-report": "Steuerfertige Abschlusse und Zusammenfassungen"
+    },
+    "columns": {
+      "reportName": "Berichtsname",
+      "frequency": "Haufigkeit",
+      "format": "Format",
+      "recipients": "Empfanger",
+      "nextRun": "Nachste Ausfuhrung",
+      "status": "Status",
+      "actions": "Aktionen",
+      "report": "Bericht",
+      "generated": "Erstellt",
+      "period": "Zeitraum",
+      "size": "Grosse"
+    },
+    "frequency": {
+      "daily": "Taglich",
+      "weekly": "Wochentlich ({{day}})",
+      "monthly": "Monatlich ({{day}}. Tag)",
+      "quarterly": "Vierteljahrlich",
+      "yearly": "Jahrlich"
+    },
+    "switchStatus": {
+      "active": "Aktiv",
+      "paused": "Pausiert"
+    },
+    "form": {
+      "reportType": "Berichtstyp",
+      "dateRange": "Datumsbereich",
+      "format": "Format",
+      "includeCharts": "Diagramme einschliessen",
+      "includeDetails": "Details einschliessen",
+      "reportName": "Berichtsname",
+      "time": "Uhrzeit",
+      "emailRecipients": "E-Mail-Empfanger",
+      "recipientsPlaceholder": "E-Mail-Adressen durch Kommas getrennt eingeben",
+      "selectReportType": "Berichtstyp wahlen",
+      "selectFormat": "Format wahlen",
+      "selectFrequency": "Haufigkeit wahlen",
+      "enterReportName": "Berichtsname eingeben",
+      "validation": {
+        "selectReportType": "Bitte Berichtstyp wahlen",
+        "selectDateRange": "Bitte Datumsbereich wahlen",
+        "selectFormat": "Bitte Format wahlen",
+        "enterName": "Bitte Berichtsname eingeben",
+        "selectTime": "Bitte Uhrzeit wahlen",
+        "enterRecipients": "Bitte E-Mail-Empfanger eingeben",
+        "selectFrequency": "Bitte Haufigkeit wahlen"
+      }
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} von {{total}} Berichten"
+    },
+    "messages": {
+      "generated": "Bericht erfolgreich erstellt",
+      "generateError": "Bericht konnte nicht erstellt werden",
+      "scheduled": "Bericht erfolgreich geplant",
+      "scheduleError": "Bericht konnte nicht geplant werden",
+      "activated": "Bericht aktiviert",
+      "paused": "Bericht pausiert",
+      "toggleError": "Berichtszeitplan konnte nicht aktualisiert werden",
+      "deleted": "Geplanter Bericht geloscht",
+      "deleteError": "Geplanter Bericht konnte nicht geloscht werden",
+      "downloadError": "Bericht konnte nicht heruntergeladen werden",
+      "runStarted": "Berichterstellung gestartet",
+      "runError": "Bericht konnte nicht ausgefuhrt werden",
+      "previewComingSoon": "Vorschaufunktion demnachst verfugbar"
+    }
+  },
+  "transactionHistory": {
+    "searchPlaceholder": "Transaktionen suchen...",
+    "detailsTitle": "Transaktionsdetails",
+    "systemAuto": "System automatisch",
+    "columns": {
+      "date": "Datum",
+      "type": "Typ",
+      "description": "Beschreibung",
+      "customer": "Kunde",
+      "amount": "Betrag",
+      "createdBy": "Erstellt von"
+    },
+    "detail": {
+      "date": "Datum",
+      "amount": "Betrag",
+      "customer": "Kunde",
+      "status": "Status",
+      "direction": "Richtung",
+      "createdBy": "Erstellt von",
+      "description": "Beschreibung",
+      "reference": "Referenz"
+    },
+    "types": {
+      "manual_credit": "Einzahlung",
+      "wallet_deposit": "Einzahlung",
+      "credit": "Gutschrift",
+      "payment": "Zahlung",
+      "package_purchase": "Paketkauf",
+      "rental_charge": "Mietgebuhr",
+      "booking_charge": "Buchungsgebuhr",
+      "charge": "Gebuhr",
+      "debit": "Belastung",
+      "refund": "Ruckerstattung",
+      "booking_deleted_refund": "Buchungsruckerstattung",
+      "package_refund": "Paketruckerstattung",
+      "wallet_lock": "Geldborsensperrung",
+      "service_payment": "Dienstleistungszahlung",
+      "rental_payment": "Mietzahlung"
+    }
+  },
+  "outstandingBalances": {
+    "title": "Ausstehende Salden",
+    "refresh": "Aktualisieren",
+    "searchPlaceholder": "Kunden suchen...",
+    "allStatuses": "Alle Status",
+    "positiveBalance": "Positiver Saldo",
+    "creditBalance": "Guthabensaldo",
+    "overdue": "Uberfällig",
+    "recent": "Aktuell (≤7 Tage)",
+    "critical": "Kritisch (>{{symbol}}100, >30 Tage)",
+    "highestFirst": "Hochster zuerst",
+    "lowestFirst": "Niedrigster zuerst",
+    "sendReminders": "Erinnerungen senden ({{count}})",
+    "export": "Exportieren",
+    "noPhone": "Keine Telefonnummer verfugbar",
+    "stats": {
+      "totalOutstanding": "Gesamt ausstehend",
+      "customersWithDebt": "Kunden mit Schulden",
+      "averageDebt": "Durchschnittliche Schulden",
+      "criticalCases": "Kritische Falle"
+    },
+    "columns": {
+      "customer": "Kunde",
+      "outstandingBalance": "Ausstehender Saldo",
+      "daysOverdue": "Uberfällige Tage",
+      "riskLevel": "Risikoniveau",
+      "lastPayment": "Letzte Zahlung",
+      "totalBookings": "Gesamtbuchungen",
+      "actions": "Aktionen"
+    },
+    "riskLevels": {
+      "none": "KEIN",
+      "low": "NIEDRIG",
+      "medium": "MITTEL",
+      "high": "HOCH"
+    },
+    "noPayments": "Keine Zahlungen",
+    "days": "{{count}} Tage",
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} von {{total}} Kunden"
+    },
+    "actions": {
+      "recordPayment": "Zahlung erfassen",
+      "sendReminder": "Erinnerung senden",
+      "callCustomer": "Kunden anrufen",
+      "viewProfile": "Profil anzeigen"
+    },
+    "paymentModal": {
+      "title": "Zahlung erfassen — {{name}}",
+      "amount": "Zahlungsbetrag",
+      "date": "Zahlungsdatum",
+      "method": "Zahlungsmethode",
+      "notes": "Notizen",
+      "methods": {
+        "cash": "Bargeld",
+        "card": "Karte",
+        "bank_transfer": "Bankuberweisung",
+        "online": "Online-Zahlung",
+        "other": "Sonstiges"
+      },
+      "validation": {
+        "enterAmount": "Bitte Zahlungsbetrag eingeben",
+        "amountMin": "Betrag muss grosser als 0 sein",
+        "selectDate": "Bitte Zahlungsdatum wahlen",
+        "selectMethod": "Bitte Zahlungsmethode wahlen"
+      },
+      "cancel": "Abbrechen",
+      "submit": "Zahlung erfassen"
+    },
+    "messages": {
+      "loadError": "Ausstehende Salden konnten nicht geladen werden",
+      "paymentRecorded": "Zahlung erfolgreich erfasst",
+      "paymentError": "Zahlung konnte nicht erfasst werden",
+      "reminderSent": "Erinnerungs-E-Mail gesendet",
+      "reminderError": "Erinnerungs-E-Mail konnte nicht gesendet werden",
+      "bulkReminderSent": "Erinnerungen an {{count}} Kunden gesendet",
+      "bulkReminderError": "Erinnerungs-E-Mails konnten nicht gesendet werden",
+      "exportSuccess": "Daten erfolgreich exportiert",
+      "exportError": "Daten konnten nicht exportiert werden",
+      "selectCustomers": "Bitte Kunden fur E-Mail auswahlen"
+    }
+  },
+  "rentalsCalendar": {
+    "today": "Heute",
+    "close": "Schliessen",
+    "noRentalsDay": "Keine Mieten fur diesen Tag",
+    "noRentals": "Keine Mieten",
+    "rentalCount": "{{count}} Miete",
+    "rentalCountPlural": "{{count}} Mieten",
+    "moreRentals": "+{{count}} weitere",
+    "unknownCustomer": "Unbekannter Kunde",
+    "rentalService": "Mietservice"
+  },
+  "newRentalDrawer": {
+    "titleNew": "Neue Miete",
+    "titleEdit": "Miete bearbeiten",
+    "sectionCustomer": "Kunde",
+    "sectionEquipment": "Ausrustung",
+    "sectionPackage": "Im Paket enthalten",
+    "single": "Einzeln",
+    "multiple": "Mehrere",
+    "multipleDisabled": "Beim Bearbeiten nicht verfugbar",
+    "searchCustomer": "Kundenname oder E-Mail suchen",
+    "selectCustomers": "Kunden auswahlen",
+    "addEquipment": "Mietausrustung hinzufugen",
+    "equipmentSummary": {
+      "item": "Artikel",
+      "items": "Artikel"
+    },
+    "usingPackage": "Paket wird verwendet",
+    "usePackage": "Miettage aus einem aktiven Paket verwenden",
+    "packageDaysLeft": "{{count}} T. ubrig",
+    "packageDayDeducted": "1 Miettag wird abgezogen — keine Geldborsenlastung.",
+    "checkingPackages": "Pakete werden gepruft…",
+    "selectPackage": "Paket auswahlen",
+    "fields": {
+      "rentalDate": "Mietdatum",
+      "status": "Status",
+      "totalPrice": "Gesamtpreis",
+      "totalPriceTooltip": "Berechneten Mietpreis uberschreiben",
+      "notes": "Notizen",
+      "notesPlaceholder": "Ubergabenotizen, Kundenpraferenzen…"
+    },
+    "status": {
+      "active": "Aktiv",
+      "completed": "Abgeschlossen"
+    },
+    "placeholders": {
+      "chooseDate": "Datum wahlen",
+      "status": "Status",
+      "price": "z.B. 100.00"
+    },
+    "noCustomers": "Keine Kunden verfugbar",
+    "noEquipment": "Keine Mietservices verfugbar",
+    "cancel": "Abbrechen",
+    "createRental": "Miete erstellen",
+    "updateRental": "Miete aktualisieren",
+    "validation": {
+      "selectCustomer": "Bitte Kunden auswahlen",
+      "selectCustomers": "Mindestens einen Kunden auswahlen",
+      "selectEquipment": "Mindestens einen Mietservice auswahlen",
+      "selectDate": "Bitte Datum auswahlen",
+      "selectStatus": "Pflichtfeld"
+    },
+    "messages": {
+      "selectCustomerWarning": "Bitte Kunden auswahlen",
+      "selectCustomersWarning": "Mindestens einen Kunden auswahlen",
+      "createdMultiple": "{{count}} Miete erstellt",
+      "createdMultiplePlural": "{{count}} Mieten erstellt",
+      "updated": "Miete erfolgreich aktualisiert",
+      "created": "Miete erfolgreich erstellt",
+      "saveError": "Miete konnte nicht gespeichert werden: {{error}}",
+      "saveErrorGeneric": "Miete konnte nicht gespeichert werden"
+    }
+  },
+  "customers": {
+    "title": "Kunden",
+    "searchPlaceholder": "Kunden suchen...",
+    "addCustomer": "Kunde hinzufügen",
+    "loadFailed": "Kunden konnten nicht geladen werden",
+    "noCustomers": "Keine Kunden gefunden",
+    "notFound": "Keine Kunden gefunden",
+    "newCustomer": "Neuer Kunde",
+    "loadMore": "Mehr laden",
+    "allLoaded": "Alles geladen",
+    "pageSize": "Seitengröße:",
+    "columns": {
+      "name": "Name",
+      "role": "Rolle",
+      "email": "E-Mail",
+      "phone": "Telefon",
+      "balance": "Guthaben",
+      "paymentStatus": "Zahlungsstatus",
+      "actions": "Aktionen"
+    },
+    "roles": {
+      "student": "Schüler",
+      "outsider": "Externer",
+      "trusted": "Vertrauenswürdig"
+    },
+    "paymentStatus": {
+      "paid": "Bezahlt",
+      "package": "Paket",
+      "partial": "Teilweise",
+      "pending": "Ausstehend",
+      "overdue": "Überfällig",
+      "loading": "Wird geladen...",
+      "timeout": "Aktualisierung erforderlich",
+      "error": "Fehler",
+      "na": "k.A."
+    },
+    "balanceFilter": {
+      "all": "Alle",
+      "negative": "< 0",
+      "zero": "= 0",
+      "positive": "> 0"
+    },
+    "actions": {
+      "editCustomer": "Kunde bearbeiten",
+      "deleteCustomer": "Kunde löschen",
+      "edit": "Kunde bearbeiten",
+      "delete": "Kunde löschen"
+    },
+    "detail": {
+      "nav": {
+        "profile": "Profil",
+        "packages": "Pakete",
+        "bookings": "Buchungen",
+        "rentals": "Vermietungen",
+        "accommodation": "Unterkunft",
+        "shop": "Shop",
+        "memberships": "Mitgliedschaften",
+        "financial": "Finanziell"
+      },
+      "sectionDesc": {
+        "profile": "Kontaktinformationen und wichtige Daten",
+        "packages": "Zugewiesene Unterrichtspakete",
+        "bookings": "Unterrichtsverlauf und Planung",
+        "rentals": "Ausrüstungsverleihverlauf",
+        "accommodation": "Unterkunftsbuchungsverlauf",
+        "financial": "Transaktionen, Guthaben und Wallet-Verwaltung",
+        "shop": "Shop-Bestellverlauf",
+        "memberships": "Mitgliedschaftskäufe"
+      }
+    }
+  },
+  "popups": {
+    "title": "Pop-ups",
+    "chooseTemplate": "Vorlage wählen",
+    "chooseTemplateDesc": "Wählen Sie eine vorgefertigte Vorlage für einen schnellen Einstieg. Nach der Auswahl können alle Aspekte angepasst werden.",
+    "useTemplate": "Vorlage verwenden",
+    "templates": {
+      "title": "Pop-up-Vorlagen",
+      "selectTemplate": "Vorlage auswählen",
+      "preview": "Vorschau",
+      "welcome": {
+        "name": "Willkommensnachricht",
+        "description": "Einfaches Willkommens-Pop-up für neue Benutzer"
+      },
+      "featureAnnouncement": {
+        "name": "Funktionsankündigung",
+        "description": "Neue Funktionen und Updates ankündigen"
+      },
+      "categories": {
+        "onboarding": "Einführung",
+        "marketing": "Marketing"
+      }
+    }
   }
 }

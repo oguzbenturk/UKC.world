@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Badge } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 import { useAIChat } from '../../contexts/AIChatContext';
@@ -46,6 +47,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
+  const { t } = useTranslation(['common']);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
   const [isShopMode, setIsShopMode] = useState(false);
@@ -155,7 +157,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       setIsLogoutModalVisible(false);
       navigate('/login');
     } catch {
-      message.error('Logout failed');
+      message.error(t('app.logout') + ' failed');
     }
   };
 
@@ -292,17 +294,17 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         <div className="px-2 mb-4">
           <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-md transition-all duration-150">
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            <span>Back to Menu</span>
+            <span>{t('common:nav.backToMenu')}</span>
           </button>
         </div>
 
         <div className="px-3 mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FunnelIcon className="h-4 w-4 text-slate-400" />
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Filters</span>
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">{t('common:shop.filters')}</span>
           </div>
           {activeFilterCount > 0 && (
-            <button onClick={clearAllFilters} className="text-xs text-slate-400 hover:text-white">Clear all</button>
+            <button onClick={clearAllFilters} className="text-xs text-slate-400 hover:text-white">{t('common:shop.clearAll')}</button>
           )}
         </div>
 
@@ -347,14 +349,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         <div className="px-3">
           <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors">
             <input type="checkbox" checked={showInStockOnly} onChange={(e) => setShowInStockOnly(e.target.checked)} className="w-4 h-4 rounded border-slate-400 bg-white text-[#2d6a3e] focus:ring-[#2d6a3e]" />
-            <span>In Stock Only</span>
+            <span>{t('common:shop.inStockOnly')}</span>
           </label>
         </div>
 
         <div className="px-2 mt-6 border-t border-white/10 pt-4">
           <button onClick={handleBackToMenu} className="flex items-center justify-center w-full px-3 py-3 text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 rounded-md transition-all duration-150">
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            <span>Other Services</span>
+            <span>{t('common:nav.otherServices')}</span>
           </button>
         </div>
       </div>
@@ -376,7 +378,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   className="flex items-center w-full px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
                 >
                   <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-duotone-blue" />
-                  <span>Ask Kai</span>
+                  <span>{t('common:nav.askKai')}</span>
                   <span className="ml-auto w-2 h-2 rounded-full bg-duotone-blue animate-pulse" />
                 </button>
               </div>
@@ -404,7 +406,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             {item.customStyle?.centered ? (
                               <div className="flex items-center justify-center">
                                 <span style={{ color: item.customStyle.dotColor || '#2d6a3e', fontSize: '1.5rem', lineHeight: '1', marginRight: '0.25rem' }}>•</span>
-                                <span style={{ color: item.customStyle.textColor, letterSpacing: '0.02em', fontSize: '1.25rem', fontWeight: 600 }}>{item.label}</span>
+                                <span style={{ color: item.customStyle.textColor, letterSpacing: '0.02em', fontSize: '1.25rem', fontWeight: 600 }}>{t(item.labelKey, item.label)}</span>
                               </div>
                             ) : (
                               <span className="flex items-center text-[15px] font-semibold">
@@ -413,7 +415,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                 ) : (
                                   <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle?.textColor }} />
                                 )}
-                                <span style={{ color: item.customStyle?.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                                <span style={{ color: item.customStyle?.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{t(item.labelKey, item.label)}</span>
                               </span>
                             )}
                           </NavLink>
@@ -441,12 +443,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                       ) : item.icon ? (
                                         <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
                                       ) : null}
-                                      <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                                      <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{t(item.labelKey, item.label)}</span>
                                     </span>
                                   ) : (
                                     <>
                                       <item.icon className="h-5 w-5 mr-3" />
-                                      <span>{item.label}</span>
+                                      <span>{t(item.labelKey, item.label)}</span>
                                     </>
                                   )}
                                 </div>
@@ -469,7 +471,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                       ) : (
                                         <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
                                       )}
-                                      <span style={{ color: subItem.dotColor || parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                      <span style={{ color: subItem.dotColor || parentColor, opacity: 0.75 }}>{t(subItem.labelKey, subItem.label)}</span>
                                     </span>
                                   </NavLink>
                                 );
@@ -486,12 +488,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                               ) : (
                                 <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
                               )}
-                              <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                              <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{t(item.labelKey, item.label)}</span>
                             </span>
                           ) : (
                             <>
                               <item.icon className="h-5 w-5 mr-3" />
-                              <span>{item.label}</span>
+                              <span>{t(item.labelKey, item.label)}</span>
                             </>
                           )}
                         </NavLink>
@@ -502,7 +504,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               </div>
 
               <div>
-                {dynamicSystemItems.length > 0 && <span className={groupLabelClasses}>System</span>}
+                {dynamicSystemItems.length > 0 && <span className={groupLabelClasses}>{t('common:nav.system')}</span>}
                 <ul className="mt-1 space-y-1">
                   {dynamicSystemItems.map((item) => (
                     <li key={item.label}>
@@ -529,12 +531,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                       ) : (
                                         <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
                                       )}
-                                      <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                                      <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{t(item.labelKey, item.label)}</span>
                                     </span>
                                   ) : (
                                     <>
                                       <item.icon className="h-5 w-5 mr-3" />
-                                      <span>{item.label}</span>
+                                      <span>{t(item.labelKey, item.label)}</span>
                                     </>
                                   )}
                                 </div>
@@ -557,7 +559,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                       ) : (
                                         <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
                                       )}
-                                      <span style={{ color: subItem.dotColor || parentColor, opacity: 0.75 }}>{subItem.label}</span>
+                                      <span style={{ color: subItem.dotColor || parentColor, opacity: 0.75 }}>{t(subItem.labelKey, subItem.label)}</span>
                                     </span>
                                   </NavLink>
                                 );
@@ -574,12 +576,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                               ) : (
                                 <item.icon className="h-5 w-5 mr-3" style={{ color: item.customStyle.textColor }} />
                               )}
-                              <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{item.label}</span>
+                              <span style={{ color: item.customStyle.textColor, letterSpacing: '0.01em', fontFamily: '"Gotham Medium", sans-serif', fontWeight: 500, fontSize: '15px' }}>{t(item.labelKey, item.label)}</span>
                             </span>
                           ) : (
                             <>
                               <item.icon className="h-5 w-5 mr-3" />
-                              <span>{item.label}</span>
+                              <span>{t(item.labelKey, item.label)}</span>
                             </>
                           )}
                         </NavLink>
@@ -588,14 +590,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   ))}
                   <li>
                     {isGuest ? (
-                      <button onClick={() => openAuthModal({ title: 'Sign In', message: 'Sign in to access features', returnUrl: location.pathname })} className={`${commonLinkClasses} w-full text-left font-duotone-bold`} style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)' }}>
+                      <button onClick={() => openAuthModal({ title: t('common:nav.signIn'), message: 'Sign in to access features', returnUrl: location.pathname })} className={`${commonLinkClasses} w-full text-left font-duotone-bold`} style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)' }}>
                         <ArrowLeftOnRectangleIcon className="h-5 w-5 mr-3" />
-                        <span>Sign In</span>
+                        <span>{t('common:nav.signIn')}</span>
                       </button>
                     ) : (
                       <button onClick={showLogoutConfirmation} className={`${commonLinkClasses} w-full text-left`}>
                         <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />
-                        <span>Logout</span>
+                        <span>{t('common:nav.logout')}</span>
                       </button>
                     )}
                   </li>
@@ -624,18 +626,18 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                     </NavLink>
                   );
                 })()}
-                <span className={groupLabelClasses}>Payment Methods</span>
+                <span className={groupLabelClasses}>{t('common:nav.paymentMethods')}</span>
                 <ul className="mt-1 space-y-1">
                   <li>
                     <button onClick={() => { window.dispatchEvent(new Event('wallet:deposit')); if (isOpen) toggleSidebar(); }} className={`${commonLinkClasses} w-full text-left`}>
                       <CreditCardIcon className="h-5 w-5 mr-3" />
-                      <span>Credit Card</span>
+                      <span>{t('common:nav.creditCard')}</span>
                     </button>
                   </li>
                   <li>
                     <button onClick={() => { window.dispatchEvent(new Event('wallet:bank-transfer')); if (isOpen) toggleSidebar(); }} className={`${commonLinkClasses} w-full text-left`}>
                       <BuildingLibraryIcon className="h-5 w-5 mr-3" />
-                      <span>Bank Transfer</span>
+                      <span>{t('common:nav.bankTransfer')}</span>
                     </button>
                   </li>
                 </ul>
@@ -647,7 +649,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                   className="flex items-center w-full px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
                 >
                   <ChatBubbleLeftRightIcon className="h-5 w-5 mr-3 text-duotone-blue" />
-                  <span>Ask Kai</span>
+                  <span>{t('common:nav.askKai')}</span>
                   <span className="ml-auto w-2 h-2 rounded-full bg-duotone-blue animate-pulse" />
                 </button>
               </div>
@@ -657,14 +659,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       </div>
 
       <Modal
-        title="Confirm Logout"
+        title={t('common:nav.confirmLogout')}
         open={isLogoutModalVisible}
         onOk={handleLogoutConfirm}
         onCancel={handleLogoutCancel}
-        okText="Yes, Logout"
-        cancelText="Cancel"
+        okText={t('common:nav.yesLogout')}
+        cancelText={t('common:buttons.cancel')}
       >
-        <p>Are you sure you want to logout?</p>
+        <p>{t('common:nav.confirmLogoutMessage')}</p>
       </Modal>
     </>
   );

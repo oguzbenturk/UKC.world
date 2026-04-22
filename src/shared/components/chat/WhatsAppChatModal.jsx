@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { XMarkIcon, MicrophoneIcon, PaperClipIcon, XCircleIcon, BookmarkIcon } from '@heroicons/react/24/outline';
 import { PaperAirplaneIcon, BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid';
@@ -25,6 +26,7 @@ const TypingIndicator = () => (
 );
 
 const WhatsAppChatModal = () => {
+  const { t } = useTranslation(['common']);
   const { isChatOpen, closeChat, messages, sending, send } = useAIChat();
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -142,7 +144,7 @@ const WhatsAppChatModal = () => {
             <div className="text-white font-semibold text-[15px] leading-tight font-gotham-medium">Kai</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] text-gray-300">UKC Assistant</span>
+              <span className="text-[11px] text-gray-300">{t('common:chat.ukcAssistant')}</span>
             </div>
           </div>
           <button onClick={closeChat}
@@ -156,7 +158,7 @@ const WhatsAppChatModal = () => {
 
           {messages.length > 0 && (
             <div className="flex justify-center mb-3">
-              <span className="text-[11px] text-gray-500 bg-white rounded-full px-3 py-0.5 shadow-sm border border-gray-100">Today</span>
+              <span className="text-[11px] text-gray-500 bg-white rounded-full px-3 py-0.5 shadow-sm border border-gray-100">{t('common:chat.today')}</span>
             </div>
           )}
 
@@ -176,7 +178,7 @@ const WhatsAppChatModal = () => {
                     setSavedMsgs((prev) => new Set([...prev, i]));
                   }}
                   className="mb-1 flex-shrink-0 text-gray-300 hover:text-duotone-blue transition-colors"
-                  title="Save message">
+                  title={t('common:chat.saveMessage')}>
                   {savedMsgs.has(i)
                     ? <BookmarkSolid className="w-3.5 h-3.5 text-duotone-blue" />
                     : <BookmarkIcon className="w-3.5 h-3.5" />}
@@ -231,7 +233,7 @@ const WhatsAppChatModal = () => {
         {isListening && (
           <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-red-50 border-t border-red-100 flex-shrink-0">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-xs text-red-600 font-medium">Listening... release to send</span>
+            <span className="text-xs text-red-600 font-medium">{t('common:chat.listening')}</span>
           </div>
         )}
 
@@ -257,7 +259,7 @@ const WhatsAppChatModal = () => {
           <button onClick={() => fileInputRef.current?.click()}
             disabled={sending}
             className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-duotone-blue hover:bg-slate-100 transition-colors flex-shrink-0 disabled:opacity-40"
-            title="Attach image">
+            title={t('common:chat.attachImage')}>
             <PaperClipIcon className="w-5 h-5" />
           </button>
           <input
@@ -266,7 +268,7 @@ const WhatsAppChatModal = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="Message Kai..."
+            placeholder={t('common:chat.messagePlaceholder')}
             disabled={sending || isListening}
             className="flex-1 px-4 py-2 bg-slate-50 rounded-full text-sm text-gray-800 placeholder-gray-400 outline-none border border-gray-200 focus:border-duotone-blue/40 focus:ring-1 focus:ring-duotone-blue/20 transition-colors"
           />
@@ -287,7 +289,7 @@ const WhatsAppChatModal = () => {
                   ? 'bg-red-500 text-white scale-110'
                   : 'bg-duotone-blue text-white hover:bg-[#008da6] active:scale-90'
               }`}
-              title="Hold to speak"
+              title={t('common:chat.holdToSpeak')}
             >
               <MicrophoneIcon className="w-5 h-5" />
             </button>

@@ -2,6 +2,7 @@
 // Compact, light-themed shopping cart drawer (sits below navbar)
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Drawer, Button, Typography, Space, Divider, Tag, Tooltip, Image } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -25,6 +26,7 @@ const { Text, Title } = Typography;
 const NAVBAR_H = 64; // matches Navbar h-16
 
 const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefreshBalance }) => {
+  const { t } = useTranslation(['student']);
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, addToWishlist, refreshCartPrices } = useCart();
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
   const { isAuthenticated } = useAuth();
@@ -66,8 +68,8 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
     if (!isAuthenticated) {
       onClose();
       openAuthModal({
-        title: 'Sign in to Checkout',
-        message: 'Create an account or sign in to complete your purchase. Your cart will be saved.',
+        title: t('student:cart.signInTitle'),
+        message: t('student:cart.signInMessage'),
       });
       return;
     }
@@ -116,9 +118,9 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <ShoppingCartOutlined style={{ fontSize: 18, color: '#0ea5e9' }} />
           <div>
-            <Title level={5} style={{ margin: 0, fontSize: 15, color: '#0f172a' }} className="font-duotone-bold-extended tracking-tight">Cart</Title>
+            <Title level={5} style={{ margin: 0, fontSize: 15, color: '#0f172a' }} className="font-duotone-bold-extended tracking-tight">{t('student:cart.title')}</Title>
             <Text style={{ fontSize: 11, color: '#94a3b8' }} className="font-duotone-regular">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+              {t('student:cart.itemCount', { count: itemCount })}
             </Text>
           </div>
         </div>
@@ -162,10 +164,10 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
               <ShoppingCartOutlined style={{ fontSize: 36, color: '#0ea5e9' }} />
             </div>
             <Title level={5} style={{ marginBottom: 6, color: '#0f172a', textAlign: 'center' }} className="font-duotone-bold-extended">
-              Your cart is empty
+              {t('student:cart.emptyTitle')}
             </Title>
             <Text style={{ textAlign: 'center', maxWidth: 220, lineHeight: 1.5, fontSize: 13, color: '#94a3b8' }} className="font-duotone-regular">
-              Explore our shop and find amazing gear for your next adventure!
+              {t('student:cart.emptyBody')}
             </Text>
             <Button
               onClick={onClose}
@@ -183,7 +185,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                 border: 'none',
               }}
             >
-              Start Shopping
+              {t('student:cart.startShopping')}
             </Button>
           </div>
         ) : (
@@ -298,7 +300,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
                           </div>
                         )}
                       </div>
-                      <Tooltip title="Remove">
+                      <Tooltip title={t('student:cart.removeTooltip')}>
                         <Button
                           type="text"
                           size="small"
@@ -376,7 +378,7 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
             <Space size={6}>
               <WalletOutlined style={{ color: canAfford ? '#16a34a' : '#d97706', fontSize: 14 }} />
               <Text style={{ color: canAfford ? '#16a34a' : '#d97706', fontSize: 12 }} className="font-duotone-bold">
-                Wallet
+                {t('student:cart.walletLabel')}
               </Text>
             </Space>
             <Text style={{ color: canAfford ? '#16a34a' : '#d97706', fontSize: 13 }} className="font-duotone-bold">
@@ -398,13 +400,13 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
               }}
               className="font-duotone-regular"
             >
-              Wallet low – other payment options available
+              {t('student:cart.walletLow')}
             </div>
           )}
 
           {/* Total */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 13, color: '#64748b' }} className="font-duotone-regular">Total ({itemCount} items)</Text>
+            <Text style={{ fontSize: 13, color: '#64748b' }} className="font-duotone-regular">{t('student:cart.total', { count: itemCount })}</Text>
             <Title level={5} style={{ margin: 0, color: '#0f172a', fontSize: 18 }} className="font-duotone-bold">
               {formatDualAmount(total)}
             </Title>
@@ -428,13 +430,13 @@ const ShoppingCart = ({ visible, onClose, userBalance, onOrderSuccess, onRefresh
               color: '#fff',
             }}
           >
-            Proceed to Checkout
+            {t('student:cart.proceedToCheckout')}
           </Button>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 }}>
             <SafetyCertificateOutlined style={{ color: '#16a34a', fontSize: 11 }} />
             <Text style={{ fontSize: 11, color: '#94a3b8' }} className="font-duotone-regular">
-              Secure checkout
+              {t('student:cart.secureCheckout')}
             </Text>
           </div>
         </div>

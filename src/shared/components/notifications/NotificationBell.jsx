@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFeatures } from '../../contexts/FeaturesContext';
 import { 
   BellIcon, 
@@ -10,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const NotificationBell = () => {
+  const { t } = useTranslation(['common']);
   const { notifications, markNotificationAsRead, loadNotifications } = useFeatures();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -89,13 +91,13 @@ const NotificationBell = () => {
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 z-50">
           <div className="p-4 border-b border-slate-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-slate-900">Notifications</h3>
+              <h3 className="text-lg font-medium text-slate-900">{t('common:notifications.title')}</h3>
               {unreadNotifications.length > 0 && (
                 <button
                   onClick={markAllAsRead}
                   className="text-sm text-sky-600 hover:text-sky-700"
                 >
-                  Mark all read
+                  {t('common:notifications.markAllRead')}
                 </button>
               )}
             </div>
@@ -109,7 +111,7 @@ const NotificationBell = () => {
             ) : recentNotifications.length === 0 ? (
               <div className="p-4 text-center text-slate-500">
                 <BellIcon className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-                <p>No notifications</p>
+                <p>{t('common:notifications.noNotifications')}</p>
               </div>
             ) : (
               <div className="space-y-1 p-2">
@@ -163,7 +165,7 @@ const NotificationBell = () => {
                 }}
                 className="w-full text-center text-sm text-sky-600 hover:text-sky-700"
               >
-                View all notifications
+                {t('common:notifications.viewAll')}
               </button>
             </div>
           )}

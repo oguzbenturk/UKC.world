@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tooltip } from 'antd';
 import { useLocation } from 'react-router-dom';
 import {
@@ -73,7 +74,7 @@ const getCustomerName = (rental) => {
     buildFullName(rental?.customer_first_name, rental?.customer_last_name),
   ].filter(Boolean);
 
-  return candidates[0] || 'Unknown Customer';
+  return candidates[0] || null;
 };
 
 // eslint-disable-next-line complexity
@@ -112,13 +113,14 @@ const getServiceName = (rental) => {
       .filter(Boolean);
     if (names.length > 0) return names.join(', ');
   }
-  return 'Rental Service';
+  return null; // caller will fall back to translated string
 };
 
 /**
  * RentalsCalendarView - Calendar view for equipment rentals
  */
 const RentalsCalendarView = () => {
+  const { t } = useTranslation(['manager']);
   const { apiClient } = useData();
   const location = useLocation();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -247,8 +249,8 @@ const RentalsCalendarView = () => {
   }, [selectedDate, view, weekStart, weekEnd]);
 
   const rentalCard = (rental, compact = false) => {
-    const customerName = getCustomerName(rental);
-    const serviceName = getServiceName(rental);
+    const customerName = getCustomerName(rental) || t('manager:rentalsCalendar.unknownCustomer');
+    const serviceName = getServiceName(rental) || t('manager:rentalsCalendar.rentalService');
     const durationLabel = getDurationLabel(rental);
     const colors = getStatusColor(rental.status);
     return (
@@ -283,7 +285,7 @@ const RentalsCalendarView = () => {
               <ChevronLeftIcon className="h-4 w-4 text-slate-600" />
             </button>
             <button type="button" onClick={() => setSelectedDate(new Date())} className="px-3 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-600 transition-colors">
-              Today
+              {t('manager:rentalsCalendar.today')}
             </button>
             <div className="px-4 h-8 flex items-center rounded-lg text-sm font-semibold text-slate-800 min-w-[180px] justify-center select-none">
               {dayHeaderLabel}
@@ -309,11 +311,11 @@ const RentalsCalendarView = () => {
               <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
                   <h3 className="text-sm font-semibold text-slate-700">{format(selectedDate, 'EEEE, MMMM d')}</h3>
-                  <span className="text-xs text-slate-400">{dayRentals.length} rental{dayRentals.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-slate-400">{dayRentals.length !== 1 ? t('manager:rentalsCalendar.rentalCountPlural', { count: dayRentals.length }) : t('manager:rentalsCalendar.rentalCount', { count: dayRentals.length })}</span>
                 </div>
                 <div className="p-3 space-y-2">
                   {dayRentals.length > 0 ? dayRentals.map((rental) => rentalCard(rental)) : (
-                    <div className="py-12 text-center text-sm text-slate-400">No rentals for this day</div>
+                    <div className="py-12 text-center text-sm text-slate-400">{t('manager:rentalsCalendar.noRentalsDay')}</div>
                   )}
                 </div>
               </div>
@@ -350,7 +352,7 @@ const RentalsCalendarView = () => {
                         {visibleRentals.map((rental) => rentalCard(rental))}
                         {overflow > 0 && (
                           <button type="button" className="w-full text-left text-[11px] font-medium text-slate-500 hover:text-orange-600 px-1.5 py-0.5 rounded hover:bg-orange-50 transition-colors" onClick={() => { setView('day'); setSelectedDate(day); }}>
-                            +{overflow} more
+                            {t('manager:rentalsCalendar.moreRentals', { count: overflow })}
                           </button>
                         )}
                       </div>
@@ -415,7 +417,7 @@ const RentalsCalendarView = () => {
                       <div className="space-y-0.5">
                         {visibleRentals.map((rental) => {
                           const colors = getStatusColor(rental.status);
-                          const customerName = getCustomerName(rental);
+                          const customerName = getCustomerName(rental) || t('manager:rentalsCalendar.unknownCustomer');
                           return (
                             <Tooltip key={rental.id} title={`${customerName} · ${getServiceName(rental)}`}>
                               <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${colors.bg} ${colors.hover} transition-colors`} onClick={(e) => e.stopPropagation()}>
@@ -427,7 +429,7 @@ const RentalsCalendarView = () => {
                         })}
                         {overflow > 0 && (
                           <button type="button" className="w-full text-left text-[10px] font-medium text-slate-500 hover:text-orange-600 px-1.5 py-0.5 rounded hover:bg-orange-50 transition-colors" onClick={(e) => { e.stopPropagation(); toggleDayExpanded(dateKey); }}>
-                            +{overflow} more
+                            {t('manager:rentalsCalendar.moreRentals', { count: overflow })}
                           </button>
                         )}
                       </div>
@@ -445,13 +447,13 @@ const RentalsCalendarView = () => {
                       <div className="flex items-center justify-between mb-2.5">
                         <div>
                           <div className="text-sm font-bold text-slate-800">{format(new Date(expandedDay), 'EEEE, MMM d')}</div>
-                          <div className="text-[11px] text-slate-400">{dayRentalsExp.length} rental{dayRentalsExp.length !== 1 ? 's' : ''}</div>
+                          <div className="text-[11px] text-slate-400">{dayRentalsExp.length !== 1 ? t('manager:rentalsCalendar.rentalCountPlural', { count: dayRentalsExp.length }) : t('manager:rentalsCalendar.rentalCount', { count: dayRentalsExp.length })}</div>
                         </div>
-                        <button className="text-xs text-orange-600 hover:text-orange-700 font-medium" onClick={() => { setExpandedDay(null); setOverlayStyle(null); }}>Close</button>
+                        <button className="text-xs text-orange-600 hover:text-orange-700 font-medium" onClick={() => { setExpandedDay(null); setOverlayStyle(null); }}>{t('manager:rentalsCalendar.close')}</button>
                       </div>
                       <div className="space-y-1.5 max-h-[50vh] overflow-auto pr-1">
                         {dayRentalsExp.length > 0 ? dayRentalsExp.map((rental) => rentalCard(rental)) : (
-                          <div className="text-slate-400 text-xs text-center py-6">No rentals</div>
+                          <div className="text-slate-400 text-xs text-center py-6">{t('manager:rentalsCalendar.noRentals')}</div>
                         )}
                       </div>
                     </div>

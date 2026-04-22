@@ -1,5 +1,6 @@
 // src/pages/Instructors.jsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, Avatar, Select, Input, Modal, Form, InputNumber, DatePicker, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { PlusOutlined, UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined, SearchOutlined, WalletOutlined } from '@ant-design/icons';
@@ -56,6 +57,7 @@ const instructorOwedFromBal = (bal) => {
 };
 
 const BalanceCell = ({ bal, fmt }) => {
+  const { t } = useTranslation(['instructor']);
   if (!bal) return <span className="text-slate-300 text-xs">—</span>;
   const inst = bal.instructor ?? {
     totalEarned: bal.totalEarned,
@@ -66,19 +68,19 @@ const BalanceCell = ({ bal, fmt }) => {
   const tooltip = hasMgr ? (
     <div className="max-w-xs space-y-1.5 text-[11px]">
       <div>
-        <span className="font-semibold text-slate-200">Instructor</span>
+        <span className="font-semibold text-slate-200">{t('instructor:instructorsList.balanceTooltip.instructorEarned')}</span>
         <div className="text-slate-300">
-          {fmt(inst.totalEarned)} earned · {fmt(inst.totalPaid)} paid · <span className="text-white">{fmt(inst.balance)} owed</span>
+          {fmt(inst.totalEarned)} {t('instructor:instructorsList.balanceTooltip.earned')} · {fmt(inst.totalPaid)} {t('instructor:instructorsList.balanceTooltip.paid')} · <span className="text-white">{fmt(inst.balance)} {t('instructor:instructorsList.balanceTooltip.owed')}</span>
         </div>
       </div>
       <div>
-        <span className="font-semibold text-slate-200">Manager commission</span>
+        <span className="font-semibold text-slate-200">{t('instructor:instructorsList.balanceTooltip.managerCommission')}</span>
         <div className="text-slate-300">
-          {fmt(bal.manager.totalEarned)} earned · {fmt(bal.manager.totalPaid)} paid · <span className="text-white">{fmt(bal.manager.balance)} owed</span>
+          {fmt(bal.manager.totalEarned)} {t('instructor:instructorsList.balanceTooltip.earned')} · {fmt(bal.manager.totalPaid)} {t('instructor:instructorsList.balanceTooltip.paid')} · <span className="text-white">{fmt(bal.manager.balance)} {t('instructor:instructorsList.balanceTooltip.owed')}</span>
         </div>
       </div>
       <div className="border-t border-white/10 pt-1.5 text-slate-100 font-medium">
-        Combined owed: {fmt(bal.balance)}
+        {t('instructor:instructorsList.balanceTooltip.combinedOwed', { amount: fmt(bal.balance) })}
       </div>
     </div>
   ) : null;
@@ -86,7 +88,7 @@ const BalanceCell = ({ bal, fmt }) => {
   let inner;
   if (bal.balance > 0) inner = <span className="text-xs font-semibold text-red-500 whitespace-nowrap">-{fmt(bal.balance)}</span>;
   else if (bal.balance < 0) inner = <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">+{fmt(Math.abs(bal.balance))}</span>;
-  else inner = <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">✓ Paid</span>;
+  else inner = <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">{t('instructor:instructorsList.balancePaid')}</span>;
 
   return tooltip ? (
     <Tooltip title={tooltip} placement="left" classNames={{ root: 'max-w-sm' }}>
@@ -98,6 +100,7 @@ const BalanceCell = ({ bal, fmt }) => {
 };
 
 const InstructorMobileCard = ({ record, onAction, isAdmin, balanceData, fmt }) => {
+  const { t } = useTranslation(['instructor']);
   const disciplines = getDisciplines(record);
   const bal = balanceData?.[record.id];
   const statusInfo = STATUS_MAP[record.status] || STATUS_MAP.active;
@@ -130,16 +133,16 @@ const InstructorMobileCard = ({ record, onAction, isAdmin, balanceData, fmt }) =
         <div className="flex items-center justify-between text-xs mb-3 px-3 py-2 rounded-xl bg-slate-50/80 border border-slate-100">
           <span className="text-slate-400">{fmt(bal.totalEarned)} earned · {fmt(bal.totalPaid)} paid</span>
           <span className={`font-bold ${bal.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-            {bal.balance > 0 ? fmt(bal.balance) + ' owed' : '✓ Settled'}
+            {bal.balance > 0 ? `${fmt(bal.balance)} ${t('instructor:instructorsList.balanceTooltip.owed')}` : t('instructor:instructorsList.settled')}
           </span>
         </div>
       )}
       <div className="flex justify-end gap-1.5 pt-3 border-t border-slate-100">
         {isAdmin && bal && instructorOwedFromBal(bal) > 0 && (
           <Button size="small" type="primary" icon={<WalletOutlined />} onClick={() => onAction('pay', record)}
-            className="!rounded-lg" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>Pay</Button>
+            className="!rounded-lg" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>{t('instructor:payroll.pay')}</Button>
         )}
-        <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('open', record)} className="!rounded-lg">Open</Button>
+        <Button size="small" icon={<EyeOutlined />} onClick={() => onAction('open', record)} className="!rounded-lg">{t('instructor:dashboard.view')}</Button>
         <Button size="small" icon={<EditOutlined />} onClick={() => onAction('edit', record)} className="!rounded-lg" />
         {isAdmin && (
           <Button size="small" danger icon={<DeleteOutlined />} onClick={() => onAction('delete', record)} className="!rounded-lg" />
@@ -150,6 +153,7 @@ const InstructorMobileCard = ({ record, onAction, isAdmin, balanceData, fmt }) =
 };
 
 function Instructors() {
+  const { t } = useTranslation(['instructor']);
   const { user } = useAuth();
   const { instructors, loading, error, deleteInstructor, apiClient } = useData();
   const { businessCurrency } = useCurrency();
@@ -227,17 +231,17 @@ function Instructors() {
   
   const handleDeleteInstructor = (instructorId) => {
     Modal.confirm({
-      title: 'Delete Instructor',
-      content: 'Are you sure you want to delete this instructor? This action cannot be undone.',
-      okText: 'Delete',
+      title: t('instructor:instructorsList.deleteConfirmTitle'),
+      content: t('instructor:instructorsList.deleteConfirmBody'),
+      okText: t('instructor:instructorsList.deleteOk'),
       okButtonProps: { danger: true },
-      cancelText: 'Cancel',
+      cancelText: t('instructor:instructorsList.payModal.cancel'),
       centered: true,
       onOk: async () => {
         try {
           await deleteInstructor(instructorId);
         } catch {
-          message.error('Failed to delete instructor');
+          message.error(t('instructor:instructorsList.deleteFailed'));
         }
       },
     });
@@ -265,12 +269,12 @@ function Instructors() {
         payment_date: values.payment_date.format('YYYY-MM-DD'),
         payment_method: values.payment_method,
       });
-      message.success(`Payment of ${fmt(values.amount)} recorded for ${payModal.instructor.name}`);
+      message.success(t('instructor:instructorsList.payModal.paymentRecorded', { amount: fmt(values.amount), name: payModal.instructor.name }));
       setPayModal({ open: false, instructor: null });
       payForm.resetFields();
       fetchBalances();
     } catch (err) {
-      message.error(err.response?.data?.error || 'Failed to record payment');
+      message.error(err.response?.data?.error || t('instructor:instructorsList.payModal.failedPayment'));
     } finally {
       setPaySubmitting(false);
     }
@@ -287,16 +291,16 @@ function Instructors() {
           </div>
           <div>
             <h1 className="text-lg font-duotone-bold-extended text-slate-800 tracking-tight uppercase leading-tight">
-              Team & Instructors
+              {t('instructor:instructorsList.title')}
             </h1>
             <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-[11px] font-medium text-slate-400">{instructors.length} Total</span>
+              <span className="text-[11px] font-medium text-slate-400">{instructors.length} {t('instructor:instructorsList.total')}</span>
               <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {activeCount} Active
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {activeCount} {t('instructor:instructorsList.active')}
               </span>
               {inactiveCount > 0 && (
                 <span className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> {inactiveCount} Away
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> {inactiveCount} {t('instructor:instructorsList.away')}
                 </span>
               )}
             </div>
@@ -310,7 +314,7 @@ function Instructors() {
             onClick={() => setAddModalOpen(true)}
             className="w-full sm:w-auto shrink-0 font-semibold text-[12px] border-0 h-9 px-5 rounded-lg bg-slate-900 hover:bg-slate-800"
           >
-            Add Instructor
+            {t('instructor:instructorsList.addInstructor')}
           </Button>
         )}
       </div>
@@ -321,7 +325,7 @@ function Instructors() {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search name, email, discipline…"
+            placeholder={t('instructor:instructorsList.searchPlaceholder')}
             prefix={<SearchOutlined className="text-slate-400" />}
             allowClear
             className="sm:max-w-sm w-full !rounded-lg"
@@ -334,10 +338,10 @@ function Instructors() {
             className="sm:w-40 w-full"
             size="large"
             options={[
-              { value: 'all', label: 'All Statuses' },
-              { value: 'active', label: '● Active' },
-              { value: 'inactive', label: '● Inactive' },
-              { value: 'on_leave', label: '● On Leave' },
+              { value: 'all', label: t('instructor:instructorsList.allStatuses') },
+              { value: 'active', label: t('instructor:instructorsList.statusActive') },
+              { value: 'inactive', label: t('instructor:instructorsList.statusInactive') },
+              { value: 'on_leave', label: t('instructor:instructorsList.statusOnLeave') },
             ]}
           />
           <Select
@@ -347,7 +351,7 @@ function Instructors() {
             showSearch
             size="large"
             options={[
-              { value: 'all', label: 'All Disciplines' },
+              { value: 'all', label: t('instructor:instructorsList.allDisciplines') },
               ...allSpecializations.map(s => {
                 const d = DISCIPLINE_STYLES[s];
                 return { value: s, label: d ? d.label : s };
@@ -360,7 +364,7 @@ function Instructors() {
               className="text-slate-500 hover:text-slate-800 font-medium"
               onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterSpecialization('all'); }}
             >
-              Clear
+              {t('instructor:instructorsList.clear')}
             </Button>
           )}
         </div>
@@ -371,7 +375,7 @@ function Instructors() {
       {loading ? (
         <div className="text-center py-20">
           <div className="inline-block w-8 h-8 border-[3px] border-slate-200 border-t-cyan-500 rounded-full animate-spin" />
-          <p className="mt-4 text-sm text-slate-400 font-duotone-regular">Loading instructors…</p>
+          <p className="mt-4 text-sm text-slate-400 font-duotone-regular">{t('instructor:instructorsList.loadingInstructors')}</p>
         </div>
       ) : error ? (
         <div className="rounded-2xl bg-red-50 border border-red-200 p-6 text-center">
@@ -385,8 +389,8 @@ function Instructors() {
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <UserOutlined className="text-2xl text-slate-300" />
           </div>
-          <p className="text-base text-slate-600 font-semibold">No instructors found</p>
-          <p className="text-sm text-slate-400 mt-1">Try adjusting your search or filters</p>
+          <p className="text-base text-slate-600 font-semibold">{t('instructor:instructorsList.noInstructorsFound')}</p>
+          <p className="text-sm text-slate-400 mt-1">{t('instructor:instructorsList.noInstructorsHint')}</p>
         </div>
       ) : (
           <UnifiedResponsiveTable
@@ -411,7 +415,7 @@ function Instructors() {
             )}
             columns={[
               {
-                title: 'Instructor',
+                title: t('instructor:instructorsList.columns.instructor'),
                 key: 'name',
                 render: (_, record) => {
                   const statusInfo = STATUS_MAP[record.status] || STATUS_MAP.active;
@@ -435,7 +439,7 @@ function Instructors() {
                 }
               },
               {
-                title: 'Disciplines',
+                title: t('instructor:instructorsList.columns.disciplines'),
                 key: 'disciplines',
                 width: 180,
                 render: (_, record) => {
@@ -451,7 +455,7 @@ function Instructors() {
                 }
               },
               ...(isAdmin ? [{
-                title: 'Balance',
+                title: t('instructor:instructorsList.columns.balance'),
                 key: 'balance',
                 width: 110,
                 render: (_, record) => <BalanceCell bal={balances[record.id]} fmt={fmt} />
@@ -465,7 +469,7 @@ function Instructors() {
                     {isAdmin && instructorOwedFromBal(balances[instructor.id]) > 0 && (
                       <Button size="small" onClick={() => openPayModal(instructor)}
                         className="!rounded-lg !border-orange-200 !text-orange-500 hover:!text-orange-600 hover:!border-orange-300 hover:!bg-orange-50 !text-[11px] !font-semibold !px-2.5"
-                      >Pay</Button>
+                      >{t('instructor:payroll.pay')}</Button>
                     )}
                     <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => { setSelectedInstructor(instructor); setIsDetailOpen(true); }} className="!text-slate-400 hover:!text-cyan-600 hover:!bg-cyan-50/60 !rounded-lg" />
                     <Button size="small" type="text" icon={<EditOutlined />} onClick={() => navigate(`/instructors/edit/${instructor.id}`)} className="!text-slate-400 hover:!text-cyan-600 hover:!bg-cyan-50/60 !rounded-lg" />
@@ -512,7 +516,7 @@ function Instructors() {
               <Avatar src={payModal.instructor.avatar_url} icon={<UserOutlined />} size={44} className="ring-2 ring-slate-100 shadow-sm" />
               <div>
                 <h3 className="text-base font-semibold text-slate-800">{payModal.instructor.name}</h3>
-                <p className="text-xs text-slate-400">Record salary payment</p>
+                <p className="text-xs text-slate-400">{t('instructor:instructorsList.payModal.recordSalaryPayment')}</p>
               </div>
             </div>
 
@@ -524,22 +528,22 @@ function Instructors() {
               return (
                 <>
                   <p className="text-[11px] text-slate-500 mb-2">
-                    This payment applies to <strong className="text-slate-700">instructor earnings</strong> only ({fmt(instOwed)} owed).
+                    <span dangerouslySetInnerHTML={{ __html: t('instructor:instructorsList.payModal.instructorEarningsOnly', { amount: fmt(instOwed) }) }} />
                     {bal.manager && (bal.manager.totalEarned > 0 || bal.manager.totalPaid > 0) && (
-                      <span> Manager commission is settled separately ({fmt(bal.manager.balance)} owed).</span>
+                      <span> {t('instructor:instructorsList.payModal.managerCommissionSeparate', { amount: fmt(bal.manager.balance) })}</span>
                     )}
                   </p>
                   <div className="grid grid-cols-3 gap-2 mb-5">
                     <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 p-3 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-blue-500/80 font-medium">Instructor earned</div>
+                      <div className="text-[10px] uppercase tracking-wider text-blue-500/80 font-medium">{t('instructor:instructorsList.payModal.instructorEarned')}</div>
                       <div className="text-sm font-bold text-blue-700 mt-0.5">{fmt(inst.totalEarned)}</div>
                     </div>
                     <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100/60 p-3 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-emerald-500/80 font-medium">Instructor paid</div>
+                      <div className="text-[10px] uppercase tracking-wider text-emerald-500/80 font-medium">{t('instructor:instructorsList.payModal.instructorPaid')}</div>
                       <div className="text-sm font-bold text-emerald-700 mt-0.5">{fmt(inst.totalPaid)}</div>
                     </div>
                     <div className="rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100/60 p-3 text-center">
-                      <div className="text-[10px] uppercase tracking-wider text-orange-500/80 font-medium">Instructor owed</div>
+                      <div className="text-[10px] uppercase tracking-wider text-orange-500/80 font-medium">{t('instructor:instructorsList.payModal.instructorOwed')}</div>
                       <div className="text-sm font-bold text-orange-700 mt-0.5">{fmt(instOwed)}</div>
                     </div>
                   </div>
@@ -550,14 +554,14 @@ function Instructors() {
         )}
 
         <Form form={payForm} layout="vertical" onFinish={handlePay} requiredMark={false} size="middle">
-          <Form.Item name="amount" label={<span className="text-xs font-medium text-slate-600">Payment Amount</span>} rules={[{ required: true, message: 'Enter amount' }]}>
+          <Form.Item name="amount" label={<span className="text-xs font-medium text-slate-600">{t('instructor:instructorsList.payModal.paymentAmount')}</span>} rules={[{ required: true, message: t('instructor:instructorsList.payModal.enterAmount') }]}>
             <InputNumber min={0.01} step={0.01} className="w-full" prefix={businessCurrency || '€'} />
           </Form.Item>
           <div className="grid grid-cols-2 gap-3">
-            <Form.Item name="payment_date" label={<span className="text-xs font-medium text-slate-600">Date</span>} rules={[{ required: true, message: 'Select date' }]}>
+            <Form.Item name="payment_date" label={<span className="text-xs font-medium text-slate-600">{t('instructor:instructorsList.payModal.date')}</span>} rules={[{ required: true, message: t('instructor:instructorsList.payModal.selectDate') }]}>
               <DatePicker className="w-full" />
             </Form.Item>
-            <Form.Item name="payment_method" label={<span className="text-xs font-medium text-slate-600">Method</span>} rules={[{ required: true }]}>
+            <Form.Item name="payment_method" label={<span className="text-xs font-medium text-slate-600">{t('instructor:instructorsList.payModal.method')}</span>} rules={[{ required: true }]}>
               <Select>
                 <Select.Option value="bank_transfer">🏦 Bank Transfer</Select.Option>
                 <Select.Option value="cash">💵 Cash</Select.Option>
@@ -566,13 +570,13 @@ function Instructors() {
               </Select>
             </Form.Item>
           </div>
-          <Form.Item name="description" label={<span className="text-xs font-medium text-slate-600">Note</span>} rules={[{ required: true, message: 'Enter description' }]}>
-            <Input.TextArea rows={2} placeholder="e.g. March salary, bonus…" className="resize-none" />
+          <Form.Item name="description" label={<span className="text-xs font-medium text-slate-600">{t('instructor:instructorsList.payModal.note')}</span>} rules={[{ required: true, message: t('instructor:instructorsList.payModal.enterAmount') }]}>
+            <Input.TextArea rows={2} placeholder={t('instructor:instructorsList.payModal.notePlaceholder')} className="resize-none" />
           </Form.Item>
           <div className="flex justify-end gap-2 pt-1 border-t border-slate-100 mt-1">
-            <Button onClick={() => { setPayModal({ open: false, instructor: null }); payForm.resetFields(); }}>Cancel</Button>
+            <Button onClick={() => { setPayModal({ open: false, instructor: null }); payForm.resetFields(); }}>{t('instructor:instructorsList.payModal.cancel')}</Button>
             <Button type="primary" htmlType="submit" loading={paySubmitting} icon={<WalletOutlined />}>
-              Record Payment
+              {t('instructor:instructorsList.payModal.recordPayment')}
             </Button>
           </div>
         </Form>

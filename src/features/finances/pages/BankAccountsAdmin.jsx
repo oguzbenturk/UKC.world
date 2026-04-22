@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Table, Tag, Button, Space, message, Modal, Form, Input, Select, Switch, InputNumber, Tooltip } from 'antd';
 import {
   PlusOutlined, EditOutlined, ReloadOutlined, BankOutlined,
@@ -16,6 +17,7 @@ const CURRENCIES = [
 ];
 
 export default function BankAccountsAdmin() {
+  const { t } = useTranslation(['manager']);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,7 +34,7 @@ export default function BankAccountsAdmin() {
       setAccounts(response.data.results || []);
     } catch (error) {
       console.error('Failed to fetch bank accounts:', error);
-      message.error('Failed to load bank accounts');
+      message.error(t('manager:financePages.bankAccounts.loadError'));
     } finally {
       setLoading(false);
     }
@@ -83,14 +85,14 @@ export default function BankAccountsAdmin() {
         payload.id = editingAccount.id;
       }
       await apiClient.post('/wallet/admin/bank-accounts', payload);
-      message.success(editingAccount ? 'Bank account updated' : 'Bank account created');
+      message.success(editingAccount ? t('manager:financePages.bankAccounts.messages.updated') : t('manager:financePages.bankAccounts.messages.created'));
       setModalOpen(false);
       form.resetFields();
       setEditingAccount(null);
       fetchAccounts();
     } catch (error) {
       console.error('Failed to save bank account:', error);
-      message.error(error.response?.data?.error || 'Failed to save bank account');
+      message.error(error.response?.data?.error || t('manager:financePages.bankAccounts.messages.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -102,22 +104,22 @@ export default function BankAccountsAdmin() {
         isActive: !account.isActive,
         scopeType: 'global',
       });
-      message.success(`Bank account ${account.isActive ? 'deactivated' : 'activated'}`);
+      message.success(t('manager:financePages.bankAccounts.messages.statusUpdated', { status: account.isActive ? 'deactivated' : 'activated' }));
       fetchAccounts();
     } catch (error) {
       console.error('Failed to toggle bank account status:', error);
-      message.error('Failed to update bank account status');
+      message.error(t('manager:financePages.bankAccounts.messages.statusFailed'));
     }
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    message.success('Copied to clipboard');
+    message.success(t('manager:financePages.bankAccounts.messages.copied'));
   };
 
   const columns = [
     {
-      title: 'Bank',
+      title: t('manager:financePages.bankAccounts.columns.bank'),
       key: 'bank',
       render: (_, record) => (
         <div>
@@ -127,7 +129,7 @@ export default function BankAccountsAdmin() {
       ),
     },
     {
-      title: 'IBAN / Account',
+      title: t('manager:financePages.bankAccounts.columns.ibanAccount'),
       key: 'iban',
       render: (_, record) => (
         <div className="flex items-center gap-1.5">
@@ -135,7 +137,7 @@ export default function BankAccountsAdmin() {
             {record.iban || record.accountNumber || '—'}
           </code>
           {(record.iban || record.accountNumber) && (
-            <Tooltip title="Copy">
+            <Tooltip title={t('manager:financePages.bankAccounts.messages.copyTooltip')}>
               <Button
                 type="text"
                 size="small"
@@ -149,21 +151,21 @@ export default function BankAccountsAdmin() {
       ),
     },
     {
-      title: 'Currency',
+      title: t('manager:financePages.bankAccounts.columns.currency'),
       dataIndex: 'currency',
       key: 'currency',
       width: 90,
       render: (currency) => <Tag>{currency}</Tag>,
     },
     {
-      title: 'SWIFT',
+      title: t('manager:financePages.bankAccounts.columns.swift'),
       dataIndex: 'swiftCode',
       key: 'swiftCode',
       width: 120,
       render: (text) => text ? <code className="text-xs">{text}</code> : <span className="text-gray-300">—</span>,
     },
     {
-      title: 'Primary',
+      title: t('manager:financePages.bankAccounts.columns.primary'),
       dataIndex: 'isPrimary',
       key: 'isPrimary',
       width: 80,
@@ -173,18 +175,18 @@ export default function BankAccountsAdmin() {
         : <span className="text-gray-300">—</span>,
     },
     {
-      title: 'Status',
+      title: t('manager:financePages.bankAccounts.columns.status'),
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
       render: (isActive) => (
         <Tag color={isActive ? 'green' : 'default'} icon={isActive ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
-          {isActive ? 'Active' : 'Inactive'}
+          {isActive ? t('manager:financePages.bankAccounts.statusLabels.active') : t('manager:financePages.bankAccounts.statusLabels.inactive')}
         </Tag>
       ),
     },
     {
-      title: 'Actions',
+      title: t('manager:financePages.bankAccounts.columns.actions'),
       key: 'actions',
       width: 160,
       render: (_, record) => (
@@ -194,14 +196,14 @@ export default function BankAccountsAdmin() {
             icon={<EditOutlined />}
             onClick={() => openEditModal(record)}
           >
-            Edit
+            {t('manager:financePages.bankAccounts.actions.edit')}
           </Button>
           <Button
             size="small"
             danger={record.isActive}
             onClick={() => handleToggleStatus(record)}
           >
-            {record.isActive ? 'Disable' : 'Enable'}
+            {record.isActive ? t('manager:financePages.bankAccounts.actions.disable') : t('manager:financePages.bankAccounts.actions.enable')}
           </Button>
         </Space>
       ),
@@ -213,25 +215,25 @@ export default function BankAccountsAdmin() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BankOutlined /> Bank Accounts
+            <BankOutlined /> {t('manager:financePages.bankAccounts.title')}
           </h1>
           <p className="text-gray-500 mt-1">
-            Manage bank accounts that students can transfer funds to
+            {t('manager:financePages.bankAccounts.subtitle')}
           </p>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchAccounts} loading={loading}>
-            Refresh
+            {t('manager:financePages.bankAccounts.refresh')}
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal} className="bg-blue-600">
-            Add Account
+            {t('manager:financePages.bankAccounts.addAccount')}
           </Button>
         </Space>
       </div>
 
       {accounts.length === 0 && !loading && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4 text-sm text-amber-800">
-          No bank accounts configured yet. Add one so students can make bank transfer deposits.
+          {t('manager:financePages.bankAccounts.noBankAccounts')}
         </div>
       )}
 
@@ -249,7 +251,7 @@ export default function BankAccountsAdmin() {
       {/* Create / Edit Modal */}
       <Modal
         open={modalOpen}
-        title={editingAccount ? 'Edit Bank Account' : 'Add Bank Account'}
+        title={editingAccount ? t('manager:financePages.bankAccounts.modal.editTitle') : t('manager:financePages.bankAccounts.modal.addTitle')}
         onCancel={() => { setModalOpen(false); setEditingAccount(null); }}
         footer={null}
         width={520}
@@ -265,30 +267,30 @@ export default function BankAccountsAdmin() {
         >
           <Form.Item
             name="bankName"
-            label="Bank Name"
-            rules={[{ required: true, message: 'Bank name is required' }]}
+            label={t('manager:financePages.bankAccounts.modal.fields.bankName')}
+            rules={[{ required: true, message: t('manager:financePages.bankAccounts.modal.validation.bankNameRequired') }]}
           >
-            <Input placeholder="e.g. Ziraat Bankası, Deutsche Bank" />
+            <Input placeholder={t('manager:financePages.bankAccounts.modal.placeholders.bankName')} />
           </Form.Item>
 
           <Form.Item
             name="accountHolder"
-            label="Account Holder"
-            rules={[{ required: true, message: 'Account holder name is required' }]}
+            label={t('manager:financePages.bankAccounts.modal.fields.accountHolder')}
+            rules={[{ required: true, message: t('manager:financePages.bankAccounts.modal.validation.accountHolderRequired') }]}
           >
-            <Input placeholder="Account holder full name" />
+            <Input placeholder={t('manager:financePages.bankAccounts.modal.placeholders.accountHolder')} />
           </Form.Item>
 
           <div className="grid grid-cols-2 gap-3">
             <Form.Item
               name="iban"
-              label="IBAN"
-              rules={[{ required: true, message: 'IBAN is required' }]}
+              label={t('manager:financePages.bankAccounts.modal.fields.iban')}
+              rules={[{ required: true, message: t('manager:financePages.bankAccounts.modal.validation.ibanRequired') }]}
             >
-              <Input placeholder="TR00 0000 0000 0000 0000 00" className="font-mono" />
+              <Input placeholder={t('manager:financePages.bankAccounts.modal.placeholders.iban')} className="font-mono" />
             </Form.Item>
 
-            <Form.Item name="currency" label="Currency" rules={[{ required: true }]}>
+            <Form.Item name="currency" label={t('manager:financePages.bankAccounts.modal.fields.currency')} rules={[{ required: true }]}>
               <Select>
                 {CURRENCIES.map((c) => (
                   <Option key={c.value} value={c.value}>{c.label}</Option>
@@ -298,46 +300,46 @@ export default function BankAccountsAdmin() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Form.Item name="swiftCode" label="SWIFT / BIC Code">
-              <Input placeholder="e.g. TCZBTR2A" className="font-mono" />
+            <Form.Item name="swiftCode" label={t('manager:financePages.bankAccounts.modal.fields.swift')}>
+              <Input placeholder={t('manager:financePages.bankAccounts.modal.placeholders.swift')} className="font-mono" />
             </Form.Item>
 
-            <Form.Item name="accountNumber" label="Account Number">
-              <Input placeholder="Optional account number" />
+            <Form.Item name="accountNumber" label={t('manager:financePages.bankAccounts.modal.fields.accountNumber')}>
+              <Input placeholder={t('manager:financePages.bankAccounts.modal.placeholders.accountNumber')} />
             </Form.Item>
           </div>
 
-          <Form.Item name="routingNumber" label="Routing Number">
-            <Input placeholder="For US banks (optional)" />
+          <Form.Item name="routingNumber" label={t('manager:financePages.bankAccounts.modal.fields.routingNumber')}>
+            <Input placeholder={t('manager:financePages.bankAccounts.modal.placeholders.routingNumber')} />
           </Form.Item>
 
-          <Form.Item name="instructions" label="Transfer Instructions">
+          <Form.Item name="instructions" label={t('manager:financePages.bankAccounts.modal.fields.instructions')}>
             <Input.TextArea
-              placeholder="Special instructions for students (optional)"
+              placeholder={t('manager:financePages.bankAccounts.modal.placeholders.instructions')}
               rows={2}
             />
           </Form.Item>
 
           <div className="grid grid-cols-3 gap-3">
-            <Form.Item name="isActive" label="Active" valuePropName="checked">
+            <Form.Item name="isActive" label={t('manager:financePages.bankAccounts.modal.fields.isActive')} valuePropName="checked">
               <Switch checkedChildren="Yes" unCheckedChildren="No" />
             </Form.Item>
 
-            <Form.Item name="isPrimary" label="Primary" valuePropName="checked">
+            <Form.Item name="isPrimary" label={t('manager:financePages.bankAccounts.modal.fields.isPrimary')} valuePropName="checked">
               <Switch checkedChildren="Yes" unCheckedChildren="No" />
             </Form.Item>
 
-            <Form.Item name="displayOrder" label="Display Order">
+            <Form.Item name="displayOrder" label={t('manager:financePages.bankAccounts.modal.fields.displayOrder')}>
               <InputNumber min={0} className="w-full" />
             </Form.Item>
           </div>
 
           <div className="pt-3 border-t border-gray-100 flex justify-end gap-2">
             <Button onClick={() => { setModalOpen(false); setEditingAccount(null); }}>
-              Cancel
+              {t('manager:financePages.bankAccounts.actions.cancel')}
             </Button>
             <Button type="primary" htmlType="submit" loading={saving} className="bg-blue-600">
-              {editingAccount ? 'Update' : 'Create'}
+              {editingAccount ? t('manager:financePages.bankAccounts.actions.update') : t('manager:financePages.bankAccounts.actions.create')}
             </Button>
           </div>
         </Form>

@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { Button, Card, Space, Tabs, Typography } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import NotificationList from '../components/NotificationList';
 import { useNotificationActions, useNotificationList } from '../hooks/useNotifications';
 
@@ -10,6 +11,7 @@ const { Title, Text } = Typography;
 const RATE_BOOKING_STORAGE_KEY = 'pendingRateBooking';
 
 const NotificationCenter = () => {
+  const { t } = useTranslation(['common']);
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState('all');
@@ -153,14 +155,14 @@ const NotificationCenter = () => {
 
   const handleMarkAll = useCallback(async () => {
     if (!unreadCount) {
-      message.info('All notifications are already marked as read.');
+      message.info(t('common:notifications.allAlreadyRead'));
       return;
     }
     try {
       await markAllNotificationsRead();
       setMarkingId(null);
     } catch {
-      message.error('Failed to mark notifications as read. Please try again.');
+      message.error(t('common:notifications.failMarkRead'));
     }
   }, [markAllNotificationsRead, unreadCount]);
 
@@ -168,7 +170,7 @@ const NotificationCenter = () => {
     () => [
       {
         key: 'all',
-        label: 'All notifications',
+        label: t('common:notifications.allNotifications'),
         children: (
           <NotificationList
             notifications={notifications}
@@ -182,7 +184,7 @@ const NotificationCenter = () => {
       },
       {
         key: 'unread',
-        label: `Unread ${unreadCount ? `(${unreadCount})` : ''}`.trim(),
+        label: unreadCount ? `${t('common:notifications.unreadTab')} (${unreadCount})` : t('common:notifications.unreadTab'),
         children: (
           <NotificationList
             notifications={notifications}
@@ -191,7 +193,7 @@ const NotificationCenter = () => {
             onItemClick={handleNotificationClick}
             onMarkRead={handleMarkRead}
             markReadLoadingId={markNotificationReadStatus.isPending ? markingId : null}
-            emptyDescription="No unread notifications"
+            emptyDescription={t('common:notifications.noUnread')}
           />
         ),
       },
@@ -205,10 +207,10 @@ const NotificationCenter = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <Title level={3} className="!mb-1 text-slate-900 dark:text-slate-100">
-              Notification Center
+              {t('common:notifications.center')}
             </Title>
             <Text type="secondary">
-              Stay on top of system updates, approvals, and important alerts.
+              {t('common:notifications.subtitle')}
             </Text>
           </div>
           <Space>
@@ -217,7 +219,7 @@ const NotificationCenter = () => {
               disabled={!unreadCount}
               loading={markAllNotificationsStatus.isPending}
             >
-              Mark all as read
+              {t('common:notifications.markAllAsRead')}
             </Button>
           </Space>
         </div>
@@ -234,14 +236,12 @@ const NotificationCenter = () => {
         <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <span>
             {pagination.total > 0
-              ? (
-                <>
-                  Showing {(pagination.page - 1) * pagination.limit + 1}
-                  {' '}–{' '}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} notifications
-                </>
-              )
-              : 'No notifications to display'}
+              ? t('common:notifications.showingRange', {
+                  from: (pagination.page - 1) * pagination.limit + 1,
+                  to: Math.min(pagination.page * pagination.limit, pagination.total),
+                  total: pagination.total,
+                })
+              : t('common:notifications.noDisplay')}
           </span>
           <div>
             <Space.Compact>
@@ -249,13 +249,13 @@ const NotificationCenter = () => {
                 disabled={pagination.page <= 1}
                 onClick={() => handlePageChange(Math.max(pagination.page - 1, 1))}
               >
-                Previous
+                {t('common:pagination.prev')}
               </Button>
               <Button
                 disabled={pagination.page >= pagination.pages}
                 onClick={() => handlePageChange(Math.min(pagination.page + 1, pagination.pages))}
               >
-                Next
+                {t('common:pagination.next')}
               </Button>
             </Space.Compact>
           </div>

@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
-import { 
-  UserAddOutlined, 
-  UserDeleteOutlined, 
-  CheckOutlined, 
+import { useTranslation } from 'react-i18next';
+import {
+  UserAddOutlined,
+  UserDeleteOutlined,
+  CheckOutlined,
   CloseOutlined,
   SearchOutlined,
   TeamOutlined,
@@ -60,21 +61,23 @@ const searchUsers = async (query) => {
 
 // Custom hook for friend-related mutations
 const useFriendMutations = (queryClient, callbacks = {}) => {
+  const { t } = useTranslation(['student']);
+
   const sendRequest = useMutation({
     mutationFn: async ({ receiverId, requestMessage }) => {
-      const response = await apiClient.post('/relationships/request', { 
-        receiverId, 
-        message: requestMessage 
+      const response = await apiClient.post('/relationships/request', {
+        receiverId,
+        message: requestMessage
       });
       return response.data;
     },
     onSuccess: () => {
-      message.success('Friend request sent!');
+      message.success(t('student:friends.toasts.requestSent'));
       queryClient.invalidateQueries({ queryKey: ['friendRequests', 'sent'] });
       callbacks.onSendSuccess?.();
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'Failed to send request');
+      message.error(error.response?.data?.error || t('student:friends.toasts.requestSentError'));
     }
   });
 
@@ -84,12 +87,12 @@ const useFriendMutations = (queryClient, callbacks = {}) => {
       return response.data;
     },
     onSuccess: () => {
-      message.success('Friend request accepted!');
+      message.success(t('student:friends.toasts.requestAccepted'));
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       queryClient.invalidateQueries({ queryKey: ['friendRequests', 'pending'] });
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'Failed to accept request');
+      message.error(error.response?.data?.error || t('student:friends.toasts.requestAcceptedError'));
     }
   });
 
@@ -99,11 +102,11 @@ const useFriendMutations = (queryClient, callbacks = {}) => {
       return response.data;
     },
     onSuccess: () => {
-      message.success('Friend request declined');
+      message.success(t('student:friends.toasts.requestDeclined'));
       queryClient.invalidateQueries({ queryKey: ['friendRequests', 'pending'] });
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'Failed to decline request');
+      message.error(error.response?.data?.error || t('student:friends.toasts.requestDeclinedError'));
     }
   });
 
@@ -113,11 +116,11 @@ const useFriendMutations = (queryClient, callbacks = {}) => {
       return response.data;
     },
     onSuccess: () => {
-      message.success('Friend request cancelled');
+      message.success(t('student:friends.toasts.requestCancelled'));
       queryClient.invalidateQueries({ queryKey: ['friendRequests', 'sent'] });
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'Failed to cancel request');
+      message.error(error.response?.data?.error || t('student:friends.toasts.requestCancelledError'));
     }
   });
 
@@ -127,11 +130,11 @@ const useFriendMutations = (queryClient, callbacks = {}) => {
       return response.data;
     },
     onSuccess: () => {
-      message.success('Friend removed');
+      message.success(t('student:friends.toasts.friendRemoved'));
       queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'Failed to remove friend');
+      message.error(error.response?.data?.error || t('student:friends.toasts.friendRemovedError'));
     }
   });
 
@@ -141,12 +144,12 @@ const useFriendMutations = (queryClient, callbacks = {}) => {
       return response.data;
     },
     onSuccess: () => {
-      message.success('User blocked');
+      message.success(t('student:friends.toasts.userBlocked'));
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'Failed to block user');
+      message.error(error.response?.data?.error || t('student:friends.toasts.userBlockedError'));
     }
   });
 
@@ -154,16 +157,18 @@ const useFriendMutations = (queryClient, callbacks = {}) => {
 };
 
 // Friend List Item Component
-const FriendListItem = ({ friend, onRemove, onBlock }) => (
+const FriendListItem = ({ friend, onRemove, onBlock }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <List.Item
     className="!px-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg"
     actions={[
-      <Tooltip key="remove" title="Remove friend">
+      <Tooltip key="remove" title={t('student:friends.tooltips.removeFriend')}>
         <Button type="text" danger icon={<UserDeleteOutlined />} onClick={() => onRemove(friend)} />
       </Tooltip>,
-      <Tooltip key="block" title="Block user">
-        <Button 
-          type="text" 
+      <Tooltip key="block" title={t('student:friends.tooltips.blockUser')}>
+        <Button
+          type="text"
           icon={<StopOutlined />}
           onClick={() => onBlock(friend.id, `${friend.first_name} ${friend.last_name}`)}
           className="text-slate-400 hover:text-red-500"
@@ -181,20 +186,23 @@ const FriendListItem = ({ friend, onRemove, onBlock }) => (
       description={<Text type="secondary" className="text-sm">{friend.email}</Text>}
     />
   </List.Item>
-);
+  );
+};
 
 // Pending Request Item Component
-const PendingRequestItem = ({ request, onAccept, onDecline, isAccepting, isDeclining }) => (
+const PendingRequestItem = ({ request, onAccept, onDecline, isAccepting, isDeclining }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <List.Item
     className="!px-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg"
     actions={[
-      <Button 
+      <Button
         key="accept" type="primary" icon={<CheckOutlined />}
         onClick={() => onAccept(request.id)} loading={isAccepting}
         className="bg-green-500 hover:bg-green-600 border-green-500"
-      >Accept</Button>,
+      >{t('student:friends.buttons.accept')}</Button>,
       <Button key="decline" danger icon={<CloseOutlined />} onClick={() => onDecline(request.id)} loading={isDeclining}>
-        Decline
+        {t('student:friends.buttons.decline')}
       </Button>
     ]}
   >
@@ -213,16 +221,19 @@ const PendingRequestItem = ({ request, onAccept, onDecline, isAccepting, isDecli
       }
     />
   </List.Item>
-);
+  );
+};
 
-// Sent Request Item Component  
-const SentRequestItem = ({ request, onCancel, isCancelling }) => (
+// Sent Request Item Component
+const SentRequestItem = ({ request, onCancel, isCancelling }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <List.Item
     className="!px-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg"
     actions={[
-      <Tooltip key="cancel" title="Cancel request">
+      <Tooltip key="cancel" title={t('student:friends.tooltips.cancelRequest')}>
         <Button type="text" danger icon={<CloseOutlined />} onClick={() => onCancel(request.id)} loading={isCancelling}>
-          Cancel
+          {t('student:friends.buttons.cancel')}
         </Button>
       </Tooltip>
     ]}
@@ -237,18 +248,21 @@ const SentRequestItem = ({ request, onCancel, isCancelling }) => (
       description={
         <div>
           <Text type="secondary" className="text-sm block">{request.receiver?.email}</Text>
-          <Space className="mt-1"><ClockCircleOutlined className="text-amber-500" /><Text type="secondary" className="text-xs">Pending</Text></Space>
+          <Space className="mt-1"><ClockCircleOutlined className="text-amber-500" /><Text type="secondary" className="text-xs">{t('student:friends.pending')}</Text></Space>
         </div>
       }
     />
   </List.Item>
-);
+  );
+};
 
 // Search Result Item Component
-const SearchResultItem = ({ userResult, onAdd }) => (
+const SearchResultItem = ({ userResult, onAdd }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <List.Item
     className="!px-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg"
-    actions={[<Button key="add" type="primary" icon={<UserAddOutlined />} onClick={() => onAdd(userResult)}>Add Friend</Button>]}
+    actions={[<Button key="add" type="primary" icon={<UserAddOutlined />} onClick={() => onAdd(userResult)}>{t('student:friends.buttons.addFriend')}</Button>]}
   >
     <List.Item.Meta
       avatar={
@@ -260,16 +274,19 @@ const SearchResultItem = ({ userResult, onAdd }) => (
       description={<Text type="secondary" className="text-sm">{userResult.email}</Text>}
     />
   </List.Item>
-);
+  );
+};
 
 // Send Request Modal Component
-const SendRequestModal = ({ visible, selectedUser, requestMessage, onMessageChange, onConfirm, onCancel, isLoading }) => (
+const SendRequestModal = ({ visible, selectedUser, requestMessage, onMessageChange, onConfirm, onCancel, isLoading }) => {
+  const { t } = useTranslation(['student']);
+  return (
   <Modal
-    title={<div className="flex items-center gap-2"><UserAddOutlined className="text-sky-500" /><span>Send Friend Request</span></div>}
+    title={<div className="flex items-center gap-2"><UserAddOutlined className="text-sky-500" /><span>{t('student:friends.sendRequestModal.title')}</span></div>}
     open={visible}
     onCancel={onCancel}
     onOk={onConfirm}
-    okText="Send Request"
+    okText={t('student:friends.buttons.sendRequest')}
     okButtonProps={{ loading: isLoading, icon: <SendOutlined /> }}
   >
     {selectedUser && (
@@ -284,11 +301,11 @@ const SendRequestModal = ({ visible, selectedUser, requestMessage, onMessageChan
           </div>
         </div>
         <div>
-          <Text className="text-slate-600 dark:text-slate-300 mb-2 block">Add a message (optional):</Text>
+          <Text className="text-slate-600 dark:text-slate-300 mb-2 block">{t('student:friends.sendRequestModal.messageLabel')}</Text>
           <Input.TextArea
             value={requestMessage}
             onChange={(e) => onMessageChange(e.target.value)}
-            placeholder="Hi! I'd like to connect with you for group bookings..."
+            placeholder={t('student:friends.sendRequestModal.messagePlaceholder')}
             rows={3}
             maxLength={200}
             showCount
@@ -297,10 +314,12 @@ const SendRequestModal = ({ visible, selectedUser, requestMessage, onMessageChan
       </div>
     )}
   </Modal>
-);
+  );
+};
 
 // Main Page Component
 const StudentFriendsPage = () => {
+  const { t } = useTranslation(['student']);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('friends');
@@ -312,10 +331,10 @@ const StudentFriendsPage = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
 
   // Set SEO metadata
-  setDocumentTitle('Friends • Plannivo');
-  setMetaTag('description', 'Manage your friends to create group bookings together.');
-  setOgTag('og:title', 'Friends • Plannivo');
-  setOgTag('og:description', 'Manage your friends to create group bookings together.');
+  setDocumentTitle(t('student:friends.seoTitle'));
+  setMetaTag('description', t('student:friends.seoDescription'));
+  setOgTag('og:title', t('student:friends.seoTitle'));
+  setOgTag('og:description', t('student:friends.seoDescription'));
   setOgTag('og:url', (typeof window !== 'undefined' ? window.location.origin : 'https://ukc.plannivo.com') + '/student/friends');
   setLinkTag('canonical', '/student/friends');
 
@@ -350,7 +369,7 @@ const StudentFriendsPage = () => {
       const sentIds = sentRequests.map(r => r.receiver_id);
       setSearchResults(results.filter(u => u.id !== user?.id && !friendIds.includes(u.id) && !pendingIds.includes(u.id) && !sentIds.includes(u.id)));
     } catch {
-      message.error('Failed to search users');
+      message.error(t('student:friends.toasts.searchError'));
     } finally {
       setIsSearching(false);
     }
@@ -358,21 +377,21 @@ const StudentFriendsPage = () => {
 
   const handleRemoveFriend = useCallback((friend) => {
     Modal.confirm({
-      title: 'Remove Friend',
-      content: `Are you sure you want to remove ${friend.first_name} ${friend.last_name} from your friends?`,
-      okText: 'Remove', okType: 'danger', cancelText: 'Cancel',
+      title: t('student:friends.confirmRemove.title'),
+      content: t('student:friends.confirmRemove.content', { name: `${friend.first_name} ${friend.last_name}` }),
+      okText: t('student:friends.confirmRemove.okText'), okType: 'danger', cancelText: t('student:friends.confirmRemove.cancelText'),
       onOk: () => mutations.removeFriend.mutate(friend.id)
     });
-  }, [mutations.removeFriend]);
+  }, [mutations.removeFriend, t]);
 
   const handleBlockUser = useCallback((userId, name) => {
     Modal.confirm({
-      title: 'Block User',
-      content: `Are you sure you want to block ${name}? They won't be able to send you friend requests or invite you to group bookings.`,
-      okText: 'Block', okType: 'danger', cancelText: 'Cancel',
+      title: t('student:friends.confirmBlock.title'),
+      content: t('student:friends.confirmBlock.content', { name }),
+      okText: t('student:friends.confirmBlock.okText'), okType: 'danger', cancelText: t('student:friends.confirmBlock.cancelText'),
       onOk: () => mutations.blockUser.mutate(userId)
     });
-  }, [mutations.blockUser]);
+  }, [mutations.blockUser, t]);
 
   const handleSendRequest = useCallback((userToAdd) => {
     setSelectedUser(userToAdd);
@@ -388,26 +407,26 @@ const StudentFriendsPage = () => {
   const tabItems = useMemo(() => [
     {
       key: 'friends',
-      label: <span className="flex items-center gap-2"><TeamOutlined />Friends{friends.length > 0 && <Badge count={friends.length} showZero={false} className="ml-1" />}</span>,
-      children: loadingFriends ? <div className="flex justify-center py-12"><Spin size="large" /></div> : 
-        friends.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<div className="text-center"><p className="text-slate-500 mb-4">You don&apos;t have any friends yet</p><p className="text-sm text-slate-400">Search for users above to send friend requests</p></div>} /> :
+      label: <span className="flex items-center gap-2"><TeamOutlined />{t('student:friends.tabs.friends')}{friends.length > 0 && <Badge count={friends.length} showZero={false} className="ml-1" />}</span>,
+      children: loadingFriends ? <div className="flex justify-center py-12"><Spin size="large" /></div> :
+        friends.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<div className="text-center"><p className="text-slate-500 mb-4">{t('student:friends.emptyFriends')}</p><p className="text-sm text-slate-400">{t('student:friends.emptyFriendsHint')}</p></div>} /> :
         <List itemLayout="horizontal" dataSource={friends} renderItem={(friend) => <FriendListItem friend={friend} onRemove={handleRemoveFriend} onBlock={handleBlockUser} />} />
     },
     {
       key: 'pending',
-      label: <span className="flex items-center gap-2"><ClockCircleOutlined />Requests{pendingRequests.length > 0 && <Badge count={pendingRequests.length} className="ml-1" />}</span>,
+      label: <span className="flex items-center gap-2"><ClockCircleOutlined />{t('student:friends.tabs.requests')}{pendingRequests.length > 0 && <Badge count={pendingRequests.length} className="ml-1" />}</span>,
       children: loadingPending ? <div className="flex justify-center py-12"><Spin size="large" /></div> :
-        pendingRequests.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No pending friend requests" /> :
+        pendingRequests.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('student:friends.noPendingRequests')} /> :
         <List itemLayout="horizontal" dataSource={pendingRequests} renderItem={(request) => <PendingRequestItem request={request} onAccept={(id) => mutations.acceptRequest.mutate(id)} onDecline={(id) => mutations.declineRequest.mutate(id)} isAccepting={mutations.acceptRequest.isPending} isDeclining={mutations.declineRequest.isPending} />} />
     },
     {
       key: 'sent',
-      label: <span className="flex items-center gap-2"><SendOutlined />Sent{sentRequests.length > 0 && <Badge count={sentRequests.length} showZero={false} className="ml-1" />}</span>,
+      label: <span className="flex items-center gap-2"><SendOutlined />{t('student:friends.tabs.sent')}{sentRequests.length > 0 && <Badge count={sentRequests.length} showZero={false} className="ml-1" />}</span>,
       children: loadingSent ? <div className="flex justify-center py-12"><Spin size="large" /></div> :
-        sentRequests.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No sent requests" /> :
+        sentRequests.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('student:friends.noSentRequests')} /> :
         <List itemLayout="horizontal" dataSource={sentRequests} renderItem={(request) => <SentRequestItem request={request} onCancel={(id) => mutations.cancelRequest.mutate(id)} isCancelling={mutations.cancelRequest.isPending} />} />
     }
-  ], [friends, pendingRequests, sentRequests, loadingFriends, loadingPending, loadingSent, handleRemoveFriend, handleBlockUser, mutations]);
+  ], [friends, pendingRequests, sentRequests, loadingFriends, loadingPending, loadingSent, handleRemoveFriend, handleBlockUser, mutations, t]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-0">
@@ -416,24 +435,24 @@ const StudentFriendsPage = () => {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/25">
             <TeamOutlined className="text-xl" />
           </div>
-          <h1 className="text-2xl font-duotone-bold-extended text-slate-900 dark:text-white">Friends</h1>
+          <h1 className="text-2xl font-duotone-bold-extended text-slate-900 dark:text-white">{t('student:friends.pageTitle')}</h1>
         </div>
-        <p className="ml-13 text-slate-500 dark:text-slate-400">Manage your friends to create group bookings together.</p>
+        <p className="ml-13 text-slate-500 dark:text-slate-400">{t('student:friends.pageSubtitle')}</p>
       </div>
 
       <Card className="mb-6 shadow-sm">
         <div className="flex flex-col gap-4">
           <div>
-            <Text strong className="text-slate-700 dark:text-slate-200 mb-2 block">Find Friends</Text>
-            <Search placeholder="Search by name or email..." allowClear enterButton={<SearchOutlined />} size="large" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} onSearch={handleSearch} loading={isSearching} />
+            <Text strong className="text-slate-700 dark:text-slate-200 mb-2 block">{t('student:friends.findFriends')}</Text>
+            <Search placeholder={t('student:friends.searchPlaceholder')} allowClear enterButton={<SearchOutlined />} size="large" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} onSearch={handleSearch} loading={isSearching} />
           </div>
           {searchResults.length > 0 && (
             <div className="mt-2">
-              <Text type="secondary" className="text-sm mb-2 block">{searchResults.length} user{searchResults.length !== 1 ? 's' : ''} found</Text>
+              <Text type="secondary" className="text-sm mb-2 block">{t('student:friends.usersFound', { count: searchResults.length })}</Text>
               <List itemLayout="horizontal" dataSource={searchResults} renderItem={(userResult) => <SearchResultItem userResult={userResult} onAdd={handleSendRequest} />} className="border rounded-lg" />
             </div>
           )}
-          {searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No users found matching your search" className="py-4" />}
+          {searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('student:friends.noUsersFound')} className="py-4" />}
         </div>
       </Card>
 

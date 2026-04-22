@@ -3,21 +3,21 @@ import PropTypes from 'prop-types';
 import { Typography, Empty, Spin, Button, Tag } from 'antd';
 import { BellAlertIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 const { Text, Paragraph } = Typography;
 
-const getRelativeTime = (date) => {
-  if (!date) return 'moments ago';
+// fallback used before hook is available
+const getRelativeTime = (date, fallback = 'moments ago') => {
+  if (!date) return fallback;
   try {
-    // Ensure we're working with a fresh Date object every time
     const timestamp = typeof date === 'string' ? new Date(date) : date;
-    // Validate the date is valid
     if (isNaN(timestamp.getTime())) {
-      return 'moments ago';
+      return fallback;
     }
     return formatDistanceToNow(timestamp, { addSuffix: true });
   } catch {
-    return 'moments ago';
+    return fallback;
   }
 };
 
@@ -33,6 +33,7 @@ const NotificationList = ({
   compact = false,
   className = '',
 } = {}) => {
+  const { t } = useTranslation(['common']);
   const [, setTick] = React.useState(0);
   
   // Force re-render every 30 seconds to update "X minutes/hours ago" timestamps
@@ -47,7 +48,7 @@ const NotificationList = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10">
-        <Spin tip="Loading notifications" />
+        <Spin tip={t('common:notifications.loadingNotifications')} />
       </div>
     );
   }
@@ -57,7 +58,7 @@ const NotificationList = ({
       <div className="py-8">
         <Empty
           image={<BellAlertIcon className="h-12 w-12 text-slate-300 mx-auto" />}
-          description={emptyDescription || 'No notifications yet'}
+          description={emptyDescription || t('common:notifications.noNotificationsYet')}
         />
       </div>
     );
@@ -114,7 +115,7 @@ const NotificationList = ({
                 <div className="flex items-start gap-2 mb-2">
                   {isUnread && (
                     <span className="inline-block bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded">
-                      NEW
+                      {t('common:notifications.new_badge')}
                     </span>
                   )}
                   <Text strong className="text-gray-900 text-sm leading-snug">
@@ -158,7 +159,7 @@ const NotificationList = ({
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                   <span className="text-xs text-gray-500">
-                    {getRelativeTime(item.createdAt)}
+                    {getRelativeTime(item.createdAt, t('common:notifications.momentAgo'))}
                   </span>
                   {onMarkRead && isUnread && (
                     <Button
@@ -168,7 +169,7 @@ const NotificationList = ({
                       loading={isMarking}
                       className="text-xs p-0 h-auto"
                     >
-                      Mark as read
+                      {t('common:notifications.markAsRead')}
                     </Button>
                   )}
                 </div>

@@ -488,16 +488,210 @@
   },
   "products": {
     "title": "Products",
-    "subtitle": "Manage inventory and back-office products"
+    "subtitle": "Manage inventory and back-office products",
+    "addProduct": "Add Product",
+    "refresh": "Refresh",
+    "editProduct": "Edit Product",
+    "addNewProduct": "Add New Product",
+    "stats": {
+      "total": "Total",
+      "lowStock": "Low Stock",
+      "invValue": "Inv. Value",
+      "featured": "Featured"
+    },
+    "filters": {
+      "searchPlaceholder": "Search by name, SKU, or brand...",
+      "allStatus": "All Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "discontinued": "Discontinued",
+      "allCreators": "All Creators",
+      "createdBy": "Created by",
+      "lowStockOnly": "Low Stock Only"
+    },
+    "showing": "Showing {{count}} of {{total}} products",
+    "selected": "{{count}} selected",
+    "bulk": {
+      "activate": "Activate",
+      "activateSelected": "Activate Selected",
+      "deactivate": "Deactivate",
+      "deactivateSelected": "Deactivate Selected",
+      "delete": "Delete",
+      "deleteSelected": "Delete Selected",
+      "clear": "Clear"
+    },
+    "columns": {
+      "product": "Product",
+      "sku": "SKU",
+      "category": "Category",
+      "brand": "Brand",
+      "price": "Price",
+      "stock": "Stock",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "discontinued": "Discontinued"
+    },
+    "empty": {
+      "noMatch": "No products match your filters",
+      "noProducts": "No products yet",
+      "addFirst": "Add Product"
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} of {{total}} products"
+    },
+    "confirm": {
+      "deleteTitle": "Delete Product",
+      "deleteContent": "Are you sure you want to delete \"{{name}}\"?",
+      "deleteOk": "Delete",
+      "deleteCancel": "Cancel",
+      "bulkDeleteTitle": "Delete Selected Products",
+      "bulkDeleteContent": "Are you sure you want to delete {{count}} product(s)? This action cannot be undone.",
+      "bulkDeleteOk": "Delete All",
+      "bulkActivateTitle": "Activate Selected Products",
+      "bulkDeactivateTitle": "Deactivate Selected Products",
+      "bulkStatusContent": "Are you sure you want to {{action}} {{count}} product(s)?",
+      "bulkConfirmOk": "Confirm"
+    },
+    "messages": {
+      "loadError": "Failed to load products",
+      "created": "Product created successfully!",
+      "updated": "Product updated successfully!",
+      "deleted": "Product deleted successfully!",
+      "createError": "Failed to create product",
+      "updateError": "Failed to update product",
+      "deleteError": "Failed to delete product",
+      "bulkDeleted": "Successfully deleted {{count}} product(s)",
+      "bulkDeleteError": "Failed to delete some products",
+      "bulkUpdated": "Successfully updated {{count}} product(s)",
+      "bulkUpdateError": "Failed to update some products"
+    },
+    "form": {
+      "identity": "Identity",
+      "details": "Details",
+      "inventory": "Inventory",
+      "discount": "Discount",
+      "productTab": "Product",
+      "stockTab": "Stock & Pricing",
+      "cancelButton": "Cancel",
+      "updateButton": "Update Product",
+      "createButton": "+ Create Product",
+      "imageUploaded": "Image uploaded successfully!",
+      "imageUploadError": "Image upload failed",
+      "imagesUploaded": "{{count}} images uploaded!",
+      "imagesUploadError": "Failed to upload images",
+      "imageRemoved": "Image removed",
+      "maxImagesError": "Maximum 10 images",
+      "colorPhotosAdded": "{{count}} photo(s) added to {{color}}",
+      "colorPhotoUploadError": "Image upload failed",
+      "subcategoryCreated": "Subcategory \"{{label}}\" created",
+      "subcategoryCreateError": "Failed to create subcategory",
+      "subcategoryRemoved": "Subcategory removed",
+      "subcategoryRemoveError": "Failed to delete subcategory",
+      "genderMen": "Men",
+      "genderWomen": "Women",
+      "genderUnisex": "Unisex",
+      "colorOptions": "Color Options",
+      "addColor": "Add",
+      "colorPlaceholder": "e.g., Black, Ocean Blue…",
+      "noColorsHint": "Add colors — you can then upload per-color photos in the Stock tab",
+      "sizesLabel": "Sizes",
+      "totalStock": "Total Stock",
+      "syncedFromVariants": "Synced from variants: {{count}}",
+      "lowStockAlert": "Low Stock Alert",
+      "weightKg": "Weight (kg)",
+      "originalPrice": "Original Price (before discount)",
+      "originalPriceHint": "Set higher than the sale price to show a discount badge in the shop. Leave empty if no discount.",
+      "mainImage": "Main Image",
+      "mainImageHint": "required to appear in carousel & hot deals",
+      "photosPerColor": "Photos per Color",
+      "gallery": "Gallery",
+      "uploadButton": "Upload",
+      "sizeVariants": "Size & Stock Variants",
+      "selectOrCreate": "Select or create",
+      "selectCategoryFirst": "Select category first",
+      "selectBrand": "Select brand",
+      "featuredTooltip": "Featured products appear in the shop landing page carousel",
+      "featuredYes": "Yes",
+      "featuredNo": "No",
+      "namePlaceholder": "e.g., Duotone Rebel D/LAB 2026",
+      "skuPlaceholder": "Auto-generated",
+      "createCategory": "Create category",
+      "createSubcategory": "Create subcategory"
+    },
+    "colorTable": {
+      "colorCode": "Color Code",
+      "colorName": "Color Name",
+      "imageCount": "Image Count",
+      "action": "Action",
+      "deleteConfirm": "Delete this color?",
+      "colorRemoved": "Color removed",
+      "noColors": "No colors added. Products can have multiple color options.",
+      "addColor": "Add Color"
+    },
+    "variantTable": {
+      "sizeVariant": "Size / Variant",
+      "qty": "Qty",
+      "cost": "Cost",
+      "sellingPrice": "Selling Price",
+      "deleteConfirm": "Delete this variant?",
+      "variantRemoved": "Variant removed",
+      "allSizesAdded": "All sizes already added",
+      "sizesAdded": "Added {{count}} sizes",
+      "addAll": "Add all",
+      "addVariant": "Add Variant",
+      "emptyHint": "Click a size above or \"Add Variant\" to start.",
+      "unitsAcrossSizes": "units across {{count}} size",
+      "unitsAcrossSizesPlural": "units across {{count}} sizes"
+    }
   },
   "accommodation": {
     "title": "Accommodation",
     "admin": {
-      "status": {
+      "pageTitle": "Stay Bookings",
+      "pageSubtitle": "Accommodation reservation management",
+      "refresh": "Refresh",
+      "newBooking": "New Booking",
+      "bookingCreated": "Accommodation booking created",
+      "timeline": "Timeline",
+      "list": "List",
+      "prevWeek": "Prev week",
+      "nextWeek": "Next week",
+      "jumpToday": "Jump to today",
+      "bookingsShown": "{{count}} booking(s) shown · click a bar for actions",
+      "unitRoom": "Unit / Room",
+      "today": "Today",
+      "noUnits": "No accommodation units found",
+      "searchPlaceholder": "Search guests, units...",
+      "tabs": {
+        "all": "All ({{count}})",
+        "active": "Active",
         "pending": "Pending",
-        "confirmed": "Confirmed",
-        "completed": "Completed",
-        "cancelled": "Cancelled"
+        "hotelRequests": "Hotel",
+        "upcoming": "Upcoming",
+        "completed": "Completed"
+      },
+      "stats": {
+        "inHouse": "In-House",
+        "inHouseSub": "active stays",
+        "pending": "Pending",
+        "pendingSub": "need review",
+        "upcoming": "Upcoming",
+        "upcomingSub": "confirmed",
+        "revenue": "Revenue",
+        "revenueSub": "completed stays"
+      },
+      "columns": {
+        "guest": "Guest",
+        "unit": "Unit",
+        "checkIn": "Check-in",
+        "checkOut": "Check-out",
+        "nights": "Nights",
+        "total": "Total",
+        "status": "Status"
       },
       "actions": {
         "confirm": "Confirm",
@@ -505,12 +699,98 @@
         "cancel": "Cancel",
         "delete": "Delete"
       },
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
       "nights": "{{count}}n",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "unassigned": "Unassigned",
+      "pagination": {
+        "showTotal": "{{count}} bookings"
+      },
+      "empty": "No bookings found",
+      "deleteConfirm": {
+        "title": "Delete booking",
+        "content": "Are you sure you want to permanently delete this booking?",
+        "ok": "Delete"
+      },
+      "messages": {
+        "loadError": "Failed to load bookings",
+        "confirmed": "Booking confirmed",
+        "confirmError": "Failed to confirm booking",
+        "completed": "Booking completed",
+        "completeError": "Failed to complete booking",
+        "cancelled": "Booking cancelled",
+        "cancelError": "Failed to cancel booking",
+        "deleted": "Booking deleted",
+        "notFound": "Booking not found or already deleted",
+        "unauthorized": "Not authorized to delete this booking",
+        "deleteError": "Failed to delete booking"
+      }
     }
   },
   "marketing": {
-    "title": "Marketing"
+    "title": "Marketing",
+    "hub": "Marketing Hub",
+    "campaignBuilder": "Campaign Builder",
+    "campaignBuilderDesc": "Create powerful campaigns with live preview - Email, Popup, SMS & WhatsApp",
+    "newEmail": "New Email",
+    "newPopup": "New Popup",
+    "newSMS": "New SMS",
+    "whatsapp": "WhatsApp",
+    "askQuestion": "Ask Question",
+    "campaigns": "Campaigns",
+    "quickLinks": "Quick Links",
+    "analytics": "Analytics",
+    "analyticsComingSoon": "Analytics coming soon...",
+    "noCampaigns": "No campaigns yet. Create your first one!",
+    "stats": {
+      "totalSent": "Total Sent",
+      "totalOpens": "Total Opens",
+      "avgOpenRate": "Avg Open Rate",
+      "activeCampaigns": "Active Campaigns"
+    },
+    "columns": {
+      "campaign": "Campaign",
+      "type": "Type",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "actions": {
+      "send": "Send",
+      "edit": "Edit",
+      "duplicate": "Duplicate"
+    },
+    "deleteConfirm": "Delete this campaign?",
+    "sendModal": {
+      "title": "Send Campaign: {{name}}",
+      "description": "Select customers to send this campaign to. You can select multiple customers.",
+      "sendButton": "Send to {{count}} Customer(s)",
+      "cancelButton": "Cancel",
+      "noCustomerWarning": "Please select at least one customer",
+      "sent": "Campaign sent to {{count}} customer(s)",
+      "sendError": "Failed to send campaign",
+      "loadError": "Failed to load customers",
+      "pagination": {
+        "showTotal": "{{start}}-{{end}} of {{total}} customers"
+      }
+    },
+    "form": {
+      "campaignName": "Campaign Name",
+      "targetAudience": "Target Audience",
+      "livePreview": "Live Preview",
+      "cancel": "Cancel",
+      "create": "Create Campaign",
+      "update": "Update Campaign",
+      "saved": "Campaign created successfully",
+      "updated": "Campaign updated successfully",
+      "saveError": "Failed to save campaign",
+      "deleted": "Campaign deleted",
+      "deleteError": "Failed to delete campaign"
+    }
   },
   "events": {
     "title": "Community Events",
@@ -676,7 +956,86 @@
       "forms": "Forms",
       "links": "Links",
       "submissions": "Submissions",
-      "registrations": "Registrations"
+      "registrations": "Registrations",
+      "myForms": "My Forms",
+      "shareableLinks": "Shareable Links",
+      "formAnswers": "Form Answers"
+    },
+    "forms": {
+      "heading": "Your Forms",
+      "headingDesc": "Create custom forms for applications, waivers, surveys, and feedback",
+      "createNew": "Create New Form",
+      "createFirst": "Create Your First Form",
+      "noForms": "No forms yet",
+      "noFormsDesc": "Create your first form to collect applications, feedback, or waivers",
+      "deleteConfirm": "Delete this form?",
+      "deleteDesc": "This will also delete all submissions.",
+      "deleteOk": "Delete",
+      "edit": "Edit",
+      "preview": "Preview",
+      "copy": "Copy",
+      "getLink": "Get Link",
+      "sharedAt": "Shared at:",
+      "responses": "{{count}} response",
+      "responsesPlural": "{{count}} responses",
+      "statusActive": "Active",
+      "statusDraft": "Draft"
+    },
+    "links": {
+      "heading": "Shareable Links",
+      "headingDesc": "Direct booking and registration links for your services",
+      "createLink": "Create Link",
+      "refresh": "Refresh",
+      "linkName": "Link Name",
+      "url": "URL",
+      "type": "Type",
+      "typeForm": "Form",
+      "typeServiceBuy": "Service Buy",
+      "typeService": "Service",
+      "typeRegistration": "Registration",
+      "status": "Status",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "uses": "Uses",
+      "expires": "Expires",
+      "never": "Never",
+      "actions": "Actions",
+      "edit": "Edit",
+      "copy": "Copy",
+      "open": "Open",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this link?",
+      "noLinks": "No links yet. Create one to share with customers.",
+      "createFirstLink": "Create Your First Link"
+    },
+    "registrations": {
+      "heading": "Link Registrations",
+      "headingDesc": "Service registrations from your shareable links",
+      "refresh": "Refresh",
+      "customer": "Customer",
+      "service": "Service",
+      "general": "General",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions",
+      "pending": "Pending",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "noRegistrations": "No registrations yet. Share your links to receive sign-ups."
+    },
+    "formAnswers": {
+      "submittedBy": "Submitted By",
+      "form": "Form",
+      "unknownForm": "Unknown Form",
+      "status": "Status",
+      "date": "Date",
+      "actions": "Actions",
+      "view": "View",
+      "delete": "Delete",
+      "createUser": "Create User",
+      "filterByForm": "Filter by form",
+      "allForms": "All Forms",
+      "noSubmissions": "No submissions yet"
     }
   },
   "services": {
@@ -747,5 +1106,868 @@
   },
   "errors": {
     "loadFailed": "Failed to load data. Please try again."
+  },
+  "payments": {
+    "earningsBreakdown": "Earnings Breakdown",
+    "managerCommission": "Manager Commission",
+    "instructorEarnings": "Instructor Earnings",
+    "totalEarned": "Total Earned",
+    "paymentSummary": "Payment Summary",
+    "totalPaidOut": "Total Paid Out",
+    "balanceOwed": "Balance Owed",
+    "paymentHistory": "Payment History",
+    "noPayments": "No payments recorded yet",
+    "pay": "Pay",
+    "deduct": "Deduct",
+    "paymentType": "Payment",
+    "deductionType": "Deduction",
+    "editPayment": "Edit Payment",
+    "recordPayment": "Record Payment — {{name}}",
+    "recordDeduction": "Record Deduction — {{name}}",
+    "columns": {
+      "date": "Date",
+      "amount": "Amount",
+      "type": "Type",
+      "method": "Method",
+      "notes": "Notes"
+    },
+    "form": {
+      "amount": "Amount (€)",
+      "date": "Date",
+      "paymentMethod": "Payment Method",
+      "notes": "Notes",
+      "methods": {
+        "cash": "Cash",
+        "bank_transfer": "Bank Transfer",
+        "check": "Check",
+        "other": "Other"
+      },
+      "notesPlaceholder": "Optional notes...",
+      "validation": {
+        "enterAmount": "Enter amount",
+        "mustBePositive": "Must be > 0",
+        "selectDate": "Select date"
+      }
+    },
+    "actions": {
+      "update": "Update",
+      "recordPayment": "Record Payment",
+      "recordDeduction": "Record Deduction",
+      "deletePayment": "Delete this payment?"
+    },
+    "messages": {
+      "updated": "Payment updated",
+      "deductionRecorded": "Deduction recorded",
+      "paymentRecorded": "Payment recorded",
+      "deleted": "Payment deleted",
+      "saveFailed": "Failed to save payment",
+      "deleteFailed": "Failed to delete payment"
+    }
+  },
+  "financePages": {
+    "rangeLabel": "{{start}} – {{end}}",
+    "to": "to",
+    "refresh": "Refresh",
+    "lessons": {
+      "title": "Lesson Finance",
+      "tag": "Lessons",
+      "subtitle": "Lesson & Booking Revenue · {{range}}",
+      "analyticsTitle": "Lesson Revenue Analytics",
+      "stats": {
+        "lessonRevenue": "Lesson Revenue",
+        "totalBookings": "Total Bookings",
+        "instructorCommissions": "Instructor Commissions",
+        "netLessonRevenue": "Net Lesson Revenue"
+      }
+    },
+    "rentals": {
+      "title": "Rental Finance",
+      "tag": "Rental",
+      "subtitle": "Equipment Rental Revenue · {{range}}",
+      "analyticsTitle": "Rental Revenue Analytics",
+      "stats": {
+        "rentalRevenue": "Rental Revenue",
+        "totalRentals": "Total Rentals",
+        "avgRentalValue": "Avg Rental Value",
+        "outstanding": "Outstanding"
+      }
+    },
+    "membership": {
+      "title": "Membership Finance",
+      "tag": "Membership",
+      "subtitle": "Membership Sales & Revenue · {{range}}",
+      "analyticsTitle": "Membership Revenue Analytics",
+      "stats": {
+        "membershipRevenue": "Membership Revenue",
+        "totalPurchases": "Total Purchases",
+        "avgMembershipValue": "Avg Membership Value",
+        "outstanding": "Outstanding"
+      }
+    },
+    "shop": {
+      "title": "Shop Finance",
+      "tag": "Shop",
+      "subtitle": "Product & Merchandise Sales · {{range}}",
+      "transactionsTitle": "Shop Transactions",
+      "stats": {
+        "totalRevenue": "Total Revenue",
+        "totalOrders": "Total Orders",
+        "costOfGoods": "Cost of Goods",
+        "netProfit": "Net Profit"
+      }
+    },
+    "accommodation": {
+      "title": "Accommodation Finance",
+      "tag": "Stay",
+      "subtitle": "Accommodation & Stay Revenue · {{range}}",
+      "stats": {
+        "accommodationRevenue": "Accommodation Revenue",
+        "totalBookings": "Total Bookings",
+        "totalNights": "Total Nights",
+        "avgRatePerNight": "Avg. Rate/Night"
+      }
+    },
+    "events": {
+      "title": "Events Finance",
+      "tag": "Community",
+      "subtitle": "Event Tickets & Registration Revenue · {{range}}",
+      "stats": {
+        "eventRevenue": "Event Revenue",
+        "totalEvents": "Total Events",
+        "totalRegistrations": "Total Registrations",
+        "avgTicketPrice": "Avg. Ticket Price"
+      }
+    },
+    "paymentHistory": {
+      "title": "Payment History",
+      "tag": "All Payments",
+      "subtitle": "All Wallet Transactions · {{range}}",
+      "stats": {
+        "totalIncome": "Total Income",
+        "totalCharges": "Total Charges",
+        "netAmount": "Net Amount",
+        "transactions": "Transactions"
+      },
+      "allTransactions": "All Transactions"
+    },
+    "walletDeposits": {
+      "title": "Wallet Deposits",
+      "tag": "Credits",
+      "subtitle": "Wallet Credit & Deposit Activity · {{range}}",
+      "stats": {
+        "totalDeposited": "Total Deposited",
+        "depositCount": "Deposit Count",
+        "uniqueStudents": "Unique Students",
+        "avgDeposit": "Avg. Deposit"
+      }
+    },
+    "paymentRefunds": {
+      "title": "Payment Refunds",
+      "subtitle": "Manage Iyzico card payment refunds",
+      "tabs": {
+        "refundable": "Refundable Payments",
+        "history": "Refund History"
+      },
+      "columns": {
+        "date": "Date",
+        "customer": "Customer",
+        "amount": "Amount",
+        "paymentId": "Payment ID",
+        "action": "Action",
+        "type": "Type",
+        "reason": "Reason",
+        "processedBy": "Processed By"
+      },
+      "refundTypes": {
+        "partial": "Partial",
+        "full": "Full"
+      },
+      "search": {
+        "placeholder": "Filter by User ID",
+        "button": "Search"
+      },
+      "refundModal": {
+        "title": "Process Refund",
+        "customer": "Customer",
+        "originalPayment": "Original Payment",
+        "refundAmount": "Refund Amount",
+        "reason": "Reason (Optional)",
+        "reasonPlaceholder": "Enter reason for refund...",
+        "partialRefundNote": "This will be a partial refund",
+        "confirmTitle": "Confirm Refund",
+        "confirmContent": "Are you sure you want to refund this payment?",
+        "partialRefundTag": "Partial Refund",
+        "cardRefundNote": "The refund will be processed through Iyzico and returned to the customer's original payment method. This may take 3-10 business days to appear on their statement.",
+        "processButton": "Process Refund",
+        "cancel": "Cancel"
+      },
+      "pagination": {
+        "total": "Total {{count}} transactions"
+      },
+      "empty": {
+        "noRefundable": "No refundable Iyzico payments found",
+        "noHistory": "No refunds processed yet"
+      },
+      "messages": {
+        "loadRefundableError": "Failed to load refundable transactions",
+        "loadHistoryError": "Failed to load refund history",
+        "partialSuccess": "Partial refund processed successfully",
+        "fullSuccess": "Full refund processed successfully",
+        "refundFailed": "Refund failed"
+      }
+    },
+    "bankAccounts": {
+      "loadError": "Failed to load bank accounts",
+      "title": "Bank Accounts",
+      "subtitle": "Manage bank accounts that students can transfer funds to",
+      "noBankAccounts": "No bank accounts configured yet. Add one so students can make bank transfer deposits.",
+      "refresh": "Refresh",
+      "addAccount": "Add Account",
+      "columns": {
+        "bank": "Bank",
+        "ibanAccount": "IBAN / Account",
+        "currency": "Currency",
+        "swift": "SWIFT",
+        "primary": "Primary",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "statusLabels": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "actions": {
+        "edit": "Edit",
+        "disable": "Disable",
+        "enable": "Enable",
+        "cancel": "Cancel",
+        "update": "Update",
+        "create": "Create"
+      },
+      "modal": {
+        "addTitle": "Add Bank Account",
+        "editTitle": "Edit Bank Account",
+        "fields": {
+          "bankName": "Bank Name",
+          "accountHolder": "Account Holder",
+          "iban": "IBAN",
+          "currency": "Currency",
+          "swift": "SWIFT / BIC Code",
+          "accountNumber": "Account Number",
+          "routingNumber": "Routing Number",
+          "instructions": "Transfer Instructions",
+          "isActive": "Active",
+          "isPrimary": "Primary",
+          "displayOrder": "Display Order"
+        },
+        "placeholders": {
+          "bankName": "e.g. Ziraat Bankasi, Deutsche Bank",
+          "accountHolder": "Account holder full name",
+          "iban": "TR00 0000 0000 0000 0000 00",
+          "swift": "e.g. TCZBTR2A",
+          "accountNumber": "Optional account number",
+          "routingNumber": "For US banks (optional)",
+          "instructions": "Special instructions for students (optional)"
+        },
+        "validation": {
+          "bankNameRequired": "Bank name is required",
+          "accountHolderRequired": "Account holder name is required",
+          "ibanRequired": "IBAN is required"
+        }
+      },
+      "messages": {
+        "updated": "Bank account updated",
+        "created": "Bank account created",
+        "saveFailed": "Failed to save bank account",
+        "statusUpdated": "Bank account {{status}}",
+        "statusFailed": "Failed to update bank account status",
+        "copied": "Copied to clipboard",
+        "copyTooltip": "Copy"
+      }
+    },
+    "settings": {
+      "title": "Finance Settings",
+      "subtitle": "View resolved settings by context; editing UI can be added here later.",
+      "hideForm": "Hide Form",
+      "editSettings": "Edit Settings"
+    }
+  },
+  "equipmentPage": {
+    "title": "Equipment & Gear",
+    "subtitle": "Track and manage all equipment inventory. Monitor availability, condition, and maintenance schedules.",
+    "addEquipment": "Add Equipment",
+    "refresh": "Refresh",
+    "backToList": "Back to List",
+    "loading": "Loading equipment data...",
+    "tryAgain": "Try again",
+    "list": {
+      "searchPlaceholder": "Search equipment...",
+      "allTypes": "All Equipment Types",
+      "allSizes": "All Sizes",
+      "columns": {
+        "equipment": "Equipment",
+        "type": "Type",
+        "sizeSpecs": "Size/Specs",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "view": "View",
+      "edit": "Edit"
+    },
+    "detail": {
+      "brand": "Brand",
+      "type": "Type",
+      "size": "Size",
+      "specifications": "Specifications",
+      "windRange": "Wind Range",
+      "windRangeValue": "{{low}} - {{high}} knots",
+      "serialNumber": "Serial Number",
+      "purchaseDate": "Purchase Date",
+      "maintenanceHistory": "Maintenance History",
+      "noMaintenance": "No maintenance history available",
+      "backToList": "Back to List",
+      "editEquipment": "Edit Equipment"
+    },
+    "form": {
+      "addTitle": "Add New Equipment",
+      "editTitle": "Edit Equipment",
+      "fields": {
+        "name": "Equipment Name *",
+        "brand": "Brand *",
+        "type": "Equipment Type *",
+        "size": "Size *",
+        "windRange": "Wind Range (Knots) *",
+        "windMin": "Min",
+        "windMax": "Max",
+        "status": "Status *",
+        "serialNumber": "Serial Number *",
+        "purchaseDate": "Purchase Date *",
+        "notes": "Notes"
+      },
+      "status": {
+        "available": "Available",
+        "inUse": "In Use",
+        "maintenance": "Maintenance",
+        "retired": "Retired"
+      },
+      "validation": {
+        "nameRequired": "Name is required",
+        "brandRequired": "Brand is required",
+        "typeRequired": "Type is required",
+        "sizeRequired": "Size is required",
+        "statusRequired": "Status is required",
+        "serialRequired": "Serial number is required",
+        "purchaseDateRequired": "Purchase date is required",
+        "required": "Required"
+      },
+      "cancel": "Cancel",
+      "addButton": "Add Equipment",
+      "saveButton": "Save Changes"
+    }
+  },
+  "rentalsPage": {
+    "newRental": "New Rental",
+    "tabs": {
+      "requests": "Rental Requests",
+      "recent": "Recent Rentals",
+      "total": "Total Rentals"
+    },
+    "columns": {
+      "customer": "Customer",
+      "equipment": "Equipment",
+      "date": "Date",
+      "price": "Price",
+      "status": "Status",
+      "student": "Student",
+      "service": "Service",
+      "period": "Period",
+      "amount": "Amount",
+      "notes": "Notes",
+      "actions": "Actions"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "confirmed": "Approved",
+      "cancelled": "Declined",
+      "completed": "Completed",
+      "noShow": "No Show"
+    },
+    "filters": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed"
+    },
+    "actions": {
+      "edit": "Edit",
+      "complete": "Complete",
+      "approve": "Approve",
+      "reject": "Reject",
+      "deleteConfirm": "Delete?"
+    },
+    "tooltips": {
+      "approve": "Approve",
+      "decline": "Decline",
+      "markCompleted": "Mark Completed"
+    },
+    "confirm": {
+      "declineTitle": "Decline this rental request?",
+      "declineDescription": "The student will be notified and any charged amount will be refunded.",
+      "declineOk": "Decline",
+      "declineCancel": "Keep"
+    },
+    "empty": {
+      "noRentals": "No rentals found",
+      "noRequests": "No rental booking requests found"
+    },
+    "pagination": {
+      "requests": "of ${total} rental requests",
+      "recent": "of ${total} recent rentals",
+      "total": "of ${total} total rentals"
+    },
+    "messages": {
+      "loadError": "Failed to load rental data",
+      "requestsError": "Failed to load rental requests",
+      "approved": "approved",
+      "declined": "declined",
+      "updateStatusError": "Failed to update booking status",
+      "rentalApproved": "Rental approved successfully",
+      "rentalDeclined": "Rental declined successfully",
+      "rentalStatusError": "Failed to {{action}} rental",
+      "statusChanged": "Rental {{status}} successfully",
+      "statusChangeError": "Failed to update rental status",
+      "deleted": "Rental deleted successfully",
+      "deleteError": "Failed to delete rental"
+    }
+  },
+  "dailyOperations": {
+    "title": "Daily Operations",
+    "todayTag": "Today",
+    "todayButton": "Today",
+    "refresh": "Refresh",
+    "stats": {
+      "totalIncome": "Total Income",
+      "netRevenue": "Net Revenue",
+      "transactions": "Transactions",
+      "rentals": "{{active}} active / {{total}} total"
+    },
+    "paymentHistoryCard": {
+      "incomeCount": "{{count}} income transactions"
+    },
+    "rentalsCard": {
+      "count": "{{count}} rentals"
+    },
+    "empty": {
+      "noTransactions": "No income transactions for this day",
+      "noRentals": "No rentals for this day"
+    },
+    "columns": {
+      "time": "Time",
+      "description": "Description",
+      "type": "Type",
+      "reference": "Reference",
+      "amount": "Amount",
+      "customer": "Customer",
+      "status": "Status",
+      "payment": "Payment",
+      "price": "Price",
+      "paidToday": "Paid Today"
+    },
+    "error": "Failed to load data: {{message}}"
+  },
+  "reportsCenter": {
+    "title": "Reports Center",
+    "generateReport": "Generate Report",
+    "generateShort": "Generate",
+    "scheduleReport": "Schedule Report",
+    "scheduleShort": "Schedule",
+    "availableReports": "Available Reports",
+    "scheduledReports": "Scheduled Reports",
+    "reportHistory": "Report History",
+    "generate": "Generate",
+    "updateSchedule": "Update Schedule",
+    "cancel": "Cancel",
+    "download": "Download",
+    "preview": "Preview",
+    "runNow": "Run Now",
+    "edit": "Edit",
+    "delete": "Delete",
+    "recipients": "{{count}} recipients",
+    "notScheduled": "Not scheduled",
+    "reportTypes": {
+      "financial-summary": "Financial Summary",
+      "revenue-analytics": "Revenue Analytics",
+      "customer-analytics": "Customer Analytics",
+      "operational-metrics": "Operational Metrics",
+      "instructor-performance": "Instructor Performance",
+      "outstanding-balances": "Outstanding Balances",
+      "inventory-valuation": "Inventory Valuation",
+      "tax-report": "Tax Report"
+    },
+    "reportDescriptions": {
+      "financial-summary": "Complete financial overview with revenue, expenses, and profit analysis",
+      "revenue-analytics": "Detailed revenue analysis with trends and forecasting",
+      "customer-analytics": "Customer behavior, CLV, and segmentation analysis",
+      "operational-metrics": "Efficiency, utilization, and performance metrics",
+      "instructor-performance": "Individual instructor metrics and commissions",
+      "outstanding-balances": "Customer debt and credit analysis",
+      "inventory-valuation": "Equipment and inventory financial analysis",
+      "tax-report": "Tax-ready financial statements and summaries"
+    },
+    "columns": {
+      "reportName": "Report Name",
+      "frequency": "Frequency",
+      "format": "Format",
+      "recipients": "Recipients",
+      "nextRun": "Next Run",
+      "status": "Status",
+      "actions": "Actions",
+      "report": "Report",
+      "generated": "Generated",
+      "period": "Period",
+      "size": "Size"
+    },
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly ({{day}})",
+      "monthly": "Monthly ({{day}}th)",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly"
+    },
+    "switchStatus": {
+      "active": "Active",
+      "paused": "Paused"
+    },
+    "form": {
+      "reportType": "Report Type",
+      "dateRange": "Date Range",
+      "format": "Format",
+      "includeCharts": "Include Charts",
+      "includeDetails": "Include Details",
+      "reportName": "Report Name",
+      "time": "Time",
+      "emailRecipients": "Email Recipients",
+      "recipientsPlaceholder": "Enter email addresses separated by commas",
+      "selectReportType": "Select report type",
+      "selectFormat": "Select format",
+      "selectFrequency": "Select frequency",
+      "enterReportName": "Enter report name",
+      "validation": {
+        "selectReportType": "Please select a report type",
+        "selectDateRange": "Please select date range",
+        "selectFormat": "Please select format",
+        "enterName": "Please enter report name",
+        "selectTime": "Please select time",
+        "enterRecipients": "Please enter email recipients",
+        "selectFrequency": "Please select frequency"
+      }
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} of {{total}} reports"
+    },
+    "messages": {
+      "generated": "Report generated successfully",
+      "generateError": "Failed to generate report",
+      "scheduled": "Report scheduled successfully",
+      "scheduleError": "Failed to schedule report",
+      "activated": "Report activated",
+      "paused": "Report paused",
+      "toggleError": "Failed to update report schedule",
+      "deleted": "Scheduled report deleted",
+      "deleteError": "Failed to delete scheduled report",
+      "downloadError": "Failed to download report",
+      "runStarted": "Report generation started",
+      "runError": "Failed to run report",
+      "previewComingSoon": "Preview functionality coming soon"
+    }
+  },
+  "transactionHistory": {
+    "searchPlaceholder": "Search transactions...",
+    "detailsTitle": "Transaction Details",
+    "systemAuto": "System auto",
+    "columns": {
+      "date": "Date",
+      "type": "Type",
+      "description": "Description",
+      "customer": "Customer",
+      "amount": "Amount",
+      "createdBy": "Created By"
+    },
+    "detail": {
+      "date": "Date",
+      "amount": "Amount",
+      "customer": "Customer",
+      "status": "Status",
+      "direction": "Direction",
+      "createdBy": "Created By",
+      "description": "Description",
+      "reference": "Reference"
+    },
+    "types": {
+      "manual_credit": "Deposit",
+      "wallet_deposit": "Deposit",
+      "credit": "Credit",
+      "payment": "Payment",
+      "package_purchase": "Package Purchase",
+      "rental_charge": "Rental Charge",
+      "booking_charge": "Booking Charge",
+      "charge": "Charge",
+      "debit": "Debit",
+      "refund": "Refund",
+      "booking_deleted_refund": "Booking Refund",
+      "package_refund": "Package Refund",
+      "wallet_lock": "Wallet Lock",
+      "service_payment": "Service Payment",
+      "rental_payment": "Rental Payment"
+    }
+  },
+  "outstandingBalances": {
+    "title": "Outstanding Balances",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search customers...",
+    "allStatuses": "All Statuses",
+    "positiveBalance": "Positive Balance",
+    "creditBalance": "Credit Balance",
+    "overdue": "Overdue",
+    "recent": "Recent (≤7 days)",
+    "critical": "Critical (>{{symbol}}100, >30 days)",
+    "highestFirst": "Highest First",
+    "lowestFirst": "Lowest First",
+    "sendReminders": "Send Reminders ({{count}})",
+    "export": "Export",
+    "noPhone": "No phone number available",
+    "stats": {
+      "totalOutstanding": "Total Outstanding",
+      "customersWithDebt": "Customers with Debt",
+      "averageDebt": "Average Debt",
+      "criticalCases": "Critical Cases"
+    },
+    "columns": {
+      "customer": "Customer",
+      "outstandingBalance": "Outstanding Balance",
+      "daysOverdue": "Days Overdue",
+      "riskLevel": "Risk Level",
+      "lastPayment": "Last Payment",
+      "totalBookings": "Total Bookings",
+      "actions": "Actions"
+    },
+    "riskLevels": {
+      "none": "NONE",
+      "low": "LOW",
+      "medium": "MEDIUM",
+      "high": "HIGH"
+    },
+    "noPayments": "No payments",
+    "days": "{{count}} days",
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} of {{total}} customers"
+    },
+    "actions": {
+      "recordPayment": "Record Payment",
+      "sendReminder": "Send Reminder",
+      "callCustomer": "Call Customer",
+      "viewProfile": "View Profile"
+    },
+    "paymentModal": {
+      "title": "Record Payment — {{name}}",
+      "amount": "Payment Amount",
+      "date": "Payment Date",
+      "method": "Payment Method",
+      "notes": "Notes",
+      "methods": {
+        "cash": "Cash",
+        "card": "Card",
+        "bank_transfer": "Bank Transfer",
+        "online": "Online Payment",
+        "other": "Other"
+      },
+      "validation": {
+        "enterAmount": "Please enter payment amount",
+        "amountMin": "Amount must be greater than 0",
+        "selectDate": "Please select payment date",
+        "selectMethod": "Please select payment method"
+      },
+      "cancel": "Cancel",
+      "submit": "Record Payment"
+    },
+    "messages": {
+      "loadError": "Failed to load outstanding balances",
+      "paymentRecorded": "Payment recorded successfully",
+      "paymentError": "Failed to record payment",
+      "reminderSent": "Reminder email sent",
+      "reminderError": "Failed to send reminder email",
+      "bulkReminderSent": "Reminder emails sent to {{count}} customers",
+      "bulkReminderError": "Failed to send reminder emails",
+      "exportSuccess": "Data exported successfully",
+      "exportError": "Failed to export data",
+      "selectCustomers": "Please select customers to email"
+    }
+  },
+  "rentalsCalendar": {
+    "today": "Today",
+    "close": "Close",
+    "noRentalsDay": "No rentals for this day",
+    "noRentals": "No rentals",
+    "rentalCount": "{{count}} rental",
+    "rentalCountPlural": "{{count}} rentals",
+    "moreRentals": "+{{count}} more",
+    "unknownCustomer": "Unknown Customer",
+    "rentalService": "Rental Service"
+  },
+  "newRentalDrawer": {
+    "titleNew": "New Rental",
+    "titleEdit": "Edit Rental",
+    "sectionCustomer": "Customer",
+    "sectionEquipment": "Equipment",
+    "sectionPackage": "Included in Package",
+    "single": "Single",
+    "multiple": "Multiple",
+    "multipleDisabled": "Not available when editing",
+    "searchCustomer": "Search customer name or email",
+    "selectCustomers": "Select customers",
+    "addEquipment": "Add rental equipment",
+    "equipmentSummary": {
+      "item": "item",
+      "items": "items"
+    },
+    "usingPackage": "Using Package",
+    "usePackage": "Use rental days from an active package",
+    "packageDaysLeft": "{{count}}d left",
+    "packageDayDeducted": "1 rental day will be deducted — no wallet charge.",
+    "checkingPackages": "Checking packages…",
+    "selectPackage": "Select a package",
+    "fields": {
+      "rentalDate": "Rental date",
+      "status": "Status",
+      "totalPrice": "Total price",
+      "totalPriceTooltip": "Override the calculated rental price",
+      "notes": "Notes",
+      "notesPlaceholder": "Handover notes, customer preferences…"
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "placeholders": {
+      "chooseDate": "Choose date",
+      "status": "Status",
+      "price": "e.g. 100.00"
+    },
+    "noCustomers": "No customers available",
+    "noEquipment": "No rental services available",
+    "cancel": "Cancel",
+    "createRental": "Create Rental",
+    "updateRental": "Update Rental",
+    "validation": {
+      "selectCustomer": "Please select a customer",
+      "selectCustomers": "Select at least one customer",
+      "selectEquipment": "Select at least one rental service",
+      "selectDate": "Please select a date",
+      "selectStatus": "Required"
+    },
+    "messages": {
+      "selectCustomerWarning": "Please select a customer",
+      "selectCustomersWarning": "Select at least one customer",
+      "createdMultiple": "Created {{count}} rental",
+      "createdMultiplePlural": "Created {{count}} rentals",
+      "updated": "Rental updated successfully",
+      "created": "Rental created successfully",
+      "saveError": "Failed to save rental: {{error}}",
+      "saveErrorGeneric": "Failed to save rental"
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "searchPlaceholder": "Search customers...",
+    "addCustomer": "Add Customer",
+    "loadFailed": "Failed to load customers",
+    "noCustomers": "No customers found",
+    "notFound": "No customers found",
+    "newCustomer": "New Customer",
+    "loadMore": "Load more",
+    "allLoaded": "All loaded",
+    "pageSize": "Page size:",
+    "columns": {
+      "name": "Name",
+      "role": "Role",
+      "email": "Email",
+      "phone": "Phone",
+      "balance": "Balance",
+      "paymentStatus": "Payment Status",
+      "actions": "Actions"
+    },
+    "roles": {
+      "student": "Student",
+      "outsider": "Outsider",
+      "trusted": "Trusted"
+    },
+    "paymentStatus": {
+      "paid": "Paid",
+      "package": "Package",
+      "partial": "Partial",
+      "pending": "Pending",
+      "overdue": "Overdue",
+      "loading": "Loading...",
+      "timeout": "Refresh needed",
+      "error": "Error",
+      "na": "N/A"
+    },
+    "balanceFilter": {
+      "all": "All",
+      "negative": "< 0",
+      "zero": "= 0",
+      "positive": "> 0"
+    },
+    "actions": {
+      "editCustomer": "Edit Customer",
+      "deleteCustomer": "Delete Customer",
+      "edit": "Edit Customer",
+      "delete": "Delete Customer"
+    },
+    "detail": {
+      "nav": {
+        "profile": "Profile",
+        "packages": "Packages",
+        "bookings": "Bookings",
+        "rentals": "Rentals",
+        "accommodation": "Accommodation",
+        "shop": "Shop",
+        "memberships": "Memberships",
+        "financial": "Financial"
+      },
+      "sectionDesc": {
+        "profile": "Contact information and quick highlights",
+        "packages": "Assigned lesson packages",
+        "bookings": "Lesson history and scheduling",
+        "rentals": "Equipment rental history",
+        "accommodation": "Stay and accommodation booking history",
+        "financial": "Transactions, balance, and wallet management",
+        "shop": "Shop order history",
+        "memberships": "Membership purchases"
+      }
+    }
+  },
+  "popups": {
+    "title": "Popups",
+    "chooseTemplate": "Choose a Template",
+    "chooseTemplateDesc": "Select a pre-built template to get started quickly. You can customize all aspects after selecting.",
+    "useTemplate": "Use Template",
+    "templates": {
+      "title": "Popup Templates",
+      "selectTemplate": "Select Template",
+      "preview": "Preview",
+      "welcome": {
+        "name": "Welcome Message",
+        "description": "Simple welcome popup for new users"
+      },
+      "featureAnnouncement": {
+        "name": "Feature Announcement",
+        "description": "Announce new features and updates"
+      },
+      "categories": {
+        "onboarding": "Onboarding",
+        "marketing": "Marketing"
+      }
+    }
   }
 }

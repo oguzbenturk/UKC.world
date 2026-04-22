@@ -16,6 +16,9 @@
       "title": "Merci pour votre avis !",
       "description": "Votre évaluation nous aide à améliorer votre expérience."
     },
+    "bookingRedirect": {
+      "openingBooking": "Ouverture de la réservation..."
+    },
     "nextLesson": {
       "label": "Prochaine leçon",
       "comingSoon": "Bientôt",
@@ -47,7 +50,11 @@
       "visitLessons": "Voir les leçons",
       "visitRentals": "Voir les locations",
       "visitShop": "Visiter la boutique",
-      "visitMyLessons": "Mes leçons"
+      "visitMyLessons": "Mes leçons",
+      "myWallet": "Mon portefeuille",
+      "talkToKai": "Parler à Kai",
+      "close": "Fermer",
+      "quickActions": "Actions rapides"
     },
     "statsStrip": {
       "lessons": "Leçons",
@@ -511,7 +518,43 @@
     "exportSuccess": "Liste des membres de famille téléchargée",
     "exportError": "Impossible d'exporter les membres de famille",
     "waiverSigned": "La décharge de {{name}} a été signée",
-    "waiverSignedGeneric": "Décharge signée avec succès"
+    "waiverSignedGeneric": "Décharge signée avec succès",
+    "activity": {
+      "drawerTitle": "Activité de {{name}}",
+      "drawerTitleGeneric": "Activité familiale",
+      "refreshButton": "Actualiser",
+      "resetFilters": "Réinitialiser les filtres",
+      "loadOlder": "Charger les activités plus anciennes",
+      "noActivity": "Aucune activité enregistrée",
+      "fetching": "Chargement de l'activité...",
+      "loadError": "Impossible de charger l'activité",
+      "unknownDate": "Inconnu",
+      "typeFilters": {
+        "all": "Tout",
+        "booking": "Réservations",
+        "rental": "Locations",
+        "waiver": "Décharges",
+        "audit": "Admin"
+      },
+      "metadata": {
+        "service": "Service :",
+        "instructor": "Instructeur :",
+        "starts": "Début :",
+        "ends": "Fin :",
+        "location": "Lieu :",
+        "notes": "Notes :",
+        "from": "De :",
+        "until": "Jusqu'au :",
+        "signed": "Signé :",
+        "signedBy": "Signé par :",
+        "event": "Événement :",
+        "resource": "Ressource :",
+        "actor": "Acteur :",
+        "details": "Détails :",
+        "agreedToTerms": "Conditions acceptées",
+        "photoConsent": "Consentement photo"
+      }
+    }
   },
   "support": {
     "stats": {
@@ -579,6 +622,25 @@
     "notifications": {
       "requestSent": "Demande de support envoyée",
       "sendError": "Impossible d'envoyer la demande"
+    },
+    "ticketDetail": {
+      "statusLabels": {
+        "open": "Ouvert",
+        "in_progress": "En cours",
+        "resolved": "Résolu",
+        "closed": "Fermé",
+        "pending": "En attente"
+      },
+      "timeline": {
+        "ticketOpened": "Ticket ouvert",
+        "beingReviewed": "En cours d'examen",
+        "resolved": "Résolu",
+        "openedOn": "Ouvert le {{date}}"
+      },
+      "yourMessage": "Votre message",
+      "noMessage": "Aucun message fourni.",
+      "statusTimeline": "Chronologie du statut",
+      "teamReplies": "Réponses de l'équipe"
     }
   },
   "ratingModal": {
@@ -614,6 +676,14 @@
       "great": "Super",
       "amazing": "Incroyable !"
     }
+  },
+  "ratingBanner": {
+    "needsRating": "À noter",
+    "rateNow": "Noter maintenant",
+    "rateFirstLesson": "Noter le premier cours",
+    "lessonsToRate_one": "Vous avez {{count}} cours à noter",
+    "lessonsToRate_other": "Vous avez {{count}} cours à noter",
+    "shareExperience": "Partagez votre expérience pour aider les autres"
   },
   "layout": {
     "portalDisabled": {
@@ -796,7 +866,697 @@
       "loading": "Chargement du résumé des avis..."
     },
     "achievements": {
-      "modalTitle": "Succès débloqué !"
+      "modalTitle": "Succès débloqué !",
+      "yourAchievements": "Mes succès",
+      "noAchievements": "Aucun succès pour l'instant",
+      "noAchievementsDesc": "Complétez des cours et envoyez des avis pour gagner des succès !",
+      "earnedOn": "Obtenu le {{date}}"
+    },
+    "page": {
+      "title": "Avis & Retours",
+      "subtitleInstructor": "Consultez vos performances d'enseignement et les avis des élèves",
+      "subtitleStudent": "Envoyez des avis et suivez vos succès",
+      "subtitleAdmin": "Gérez les avis et retours sur la plateforme",
+      "tabs": {
+        "recentFeedback": "Avis récents",
+        "overview": "Vue d'ensemble",
+        "achievements": "Succès",
+        "submitFeedback": "Envoyer un avis"
+      },
+      "submitHeading": "Soumettre un avis de cours",
+      "welcomeHeading": "Bienvenue dans les avis",
+      "welcomeBody": "Utilisez cette section pour envoyer des avis après vos cours et suivre votre progression."
+    },
+    "stats": {
+      "averageRating": "Note moyenne",
+      "totalReviews": "Total des avis",
+      "fiveStarReviews": "Avis 5 étoiles"
+    },
+    "list": {
+      "noFeedback": "Aucun avis trouvé",
+      "instructorLabel": "Instructeur : {{name}}",
+      "skillLevel": "Niveau : {{level}}",
+      "progressNotes": "Notes de progression :"
+    }
+  },
+  "friends": {
+    "pageTitle": "Amis",
+    "pageSubtitle": "Gérez vos amis pour créer des réservations de groupe ensemble.",
+    "seoTitle": "Amis • Plannivo",
+    "seoDescription": "Gérez vos amis pour créer des réservations de groupe ensemble.",
+    "findFriends": "Trouver des amis",
+    "searchPlaceholder": "Rechercher par nom ou e-mail...",
+    "usersFound_one": "{{count}} utilisateur trouvé",
+    "usersFound_other": "{{count}} utilisateurs trouvés",
+    "noUsersFound": "Aucun utilisateur trouvé correspondant à votre recherche",
+    "tabs": {
+      "friends": "Amis",
+      "requests": "Demandes",
+      "sent": "Envoyées"
+    },
+    "emptyFriends": "Vous n'avez pas encore d'amis",
+    "emptyFriendsHint": "Recherchez des utilisateurs ci-dessus pour envoyer des demandes d'amitié",
+    "noPendingRequests": "Aucune demande d'amitié en attente",
+    "noSentRequests": "Aucune demande envoyée",
+    "tooltips": {
+      "removeFriend": "Supprimer l'ami",
+      "blockUser": "Bloquer l'utilisateur",
+      "cancelRequest": "Annuler la demande"
+    },
+    "buttons": {
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "cancel": "Annuler",
+      "addFriend": "Ajouter un ami",
+      "sendRequest": "Envoyer la demande"
+    },
+    "pending": "En attente",
+    "sendRequestModal": {
+      "title": "Envoyer une demande d'amitié",
+      "messageLabel": "Ajouter un message (optionnel) :",
+      "messagePlaceholder": "Bonjour ! J'aimerais me connecter avec vous pour des réservations de groupe..."
+    },
+    "confirmRemove": {
+      "title": "Supprimer l'ami",
+      "content": "Êtes-vous sûr de vouloir supprimer {{name}} de vos amis ?",
+      "okText": "Supprimer",
+      "cancelText": "Annuler"
+    },
+    "confirmBlock": {
+      "title": "Bloquer l'utilisateur",
+      "content": "Êtes-vous sûr de vouloir bloquer {{name}} ? Il ne pourra plus vous envoyer de demandes d'amitié.",
+      "okText": "Bloquer",
+      "cancelText": "Annuler"
+    },
+    "toasts": {
+      "requestSent": "Demande d'amitié envoyée !",
+      "requestSentError": "Échec de l'envoi de la demande",
+      "requestAccepted": "Demande d'amitié acceptée !",
+      "requestAcceptedError": "Échec de l'acceptation de la demande",
+      "requestDeclined": "Demande d'amitié refusée",
+      "requestDeclinedError": "Échec du refus de la demande",
+      "requestCancelled": "Demande d'amitié annulée",
+      "requestCancelledError": "Échec de l'annulation de la demande",
+      "friendRemoved": "Ami supprimé",
+      "friendRemovedError": "Échec de la suppression de l'ami",
+      "userBlocked": "Utilisateur bloqué",
+      "userBlockedError": "Échec du blocage de l'utilisateur",
+      "searchError": "Échec de la recherche d'utilisateurs"
+    }
+  },
+  "bookEquipment": {
+    "seoTitle": "Réserver du matériel | UKC Academy",
+    "seoDescription": "Louez du matériel Duotone et Core de qualité pour votre session de kitesurf. Tout l'équipement est entretenu quotidiennement avec du matériel de sécurité inclus.",
+    "heroTitle": "Location de matériel",
+    "heroBody": "Louez du matériel Duotone et Core premium pour votre session ! Tout l'équipement est entretenu quotidiennement et comprend le matériel de sécurité. Des kits complets aux articles individuels, nous avons tout ce qu'il vous faut.",
+    "bookNowButton": "Réserver du matériel",
+    "bookServiceButton": "Réserver",
+    "whyRentTitle": "Pourquoi louer chez nous ?",
+    "rentalOptionsTitle": "Nos options de location",
+    "pricing": "Tarifs :",
+    "whatsIncluded": "Ce qui est inclus :",
+    "bookPackageButton": "Réserver {{title}}",
+    "availableNowTitle": "Disponible maintenant",
+    "availableNowSubtitle": "Matériel disponible à la réservation",
+    "readyTitle": "Prêt à prendre l'eau ?",
+    "readyBody": "Réservez votre matériel maintenant et profitez d'un équipement premium pour votre session.",
+    "bookEquipmentButton": "Réserver du matériel",
+    "viewMyRentals": "Voir mes locations",
+    "noServicesDesc": "Aucun service de location spécifique configuré. Contactez-nous pour réserver du matériel directement !",
+    "contactForRentals": "Contacter pour les locations"
+  },
+  "walletModal": {
+    "title": "Portefeuille",
+    "close": "Fermer",
+    "availableBalance": "Solde disponible",
+    "totalBalance": "Solde total",
+    "addFunds": "+ Ajouter des fonds",
+    "creditCard": "Carte de crédit",
+    "bankTransfer": "Virement bancaire",
+    "lastTopUp": "Dernier rechargement",
+    "latestActivity": "Dernière activité",
+    "noneYet": "Aucun pour l'instant",
+    "promoCode": "Code promo",
+    "recentTransactions": "Transactions récentes",
+    "lastN": "{{count}} dernières",
+    "loading": "Chargement...",
+    "unableToLoadTransactions": "Impossible de charger les transactions",
+    "noTransactionsYet": "Aucune transaction pour l'instant",
+    "noTransactionsDesc": "Les rechargements et paiements apparaîtront ici",
+    "debit": "Débit",
+    "credit": "Crédit",
+    "overdue": "En retard",
+    "active": "Actif",
+    "available": "disponible",
+    "reserved": "réservé",
+    "depositApproved": "Votre dépôt par virement bancaire a été approuvé !",
+    "depositDeclined": "Votre demande de dépôt par virement bancaire a été refusée.",
+    "depositSuccess": "Dépôt réussi ! Votre portefeuille a été mis à jour.",
+    "bankTransferSubmitted": "Demande de virement bancaire soumise avec succès !"
+  },
+  "bookingTrigger": {
+    "label": "Réserver une leçon",
+    "ariaLabel": "Ouvrir l'assistant de réservation"
+  },
+  "walletTrigger": {
+    "label": "Portefeuille",
+    "ariaLabel": "Ouvrir le portefeuille",
+    "ariaLabelWithBalance": "Ouvrir le portefeuille ({{balance}})"
+  },
+  "cart": {
+    "title": "Panier",
+    "itemCount_one": "{{count}} article",
+    "itemCount_other": "{{count}} articles",
+    "emptyTitle": "Votre panier est vide",
+    "emptyBody": "Explorez notre boutique et trouvez du matériel incroyable pour votre prochaine aventure !",
+    "startShopping": "Commencer les achats",
+    "removeTooltip": "Supprimer",
+    "walletLabel": "Portefeuille",
+    "walletLow": "Solde insuffisant – autres moyens de paiement disponibles",
+    "total": "Total ({{count}} article)",
+    "proceedToCheckout": "Passer à la caisse",
+    "secureCheckout": "Paiement sécurisé",
+    "signInTitle": "Connectez-vous pour payer",
+    "signInMessage": "Créez un compte ou connectez-vous pour finaliser votre achat. Votre panier sera sauvegardé."
+  },
+  "checkout": {
+    "title": "Caisse",
+    "itemCount_one": "{{count}} article",
+    "itemCount_other": "{{count}} articles",
+    "saved": "· -{{amount}} économisés",
+    "delivery": "Livraison",
+    "addDeliveryAddress": "Ajouter une adresse de livraison",
+    "editAddress": "Modifier",
+    "addAddress": "Ajouter",
+    "addressPlaceholder": "Adresse",
+    "cityPlaceholder": "Ville",
+    "zipPlaceholder": "Code postal",
+    "countryPlaceholder": "Pays",
+    "cancelAddress": "Annuler",
+    "saveAddress": "Enregistrer",
+    "saveAddressHint": "Enregistrez votre adresse pour continuer",
+    "addressRequired": "Adresse de livraison requise",
+    "payment": "Paiement",
+    "payNow": "Payer maintenant",
+    "dueOnDelivery": "Dû à la livraison",
+    "payDepositVia": "Payer la caution via",
+    "bankTransferInfo": "Transférez le montant total, téléchargez votre reçu — la commande est confirmée après approbation par l'admin.",
+    "fromWallet": "depuis le portefeuille",
+    "byCard": "par carte",
+    "proceedButton": "Payer {{amount}}",
+    "submitOrderButton": "Soumettre la commande · {{amount}}",
+    "payDepositButton": "Payer la caution {{amount}}",
+    "payWalletCardButton": "Payer avec Portefeuille + Carte",
+    "wallet": {
+      "label": "Portefeuille",
+      "balance": "Solde : {{amount}}",
+      "full": "Complet",
+      "partial": "Partiel",
+      "empty": "Vide"
+    },
+    "bankTransfer": {
+      "label": "Virement bancaire",
+      "sublabel": "Transférer et télécharger le reçu · approbation admin"
+    },
+    "deposit": {
+      "label": "Acompte {{percent}}%",
+      "sublabel": "Payer {{now}} maintenant · reste à la livraison"
+    },
+    "noBankAccounts": "Aucun compte bancaire disponible",
+    "transferTo": "Virement vers · {{currency}}",
+    "bankFields": {
+      "bank": "Banque",
+      "accountHolder": "Titulaire du compte",
+      "iban": "IBAN",
+      "swift": "SWIFT / BIC",
+      "accountNumber": "N° de compte"
+    },
+    "uploadReceipt": "Télécharger le reçu",
+    "changeReceipt": "Changer le reçu",
+    "copy": "Copier",
+    "copied": "Copié",
+    "copiedTooltip": "Copié !",
+    "copyTooltip": "Copier",
+    "confirmOrder": "Confirmer la commande",
+    "confirmDepositOrder": "Confirmer la commande avec acompte",
+    "depositLabel": "Acompte : {{amount}}",
+    "remainingOnDelivery": "Reste à la livraison : {{amount}}",
+    "deliveryTo": "Livraison à : {{address}}",
+    "paymentMethod": "Paiement : {{method}}",
+    "walletFirst": "Votre solde portefeuille de {{walletAmount}} sera utilisé en premier",
+    "remainingByCard": ", et les {{cardAmount}} restants seront débités de votre carte.",
+    "placeOrder": "Passer la commande",
+    "payDepositConfirm": "Payer l'acompte {{amount}}",
+    "goBack": "Retour",
+    "orderSubmitted": "Commande soumise !",
+    "orderPlaced": "Commande passée !",
+    "pendingApproval": "En attente d'approbation — vous serez notifié une fois confirmé.",
+    "thankYou": "Merci pour votre achat !",
+    "continueShopping": "Continuer les achats",
+    "errors": {
+      "incompleteAddress": "Veuillez fournir une adresse de livraison complète avant de passer à la caisse",
+      "insufficientBalance": "Solde portefeuille insuffisant",
+      "depositReceiptRequired": "Veuillez sélectionner un compte bancaire et télécharger votre reçu de dépôt",
+      "paymentReceiptRequired": "Veuillez sélectionner un compte bancaire et télécharger votre reçu de paiement",
+      "uploadReceiptRequired": "Veuillez télécharger une preuve de paiement (reçu)",
+      "uploadFailed": "Échec du téléchargement",
+      "orderFailed": "Impossible de passer la commande",
+      "orderError": "Impossible de traiter votre commande. Veuillez réessayer."
+    },
+    "paymentLabels": {
+      "depositCard": "Acompte {{percent}}% ({{amount}}) par carte",
+      "depositBank": "Acompte {{percent}}% ({{amount}}) par virement",
+      "walletHybrid": "Portefeuille ({{wallet}}) + Carte ({{card}})",
+      "creditCardWallet": "Portefeuille ({{wallet}}) + Carte ({{card}})",
+      "wallet": "Portefeuille",
+      "creditCard": "Carte de crédit",
+      "bankTransferPending": "Virement bancaire (approbation en attente)",
+      "cash": "Espèces à la livraison"
+    }
+  },
+  "profile": {
+    "status": {
+      "active": "Actif",
+      "completed": "Terminé",
+      "returned": "Retourné",
+      "cancelled": "Annulé",
+      "unknown": "Inconnu",
+      "na": "N/A"
+    },
+    "fields": {
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "preferredLanguage": "Langue préférée",
+      "customerSince": "Client depuis",
+      "notProvided": "Non fourni",
+      "notSet": "Non défini",
+      "unknown": "Inconnu",
+      "notes": "Notes"
+    },
+    "account": {
+      "currentBalance": "Solde actuel",
+      "lifetimeValue": "Valeur totale",
+      "lastPayment": "Dernier paiement",
+      "noPaymentsYet": "Aucun paiement"
+    },
+    "stats": {
+      "hoursAttended": "Heures suivies",
+      "attendanceRate": "Taux de présence",
+      "totalLessons": "Total des cours",
+      "totalRentals": "Total des locations"
+    },
+    "packages": {
+      "title": "Résumé du forfait",
+      "viewOnly": "Lecture seule",
+      "none": "Aucun forfait assigné",
+      "generalPackage": "Forfait général",
+      "plusRental": " + Location",
+      "plusAccommodation": " + Hébergement",
+      "expiresOn": "Expire le {{date}}",
+      "totalHours": "Total heures",
+      "used": "Utilisé",
+      "remaining": "Restant",
+      "utilisation": "Utilisation",
+      "totalDays": "Total jours",
+      "equipment": "Équipement",
+      "totalNights": "Total nuits",
+      "unit": "Unité"
+    },
+    "upcomingLessons": {
+      "title": "Cours à venir",
+      "viewOnly": "Lecture seule",
+      "none": "Aucun cours à venir",
+      "scheduled": "Planifié",
+      "instructor": "Instructeur : {{name}}"
+    },
+    "history": {
+      "totalHistory": "Historique total",
+      "lessonHistory": "Historique des cours",
+      "rentalHistory": "Historique des locations",
+      "shopHistory": "Historique boutique",
+      "membershipHistory": "Historique des abonnements",
+      "eventHistory": "Historique des événements",
+      "financialHistory": "Historique financier",
+      "allActivity": "Toutes les activités",
+      "noActivity": "Aucun historique",
+      "noLessons": "Aucun cours",
+      "noRentals": "Aucune location",
+      "noShop": "Aucun achat boutique",
+      "noMemberships": "Aucun abonnement",
+      "noEvents": "Aucune inscription aux événements",
+      "noPayments": "Aucun paiement enregistré",
+      "shopPurchases": "Achats boutique",
+      "membershipPurchases": "Achats abonnements",
+      "eventRegistrations": "Inscriptions aux événements",
+      "columns": {
+        "dateTime": "Date et heure",
+        "service": "Service",
+        "instructor": "Instructeur",
+        "duration": "Durée",
+        "price": "Prix",
+        "status": "Statut",
+        "payment": "Paiement",
+        "equipment": "Équipement",
+        "rentalDate": "Date de location",
+        "date": "Date",
+        "amount": "Montant",
+        "description": "Description",
+        "purchased": "Acheté",
+        "membership": "Abonnement",
+        "expires": "Expiration",
+        "item": "Article",
+        "quantity": "Quantité",
+        "event": "Événement",
+        "location": "Lieu",
+        "registration": "Inscription",
+        "type": "Type"
+      }
+    },
+    "payments": {
+      "free": "Gratuit",
+      "noExpiry": "Sans expiration",
+      "tba": "À confirmer",
+      "product": "Produit",
+      "lesson": "Cours",
+      "equipment": "Équipement",
+      "rental": "Location",
+      "notAssigned": "Non assigné",
+      "refundFor": "Remboursement pour {{name}}",
+      "chargeFor": "Frais pour {{name}}",
+      "paymentFor": "Paiement pour {{name}}",
+      "refund": "Remboursement",
+      "charge": "Frais",
+      "pendingPayment": "Paiement en attente",
+      "payment": "Paiement",
+      "hoursUnit_one": "{{count}} heure",
+      "hoursUnit_other": "{{count}} heures"
+    },
+    "alert": {
+      "familyMessage": "Vous cherchez des membres de la famille ?",
+      "familyDescription": "Gérez les détails familiaux depuis la barre latérale en naviguant vers Profil → Famille.",
+      "loadError": "Nous avons eu du mal à charger une partie de votre historique",
+      "unavailable": "Profil indisponible",
+      "loadingActivity": "Chargement de votre activité..."
+    }
+  },
+  "bookingWizard": {
+    "modal": {
+      "title": "Réserver un service"
+    },
+    "steps": {
+      "service": "Service",
+      "participant": "Participant",
+      "type": "Type",
+      "participants": "Participants",
+      "package": "Forfait",
+      "instructor": "Instructeur",
+      "schedule": "Horaire",
+      "confirm": "Confirmer"
+    },
+    "footer": {
+      "cancel": "Annuler",
+      "back": "← Retour",
+      "next": "Suivant →",
+      "confirmBooking": "Confirmer la réservation",
+      "createGroupBooking": "Créer une réservation de groupe"
+    },
+    "service": {
+      "categoryHeading": "Que souhaitez-vous réserver ?",
+      "categorySubheading": "Choisissez une catégorie pour voir les options disponibles",
+      "categorySelect": "Sélectionner",
+      "categories": {
+        "lesson": {
+          "label": "Cours",
+          "description": "Cours de kitesurf et sports nautiques"
+        },
+        "rental": {
+          "label": "Location d'équipement",
+          "description": "Louez planches, cerfs-volants, combinaisons et équipements"
+        },
+        "accommodation": {
+          "label": "Hébergement",
+          "description": "Séjournez dans nos installations en bord de mer"
+        }
+      },
+      "serviceListSubheading": "Sélectionnez un service dans cette catégorie",
+      "packageFilterNotice": "Affichage des services compatibles avec votre forfait sélectionné : <1>{{packageName}}</1>",
+      "searchPlaceholder": "Rechercher des services...",
+      "foundCount_one": "{{count}} service trouvé",
+      "foundCount_other": "{{count}} services trouvés",
+      "noneAvailable": "Aucun {{categoryLabel}} disponible",
+      "backToCategories": "← Retour aux catégories",
+      "noMatchingServices": "Aucun service correspondant",
+      "clearSearch": "Effacer la recherche",
+      "premiumDescription": "Coaching privé avec nos instructeurs les plus expérimentés - sessions entièrement personnalisées",
+      "compatiblePackages_one": "{{count}} forfait correspond à ce service",
+      "compatiblePackages_other": "{{count}} forfaits correspondent à ce service",
+      "compatiblePackagesTitle": "Forfaits compatibles"
+    },
+    "participant": {
+      "heading": "Pour qui est ce cours ?",
+      "subheading": "Sélectionnez vous-même, un groupe ou un membre de la famille",
+      "myselfTitle": "Moi-même",
+      "myselfDesc": "Votre profil",
+      "groupTitle": "Groupe",
+      "groupDesc": "Plusieurs participants",
+      "familyMemberTitle": "Membre de la famille",
+      "familyMemberDesc": "Ajoutez-en un pour continuer",
+      "noFamilyText": "Aucun membre de la famille.",
+      "noFamilyAddLink": "Ajouter",
+      "noFamilyToContinue": "pour continuer.",
+      "yearsTag": "{{count}} ans"
+    },
+    "groupParticipants": {
+      "heading": "Sélectionner les participants du groupe",
+      "subheading": "Choisissez les clients inscrits pour rejoindre ce cours collectif. Chaque participant devra accepter l'invitation avant que le cours soit confirmé.",
+      "selectedTitle": "Participants sélectionnés ({{count}})",
+      "searchPlaceholder": "Rechercher des clients par nom ou e-mail...",
+      "loadingCustomers": "Chargement des clients...",
+      "noCustomersSearch": "Aucun client trouvé correspondant à votre recherche",
+      "noCustomersAvailable": "Aucun client disponible",
+      "addButton": "Ajouter",
+      "howItWorksTitle": "Comment fonctionne la réservation de groupe",
+      "howItWorksBullet1": "Seuls vos <1>amis/connexions</1> peuvent être invités aux cours collectifs.",
+      "howItWorksBullet2": "Les participants sélectionnés recevront une notification pour accepter ou refuser.",
+      "howItWorksBullet3": "Le cours n'apparaîtra dans le calendrier pour approbation qu'une fois que <1>tous les participants auront accepté</1>.",
+      "howItWorksBullet4": "Chaque participant doit avoir un forfait groupe valide ou être prêt à en acheter un.",
+      "noFriendsTitle": "Aucun ami trouvé",
+      "noFriendsDesc": "Vous devez vous connecter avec d'autres étudiants avant de les inviter à des cours collectifs.",
+      "manageFriends": "Gérer les amis",
+      "selectAtLeastOne": "Veuillez sélectionner au moins un participant pour continuer"
+    },
+    "package": {
+      "ownedHeading": "Vos heures de forfait",
+      "ownedSubheadingFiltered": "Forfaits correspondant à \"{{serviceName}}\"",
+      "ownedSubheadingGeneric": "Utilisez les heures de cours pré-achetées pour votre réservation",
+      "remainingHours": "{{hours}}h restantes",
+      "morePackages_one": "+{{count}} forfait supplémentaire disponible",
+      "morePackages_other": "+{{count}} forfaits supplémentaires disponibles",
+      "buyMoreOptional": "Acheter plus de forfaits (optionnel)",
+      "saveWithPackages": "Économisez avec les forfaits (optionnel)",
+      "buyDescFiltered": "Achetez des forfaits pour \"{{serviceName}}\" pour économiser sur plusieurs cours.",
+      "buyDescGeneric": "Vous pouvez réserver des cours individuels maintenant ou acheter un forfait pour économiser sur plusieurs cours.",
+      "viewPackagesLink": "Voir les forfaits →",
+      "buyMoreLink": "Acheter plus de forfaits →",
+      "noPackageContinue": "Vous pouvez continuer la réservation sans forfait",
+      "noPackageContinueDesc": "Le paiement du cours individuel sera traité aux prochaines étapes.",
+      "buyFlowHeading": "Acheter des forfaits de cours",
+      "paymentMethod": "Mode de paiement",
+      "walletBalance": "Solde : {{balance}}",
+      "walletOption": "Portefeuille",
+      "cashOption": "Espèces",
+      "loadingPackages": "Chargement des forfaits...",
+      "noPackagesForService": "Aucun forfait disponible pour \"{{serviceName}}\"",
+      "noPackagesForCategory": "Aucun forfait disponible dans cette catégorie",
+      "otherPackagesHint_one": "{{count}} autre forfait disponible pour d'autres types de cours",
+      "otherPackagesHint_other": "{{count}} autres forfaits disponibles pour d'autres types de cours",
+      "insufficientBalance": "Solde insuffisant",
+      "buyNow": "Acheter maintenant",
+      "noMatchWarningTitle": "Aucun forfait ne correspond à ce service",
+      "noMatchWarningDesc": "Vous pouvez toujours sélectionner un forfait, mais le système peut le rejeter si les heures sont insuffisantes.",
+      "showingAllPackages": "Aucun forfait ne correspond à ce service. Affichage de tous les forfaits disponibles :",
+      "selectPackage": "Sélectionnez un forfait avec des heures restantes",
+      "hoursRemaining": "{{hours}}h restantes"
+    },
+    "instructor": {
+      "heading": "Qui vous enseignera ?",
+      "subheading": "Choisissez votre instructeur préféré pour ce cours",
+      "searchPlaceholder": "Rechercher par nom ou e-mail...",
+      "foundCount_one": "{{count}} instructeur trouvé",
+      "foundCount_other": "{{count}} instructeurs trouvés",
+      "noneAvailable": "Aucun instructeur disponible",
+      "noMatching": "Aucun instructeur correspondant",
+      "clearSearch": "Effacer la recherche",
+      "notQualifiedDiscipline": "Non qualifié pour cette discipline",
+      "notQualifiedCategory": "Non qualifié pour ce type de cours",
+      "notQualifiedLevel": "Niveau insuffisant",
+      "notQualified": "Non qualifié"
+    },
+    "schedule": {
+      "step1Label": "Étape 1 : Sélectionner la durée",
+      "step2Label": "Étape 2 : Sélectionner la date",
+      "step3Label": "Étape 3 : Sélectionner l'heure",
+      "prevMonth": "← Préc.",
+      "nextMonth": "Suiv. →",
+      "noSlotsAvailable": "Aucun créneau disponible",
+      "weekDays": {
+        "sun": "Dim",
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mer",
+        "thu": "Jeu",
+        "fri": "Ven",
+        "sat": "Sam"
+      }
+    },
+    "confirm": {
+      "bookingDetailsHeading": "Détails de la réservation",
+      "groupBookingDetailsHeading": "Détails de la réservation de groupe",
+      "participantLabel": "Participant",
+      "serviceLabel": "Service",
+      "instructorLabel": "Instructeur",
+      "durationLabel": "Durée",
+      "dateLabel": "Date",
+      "timeLabel": "Heure",
+      "paymentMethodLabel": "Mode de paiement",
+      "participantsSelectedLabel": "Participants",
+      "participantsCount": "{{count}} sélectionné(s)",
+      "selectedParticipantsLabel": "Participants sélectionnés",
+      "toBeAssigned": "À assigner",
+      "loadingInstructor": "Chargement…",
+      "groupInviteNotice": "Les participants devront accepter l'invitation avant que ce cours soit confirmé.",
+      "promoCodeHeading": "Vous avez un code promo ?",
+      "notesHeading": "Notes supplémentaires (optionnel)",
+      "notesPlaceholder": "Ajoutez des détails pour votre instructeur",
+      "pricingBreakdownHeading": "Détail du tarif",
+      "pricingPlanned": "Prévu : {{hours}}h",
+      "pricingPackage": "Forfait : {{hours}}h",
+      "pricingChargeable": "Facturable : {{hours}}h",
+      "pricingRate": "Tarif : {{amount}}",
+      "bookingError": "Impossible de créer la réservation"
+    },
+    "paymentOptions": {
+      "heading": "Mode de paiement",
+      "walletLabel": "Portefeuille",
+      "walletTagInstant": "Instantané",
+      "walletTagAddFunds": "Ajouter des fonds",
+      "packageLabel": "Utiliser les heures de forfait",
+      "packageTagMatches": "Correspond au service",
+      "packageTagSelect": "Sélectionner un forfait",
+      "payLaterLabel": "Payer à la réception (espèces/carte)",
+      "payLaterTag": "Dû à l'arrivée"
+    },
+    "paymentSummary": {
+      "walletTitle": "Paiement par portefeuille",
+      "walletTagOk": "Débit immédiat",
+      "walletTagInsufficient": "Ajouter des fonds",
+      "walletChargeText": "Nous débiterons {{amount}} de votre portefeuille maintenant.",
+      "walletBalanceAfter": "Solde après débit : {{balance}}",
+      "walletBalanceInsufficient": "Solde disponible : {{balance}}",
+      "packageTitle": "Heures de forfait",
+      "packageTagCovered": "Entièrement couvert",
+      "packageTagPartial": "Couverture partielle",
+      "packageTagCheck": "Vérifier le forfait",
+      "packageHoursUsed": "{{hours}}h seront prélevées sur {{packageName}}.",
+      "packageHoursRemaining": "Heures restantes ensuite : {{hours}}h",
+      "packageAdditionalPayment": "Vous paierez également {{amount}} aujourd'hui.",
+      "packageNoCost": "Aucun paiement supplémentaire requis.",
+      "packageNotCovered": "Ce forfait ne couvre pas la session. Vous paierez {{amount}}.",
+      "payLaterTitle": "Payer au centre",
+      "payLaterTag": "Dû à l'arrivée",
+      "payLaterReserve": "Nous réserverons votre créneau maintenant et encaisserons le paiement à votre arrivée.",
+      "payLaterAmount": "Montant à régler sur place : {{amount}}.",
+      "creditCardTitle": "Paiement par carte bancaire",
+      "creditCardTag": "Iyzico",
+      "creditCardRedirect": "Vous serez redirigé vers une page de paiement sécurisée pour finaliser votre achat.",
+      "creditCardAmount": "Montant : {{amount}}"
+    },
+    "walletWarning": {
+      "partialTitle": "Paiement partiel par portefeuille",
+      "partialDesc1": "Votre solde de portefeuille est de <1>{{balance}}</1>.",
+      "partialDesc2": "Le montant restant de <1>{{deficit}}</1> sera débité de votre carte de crédit.",
+      "partialDesc3": "Le débit de la carte sera ajouté à votre portefeuille puis utilisé pour cet achat.",
+      "insufficientMessage": "Solde de portefeuille insuffisant. Choisissez une autre option de paiement ou rechargez votre portefeuille."
+    },
+    "recommendedPackage": {
+      "suggested": "Correspondance de forfait suggérée",
+      "remaining": "{{name}} · {{hours}} restantes",
+      "applyButton": "Appliquer ce forfait"
+    },
+    "purchaseConfirm": {
+      "title": "Confirmer l'achat du forfait",
+      "packageLabel": "Forfait :",
+      "priceLabel": "Prix :",
+      "checkInLabel": "Arrivée :",
+      "checkOutLabel": "Départ :",
+      "nightsLabel": "Nuits :",
+      "paymentLabel": "Paiement :",
+      "balanceAfterLabel": "Solde après :",
+      "walletOption": "Portefeuille",
+      "cardOption": "Carte",
+      "confirmButton": "Confirmer l'achat",
+      "cancelButton": "Annuler"
+    },
+    "purchaseSuccess": {
+      "title": "Forfait acheté !",
+      "description": "Vous avez bien acheté \"{{packageName}}\".",
+      "promoSaved": " Le code promo \"{{code}}\" vous a fait économiser {{amount}} !",
+      "walletCredit": " De plus, {{walletCredit}} {{walletCurrency}} ont été ajoutés à votre portefeuille !",
+      "accommodationConfirmed": " Hébergement confirmé à {{unitName}} pour {{nights}} nuit(s).",
+      "newBalance": " Votre nouveau solde de portefeuille est {{balance}}.",
+      "paymentPending": " Le paiement est en attente."
+    },
+    "purchaseError": {
+      "insufficientBalanceTitle": "Solde insuffisant",
+      "insufficientBalanceDesc": "Vous avez besoin de {{required}} mais seulement {{available}} sont disponibles. Veuillez ajouter des fonds ou choisir un autre mode de paiement.",
+      "datesUnavailableTitle": "Hébergement non disponible",
+      "datesUnavailableDesc": "L'hébergement n'est pas disponible pour les dates sélectionnées. Veuillez choisir d'autres dates.",
+      "datesRequiredTitle": "Dates requises",
+      "datesRequiredDesc": "Veuillez sélectionner les dates d'arrivée et de départ pour ce forfait d'hébergement.",
+      "noUnitTitle": "Erreur de configuration",
+      "noUnitDesc": "Ce forfait n'a pas d'unité d'hébergement assignée. Veuillez contacter le support.",
+      "failedTitle": "Achat échoué"
+    },
+    "accommodationModal": {
+      "title": "Sélectionner les dates de séjour",
+      "packageInfo": "Inclut {{nights}} nuits d'hébergement",
+      "selectDatesDesc": "Sélectionnez vos dates d'arrivée et de départ",
+      "includesNights": "Ce forfait comprend {{nights}} nuits d'hébergement",
+      "checkInLabel": "Arrivée",
+      "checkInPlaceholder": "Date d'arrivée",
+      "checkOutLabel": "Départ",
+      "checkOutPlaceholder": "Date de départ",
+      "nightsTag_one": "{{count}} nuit",
+      "nightsTag_other": "{{count}} nuits",
+      "confirmButton": "Continuer vers l'achat",
+      "cancelButton": "Annuler",
+      "selectDatesError": "Sélectionner les dates",
+      "selectDatesErrorDesc": "Veuillez sélectionner à la fois les dates d'arrivée et de départ."
+    },
+    "familyMember": {
+      "addSuccess": "Membre de la famille ajouté avec succès",
+      "addFailed": "Impossible d'ajouter le membre de la famille"
+    },
+    "booking": {
+      "redirecting": "Redirection vers la page de paiement...",
+      "successMessage": "Votre demande de réservation a été soumise.",
+      "roleUpgradeMessage": "Vous avez été promu au statut d'étudiant !",
+      "groupSuccess": "Réservation de groupe créée ! Les participants seront notifiés pour accepter.",
+      "groupSuccessTitle": "Réservation de groupe créée !",
+      "groupInvitationsTitle": "Notifications d'invitation envoyées !",
+      "groupInvitationsDesc": "{{count}} participant(s) recevront des notifications pour accepter ou refuser ce cours collectif.",
+      "groupNextStepsTitle": "Prochaines étapes",
+      "groupNextStep1": "• Tous les participants recevront une notification pour accepter ou refuser.",
+      "groupNextStep2": "• Une fois que <1>tous les participants auront accepté</1>, le cours apparaîtra dans le calendrier pour approbation.",
+      "groupNextStep3": "• Vous pouvez suivre le statut d'acceptation dans votre section Réservations de groupe.",
+      "groupCloseButton": "Fermer",
+      "failedToCreate": "Impossible de créer la réservation",
+      "validationSelectService": "Veuillez sélectionner un service",
+      "validationSelectParticipant": "Veuillez sélectionner au moins un participant",
+      "validationInvalidPrice": "Prix par personne invalide",
+      "validationSelectDate": "Veuillez sélectionner une date",
+      "validationSelectTime": "Veuillez sélectionner un horaire",
+      "validationGroupIdMissing": "Réservation de groupe créée mais non confirmée"
     }
   }
 }

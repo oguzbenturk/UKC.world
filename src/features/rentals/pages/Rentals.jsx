@@ -1,5 +1,6 @@
 ﻿// src/features/rentals/pages/Rentals.jsx
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Table,
@@ -52,6 +53,7 @@ const formatRentalDuration = (duration) => {
 };
 
 function Rentals() {
+  const { t } = useTranslation(['manager']);
   const { apiClient, usersWithStudentRole = [], instructors = [] } = useData();
   const { businessCurrency, formatCurrency } = useCurrency();
   const navigate = useNavigate();
@@ -388,7 +390,7 @@ function Rentals() {
       setRentals(enrichedData);
     } catch (error) {
       void error;
-      messageApi.error('Failed to load rental data');
+      messageApi.error(t('manager:rentalsPage.messages.loadError'));
     } finally {
       setLoading(false);
     }
@@ -430,7 +432,7 @@ function Rentals() {
       setRentalRequests([...bookingRequests, ...pendingRentals]);
     } catch (error) {
       void error;
-      messageApi.error('Failed to load rental requests');
+      messageApi.error(t('manager:rentalsPage.messages.requestsError'));
     } finally {
       setRequestsLoading(false);
     }
@@ -465,7 +467,7 @@ function Rentals() {
     try {
       setRequestsLoading(true);
       await apiClient.patch(`/bookings/${bookingId}/status`, { status: newStatus });
-      const label = newStatus === 'confirmed' ? 'approved' : newStatus;
+      const label = newStatus === 'confirmed' ? t('manager:rentalsPage.messages.approved') : newStatus;
       messageApi.success(`Rental request ${label} successfully`);
       await loadRentalRequests();
     } catch (error) {
@@ -482,7 +484,7 @@ function Rentals() {
       setRequestsLoading(true);
       const endpoint = action === 'approve' ? 'activate' : 'cancel';
       await apiClient.patch(`/rentals/${rentalId}/${endpoint}`);
-      messageApi.success(`Rental ${action === 'approve' ? 'approved' : 'declined'} successfully`);
+      messageApi.success(action === 'approve' ? t('manager:rentalsPage.messages.rentalApproved') : t('manager:rentalsPage.messages.rentalDeclined'));
       await loadRentalRequests();
     } catch (error) {
       const msg = error?.response?.data?.error || error?.response?.data?.message || `Failed to ${action} rental`;
@@ -500,11 +502,11 @@ function Rentals() {
     try {
       setLoading(true);
       await Rental.update(rentalId, { status: newStatus }, apiClient);
-      messageApi.success(`Rental ${newStatus} successfully`);
+      messageApi.success(t('manager:rentalsPage.messages.statusChanged', { status: newStatus }));
       await loadRentals();
     } catch (error) {
       void error;
-      messageApi.error('Failed to update rental status');
+      messageApi.error(t('manager:rentalsPage.messages.statusChangeError'));
     } finally {
       setLoading(false);
     }
@@ -518,11 +520,11 @@ function Rentals() {
   const handleDelete = async (rentalId) => {
     try {
       await Rental.delete(rentalId, apiClient);
-      messageApi.success('Rental deleted successfully');
+      messageApi.success(t('manager:rentalsPage.messages.deleted'));
       loadRentals();
     } catch (error) {
       void error;
-      messageApi.error('Failed to delete rental');
+      messageApi.error(t('manager:rentalsPage.messages.deleteError'));
     }
   };
 
@@ -539,7 +541,7 @@ function Rentals() {
   // Table columns configuration
   const columns = [
     {
-      title: 'Customer',
+      title: t('manager:rentalsPage.columns.customer'),
       dataIndex: 'customer_name',
       key: 'customer',
       ellipsis: true,
@@ -549,7 +551,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Equipment',
+      title: t('manager:rentalsPage.columns.equipment'),
       dataIndex: 'equipment_details',
       key: 'equipment',
       ellipsis: true,
@@ -561,13 +563,13 @@ function Rentals() {
       },
     },
     {
-      title: 'Date',
+      title: t('manager:rentalsPage.columns.date'),
       key: 'rental_date',
       width: 90,
       render: (_, record) => <span className="text-xs whitespace-nowrap">{record.rental_date ? formatDate(record.rental_date) : formatDate(record.start_date)}</span>,
     },
     {
-      title: 'Price',
+      title: t('manager:rentalsPage.columns.price'),
       key: 'price_status',
       width: 90,
       render: (_, record) => {
@@ -600,7 +602,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Status',
+      title: t('manager:rentalsPage.columns.status'),
       dataIndex: 'status',
       key: 'status',
       width: 80,
@@ -617,7 +619,7 @@ function Rentals() {
         <Space size={0}>
           <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           {record.status === 'active' && <Button type="text" size="small" icon={<CheckOutlined />} onClick={() => handleStatusChange(record.id, 'completed')} />}
-          <Popconfirm title="Delete?" onConfirm={() => handleDelete(record.id)} okText="Yes" cancelText="No">
+          <Popconfirm title={t('manager:rentalsPage.actions.deleteConfirm')} onConfirm={() => handleDelete(record.id)} okText="Yes" cancelText="No">
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -628,7 +630,7 @@ function Rentals() {
   // Columns for the Rental Requests tab (bookings with service_type=rental)
   const requestColumns = useMemo(() => [
     {
-      title: 'Student',
+      title: t('manager:rentalsPage.columns.student'),
       key: 'student',
       render: (_, record) => {
         const name = record.student_name || record.studentName || 'Student';
@@ -660,7 +662,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Service',
+      title: t('manager:rentalsPage.columns.service'),
       key: 'service',
       render: (_, record) => {
         const serviceName = record.service_name || record.serviceName || 'Rental Service';
@@ -672,7 +674,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Date',
+      title: t('manager:rentalsPage.columns.date'),
       key: 'datetime',
       sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
       defaultSortOrder: 'descend',
@@ -697,7 +699,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Period',
+      title: t('manager:rentalsPage.columns.period'),
       key: 'duration',
       width: 90,
       render: (_, record) => {
@@ -714,7 +716,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Amount',
+      title: t('manager:rentalsPage.columns.amount'),
       key: 'amount',
       width: 110,
       render: (_, record) => {
@@ -727,24 +729,24 @@ function Rentals() {
       },
     },
     {
-      title: 'Status',
+      title: t('manager:rentalsPage.columns.status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
       filters: [
-        { text: 'Pending', value: 'pending' },
-        { text: 'Confirmed', value: 'confirmed' },
-        { text: 'Cancelled', value: 'cancelled' },
-        { text: 'Completed', value: 'completed' },
+        { text: t('manager:rentalsPage.filters.pending'), value: 'pending' },
+        { text: t('manager:rentalsPage.filters.confirmed'), value: 'confirmed' },
+        { text: t('manager:rentalsPage.filters.cancelled'), value: 'cancelled' },
+        { text: t('manager:rentalsPage.filters.completed'), value: 'completed' },
       ],
       onFilter: (value, record) => record.status === value,
       render: (status) => {
         const statusConfig = {
-          pending: { dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-800 ring-amber-200', label: 'Pending' },
-          confirmed: { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: 'Approved' },
-          cancelled: { dot: 'bg-rose-500', pill: 'bg-rose-50 text-rose-800 ring-rose-200', label: 'Declined' },
-          completed: { dot: 'bg-sky-500', pill: 'bg-sky-50 text-sky-800 ring-sky-200', label: 'Completed' },
-          no_show: { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: 'No Show' },
+          pending: { dot: 'bg-amber-500', pill: 'bg-amber-50 text-amber-800 ring-amber-200', label: t('manager:rentalsPage.statusLabels.pending') },
+          confirmed: { dot: 'bg-emerald-500', pill: 'bg-emerald-50 text-emerald-800 ring-emerald-200', label: t('manager:rentalsPage.statusLabels.confirmed') },
+          cancelled: { dot: 'bg-rose-500', pill: 'bg-rose-50 text-rose-800 ring-rose-200', label: t('manager:rentalsPage.statusLabels.cancelled') },
+          completed: { dot: 'bg-sky-500', pill: 'bg-sky-50 text-sky-800 ring-sky-200', label: t('manager:rentalsPage.statusLabels.completed') },
+          no_show: { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: t('manager:rentalsPage.statusLabels.noShow') },
         };
         const c = statusConfig[status] || { dot: 'bg-slate-400', pill: 'bg-slate-50 text-slate-600 ring-slate-200', label: status };
         return (
@@ -756,7 +758,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Notes',
+      title: t('manager:rentalsPage.columns.notes'),
       dataIndex: 'notes',
       key: 'notes',
       width: 180,
@@ -771,7 +773,7 @@ function Rentals() {
       },
     },
     {
-      title: 'Actions',
+      title: t('manager:rentalsPage.columns.actions'),
       key: 'actions',
       fixed: 'right',
       width: 96,
@@ -799,21 +801,21 @@ function Rentals() {
         if (isPending) {
           return (
             <div className="flex items-center justify-end gap-1" onClick={stop}>
-              <Tooltip title="Approve">
-                <button type="button" onClick={onApprove} aria-label="Approve" className={`${iconBtn} ${variants.primary}`}>
+              <Tooltip title={t('manager:rentalsPage.tooltips.approve')}>
+                <button type="button" onClick={onApprove} aria-label={t('manager:rentalsPage.tooltips.approve')} className={`${iconBtn} ${variants.primary}`}>
                   <CheckOutlined className="text-xs" />
                 </button>
               </Tooltip>
               <Popconfirm
-                title="Decline this rental request?"
-                description="The student will be notified and any charged amount will be refunded."
+                title={t('manager:rentalsPage.confirm.declineTitle')}
+                description={t('manager:rentalsPage.confirm.declineDescription')}
                 onConfirm={onDecline}
-                okText="Decline"
+                okText={t('manager:rentalsPage.confirm.declineOk')}
                 okButtonProps={{ danger: true }}
-                cancelText="Keep"
+                cancelText={t('manager:rentalsPage.confirm.declineCancel')}
               >
-                <Tooltip title="Decline">
-                  <button type="button" aria-label="Decline" className={`${iconBtn} ${variants.danger}`}>
+                <Tooltip title={t('manager:rentalsPage.tooltips.decline')}>
+                  <button type="button" aria-label={t('manager:rentalsPage.tooltips.decline')} className={`${iconBtn} ${variants.danger}`}>
                     <CloseOutlined className="text-xs" />
                   </button>
                 </Tooltip>
@@ -824,11 +826,11 @@ function Rentals() {
         if (isConfirmed) {
           return (
             <div className="flex items-center justify-end" onClick={stop}>
-              <Tooltip title="Mark Completed">
+              <Tooltip title={t('manager:rentalsPage.tooltips.markCompleted')}>
                 <button
                   type="button"
                   onClick={() => handleBookingStatusChange(record.id, 'completed')}
-                  aria-label="Mark Completed"
+                  aria-label={t('manager:rentalsPage.tooltips.markCompleted')}
                   className={`${iconBtn} ${variants.ghost}`}
                 >
                   <CheckOutlined className="text-xs" />
@@ -840,13 +842,13 @@ function Rentals() {
         return <span className="text-[11px] text-slate-300 italic">—</span>;
       },
     },
-  ], [businessCurrency, formatCurrency, handleBookingStatusChange, handleRentalRequestChange]);
+  ], [businessCurrency, formatCurrency, handleBookingStatusChange, handleRentalRequestChange, t]);
 
   const renderMobileCards = () => {
     const data = activeTab === 'requests' ? rentalRequests : rentals;
     const isLoading = activeTab === 'requests' ? requestsLoading : loading;
     if (isLoading) return <div className="flex justify-center py-8"><Spin /></div>;
-    if (!data.length) return <div className="text-center text-slate-400 py-8">No rentals found</div>;
+    if (!data.length) return <div className="text-center text-slate-400 py-8">{t('manager:rentalsPage.empty.noRentals')}</div>;
     return (
       <div className="space-y-3">
         {/* eslint-disable-next-line complexity */}
@@ -886,14 +888,14 @@ function Rentals() {
                 <p className="text-xs text-slate-400 mt-2 truncate">{record.notes}</p>
               )}
               <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
-                <Button size="small" icon={<EditOutlined />} onClick={() => activeTab === 'requests' ? null : handleEdit(record)}>Edit</Button>
+                <Button size="small" icon={<EditOutlined />} onClick={() => activeTab === 'requests' ? null : handleEdit(record)}>{t('manager:rentalsPage.actions.edit')}</Button>
                 {record.status === 'active' && (
-                  <Button size="small" icon={<CheckOutlined />} onClick={() => handleStatusChange(record.id, 'completed')}>Complete</Button>
+                  <Button size="small" icon={<CheckOutlined />} onClick={() => handleStatusChange(record.id, 'completed')}>{t('manager:rentalsPage.actions.complete')}</Button>
                 )}
                 {activeTab === 'requests' && record.status === 'pending' && (
                   <>
-                    <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => handleActivateRequest(record.id)}>Approve</Button>
-                    <Button size="small" danger icon={<CloseOutlined />} onClick={() => handleCancelRequest(record.id)}>Reject</Button>
+                    <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => handleActivateRequest(record.id)}>{t('manager:rentalsPage.actions.approve')}</Button>
+                    <Button size="small" danger icon={<CloseOutlined />} onClick={() => handleCancelRequest(record.id)}>{t('manager:rentalsPage.actions.reject')}</Button>
                   </>
                 )}
               </div>
@@ -916,7 +918,7 @@ function Rentals() {
           size="large"
         />
         <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
-          New Rental
+          {t('manager:rentalsPage.newRental')}
         </Button>
       </div>
 
@@ -931,7 +933,7 @@ function Rentals() {
               label: (
                 <span className="flex items-center">
                   <ShoppingOutlined className="mr-2" />
-                  Rental Requests
+                  {t('manager:rentalsPage.tabs.requests')}
                   {rentalRequests.length > 0 && (
                     <Tag color="orange" className="ml-2 !mr-0" style={{ borderRadius: 10, fontSize: 11, lineHeight: '18px', padding: '0 6px' }}>
                       {rentalRequests.length}
@@ -945,7 +947,7 @@ function Rentals() {
               label: (
                 <span className="flex items-center">
                   <ClockCircleOutlined className="mr-2" />
-                  Recent Rentals
+                  {t('manager:rentalsPage.tabs.recent')}
                 </span>
               ),
             },
@@ -954,7 +956,7 @@ function Rentals() {
               label: (
                 <span className="flex items-center">
                   <ToolOutlined className="mr-2" />
-                  Total Rentals
+                  {t('manager:rentalsPage.tabs.total')}
                 </span>
               ),
             },
@@ -978,10 +980,10 @@ function Rentals() {
                   pageSize: 25,
                   showSizeChanger: true,
                   showQuickJumper: true,
-                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rental requests`,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} ${t('manager:rentalsPage.pagination.requests', { total })}`,
                 }}
                 scroll={{ x: 1000 }}
-                locale={{ emptyText: 'No rental booking requests found' }}
+                locale={{ emptyText: t('manager:rentalsPage.empty.noRequests') }}
                 onRow={(record) => ({
                   onClick: () => {
                     if (record._source === 'rental') handleEdit(record);
@@ -1002,7 +1004,7 @@ function Rentals() {
                   pageSize: activeTab === 'recent' ? 20 : 25,
                   showSizeChanger: true,
                   showQuickJumper: true,
-                  showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} ${activeTab === 'recent' ? 'recent' : 'total'} rentals`,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} ${activeTab === 'recent' ? t('manager:rentalsPage.pagination.recent', { total }) : t('manager:rentalsPage.pagination.total', { total })}`,
                 }}
                 scroll={{ x: 800 }}
               />

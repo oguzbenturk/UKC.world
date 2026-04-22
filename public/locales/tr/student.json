@@ -16,6 +16,9 @@
       "title": "Geri bildiriminiz için teşekkürler!",
       "description": "Puanlamanız deneyiminizi geliştirmemize yardımcı oluyor."
     },
+    "bookingRedirect": {
+      "openingBooking": "Rezervasyon açılıyor..."
+    },
     "nextLesson": {
       "label": "Sonraki ders",
       "comingSoon": "Yakında",
@@ -47,7 +50,11 @@
       "visitLessons": "Derslere Git",
       "visitRentals": "Kiralamalara Git",
       "visitShop": "Mağazaya Git",
-      "visitMyLessons": "Derslerime Git"
+      "visitMyLessons": "Derslerime Git",
+      "myWallet": "Cüzdanım",
+      "talkToKai": "Kai ile Konuş",
+      "close": "Kapat",
+      "quickActions": "Hızlı İşlemler"
     },
     "statsStrip": {
       "lessons": "Dersler",
@@ -511,7 +518,43 @@
     "exportSuccess": "Aile üyesi listesi indirildi",
     "exportError": "Aile üyeleri dışa aktarılamadı",
     "waiverSigned": "{{name}} için feragatname imzalandı",
-    "waiverSignedGeneric": "Feragatname başarıyla imzalandı"
+    "waiverSignedGeneric": "Feragatname başarıyla imzalandı",
+    "activity": {
+      "drawerTitle": "{{name}}'nin Aktivitesi",
+      "drawerTitleGeneric": "Aile Aktivitesi",
+      "refreshButton": "Yenile",
+      "resetFilters": "Filtreleri sıfırla",
+      "loadOlder": "Eski aktiviteleri yükle",
+      "noActivity": "Henüz aktivite kaydedilmedi",
+      "fetching": "Aktivite yükleniyor...",
+      "loadError": "Aktivite yüklenemedi",
+      "unknownDate": "Bilinmiyor",
+      "typeFilters": {
+        "all": "Tümü",
+        "booking": "Rezervasyonlar",
+        "rental": "Kiralık",
+        "waiver": "Feragatnameler",
+        "audit": "Yönetim"
+      },
+      "metadata": {
+        "service": "Hizmet:",
+        "instructor": "Eğitmen:",
+        "starts": "Başlangıç:",
+        "ends": "Bitiş:",
+        "location": "Konum:",
+        "notes": "Notlar:",
+        "from": "Başlangıç:",
+        "until": "Bitiş:",
+        "signed": "İmzalandı:",
+        "signedBy": "İmzalayan:",
+        "event": "Etkinlik:",
+        "resource": "Kaynak:",
+        "actor": "Aktör:",
+        "details": "Detaylar:",
+        "agreedToTerms": "Şartları Kabul Etti",
+        "photoConsent": "Fotoğraf İzni"
+      }
+    }
   },
   "support": {
     "stats": {
@@ -579,6 +622,25 @@
     "notifications": {
       "requestSent": "Destek talebi gönderildi",
       "sendError": "Talep gönderilemedi"
+    },
+    "ticketDetail": {
+      "statusLabels": {
+        "open": "Açık",
+        "in_progress": "İşlemde",
+        "resolved": "Çözüldü",
+        "closed": "Kapalı",
+        "pending": "Bekliyor"
+      },
+      "timeline": {
+        "ticketOpened": "Bilet açıldı",
+        "beingReviewed": "İnceleniyor",
+        "resolved": "Çözüldü",
+        "openedOn": "{{date}} tarihinde açıldı"
+      },
+      "yourMessage": "Mesajınız",
+      "noMessage": "Mesaj girilmedi.",
+      "statusTimeline": "Durum zaman çizelgesi",
+      "teamReplies": "Ekip yanıtları"
     }
   },
   "ratingModal": {
@@ -614,6 +676,14 @@
       "great": "Harika",
       "amazing": "Muhteşem!"
     }
+  },
+  "ratingBanner": {
+    "needsRating": "Değerlendirme gerekiyor",
+    "rateNow": "Şimdi değerlendir",
+    "rateFirstLesson": "İlk dersi değerlendir",
+    "lessonsToRate_one": "{{count}} ders değerlendirmeniz var",
+    "lessonsToRate_other": "{{count}} ders değerlendirmeniz var",
+    "shareExperience": "Deneyiminizi paylaşarak başkalarına yardımcı olun"
   },
   "layout": {
     "portalDisabled": {
@@ -796,7 +866,697 @@
       "loading": "Geri bildirim özeti yükleniyor..."
     },
     "achievements": {
-      "modalTitle": "Başarım Kilit Açıldı!"
+      "modalTitle": "Başarım Kilit Açıldı!",
+      "yourAchievements": "Başarımlarım",
+      "noAchievements": "Henüz başarım yok",
+      "noAchievementsDesc": "Başarım kazanmak için dersleri tamamla ve geri bildirim gönder!",
+      "earnedOn": "{{date}} tarihinde kazanıldı"
+    },
+    "page": {
+      "title": "Geri Bildirim & Değerlendirmeler",
+      "subtitleInstructor": "Öğretim performansını ve öğrenci geri bildirimlerini görüntüle",
+      "subtitleStudent": "Geri bildirim gönder ve başarımlarını takip et",
+      "subtitleAdmin": "Platformdaki geri bildirim ve değerlendirmeleri yönet",
+      "tabs": {
+        "recentFeedback": "Son Geri Bildirimler",
+        "overview": "Genel Bakış",
+        "achievements": "Başarımlar",
+        "submitFeedback": "Geri Bildirim Gönder"
+      },
+      "submitHeading": "Ders Geri Bildirimi Gönder",
+      "welcomeHeading": "Geri Bildirime Hoş Geldin",
+      "welcomeBody": "Derslerinden sonra geri bildirim göndermek ve ilerlemeyi takip etmek için bu bölümü kullan."
+    },
+    "stats": {
+      "averageRating": "Ortalama Puan",
+      "totalReviews": "Toplam Değerlendirme",
+      "fiveStarReviews": "5 Yıldızlı Değerlendirmeler"
+    },
+    "list": {
+      "noFeedback": "Geri bildirim bulunamadı",
+      "instructorLabel": "Eğitmen: {{name}}",
+      "skillLevel": "Seviye: {{level}}",
+      "progressNotes": "İlerleme Notları:"
+    }
+  },
+  "friends": {
+    "pageTitle": "Arkadaşlar",
+    "pageSubtitle": "Grup rezervasyonları oluşturmak için arkadaşlarınızı yönetin.",
+    "seoTitle": "Arkadaşlar • Plannivo",
+    "seoDescription": "Grup rezervasyonları oluşturmak için arkadaşlarınızı yönetin.",
+    "findFriends": "Arkadaş Bul",
+    "searchPlaceholder": "İsim veya e-posta ile ara...",
+    "usersFound_one": "{{count}} kullanıcı bulundu",
+    "usersFound_other": "{{count}} kullanıcı bulundu",
+    "noUsersFound": "Aramanızla eşleşen kullanıcı bulunamadı",
+    "tabs": {
+      "friends": "Arkadaşlar",
+      "requests": "İstekler",
+      "sent": "Gönderilen"
+    },
+    "emptyFriends": "Henüz arkadaşınız yok",
+    "emptyFriendsHint": "Arkadaşlık isteği göndermek için yukarıdan kullanıcı arayın",
+    "noPendingRequests": "Bekleyen arkadaşlık isteği yok",
+    "noSentRequests": "Gönderilen istek yok",
+    "tooltips": {
+      "removeFriend": "Arkadaşı kaldır",
+      "blockUser": "Kullanıcıyı engelle",
+      "cancelRequest": "İsteği iptal et"
+    },
+    "buttons": {
+      "accept": "Kabul Et",
+      "decline": "Reddet",
+      "cancel": "İptal",
+      "addFriend": "Arkadaş Ekle",
+      "sendRequest": "İstek Gönder"
+    },
+    "pending": "Bekliyor",
+    "sendRequestModal": {
+      "title": "Arkadaşlık İsteği Gönder",
+      "messageLabel": "Mesaj ekle (isteğe bağlı):",
+      "messagePlaceholder": "Merhaba! Grup rezervasyonları için bağlantı kurmak istiyorum..."
+    },
+    "confirmRemove": {
+      "title": "Arkadaşı Kaldır",
+      "content": "{{name}} kişisini arkadaşlarınızdan kaldırmak istediğinizden emin misiniz?",
+      "okText": "Kaldır",
+      "cancelText": "İptal"
+    },
+    "confirmBlock": {
+      "title": "Kullanıcıyı Engelle",
+      "content": "{{name}} kişisini engellemek istediğinizden emin misiniz? Artık size arkadaşlık isteği gönderemez.",
+      "okText": "Engelle",
+      "cancelText": "İptal"
+    },
+    "toasts": {
+      "requestSent": "Arkadaşlık isteği gönderildi!",
+      "requestSentError": "İstek gönderilemedi",
+      "requestAccepted": "Arkadaşlık isteği kabul edildi!",
+      "requestAcceptedError": "İstek kabul edilemedi",
+      "requestDeclined": "Arkadaşlık isteği reddedildi",
+      "requestDeclinedError": "İstek reddedilemedi",
+      "requestCancelled": "Arkadaşlık isteği iptal edildi",
+      "requestCancelledError": "İstek iptal edilemedi",
+      "friendRemoved": "Arkadaş kaldırıldı",
+      "friendRemovedError": "Arkadaş kaldırılamadı",
+      "userBlocked": "Kullanıcı engellendi",
+      "userBlockedError": "Kullanıcı engellenemedi",
+      "searchError": "Kullanıcı araması başarısız"
+    }
+  },
+  "bookEquipment": {
+    "seoTitle": "Ekipman Kiralama | UKC Akademi",
+    "seoDescription": "Sörf seansınız için kaliteli Duotone ve Core ekipmanı kiralayın. Tüm ekipman günlük bakım yapılır ve güvenlik ekipmanı dahildir.",
+    "heroTitle": "Ekipman Kiralama",
+    "heroBody": "Seansınız için premium Duotone ve Core ekipman kiralayın! Tüm ekipman günlük bakım yapılır ve güvenlik ekipmanı içerir. Tam uçurtma setlerinden tek ürünlere kadar, suyda mükemmel bir gün için ihtiyacınız olan her şey burada.",
+    "bookNowButton": "Şimdi Ekipman Kirala",
+    "bookServiceButton": "Rezervasyon Yap",
+    "whyRentTitle": "Neden Bizden Kiralayın?",
+    "rentalOptionsTitle": "Kiralama Seçeneklerimiz",
+    "pricing": "Fiyatlandırma:",
+    "whatsIncluded": "Neler Dahil:",
+    "bookPackageButton": "{{title}} Kirala",
+    "availableNowTitle": "Şu An Mevcut",
+    "availableNowSubtitle": "Rezervasyon için mevcut ekipmanlar",
+    "readyTitle": "Suya Hazır mısınız?",
+    "readyBody": "Ekipmanınızı şimdi rezerve edin ve seansınız için premium ekipmanın keyfini çıkarın.",
+    "bookEquipmentButton": "Ekipman Kirala",
+    "viewMyRentals": "Kiralamalarımı Görüntüle",
+    "noServicesDesc": "Henüz özel kiralama hizmeti yapılandırılmamış. Doğrudan ekipman kiralamak için bizimle iletişime geçin!",
+    "contactForRentals": "Kiralama İçin İletişim"
+  },
+  "walletModal": {
+    "title": "Cüzdan",
+    "close": "Kapat",
+    "availableBalance": "Kullanılabilir Bakiye",
+    "totalBalance": "Toplam Bakiye",
+    "addFunds": "+ Para Ekle",
+    "creditCard": "Kredi Kartı",
+    "bankTransfer": "Banka Transferi",
+    "lastTopUp": "Son Yükleme",
+    "latestActivity": "Son Aktivite",
+    "noneYet": "Henüz yok",
+    "promoCode": "Promosyon Kodu",
+    "recentTransactions": "Son İşlemler",
+    "lastN": "Son {{count}}",
+    "loading": "Yükleniyor...",
+    "unableToLoadTransactions": "İşlemler yüklenemedi",
+    "noTransactionsYet": "Henüz işlem yok",
+    "noTransactionsDesc": "Yüklemeler ve ödemeler burada görünecek",
+    "debit": "Borç",
+    "credit": "Alacak",
+    "overdue": "Gecikmiş",
+    "active": "Aktif",
+    "available": "kullanılabilir",
+    "reserved": "rezerve",
+    "depositApproved": "Banka havalesi depozitonuz onaylandı!",
+    "depositDeclined": "Banka havalesi depozitonuz reddedildi.",
+    "depositSuccess": "Para yatırma başarılı! Cüzdanınız güncellendi.",
+    "bankTransferSubmitted": "Banka transferi talebi başarıyla gönderildi!"
+  },
+  "bookingTrigger": {
+    "label": "Ders Rezervasyonu",
+    "ariaLabel": "Rezervasyon sihirbazını aç"
+  },
+  "walletTrigger": {
+    "label": "Cüzdan",
+    "ariaLabel": "Cüzdanı aç",
+    "ariaLabelWithBalance": "Cüzdanı aç ({{balance}})"
+  },
+  "cart": {
+    "title": "Sepet",
+    "itemCount_one": "{{count}} ürün",
+    "itemCount_other": "{{count}} ürün",
+    "emptyTitle": "Sepetiniz boş",
+    "emptyBody": "Mağazamıza göz atın ve bir sonraki maceranız için harika ekipmanlar bulun!",
+    "startShopping": "Alışverişe Başla",
+    "removeTooltip": "Kaldır",
+    "walletLabel": "Cüzdan",
+    "walletLow": "Cüzdan bakiyesi düşük – diğer ödeme seçenekleri mevcut",
+    "total": "Toplam ({{count}} ürün)",
+    "proceedToCheckout": "Ödemeye Geç",
+    "secureCheckout": "Güvenli ödeme",
+    "signInTitle": "Ödeme için Giriş Yap",
+    "signInMessage": "Satın alma işleminizi tamamlamak için hesap oluşturun veya giriş yapın. Sepetiniz kaydedilecektir."
+  },
+  "checkout": {
+    "title": "Ödeme",
+    "itemCount_one": "{{count}} ürün",
+    "itemCount_other": "{{count}} ürün",
+    "saved": "· -{{amount}} tasarruf",
+    "delivery": "Teslimat",
+    "addDeliveryAddress": "Teslimat adresi ekle",
+    "editAddress": "Düzenle",
+    "addAddress": "Ekle",
+    "addressPlaceholder": "Sokak adresi",
+    "cityPlaceholder": "Şehir",
+    "zipPlaceholder": "Posta Kodu",
+    "countryPlaceholder": "Ülke",
+    "cancelAddress": "İptal",
+    "saveAddress": "Kaydet",
+    "saveAddressHint": "Devam etmek için adresinizi kaydedin",
+    "addressRequired": "Teslimat adresi gerekli",
+    "payment": "Ödeme",
+    "payNow": "Şimdi öde",
+    "dueOnDelivery": "Teslimatta ödenecek",
+    "payDepositVia": "Depoziti şu yolla öde",
+    "bankTransferInfo": "Tam tutarı transfer edin, makbuzunuzu yükleyin — sipariş yönetici onayından sonra teyit edilir.",
+    "fromWallet": "cüzdandan",
+    "byCard": "kartla",
+    "proceedButton": "{{amount}} öde",
+    "submitOrderButton": "Sipariş Gönder · {{amount}}",
+    "payDepositButton": "Depozit Öde {{amount}}",
+    "payWalletCardButton": "Cüzdan + Kartla Öde",
+    "wallet": {
+      "label": "Cüzdan",
+      "balance": "Bakiye: {{amount}}",
+      "full": "Tam",
+      "partial": "Kısmi",
+      "empty": "Boş"
+    },
+    "bankTransfer": {
+      "label": "Banka Havalesi",
+      "sublabel": "Transfer et & makbuz yükle · yönetici onayı"
+    },
+    "deposit": {
+      "label": "Depozit %{{percent}}",
+      "sublabel": "Şimdi {{now}} öde · kalan teslimatta"
+    },
+    "noBankAccounts": "Banka hesabı mevcut değil",
+    "transferTo": "Transfer Edilecek Hesap · {{currency}}",
+    "bankFields": {
+      "bank": "Banka",
+      "accountHolder": "Hesap Sahibi",
+      "iban": "IBAN",
+      "swift": "SWIFT / BIC",
+      "accountNumber": "Hesap No."
+    },
+    "uploadReceipt": "Makbuz Yükle",
+    "changeReceipt": "Makbuz Değiştir",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "copiedTooltip": "Kopyalandı!",
+    "copyTooltip": "Kopyala",
+    "confirmOrder": "Siparişi Onayla",
+    "confirmDepositOrder": "Depozit Siparişini Onayla",
+    "depositLabel": "Depozit: {{amount}}",
+    "remainingOnDelivery": "Teslimatta kalan: {{amount}}",
+    "deliveryTo": "Teslimat adresi: {{address}}",
+    "paymentMethod": "Ödeme: {{method}}",
+    "walletFirst": "Cüzdan bakiyeniz {{walletAmount}} önce kullanılacak",
+    "remainingByCard": ", kalan {{cardAmount}} kartınızdan tahsil edilecek.",
+    "placeOrder": "Sipariş Ver",
+    "payDepositConfirm": "Depozit Öde {{amount}}",
+    "goBack": "Geri Dön",
+    "orderSubmitted": "Sipariş Gönderildi!",
+    "orderPlaced": "Sipariş Verildi!",
+    "pendingApproval": "Yönetici onayı bekleniyor — onaylandığında bilgilendirileceksiniz.",
+    "thankYou": "Satın alımınız için teşekkürler!",
+    "continueShopping": "Alışverişe Devam Et",
+    "errors": {
+      "incompleteAddress": "Lütfen ödemeye geçmeden önce tam teslimat adresinizi girin",
+      "insufficientBalance": "Cüzdan bakiyesi yetersiz",
+      "depositReceiptRequired": "Lütfen bir banka hesabı seçin ve depozit makbuzunuzu yükleyin",
+      "paymentReceiptRequired": "Lütfen bir banka hesabı seçin ve ödeme makbuzunuzu yükleyin",
+      "uploadReceiptRequired": "Lütfen ödeme kanıtı (makbuz) yükleyin",
+      "uploadFailed": "Yükleme başarısız",
+      "orderFailed": "Sipariş verilemedi",
+      "orderError": "Siparişiniz işlenemedi. Lütfen tekrar deneyin."
+    },
+    "paymentLabels": {
+      "depositCard": "Depozit %{{percent}} ({{amount}}) Kart ile",
+      "depositBank": "Depozit %{{percent}} ({{amount}}) Banka Havalesi ile",
+      "walletHybrid": "Cüzdan ({{wallet}}) + Kart ({{card}})",
+      "creditCardWallet": "Cüzdan ({{wallet}}) + Kart ({{card}})",
+      "wallet": "Cüzdan",
+      "creditCard": "Kredi Kartı",
+      "bankTransferPending": "Banka Havalesi (onay bekliyor)",
+      "cash": "Teslimatta Nakit"
+    }
+  },
+  "profile": {
+    "status": {
+      "active": "Aktif",
+      "completed": "Tamamlandı",
+      "returned": "İade Edildi",
+      "cancelled": "İptal Edildi",
+      "unknown": "Bilinmiyor",
+      "na": "Yok"
+    },
+    "fields": {
+      "email": "E-posta",
+      "phone": "Telefon",
+      "preferredLanguage": "Tercih Edilen Dil",
+      "customerSince": "Müşteri Tarihi",
+      "notProvided": "Belirtilmedi",
+      "notSet": "Ayarlanmadı",
+      "unknown": "Bilinmiyor",
+      "notes": "Notlar"
+    },
+    "account": {
+      "currentBalance": "Güncel Bakiye",
+      "lifetimeValue": "Toplam Harcama",
+      "lastPayment": "Son Ödeme",
+      "noPaymentsYet": "Henüz ödeme yok"
+    },
+    "stats": {
+      "hoursAttended": "Katılınan Saatler",
+      "attendanceRate": "Katılım Oranı",
+      "totalLessons": "Toplam Dersler",
+      "totalRentals": "Toplam Kiralamalar"
+    },
+    "packages": {
+      "title": "Paket Özeti",
+      "viewOnly": "Sadece görüntüle",
+      "none": "Atanmış paket yok",
+      "generalPackage": "Genel paket",
+      "plusRental": " + Kiralama",
+      "plusAccommodation": " + Konaklama",
+      "expiresOn": "Bitiş {{date}}",
+      "totalHours": "Toplam Saatler",
+      "used": "Kullanılan",
+      "remaining": "Kalan",
+      "utilisation": "Kullanım",
+      "totalDays": "Toplam Günler",
+      "equipment": "Ekipman",
+      "totalNights": "Toplam Geceler",
+      "unit": "Ünite"
+    },
+    "upcomingLessons": {
+      "title": "Yaklaşan Dersler",
+      "viewOnly": "Sadece görüntüle",
+      "none": "Yaklaşan ders yok",
+      "scheduled": "Planlandı",
+      "instructor": "Eğitmen: {{name}}"
+    },
+    "history": {
+      "totalHistory": "Toplam Geçmiş",
+      "lessonHistory": "Ders Geçmişi",
+      "rentalHistory": "Kiralama Geçmişi",
+      "shopHistory": "Mağaza Geçmişi",
+      "membershipHistory": "Üyelik Geçmişi",
+      "eventHistory": "Etkinlik Geçmişi",
+      "financialHistory": "Finansal Geçmiş",
+      "allActivity": "Tüm Aktiviteler",
+      "noActivity": "Aktivite geçmişi yok",
+      "noLessons": "Ders geçmişi yok",
+      "noRentals": "Kiralama geçmişi yok",
+      "noShop": "Mağaza alışverişi yok",
+      "noMemberships": "Üyelik alışverişi yok",
+      "noEvents": "Etkinlik kaydı yok",
+      "noPayments": "Kayıtlı ödeme yok",
+      "shopPurchases": "Mağaza Alışverişleri",
+      "membershipPurchases": "Üyelik Alışverişleri",
+      "eventRegistrations": "Etkinlik Kayıtları",
+      "columns": {
+        "dateTime": "Tarih ve Saat",
+        "service": "Hizmet",
+        "instructor": "Eğitmen",
+        "duration": "Süre",
+        "price": "Fiyat",
+        "status": "Durum",
+        "payment": "Ödeme",
+        "equipment": "Ekipman",
+        "rentalDate": "Kiralama Tarihi",
+        "date": "Tarih",
+        "amount": "Tutar",
+        "description": "Açıklama",
+        "purchased": "Satın Alındı",
+        "membership": "Üyelik",
+        "expires": "Bitiş",
+        "item": "Ürün",
+        "quantity": "Adet",
+        "event": "Etkinlik",
+        "location": "Konum",
+        "registration": "Kayıt",
+        "type": "Tür"
+      }
+    },
+    "payments": {
+      "free": "Ücretsiz",
+      "noExpiry": "Son kullanma yok",
+      "tba": "Duyurulacak",
+      "product": "Ürün",
+      "lesson": "Ders",
+      "equipment": "Ekipman",
+      "rental": "Kiralama",
+      "notAssigned": "Atanmadı",
+      "refundFor": "{{name}} için İade",
+      "chargeFor": "{{name}} için Ücret",
+      "paymentFor": "{{name}} için Ödeme",
+      "refund": "İade",
+      "charge": "Ücret",
+      "pendingPayment": "Bekleyen ödeme",
+      "payment": "Ödeme",
+      "hoursUnit_one": "{{count}} saat",
+      "hoursUnit_other": "{{count}} saat"
+    },
+    "alert": {
+      "familyMessage": "Aile üyelerini mi arıyorsunuz?",
+      "familyDescription": "Yan menüden Profil → Aile yolunu izleyerek aile detaylarını yönetin.",
+      "loadError": "Geçmişinizin bir kısmını yüklerken sorun yaşandı",
+      "unavailable": "Profil mevcut değil",
+      "loadingActivity": "Aktiviteniz yükleniyor..."
+    }
+  },
+  "bookingWizard": {
+    "modal": {
+      "title": "Hizmet rezerve et"
+    },
+    "steps": {
+      "service": "Hizmet",
+      "participant": "Katılımcı",
+      "type": "Tür",
+      "participants": "Katılımcılar",
+      "package": "Paket",
+      "instructor": "Eğitmen",
+      "schedule": "Program",
+      "confirm": "Onayla"
+    },
+    "footer": {
+      "cancel": "İptal",
+      "back": "← Geri",
+      "next": "İleri →",
+      "confirmBooking": "Rezervasyonu Onayla",
+      "createGroupBooking": "Grup Rezervasyonu Oluştur"
+    },
+    "service": {
+      "categoryHeading": "Ne rezerve etmek istersiniz?",
+      "categorySubheading": "Mevcut seçenekleri görmek için bir kategori seçin",
+      "categorySelect": "Seç",
+      "categories": {
+        "lesson": {
+          "label": "Dersler",
+          "description": "Sörf ve su sporları dersleri"
+        },
+        "rental": {
+          "label": "Kiralık Ekipman",
+          "description": "Sörf tahtası, uçurtma, wetsuit ve ekipman kiralayın"
+        },
+        "accommodation": {
+          "label": "Konaklama",
+          "description": "Plaj tesislerimizde kalın"
+        }
+      },
+      "serviceListSubheading": "Bu kategoriden bir hizmet seçin",
+      "packageFilterNotice": "Seçili paketinizle uyumlu hizmetler gösteriliyor: <1>{{packageName}}</1>",
+      "searchPlaceholder": "Hizmet ara...",
+      "foundCount_one": "{{count}} hizmet bulundu",
+      "foundCount_other": "{{count}} hizmet bulundu",
+      "noneAvailable": "Mevcut {{categoryLabel}} yok",
+      "backToCategories": "← Kategorilere dön",
+      "noMatchingServices": "Eşleşen hizmet yok",
+      "clearSearch": "Aramayı Temizle",
+      "premiumDescription": "En deneyimli eğitmenlerimizle özel koçluk - tamamen kişiselleştirilmiş dersler",
+      "compatiblePackages_one": "{{count}} paket bu hizmetle eşleşiyor",
+      "compatiblePackages_other": "{{count}} paket bu hizmetle eşleşiyor",
+      "compatiblePackagesTitle": "Uyumlu Paketler"
+    },
+    "participant": {
+      "heading": "Bu ders kimin için?",
+      "subheading": "Kendinizi, grubu veya bir aile üyesini seçin",
+      "myselfTitle": "Kendim",
+      "myselfDesc": "Profiliniz",
+      "groupTitle": "Grup",
+      "groupDesc": "Birden fazla katılımcı",
+      "familyMemberTitle": "Aile Üyesi",
+      "familyMemberDesc": "Devam etmek için ekleyin",
+      "noFamilyText": "Aile üyesi yok.",
+      "noFamilyAddLink": "Ekle",
+      "noFamilyToContinue": "ve devam edin.",
+      "yearsTag": "{{count}} yaşında"
+    },
+    "groupParticipants": {
+      "heading": "Grup Katılımcılarını Seçin",
+      "subheading": "Bu grup dersine katılacak müşterileri seçin. Her katılımcının ders onaylanmadan önce daveti kabul etmesi gerekir.",
+      "selectedTitle": "Seçilen Katılımcılar ({{count}})",
+      "searchPlaceholder": "Müşterileri isim veya e-posta ile arayın...",
+      "loadingCustomers": "Müşteriler yükleniyor...",
+      "noCustomersSearch": "Aramanızla eşleşen müşteri bulunamadı",
+      "noCustomersAvailable": "Mevcut müşteri yok",
+      "addButton": "Ekle",
+      "howItWorksTitle": "Grup Rezervasyonu Nasıl Çalışır",
+      "howItWorksBullet1": "Yalnızca <1>arkadaşlarınız/bağlantılarınız</1> grup derslerine davet edilebilir.",
+      "howItWorksBullet2": "Seçilen katılımcılar kabul etmek veya reddetmek için bir bildirim alacak.",
+      "howItWorksBullet3": "Ders, yalnızca <1>tüm katılımcılar kabul ettikten</1> sonra onay için takvimde görünecek.",
+      "howItWorksBullet4": "Her katılımcının geçerli bir grup paketi olmalı veya satın almaya hazır olmalıdır.",
+      "noFriendsTitle": "Arkadaş Bulunamadı",
+      "noFriendsDesc": "Onları grup derslerine davet etmeden önce diğer öğrencilerle bağlantı kurmanız gerekiyor.",
+      "manageFriends": "Arkadaşları Yönet",
+      "selectAtLeastOne": "Devam etmek için en az bir katılımcı seçin"
+    },
+    "package": {
+      "ownedHeading": "Paket Saatleriniz",
+      "ownedSubheadingFiltered": "\"{{serviceName}}\" ile eşleşen paketler",
+      "ownedSubheadingGeneric": "Rezervasyonunuz için önceden satın alınan ders saatlerini kullanın",
+      "remainingHours": "{{hours}} saat kaldı",
+      "morePackages_one": "+{{count}} paket daha mevcut",
+      "morePackages_other": "+{{count}} paket daha mevcut",
+      "buyMoreOptional": "Daha Fazla Paket Satın Al (İsteğe Bağlı)",
+      "saveWithPackages": "Paketlerle Tasarruf Et (İsteğe Bağlı)",
+      "buyDescFiltered": "Birden fazla derste tasarruf etmek için \"{{serviceName}}\" paketleri satın alın.",
+      "buyDescGeneric": "Şimdi bireysel ders rezerve edebilir veya birden fazla derste tasarruf etmek için paket satın alabilirsiniz.",
+      "viewPackagesLink": "Paketleri Görüntüle →",
+      "buyMoreLink": "Daha Fazla Paket Satın Al →",
+      "noPackageContinue": "Paketsiz rezervasyon yapmaya devam edebilirsiniz",
+      "noPackageContinueDesc": "Bireysel ders ödemesi sonraki adımlarda işlenecektir.",
+      "buyFlowHeading": "Ders Paketleri Satın Al",
+      "paymentMethod": "Ödeme Yöntemi",
+      "walletBalance": "Bakiye: {{balance}}",
+      "walletOption": "Cüzdan",
+      "cashOption": "Nakit",
+      "loadingPackages": "Paketler yükleniyor...",
+      "noPackagesForService": "\"{{serviceName}}\" için kullanılabilir paket yok",
+      "noPackagesForCategory": "Bu kategoride kullanılabilir paket yok",
+      "otherPackagesHint_one": "Farklı ders türleri için {{count}} başka paket mevcut",
+      "otherPackagesHint_other": "Farklı ders türleri için {{count}} başka paket mevcut",
+      "insufficientBalance": "Yetersiz",
+      "buyNow": "Şimdi Satın Al",
+      "noMatchWarningTitle": "Bu hizmetle eşleşen paket yok",
+      "noMatchWarningDesc": "Yine de paket seçebilirsiniz, ancak saat yetersizse sistem reddedebilir.",
+      "showingAllPackages": "Bu hizmetle eşleşen paket yok. Tüm mevcut paketler gösteriliyor:",
+      "selectPackage": "Kalan saati olan bir paket seçin",
+      "hoursRemaining": "{{hours}} saat kaldı"
+    },
+    "instructor": {
+      "heading": "Sizi kim öğretecek?",
+      "subheading": "Bu ders için tercih ettiğiniz eğitmeni seçin",
+      "searchPlaceholder": "İsim veya e-posta ile ara...",
+      "foundCount_one": "{{count}} eğitmen bulundu",
+      "foundCount_other": "{{count}} eğitmen bulundu",
+      "noneAvailable": "Mevcut eğitmen yok",
+      "noMatching": "Eşleşen eğitmen yok",
+      "clearSearch": "Aramayı Temizle",
+      "notQualifiedDiscipline": "Bu disiplin için yetkili değil",
+      "notQualifiedCategory": "Bu ders türü için yetkili değil",
+      "notQualifiedLevel": "Seviye yetersiz",
+      "notQualified": "Yetkili değil"
+    },
+    "schedule": {
+      "step1Label": "Adım 1: Süre Seçin",
+      "step2Label": "Adım 2: Tarih Seçin",
+      "step3Label": "Adım 3: Saat Seçin",
+      "prevMonth": "← Önceki",
+      "nextMonth": "Sonraki →",
+      "noSlotsAvailable": "Uygun slot yok",
+      "weekDays": {
+        "sun": "Paz",
+        "mon": "Pzt",
+        "tue": "Sal",
+        "wed": "Çar",
+        "thu": "Per",
+        "fri": "Cum",
+        "sat": "Cmt"
+      }
+    },
+    "confirm": {
+      "bookingDetailsHeading": "Rezervasyon Detayları",
+      "groupBookingDetailsHeading": "Grup Rezervasyon Detayları",
+      "participantLabel": "Katılımcı",
+      "serviceLabel": "Hizmet",
+      "instructorLabel": "Eğitmen",
+      "durationLabel": "Süre",
+      "dateLabel": "Tarih",
+      "timeLabel": "Saat",
+      "paymentMethodLabel": "Ödeme Yöntemi",
+      "participantsSelectedLabel": "Katılımcılar",
+      "participantsCount": "{{count}} seçildi",
+      "selectedParticipantsLabel": "Seçilen Katılımcılar",
+      "toBeAssigned": "Atanacak",
+      "loadingInstructor": "Yükleniyor…",
+      "groupInviteNotice": "Katılımcıların bu dersi onaylanmadan önce daveti kabul etmesi gerekiyor.",
+      "promoCodeHeading": "Promosyon Kodunuz Var Mı?",
+      "notesHeading": "Ek Notlar (İsteğe Bağlı)",
+      "notesPlaceholder": "Eğitmeniniz için ayrıntı ekleyin",
+      "pricingBreakdownHeading": "Fiyat Detayı",
+      "pricingPlanned": "Planlanan: {{hours}} saat",
+      "pricingPackage": "Paket: {{hours}} saat",
+      "pricingChargeable": "Ücretlendirilen: {{hours}} saat",
+      "pricingRate": "Oran: {{amount}}",
+      "bookingError": "Rezervasyon oluşturulamadı"
+    },
+    "paymentOptions": {
+      "heading": "Ödeme Yöntemi",
+      "walletLabel": "Cüzdan",
+      "walletTagInstant": "Anında",
+      "walletTagAddFunds": "Bakiye ekle",
+      "packageLabel": "Paket saatlerini kullan",
+      "packageTagMatches": "Hizmetle eşleşiyor",
+      "packageTagSelect": "Paket seç",
+      "payLaterLabel": "Resepsiyonda Öde (Nakit/Kart)",
+      "payLaterTag": "Gelişte öde"
+    },
+    "paymentSummary": {
+      "walletTitle": "Cüzdan ödemesi",
+      "walletTagOk": "Anında tahsilat",
+      "walletTagInsufficient": "Bakiye ekle",
+      "walletChargeText": "Cüzdanınızdan {{amount}} tahsil edilecek.",
+      "walletBalanceAfter": "Tahsilat sonrası bakiye: {{balance}}",
+      "walletBalanceInsufficient": "Mevcut bakiye: {{balance}}",
+      "packageTitle": "Paket saatleri",
+      "packageTagCovered": "Tamamen karşılandı",
+      "packageTagPartial": "Kısmi karşılama",
+      "packageTagCheck": "Paketi kontrol et",
+      "packageHoursUsed": "{{packageName}} paketinden {{hours}} saat kullanılacak.",
+      "packageHoursRemaining": "Sonraki kalan saatler: {{hours}} saat",
+      "packageAdditionalPayment": "Bugün ayrıca {{amount}} ödeyeceksiniz.",
+      "packageNoCost": "Ek ödeme gerekmiyor.",
+      "packageNotCovered": "Bu paket oturumu kapsamıyor. {{amount}} ödeyeceksiniz.",
+      "payLaterTitle": "Merkezde öde",
+      "payLaterTag": "Gelişte öde",
+      "payLaterReserve": "Slotunuzu şimdi rezerve edecek ve geldiğinizde ödeme alacağız.",
+      "payLaterAmount": "Yerinde ödenecek tutar: {{amount}}.",
+      "creditCardTitle": "Kredi Kartı Ödemesi",
+      "creditCardTag": "Iyzico",
+      "creditCardRedirect": "Satın işlemini tamamlamak için güvenli bir ödeme sayfasına yönlendirileceksiniz.",
+      "creditCardAmount": "Tutar: {{amount}}"
+    },
+    "walletWarning": {
+      "partialTitle": "Kısmi Cüzdan Ödemesi",
+      "partialDesc1": "Cüzdan bakiyeniz <1>{{balance}}</1>.",
+      "partialDesc2": "Kalan <1>{{deficit}}</1> kredi kartınızdan tahsil edilecek.",
+      "partialDesc3": "Kart tahsilatı cüzdanınıza eklenecek ve ardından bu satın alma için kullanılacak.",
+      "insufficientMessage": "Yetersiz cüzdan bakiyesi. Başka bir ödeme seçeneği seçin veya cüzdanınıza bakiye ekleyin."
+    },
+    "recommendedPackage": {
+      "suggested": "Önerilen paket eşleşmesi",
+      "remaining": "{{name}} · {{hours}} kaldı",
+      "applyButton": "Bu paketi uygula"
+    },
+    "purchaseConfirm": {
+      "title": "Paket Satın Almayı Onayla",
+      "packageLabel": "Paket:",
+      "priceLabel": "Fiyat:",
+      "checkInLabel": "Giriş:",
+      "checkOutLabel": "Çıkış:",
+      "nightsLabel": "Gece sayısı:",
+      "paymentLabel": "Ödeme:",
+      "balanceAfterLabel": "Sonraki bakiye:",
+      "walletOption": "Cüzdan",
+      "cardOption": "Kart",
+      "confirmButton": "Satın Almayı Onayla",
+      "cancelButton": "İptal"
+    },
+    "purchaseSuccess": {
+      "title": "Paket Satın Alındı!",
+      "description": "\"{{packageName}}\" paketini başarıyla satın aldınız.",
+      "promoSaved": " \"{{code}}\" promosyon kodu {{amount}} tasarruf ettirdi!",
+      "walletCredit": " Ayrıca {{walletCredit}} {{walletCurrency}} cüzdanınıza eklendi!",
+      "accommodationConfirmed": " {{unitName}} konaklaması {{nights}} gece için onaylandı.",
+      "newBalance": " Yeni cüzdan bakiyeniz {{balance}}.",
+      "paymentPending": " Ödeme beklemede."
+    },
+    "purchaseError": {
+      "insufficientBalanceTitle": "Yetersiz Bakiye",
+      "insufficientBalanceDesc": "{{required}} gerekiyor ancak yalnızca {{available}} mevcut. Lütfen bakiye ekleyin veya başka bir ödeme yöntemi seçin.",
+      "datesUnavailableTitle": "Konaklama Mevcut Değil",
+      "datesUnavailableDesc": "Seçtiğiniz tarihler için konaklama mevcut değil. Lütfen farklı tarihler seçin.",
+      "datesRequiredTitle": "Tarihler Gerekli",
+      "datesRequiredDesc": "Bu konaklama paketi için giriş ve çıkış tarihlerini seçin.",
+      "noUnitTitle": "Yapılandırma Hatası",
+      "noUnitDesc": "Bu pakete atanmış konaklama birimi yok. Lütfen destek ile iletişime geçin.",
+      "failedTitle": "Satın Alma Başarısız"
+    },
+    "accommodationModal": {
+      "title": "Konaklama Tarihlerini Seçin",
+      "packageInfo": "{{nights}} gece konaklama dahil",
+      "selectDatesDesc": "Giriş ve çıkış tarihlerinizi seçin",
+      "includesNights": "Bu paket {{nights}} gece konaklama içeriyor",
+      "checkInLabel": "Giriş",
+      "checkInPlaceholder": "Giriş tarihi",
+      "checkOutLabel": "Çıkış",
+      "checkOutPlaceholder": "Çıkış tarihi",
+      "nightsTag_one": "{{count}} gece",
+      "nightsTag_other": "{{count}} gece",
+      "confirmButton": "Satın Alma İşlemine Devam Et",
+      "cancelButton": "İptal",
+      "selectDatesError": "Tarih Seçin",
+      "selectDatesErrorDesc": "Lütfen hem giriş hem de çıkış tarihlerini seçin."
+    },
+    "familyMember": {
+      "addSuccess": "Aile üyesi başarıyla eklendi",
+      "addFailed": "Aile üyesi eklenemedi"
+    },
+    "booking": {
+      "redirecting": "Ödeme sayfasına yönlendiriliyor...",
+      "successMessage": "Rezervasyon talebiniz gönderildi.",
+      "roleUpgradeMessage": "Öğrenci hesabına yükseltildiniz!",
+      "groupSuccess": "Grup rezervasyonu oluşturuldu! Katılımcılara bildirim gönderildi.",
+      "groupSuccessTitle": "Grup Rezervasyonu Oluşturuldu!",
+      "groupInvitationsTitle": "Davet bildirimleri gönderildi!",
+      "groupInvitationsDesc": "{{count}} katılımcı bu grup dersini kabul etmek veya reddetmek için bildirim alacak.",
+      "groupNextStepsTitle": "Sonraki Adımlar",
+      "groupNextStep1": "• Tüm katılımcılar kabul etmek veya reddetmek için bildirim alacak.",
+      "groupNextStep2": "• <1>Tüm katılımcılar kabul ettikten</1> sonra ders, yönetici onayı için takvimde görünecek.",
+      "groupNextStep3": "• Kabul durumunu Grup Rezervasyonları bölümünden takip edebilirsiniz.",
+      "groupCloseButton": "Kapat",
+      "failedToCreate": "Rezervasyon oluşturulamadı",
+      "validationSelectService": "Lütfen bir hizmet seçin",
+      "validationSelectParticipant": "Lütfen en az bir katılımcı seçin",
+      "validationInvalidPrice": "Kişi başı geçersiz fiyat",
+      "validationSelectDate": "Lütfen bir tarih seçin",
+      "validationSelectTime": "Lütfen bir saat seçin",
+      "validationGroupIdMissing": "Grup rezervasyonu oluşturuldu ancak doğrulanamadı"
     }
   }
 }

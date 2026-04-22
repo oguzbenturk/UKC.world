@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, Row, Col, Tag, Spin, Alert, Button } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { useData } from '@/shared/hooks/useData';
@@ -10,6 +11,7 @@ import { formatCurrency } from '@/shared/utils/formatters';
  * This component should be displayed at the top of the instructor profile for better UX
  */
 const InstructorOverviewCard = ({ instructor }) => {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ const InstructorOverviewCard = ({ instructor }) => {
 
     } catch (err) {
       logger.error('Error fetching instructor stats', { error: String(err) });
-      setError('Failed to load instructor overview. Some data may be unavailable.');
+      setError(t('instructor:overview.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -76,7 +78,7 @@ const InstructorOverviewCard = ({ instructor }) => {
   <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '12px 16px' } }}>
         <div style={{ textAlign: 'center', padding: 8 }}>
           <Spin size="small" />
-          <span style={{ marginLeft: 8, color: '#666' }}>Loading overview...</span>
+          <span style={{ marginLeft: 8, color: '#666' }}>{t('instructor:overview.loadingOverview')}</span>
         </div>
       </Card>
     );
@@ -85,15 +87,15 @@ const InstructorOverviewCard = ({ instructor }) => {
   if (error) {
     return (
   <Card size="small" style={{ marginBottom: 16 }} styles={{ body: { padding: '12px 16px' } }}>
-        <Alert 
-          message="Overview unavailable" 
-          description={error} 
-          type="warning" 
-          showIcon 
+        <Alert
+          message={t('instructor:overview.overviewUnavailable')}
+          description={error}
+          type="warning"
+          showIcon
           size="small"
           action={
             <Button size="small" type="link" onClick={fetchInstructorStats}>
-              Retry
+              {t('instructor:payroll.retryBtn')}
             </Button>
           }
         />
@@ -114,7 +116,7 @@ const InstructorOverviewCard = ({ instructor }) => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <UserOutlined style={{ marginRight: 8, color: 'var(--brand-primary)' }} />
-          <span style={{ fontWeight: 'bold' }}>Quick Overview</span>
+          <span style={{ fontWeight: 'bold' }}>{t('instructor:overview.quickOverview')}</span>
         </div>
         <Tag color={stats.status === 'active' ? 'green' : 'red'} size="small">
           {stats.status?.toUpperCase() || 'ACTIVE'}
@@ -127,34 +129,34 @@ const InstructorOverviewCard = ({ instructor }) => {
             <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--brand-success)' }}>
               {formatCurrency(stats.totalEarnings)}
             </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>Total Earnings</div>
+            <div style={{ fontSize: '11px', color: '#666' }}>{t('instructor:overview.totalEarnings')}</div>
           </div>
         </Col>
-        
+
         <Col xs={12} sm={6}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--brand-primary)' }}>
               {stats.completedLessons}
             </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>Lessons</div>
+            <div style={{ fontSize: '11px', color: '#666' }}>{t('instructor:overview.lessons')}</div>
           </div>
         </Col>
-        
+
         <Col xs={12} sm={6}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#722ed1' }}>
               {stats.totalHours.toFixed(1)}h
             </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>Total Hours</div>
+            <div style={{ fontSize: '11px', color: '#666' }}>{t('instructor:overview.totalHours')}</div>
           </div>
         </Col>
-        
+
         <Col xs={12} sm={6}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fa8c16' }}>
               {formatCurrency(stats.avgEarningsPerLesson)}
             </div>
-            <div style={{ fontSize: '11px', color: '#666' }}>Avg/Lesson</div>
+            <div style={{ fontSize: '11px', color: '#666' }}>{t('instructor:overview.avgPerLesson')}</div>
           </div>
         </Col>
       </Row>

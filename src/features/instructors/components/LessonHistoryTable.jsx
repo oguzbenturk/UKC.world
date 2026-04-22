@@ -1,7 +1,9 @@
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 function LessonHistoryTable({ lessons = [] }) {
+  const { t } = useTranslation(['instructor']);
   const { formatCurrency, businessCurrency } = useCurrency();
 
   const getStatusColor = (status) => {
@@ -31,15 +33,15 @@ function LessonHistoryTable({ lessons = [] }) {
       : 'bg-green-100 text-green-800'; // Pay-and-go: default to green (paid)
     const label = isPackage
       ? method === 'Package Hours'
-        ? 'Package Hours'
-        : `Package: ${method}`
-      : method || 'Paid'; // Pay-and-go: default to Paid
+        ? t('instructor:lessonHistory.packageHours')
+        : t('instructor:lessonHistory.packagePrefix', { name: method })
+      : method || t('instructor:lessonHistory.paid'); // Pay-and-go: default to Paid
     return { color, label };
   };
 
   if (!lessons || lessons.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">No lesson history available</div>
+      <div className="text-center py-8 text-gray-500">{t('instructor:lessonHistory.noHistory')}</div>
     );
   }
 
@@ -49,25 +51,25 @@ function LessonHistoryTable({ lessons = [] }) {
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Date & Time
+              {t('instructor:lessonHistory.columns.dateTime')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Student
+              {t('instructor:lessonHistory.columns.student')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Service
+              {t('instructor:lessonHistory.columns.service')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Duration
+              {t('instructor:lessonHistory.columns.duration')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
+              {t('instructor:lessonHistory.columns.status')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Payment
+              {t('instructor:lessonHistory.columns.payment')}
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Amount
+              {t('instructor:lessonHistory.columns.amount')}
             </th>
           </tr>
         </thead>
@@ -81,12 +83,12 @@ function LessonHistoryTable({ lessons = [] }) {
                     <div className="font-medium">
                       {lesson.date
                         ? format(new Date(lesson.date), 'MMM dd, yyyy')
-                        : 'Unknown date'}
+                        : t('instructor:lessonHistory.unknownDate')}
                     </div>
                     <div className="text-gray-500">
                       {lesson.start_hour
                         ? `${lesson.start_hour}:00`
-                        : lesson.timeSlot || 'Unknown time'}
+                        : lesson.timeSlot || t('instructor:lessonHistory.unknownTime')}
                     </div>
                   </div>
                 </td>

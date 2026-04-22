@@ -16,6 +16,9 @@
       "title": "¡Gracias por tu opinión!",
       "description": "Tu valoración nos ayuda a mejorar tu experiencia."
     },
+    "bookingRedirect": {
+      "openingBooking": "Abriendo reserva..."
+    },
     "nextLesson": {
       "label": "Próxima lección",
       "comingSoon": "Próximamente",
@@ -47,7 +50,11 @@
       "visitLessons": "Ver lecciones",
       "visitRentals": "Ver alquileres",
       "visitShop": "Ver tienda",
-      "visitMyLessons": "Mis lecciones"
+      "visitMyLessons": "Mis lecciones",
+      "myWallet": "Mi monedero",
+      "talkToKai": "Hablar con Kai",
+      "close": "Cerrar",
+      "quickActions": "Acciones rápidas"
     },
     "statsStrip": {
       "lessons": "Lecciones",
@@ -511,7 +518,43 @@
     "exportSuccess": "Lista de miembros de la familia descargada",
     "exportError": "Error al exportar los miembros de la familia",
     "waiverSigned": "La exención de {{name}} ha sido firmada",
-    "waiverSignedGeneric": "Exención firmada correctamente"
+    "waiverSignedGeneric": "Exención firmada correctamente",
+    "activity": {
+      "drawerTitle": "Actividad de {{name}}",
+      "drawerTitleGeneric": "Actividad familiar",
+      "refreshButton": "Actualizar",
+      "resetFilters": "Restablecer filtros",
+      "loadOlder": "Cargar actividad anterior",
+      "noActivity": "No hay actividad registrada aún",
+      "fetching": "Cargando actividad...",
+      "loadError": "No se pudo cargar la actividad",
+      "unknownDate": "Desconocido",
+      "typeFilters": {
+        "all": "Todo",
+        "booking": "Reservas",
+        "rental": "Alquileres",
+        "waiver": "Exenciones",
+        "audit": "Administración"
+      },
+      "metadata": {
+        "service": "Servicio:",
+        "instructor": "Instructor:",
+        "starts": "Inicio:",
+        "ends": "Fin:",
+        "location": "Ubicación:",
+        "notes": "Notas:",
+        "from": "Desde:",
+        "until": "Hasta:",
+        "signed": "Firmado:",
+        "signedBy": "Firmado por:",
+        "event": "Evento:",
+        "resource": "Recurso:",
+        "actor": "Actor:",
+        "details": "Detalles:",
+        "agreedToTerms": "Términos aceptados",
+        "photoConsent": "Consentimiento fotográfico"
+      }
+    }
   },
   "support": {
     "stats": {
@@ -579,6 +622,25 @@
     "notifications": {
       "requestSent": "Solicitud de soporte enviada",
       "sendError": "No se pudo enviar la solicitud"
+    },
+    "ticketDetail": {
+      "statusLabels": {
+        "open": "Abierto",
+        "in_progress": "En progreso",
+        "resolved": "Resuelto",
+        "closed": "Cerrado",
+        "pending": "Pendiente"
+      },
+      "timeline": {
+        "ticketOpened": "Ticket abierto",
+        "beingReviewed": "Siendo revisado",
+        "resolved": "Resuelto",
+        "openedOn": "Abierto el {{date}}"
+      },
+      "yourMessage": "Tu mensaje",
+      "noMessage": "No se proporcionó ningún mensaje.",
+      "statusTimeline": "Cronología del estado",
+      "teamReplies": "Respuestas del equipo"
     }
   },
   "ratingModal": {
@@ -614,6 +676,14 @@
       "great": "Genial",
       "amazing": "¡Increíble!"
     }
+  },
+  "ratingBanner": {
+    "needsRating": "Necesita valoración",
+    "rateNow": "Valorar ahora",
+    "rateFirstLesson": "Valorar la primera lección",
+    "lessonsToRate_one": "Tienes {{count}} lección por valorar",
+    "lessonsToRate_other": "Tienes {{count}} lecciones por valorar",
+    "shareExperience": "Comparte tu experiencia para ayudar a otros"
   },
   "layout": {
     "portalDisabled": {
@@ -796,7 +866,697 @@
       "loading": "Cargando resumen de opiniones..."
     },
     "achievements": {
-      "modalTitle": "¡Logro desbloqueado!"
+      "modalTitle": "¡Logro desbloqueado!",
+      "yourAchievements": "Mis logros",
+      "noAchievements": "Aún no hay logros",
+      "noAchievementsDesc": "¡Completa lecciones y envía opiniones para ganar logros!",
+      "earnedOn": "Obtenido el {{date}}"
+    },
+    "page": {
+      "title": "Opiniones y Reseñas",
+      "subtitleInstructor": "Consulta tu rendimiento docente y las opiniones de los alumnos",
+      "subtitleStudent": "Envía opiniones y sigue tus logros",
+      "subtitleAdmin": "Gestiona las opiniones y reseñas de la plataforma",
+      "tabs": {
+        "recentFeedback": "Opiniones recientes",
+        "overview": "Resumen",
+        "achievements": "Logros",
+        "submitFeedback": "Enviar opinión"
+      },
+      "submitHeading": "Enviar opinión de la lección",
+      "welcomeHeading": "Bienvenido a opiniones",
+      "welcomeBody": "Usa esta sección para enviar opiniones tras tus lecciones y seguir tu progreso."
+    },
+    "stats": {
+      "averageRating": "Valoración media",
+      "totalReviews": "Total de reseñas",
+      "fiveStarReviews": "Reseñas de 5 estrellas"
+    },
+    "list": {
+      "noFeedback": "No se encontraron opiniones",
+      "instructorLabel": "Instructor: {{name}}",
+      "skillLevel": "Nivel: {{level}}",
+      "progressNotes": "Notas de progreso:"
+    }
+  },
+  "friends": {
+    "pageTitle": "Amigos",
+    "pageSubtitle": "Gestiona tus amigos para crear reservas grupales juntos.",
+    "seoTitle": "Amigos • Plannivo",
+    "seoDescription": "Gestiona tus amigos para crear reservas grupales juntos.",
+    "findFriends": "Buscar amigos",
+    "searchPlaceholder": "Buscar por nombre o correo electrónico...",
+    "usersFound_one": "{{count}} usuario encontrado",
+    "usersFound_other": "{{count}} usuarios encontrados",
+    "noUsersFound": "No se encontraron usuarios que coincidan con tu búsqueda",
+    "tabs": {
+      "friends": "Amigos",
+      "requests": "Solicitudes",
+      "sent": "Enviadas"
+    },
+    "emptyFriends": "Todavía no tienes amigos",
+    "emptyFriendsHint": "Busca usuarios arriba para enviar solicitudes de amistad",
+    "noPendingRequests": "No hay solicitudes de amistad pendientes",
+    "noSentRequests": "No hay solicitudes enviadas",
+    "tooltips": {
+      "removeFriend": "Eliminar amigo",
+      "blockUser": "Bloquear usuario",
+      "cancelRequest": "Cancelar solicitud"
+    },
+    "buttons": {
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "cancel": "Cancelar",
+      "addFriend": "Añadir amigo",
+      "sendRequest": "Enviar solicitud"
+    },
+    "pending": "Pendiente",
+    "sendRequestModal": {
+      "title": "Enviar solicitud de amistad",
+      "messageLabel": "Añadir un mensaje (opcional):",
+      "messagePlaceholder": "¡Hola! Me gustaría conectar contigo para reservas grupales..."
+    },
+    "confirmRemove": {
+      "title": "Eliminar amigo",
+      "content": "¿Estás seguro de que quieres eliminar a {{name}} de tus amigos?",
+      "okText": "Eliminar",
+      "cancelText": "Cancelar"
+    },
+    "confirmBlock": {
+      "title": "Bloquear usuario",
+      "content": "¿Estás seguro de que quieres bloquear a {{name}}? No podrá enviarte solicitudes de amistad.",
+      "okText": "Bloquear",
+      "cancelText": "Cancelar"
+    },
+    "toasts": {
+      "requestSent": "¡Solicitud de amistad enviada!",
+      "requestSentError": "Error al enviar la solicitud",
+      "requestAccepted": "¡Solicitud de amistad aceptada!",
+      "requestAcceptedError": "Error al aceptar la solicitud",
+      "requestDeclined": "Solicitud de amistad rechazada",
+      "requestDeclinedError": "Error al rechazar la solicitud",
+      "requestCancelled": "Solicitud de amistad cancelada",
+      "requestCancelledError": "Error al cancelar la solicitud",
+      "friendRemoved": "Amigo eliminado",
+      "friendRemovedError": "Error al eliminar al amigo",
+      "userBlocked": "Usuario bloqueado",
+      "userBlockedError": "Error al bloquear al usuario",
+      "searchError": "Error al buscar usuarios"
+    }
+  },
+  "bookEquipment": {
+    "seoTitle": "Reservar equipamiento | UKC Academy",
+    "seoDescription": "Alquila equipamiento de calidad Duotone y Core para tu sesión de kitesurf. Todo el equipo se mantiene diariamente con equipo de seguridad incluido.",
+    "heroTitle": "Alquiler de equipamiento",
+    "heroBody": "¡Alquila equipamiento premium Duotone y Core para tu sesión! Todo el equipo se mantiene diariamente e incluye equipo de seguridad. Desde kits completos hasta artículos individuales, tenemos todo lo que necesitas.",
+    "bookNowButton": "Reservar equipamiento ahora",
+    "bookServiceButton": "Reservar",
+    "whyRentTitle": "¿Por qué alquilar con nosotros?",
+    "rentalOptionsTitle": "Nuestras opciones de alquiler",
+    "pricing": "Precios:",
+    "whatsIncluded": "Qué incluye:",
+    "bookPackageButton": "Reservar {{title}}",
+    "availableNowTitle": "Disponible ahora",
+    "availableNowSubtitle": "Equipamiento disponible para reservar",
+    "readyTitle": "¿Listo para el agua?",
+    "readyBody": "Reserva tu equipamiento ahora y disfruta de material premium para tu sesión.",
+    "bookEquipmentButton": "Reservar equipamiento",
+    "viewMyRentals": "Ver mis alquileres",
+    "noServicesDesc": "No hay servicios de alquiler específicos configurados. ¡Contáctanos para reservar equipamiento directamente!",
+    "contactForRentals": "Contactar para alquileres"
+  },
+  "walletModal": {
+    "title": "Monedero",
+    "close": "Cerrar",
+    "availableBalance": "Saldo disponible",
+    "totalBalance": "Saldo total",
+    "addFunds": "+ Añadir fondos",
+    "creditCard": "Tarjeta de crédito",
+    "bankTransfer": "Transferencia bancaria",
+    "lastTopUp": "Última recarga",
+    "latestActivity": "Última actividad",
+    "noneYet": "Ninguno todavía",
+    "promoCode": "Código promocional",
+    "recentTransactions": "Transacciones recientes",
+    "lastN": "Últimas {{count}}",
+    "loading": "Cargando...",
+    "unableToLoadTransactions": "No se pueden cargar las transacciones",
+    "noTransactionsYet": "Sin transacciones aún",
+    "noTransactionsDesc": "Las recargas y pagos aparecerán aquí",
+    "debit": "Débito",
+    "credit": "Crédito",
+    "overdue": "Vencido",
+    "active": "Activo",
+    "available": "disponible",
+    "reserved": "reservado",
+    "depositApproved": "¡Tu depósito por transferencia bancaria ha sido aprobado!",
+    "depositDeclined": "Tu solicitud de depósito por transferencia bancaria fue rechazada.",
+    "depositSuccess": "¡Depósito exitoso! Tu monedero ha sido actualizado.",
+    "bankTransferSubmitted": "¡Solicitud de transferencia bancaria enviada correctamente!"
+  },
+  "bookingTrigger": {
+    "label": "Reservar clase",
+    "ariaLabel": "Abrir asistente de reserva"
+  },
+  "walletTrigger": {
+    "label": "Billetera",
+    "ariaLabel": "Abrir billetera",
+    "ariaLabelWithBalance": "Abrir billetera ({{balance}})"
+  },
+  "cart": {
+    "title": "Carrito",
+    "itemCount_one": "{{count}} artículo",
+    "itemCount_other": "{{count}} artículos",
+    "emptyTitle": "Tu carrito está vacío",
+    "emptyBody": "¡Explora nuestra tienda y encuentra equipamiento increíble para tu próxima aventura!",
+    "startShopping": "Empezar a comprar",
+    "removeTooltip": "Eliminar",
+    "walletLabel": "Billetera",
+    "walletLow": "Saldo bajo – otras opciones de pago disponibles",
+    "total": "Total ({{count}} artículos)",
+    "proceedToCheckout": "Proceder al pago",
+    "secureCheckout": "Pago seguro",
+    "signInTitle": "Inicia sesión para pagar",
+    "signInMessage": "Crea una cuenta o inicia sesión para completar tu compra. Tu carrito se guardará."
+  },
+  "checkout": {
+    "title": "Pago",
+    "itemCount_one": "{{count}} artículo",
+    "itemCount_other": "{{count}} artículos",
+    "saved": "· -{{amount}} ahorrados",
+    "delivery": "Entrega",
+    "addDeliveryAddress": "Agregar dirección de entrega",
+    "editAddress": "Editar",
+    "addAddress": "Agregar",
+    "addressPlaceholder": "Dirección",
+    "cityPlaceholder": "Ciudad",
+    "zipPlaceholder": "Código postal",
+    "countryPlaceholder": "País",
+    "cancelAddress": "Cancelar",
+    "saveAddress": "Guardar",
+    "saveAddressHint": "Guarda tu dirección para continuar",
+    "addressRequired": "Se requiere dirección de entrega",
+    "payment": "Pago",
+    "payNow": "Pagar ahora",
+    "dueOnDelivery": "Al momento de la entrega",
+    "payDepositVia": "Pagar depósito mediante",
+    "bankTransferInfo": "Transfiere el monto completo, sube tu recibo — el pedido se confirma tras la aprobación del administrador.",
+    "fromWallet": "desde la billetera",
+    "byCard": "con tarjeta",
+    "proceedButton": "Pagar {{amount}}",
+    "submitOrderButton": "Enviar pedido · {{amount}}",
+    "payDepositButton": "Pagar depósito {{amount}}",
+    "payWalletCardButton": "Pagar con Billetera + Tarjeta",
+    "wallet": {
+      "label": "Billetera",
+      "balance": "Saldo: {{amount}}",
+      "full": "Completo",
+      "partial": "Parcial",
+      "empty": "Vacía"
+    },
+    "bankTransfer": {
+      "label": "Transferencia bancaria",
+      "sublabel": "Transferir y subir recibo · aprobación del administrador"
+    },
+    "deposit": {
+      "label": "Depósito {{percent}}%",
+      "sublabel": "Paga {{now}} ahora · resto en la entrega"
+    },
+    "noBankAccounts": "No hay cuentas bancarias disponibles",
+    "transferTo": "Transferir a · {{currency}}",
+    "bankFields": {
+      "bank": "Banco",
+      "accountHolder": "Titular de la cuenta",
+      "iban": "IBAN",
+      "swift": "SWIFT / BIC",
+      "accountNumber": "N.° de cuenta"
+    },
+    "uploadReceipt": "Subir recibo",
+    "changeReceipt": "Cambiar recibo",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copiedTooltip": "¡Copiado!",
+    "copyTooltip": "Copiar",
+    "confirmOrder": "Confirmar pedido",
+    "confirmDepositOrder": "Confirmar pedido con depósito",
+    "depositLabel": "Depósito: {{amount}}",
+    "remainingOnDelivery": "Resto en la entrega: {{amount}}",
+    "deliveryTo": "Entrega en: {{address}}",
+    "paymentMethod": "Pago: {{method}}",
+    "walletFirst": "Tu saldo de billetera de {{walletAmount}} se utilizará primero",
+    "remainingByCard": ", y los {{cardAmount}} restantes se cargarán a tu tarjeta.",
+    "placeOrder": "Realizar pedido",
+    "payDepositConfirm": "Pagar depósito {{amount}}",
+    "goBack": "Volver",
+    "orderSubmitted": "¡Pedido enviado!",
+    "orderPlaced": "¡Pedido realizado!",
+    "pendingApproval": "Pendiente de aprobación — serás notificado una vez confirmado.",
+    "thankYou": "¡Gracias por tu compra!",
+    "continueShopping": "Continuar comprando",
+    "errors": {
+      "incompleteAddress": "Por favor proporciona una dirección de entrega completa antes de pagar",
+      "insufficientBalance": "Saldo insuficiente en la billetera",
+      "depositReceiptRequired": "Por favor selecciona una cuenta bancaria y sube tu recibo de depósito",
+      "paymentReceiptRequired": "Por favor selecciona una cuenta bancaria y sube tu recibo de pago",
+      "uploadReceiptRequired": "Por favor sube una prueba de pago (recibo)",
+      "uploadFailed": "Error al subir",
+      "orderFailed": "No se pudo realizar el pedido",
+      "orderError": "No se pudo procesar tu pedido. Por favor intenta de nuevo."
+    },
+    "paymentLabels": {
+      "depositCard": "Depósito {{percent}}% ({{amount}}) con tarjeta",
+      "depositBank": "Depósito {{percent}}% ({{amount}}) por transferencia",
+      "walletHybrid": "Billetera ({{wallet}}) + Tarjeta ({{card}})",
+      "creditCardWallet": "Billetera ({{wallet}}) + Tarjeta ({{card}})",
+      "wallet": "Billetera",
+      "creditCard": "Tarjeta de crédito",
+      "bankTransferPending": "Transferencia bancaria (aprobación pendiente)",
+      "cash": "Efectivo al recoger"
+    }
+  },
+  "profile": {
+    "status": {
+      "active": "Activo",
+      "completed": "Completado",
+      "returned": "Devuelto",
+      "cancelled": "Cancelado",
+      "unknown": "Desconocido",
+      "na": "N/A"
+    },
+    "fields": {
+      "email": "Correo",
+      "phone": "Teléfono",
+      "preferredLanguage": "Idioma preferido",
+      "customerSince": "Cliente desde",
+      "notProvided": "No proporcionado",
+      "notSet": "No establecido",
+      "unknown": "Desconocido",
+      "notes": "Notas"
+    },
+    "account": {
+      "currentBalance": "Saldo actual",
+      "lifetimeValue": "Valor total",
+      "lastPayment": "Último pago",
+      "noPaymentsYet": "Sin pagos aún"
+    },
+    "stats": {
+      "hoursAttended": "Horas asistidas",
+      "attendanceRate": "Tasa de asistencia",
+      "totalLessons": "Total clases",
+      "totalRentals": "Total alquileres"
+    },
+    "packages": {
+      "title": "Resumen del paquete",
+      "viewOnly": "Solo lectura",
+      "none": "Sin paquetes asignados",
+      "generalPackage": "Paquete general",
+      "plusRental": " + Alquiler",
+      "plusAccommodation": " + Alojamiento",
+      "expiresOn": "Vence {{date}}",
+      "totalHours": "Total horas",
+      "used": "Usado",
+      "remaining": "Restante",
+      "utilisation": "Utilización",
+      "totalDays": "Total días",
+      "equipment": "Equipo",
+      "totalNights": "Total noches",
+      "unit": "Unidad"
+    },
+    "upcomingLessons": {
+      "title": "Próximas clases",
+      "viewOnly": "Solo lectura",
+      "none": "Sin próximas clases",
+      "scheduled": "Programado",
+      "instructor": "Instructor: {{name}}"
+    },
+    "history": {
+      "totalHistory": "Historial total",
+      "lessonHistory": "Historial de clases",
+      "rentalHistory": "Historial de alquileres",
+      "shopHistory": "Historial de tienda",
+      "membershipHistory": "Historial de membresías",
+      "eventHistory": "Historial de eventos",
+      "financialHistory": "Historial financiero",
+      "allActivity": "Toda la actividad",
+      "noActivity": "Sin historial",
+      "noLessons": "Sin historial de clases",
+      "noRentals": "Sin historial de alquileres",
+      "noShop": "Sin compras en tienda",
+      "noMemberships": "Sin compras de membresía",
+      "noEvents": "Sin inscripciones a eventos",
+      "noPayments": "Sin pagos registrados",
+      "shopPurchases": "Compras en tienda",
+      "membershipPurchases": "Compras de membresía",
+      "eventRegistrations": "Inscripciones a eventos",
+      "columns": {
+        "dateTime": "Fecha y hora",
+        "service": "Servicio",
+        "instructor": "Instructor",
+        "duration": "Duración",
+        "price": "Precio",
+        "status": "Estado",
+        "payment": "Pago",
+        "equipment": "Equipo",
+        "rentalDate": "Fecha de alquiler",
+        "date": "Fecha",
+        "amount": "Monto",
+        "description": "Descripción",
+        "purchased": "Comprado",
+        "membership": "Membresía",
+        "expires": "Vence",
+        "item": "Artículo",
+        "quantity": "Cantidad",
+        "event": "Evento",
+        "location": "Lugar",
+        "registration": "Inscripción",
+        "type": "Tipo"
+      }
+    },
+    "payments": {
+      "free": "Gratis",
+      "noExpiry": "Sin vencimiento",
+      "tba": "Por confirmar",
+      "product": "Producto",
+      "lesson": "Clase",
+      "equipment": "Equipo",
+      "rental": "Alquiler",
+      "notAssigned": "No asignado",
+      "refundFor": "Devolución por {{name}}",
+      "chargeFor": "Cargo por {{name}}",
+      "paymentFor": "Pago por {{name}}",
+      "refund": "Devolución",
+      "charge": "Cargo",
+      "pendingPayment": "Pago pendiente",
+      "payment": "Pago",
+      "hoursUnit_one": "{{count}} hora",
+      "hoursUnit_other": "{{count}} horas"
+    },
+    "alert": {
+      "familyMessage": "¿Buscas miembros de la familia?",
+      "familyDescription": "Gestiona los detalles familiares desde la barra lateral navegando a Perfil → Familia.",
+      "loadError": "Tuvimos problemas cargando parte de tu historial",
+      "unavailable": "Perfil no disponible",
+      "loadingActivity": "Cargando tu actividad..."
+    }
+  },
+  "bookingWizard": {
+    "modal": {
+      "title": "Reservar un servicio"
+    },
+    "steps": {
+      "service": "Servicio",
+      "participant": "Participante",
+      "type": "Tipo",
+      "participants": "Participantes",
+      "package": "Paquete",
+      "instructor": "Instructor",
+      "schedule": "Horario",
+      "confirm": "Confirmar"
+    },
+    "footer": {
+      "cancel": "Cancelar",
+      "back": "← Atrás",
+      "next": "Siguiente →",
+      "confirmBooking": "Confirmar reserva",
+      "createGroupBooking": "Crear reserva grupal"
+    },
+    "service": {
+      "categoryHeading": "¿Qué deseas reservar?",
+      "categorySubheading": "Elige una categoría para ver las opciones disponibles",
+      "categorySelect": "Seleccionar",
+      "categories": {
+        "lesson": {
+          "label": "Clases",
+          "description": "Clases de kitesurf y deportes acuáticos"
+        },
+        "rental": {
+          "label": "Alquiler de equipos",
+          "description": "Alquila tablas, cometas, trajes y equipos"
+        },
+        "accommodation": {
+          "label": "Alojamiento",
+          "description": "Alójate en nuestras instalaciones frente al mar"
+        }
+      },
+      "serviceListSubheading": "Selecciona un servicio de esta categoría",
+      "packageFilterNotice": "Mostrando servicios compatibles con tu paquete seleccionado: <1>{{packageName}}</1>",
+      "searchPlaceholder": "Buscar servicios...",
+      "foundCount_one": "{{count}} servicio encontrado",
+      "foundCount_other": "{{count}} servicios encontrados",
+      "noneAvailable": "No hay {{categoryLabel}} disponibles",
+      "backToCategories": "← Volver a categorías",
+      "noMatchingServices": "No hay servicios coincidentes",
+      "clearSearch": "Borrar búsqueda",
+      "premiumDescription": "Coaching privado con nuestros instructores más experimentados - sesiones completamente personalizadas",
+      "compatiblePackages_one": "{{count}} paquete coincide con este servicio",
+      "compatiblePackages_other": "{{count}} paquetes coinciden con este servicio",
+      "compatiblePackagesTitle": "Paquetes compatibles"
+    },
+    "participant": {
+      "heading": "¿Para quién es esta clase?",
+      "subheading": "Selecciona a ti mismo, un grupo o un familiar",
+      "myselfTitle": "Yo mismo",
+      "myselfDesc": "Tu perfil",
+      "groupTitle": "Grupo",
+      "groupDesc": "Varios participantes",
+      "familyMemberTitle": "Familiar",
+      "familyMemberDesc": "Agrega uno para continuar",
+      "noFamilyText": "No hay familiares.",
+      "noFamilyAddLink": "Agregar uno",
+      "noFamilyToContinue": "para continuar.",
+      "yearsTag": "{{count}} años"
+    },
+    "groupParticipants": {
+      "heading": "Seleccionar participantes del grupo",
+      "subheading": "Elige los clientes registrados para unirse a esta clase grupal. Cada participante deberá aceptar la invitación antes de que se confirme la clase.",
+      "selectedTitle": "Participantes seleccionados ({{count}})",
+      "searchPlaceholder": "Buscar clientes por nombre o correo...",
+      "loadingCustomers": "Cargando clientes...",
+      "noCustomersSearch": "No se encontraron clientes que coincidan con tu búsqueda",
+      "noCustomersAvailable": "No hay clientes disponibles",
+      "addButton": "Agregar",
+      "howItWorksTitle": "Cómo funciona la reserva grupal",
+      "howItWorksBullet1": "Solo tus <1>amigos/conexiones</1> pueden ser invitados a clases grupales.",
+      "howItWorksBullet2": "Los participantes seleccionados recibirán una notificación para aceptar o rechazar.",
+      "howItWorksBullet3": "La clase solo aparecerá en el calendario para aprobación una vez que <1>todos los participantes acepten</1>.",
+      "howItWorksBullet4": "Cada participante debe tener un paquete grupal válido o estar preparado para comprar uno.",
+      "noFriendsTitle": "No se encontraron amigos",
+      "noFriendsDesc": "Necesitas conectarte con otros estudiantes antes de invitarlos a clases grupales.",
+      "manageFriends": "Gestionar amigos",
+      "selectAtLeastOne": "Por favor selecciona al menos un participante para continuar"
+    },
+    "package": {
+      "ownedHeading": "Tus horas de paquete",
+      "ownedSubheadingFiltered": "Paquetes que coinciden con \"{{serviceName}}\"",
+      "ownedSubheadingGeneric": "Usa las horas de clase prepagadas para tu reserva",
+      "remainingHours": "{{hours}}h restantes",
+      "morePackages_one": "+{{count}} paquete más disponible",
+      "morePackages_other": "+{{count}} paquetes más disponibles",
+      "buyMoreOptional": "Comprar más paquetes (opcional)",
+      "saveWithPackages": "Ahorra con paquetes (opcional)",
+      "buyDescFiltered": "Compra paquetes para \"{{serviceName}}\" para ahorrar en múltiples clases.",
+      "buyDescGeneric": "Puedes reservar clases individuales ahora o comprar un paquete para ahorrar en múltiples clases.",
+      "viewPackagesLink": "Ver paquetes →",
+      "buyMoreLink": "Comprar más paquetes →",
+      "noPackageContinue": "Puedes continuar la reserva sin un paquete",
+      "noPackageContinueDesc": "El pago de la clase individual se procesará en los próximos pasos.",
+      "buyFlowHeading": "Comprar paquetes de clases",
+      "paymentMethod": "Método de pago",
+      "walletBalance": "Saldo: {{balance}}",
+      "walletOption": "Monedero",
+      "cashOption": "Efectivo",
+      "loadingPackages": "Cargando paquetes...",
+      "noPackagesForService": "No hay paquetes disponibles para \"{{serviceName}}\"",
+      "noPackagesForCategory": "No hay paquetes disponibles en esta categoría",
+      "otherPackagesHint_one": "{{count}} otro paquete disponible para diferentes tipos de clases",
+      "otherPackagesHint_other": "{{count}} otros paquetes disponibles para diferentes tipos de clases",
+      "insufficientBalance": "Saldo insuficiente",
+      "buyNow": "Comprar ahora",
+      "noMatchWarningTitle": "Ningún paquete coincide con este servicio",
+      "noMatchWarningDesc": "Aún puedes seleccionar un paquete, pero el sistema puede rechazarlo si las horas son insuficientes.",
+      "showingAllPackages": "Ningún paquete coincide con este servicio. Mostrando todos los paquetes disponibles:",
+      "selectPackage": "Selecciona un paquete con horas restantes",
+      "hoursRemaining": "{{hours}}h restantes"
+    },
+    "instructor": {
+      "heading": "¿Quién te enseñará?",
+      "subheading": "Elige tu instructor preferido para esta clase",
+      "searchPlaceholder": "Buscar por nombre o correo...",
+      "foundCount_one": "{{count}} instructor encontrado",
+      "foundCount_other": "{{count}} instructores encontrados",
+      "noneAvailable": "No hay instructores disponibles",
+      "noMatching": "No hay instructores coincidentes",
+      "clearSearch": "Borrar búsqueda",
+      "notQualifiedDiscipline": "No calificado para esta disciplina",
+      "notQualifiedCategory": "No calificado para este tipo de clase",
+      "notQualifiedLevel": "Nivel insuficiente",
+      "notQualified": "No calificado"
+    },
+    "schedule": {
+      "step1Label": "Paso 1: Seleccionar duración",
+      "step2Label": "Paso 2: Seleccionar fecha",
+      "step3Label": "Paso 3: Seleccionar hora",
+      "prevMonth": "← Ant.",
+      "nextMonth": "Sig. →",
+      "noSlotsAvailable": "No hay horarios disponibles",
+      "weekDays": {
+        "sun": "Dom",
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mié",
+        "thu": "Jue",
+        "fri": "Vie",
+        "sat": "Sáb"
+      }
+    },
+    "confirm": {
+      "bookingDetailsHeading": "Detalles de la reserva",
+      "groupBookingDetailsHeading": "Detalles de la reserva grupal",
+      "participantLabel": "Participante",
+      "serviceLabel": "Servicio",
+      "instructorLabel": "Instructor",
+      "durationLabel": "Duración",
+      "dateLabel": "Fecha",
+      "timeLabel": "Hora",
+      "paymentMethodLabel": "Método de pago",
+      "participantsSelectedLabel": "Participantes",
+      "participantsCount": "{{count}} seleccionado(s)",
+      "selectedParticipantsLabel": "Participantes seleccionados",
+      "toBeAssigned": "Por asignar",
+      "loadingInstructor": "Cargando…",
+      "groupInviteNotice": "Los participantes deberán aceptar la invitación antes de que se confirme esta clase.",
+      "promoCodeHeading": "¿Tienes un código promocional?",
+      "notesHeading": "Notas adicionales (opcional)",
+      "notesPlaceholder": "Agrega detalles para tu instructor",
+      "pricingBreakdownHeading": "Desglose de precios",
+      "pricingPlanned": "Planificado: {{hours}}h",
+      "pricingPackage": "Paquete: {{hours}}h",
+      "pricingChargeable": "Facturable: {{hours}}h",
+      "pricingRate": "Tarifa: {{amount}}",
+      "bookingError": "No se pudo crear la reserva"
+    },
+    "paymentOptions": {
+      "heading": "Método de pago",
+      "walletLabel": "Monedero",
+      "walletTagInstant": "Instantáneo",
+      "walletTagAddFunds": "Añadir fondos",
+      "packageLabel": "Usar horas de paquete",
+      "packageTagMatches": "Coincide con el servicio",
+      "packageTagSelect": "Seleccionar paquete",
+      "payLaterLabel": "Pagar en recepción (efectivo/tarjeta)",
+      "payLaterTag": "Pago a la llegada"
+    },
+    "paymentSummary": {
+      "walletTitle": "Pago con monedero",
+      "walletTagOk": "Cargo inmediato",
+      "walletTagInsufficient": "Añadir fondos",
+      "walletChargeText": "Se cargarán {{amount}} de tu monedero ahora.",
+      "walletBalanceAfter": "Saldo después del cargo: {{balance}}",
+      "walletBalanceInsufficient": "Saldo disponible: {{balance}}",
+      "packageTitle": "Horas de paquete",
+      "packageTagCovered": "Totalmente cubierto",
+      "packageTagPartial": "Cobertura parcial",
+      "packageTagCheck": "Verificar paquete",
+      "packageHoursUsed": "Se usarán {{hours}}h de {{packageName}}.",
+      "packageHoursRemaining": "Horas restantes después: {{hours}}h",
+      "packageAdditionalPayment": "También pagarás {{amount}} hoy.",
+      "packageNoCost": "No se requiere pago adicional.",
+      "packageNotCovered": "Este paquete no cubre la sesión. Pagarás {{amount}}.",
+      "payLaterTitle": "Pagar en el centro",
+      "payLaterTag": "Pago a la llegada",
+      "payLaterReserve": "Reservaremos tu lugar ahora y cobraremos el pago cuando llegues.",
+      "payLaterAmount": "Monto a pagar en persona: {{amount}}.",
+      "creditCardTitle": "Pago con tarjeta de crédito",
+      "creditCardTag": "Iyzico",
+      "creditCardRedirect": "Serás redirigido a una página de pago segura para completar tu compra.",
+      "creditCardAmount": "Monto: {{amount}}"
+    },
+    "walletWarning": {
+      "partialTitle": "Pago parcial con monedero",
+      "partialDesc1": "Tu saldo de monedero es <1>{{balance}}</1>.",
+      "partialDesc2": "El monto restante de <1>{{deficit}}</1> se cargará a tu tarjeta de crédito.",
+      "partialDesc3": "El cargo de la tarjeta se añadirá a tu monedero y luego se usará para esta compra.",
+      "insufficientMessage": "Saldo de monedero insuficiente. Elige otra opción de pago o recarga tu monedero."
+    },
+    "recommendedPackage": {
+      "suggested": "Coincidencia de paquete sugerida",
+      "remaining": "{{name}} · {{hours}} restantes",
+      "applyButton": "Aplicar este paquete"
+    },
+    "purchaseConfirm": {
+      "title": "Confirmar compra de paquete",
+      "packageLabel": "Paquete:",
+      "priceLabel": "Precio:",
+      "checkInLabel": "Entrada:",
+      "checkOutLabel": "Salida:",
+      "nightsLabel": "Noches:",
+      "paymentLabel": "Pago:",
+      "balanceAfterLabel": "Saldo después:",
+      "walletOption": "Monedero",
+      "cardOption": "Tarjeta",
+      "confirmButton": "Confirmar compra",
+      "cancelButton": "Cancelar"
+    },
+    "purchaseSuccess": {
+      "title": "¡Paquete comprado!",
+      "description": "Has comprado exitosamente \"{{packageName}}\".",
+      "promoSaved": " El código promocional \"{{code}}\" te ahorró {{amount}}!",
+      "walletCredit": " Además, {{walletCredit}} {{walletCurrency}} han sido añadidos a tu monedero!",
+      "accommodationConfirmed": " Alojamiento confirmado en {{unitName}} por {{nights}} noche(s).",
+      "newBalance": " Tu nuevo saldo de monedero es {{balance}}.",
+      "paymentPending": " El pago está pendiente."
+    },
+    "purchaseError": {
+      "insufficientBalanceTitle": "Saldo insuficiente",
+      "insufficientBalanceDesc": "Necesitas {{required}} pero solo tienes {{available}} disponibles. Por favor añade fondos o elige otro método de pago.",
+      "datesUnavailableTitle": "Alojamiento no disponible",
+      "datesUnavailableDesc": "El alojamiento no está disponible para las fechas seleccionadas. Por favor elige otras fechas.",
+      "datesRequiredTitle": "Fechas requeridas",
+      "datesRequiredDesc": "Por favor selecciona las fechas de entrada y salida para este paquete de alojamiento.",
+      "noUnitTitle": "Error de configuración",
+      "noUnitDesc": "Este paquete no tiene una unidad de alojamiento asignada. Por favor contacta al soporte.",
+      "failedTitle": "Compra fallida"
+    },
+    "accommodationModal": {
+      "title": "Seleccionar fechas de estancia",
+      "packageInfo": "Incluye {{nights}} noches de alojamiento",
+      "selectDatesDesc": "Selecciona tus fechas de entrada y salida",
+      "includesNights": "Este paquete incluye {{nights}} noches de alojamiento",
+      "checkInLabel": "Entrada",
+      "checkInPlaceholder": "Fecha de entrada",
+      "checkOutLabel": "Salida",
+      "checkOutPlaceholder": "Fecha de salida",
+      "nightsTag_one": "{{count}} noche",
+      "nightsTag_other": "{{count}} noches",
+      "confirmButton": "Continuar a la compra",
+      "cancelButton": "Cancelar",
+      "selectDatesError": "Seleccionar fechas",
+      "selectDatesErrorDesc": "Por favor selecciona tanto la fecha de entrada como la de salida."
+    },
+    "familyMember": {
+      "addSuccess": "Familiar añadido correctamente",
+      "addFailed": "No se pudo añadir el familiar"
+    },
+    "booking": {
+      "redirecting": "Redirigiendo a la página de pago...",
+      "successMessage": "Tu solicitud de reserva ha sido enviada.",
+      "roleUpgradeMessage": "¡Has sido ascendido a una cuenta de estudiante!",
+      "groupSuccess": "¡Reserva grupal creada! Los participantes serán notificados para aceptar.",
+      "groupSuccessTitle": "¡Reserva grupal creada!",
+      "groupInvitationsTitle": "¡Notificaciones de invitación enviadas!",
+      "groupInvitationsDesc": "{{count}} participante(s) recibirán notificaciones para aceptar o rechazar esta clase grupal.",
+      "groupNextStepsTitle": "Próximos pasos",
+      "groupNextStep1": "• Todos los participantes recibirán una notificación para aceptar o rechazar.",
+      "groupNextStep2": "• Una vez que <1>todos los participantes acepten</1>, la clase aparecerá en el calendario para aprobación.",
+      "groupNextStep3": "• Puedes rastrear el estado de aceptación en tu sección de Reservas grupales.",
+      "groupCloseButton": "Cerrar",
+      "failedToCreate": "No se pudo crear la reserva",
+      "validationSelectService": "Por favor selecciona un servicio",
+      "validationSelectParticipant": "Por favor selecciona al menos un participante",
+      "validationInvalidPrice": "Precio por persona inválido",
+      "validationSelectDate": "Por favor selecciona una fecha",
+      "validationSelectTime": "Por favor selecciona una hora",
+      "validationGroupIdMissing": "Reserva grupal creada pero no confirmada"
     }
   }
 }

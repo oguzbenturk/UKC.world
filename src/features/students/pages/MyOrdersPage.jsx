@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Card, Typography, Tag, Spin, Empty, Button, Segmented, Pagination,
   Image, Drawer, Timeline, Divider, Input, Avatar, Badge, Tooltip
@@ -35,16 +36,16 @@ const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 /* ─── Status config ─── */
-const STATUS_CONFIG = {
-  pending:     { color: 'orange',   icon: <ClockCircleOutlined />,  label: 'Pending',     dotClass: 'bg-amber-400' },
-  confirmed:   { color: 'blue',     icon: <CheckCircleOutlined />,  label: 'Confirmed',   dotClass: 'bg-sky-400' },
-  processing:  { color: 'geekblue', icon: <InboxOutlined />,        label: 'Processing',  dotClass: 'bg-sky-500' },
-  shipped:     { color: 'cyan',     icon: <CarOutlined />,          label: 'Shipped',     dotClass: 'bg-sky-600' },
-  delivered:   { color: 'green',    icon: <CheckCircleOutlined />,  label: 'Delivered',   dotClass: 'bg-emerald-500' },
-  completed:   { color: 'green',    icon: <CheckCircleOutlined />,  label: 'Completed',   dotClass: 'bg-emerald-500' },
-  cancelled:   { color: 'red',      icon: <CloseCircleOutlined />,  label: 'Cancelled',   dotClass: 'bg-rose-400' },
-  refunded:    { color: 'volcano',  icon: <DollarOutlined />,       label: 'Refunded',    dotClass: 'bg-rose-500' },
-};
+const buildStatusConfig = (t) => ({
+  pending:     { color: 'orange',   icon: <ClockCircleOutlined />,  label: t('student:myOrders.statusLabels.pending'),     dotClass: 'bg-amber-400' },
+  confirmed:   { color: 'blue',     icon: <CheckCircleOutlined />,  label: t('student:myOrders.statusLabels.confirmed'),   dotClass: 'bg-sky-400' },
+  processing:  { color: 'geekblue', icon: <InboxOutlined />,        label: t('student:myOrders.statusLabels.processing'),  dotClass: 'bg-sky-500' },
+  shipped:     { color: 'cyan',     icon: <CarOutlined />,          label: t('student:myOrders.statusLabels.shipped'),     dotClass: 'bg-sky-600' },
+  delivered:   { color: 'green',    icon: <CheckCircleOutlined />,  label: t('student:myOrders.statusLabels.delivered'),   dotClass: 'bg-emerald-500' },
+  completed:   { color: 'green',    icon: <CheckCircleOutlined />,  label: t('student:myOrders.statusLabels.completed'),   dotClass: 'bg-emerald-500' },
+  cancelled:   { color: 'red',      icon: <CloseCircleOutlined />,  label: t('student:myOrders.statusLabels.cancelled'),   dotClass: 'bg-rose-400' },
+  refunded:    { color: 'volcano',  icon: <DollarOutlined />,       label: t('student:myOrders.statusLabels.refunded'),    dotClass: 'bg-rose-500' },
+});
 
 const PAYMENT_ICONS = {
   wallet: <WalletOutlined />,
@@ -52,11 +53,11 @@ const PAYMENT_ICONS = {
   cash: <DollarOutlined />,
 };
 
-const FILTER_OPTIONS = [
-  { label: 'All', value: 'all' },
-  { label: 'Active', value: 'active' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'Cancelled', value: 'cancelled' },
+const buildFilterOptions = (t) => [
+  { label: t('student:myOrders.filters.all'), value: 'all' },
+  { label: t('student:myOrders.filters.active'), value: 'active' },
+  { label: t('student:myOrders.filters.completed'), value: 'completed' },
+  { label: t('student:myOrders.filters.cancelled'), value: 'cancelled' },
 ];
 
 const FILTER_STATUS_MAP = {
@@ -67,16 +68,21 @@ const FILTER_STATUS_MAP = {
 
 const STATUS_FLOW = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
-const PAYMENT_LABELS = {
-  wallet: 'Wallet',
-  credit_card: 'Credit Card',
-  cash: 'Cash'
-};
+const buildPaymentLabels = (t) => ({
+  wallet: t('student:myOrders.paymentLabels.wallet'),
+  credit_card: t('student:myOrders.paymentLabels.credit_card'),
+  cash: t('student:myOrders.paymentLabels.cash'),
+});
 
 function MyOrdersPage() {
+  const { t } = useTranslation(['student']);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+
+  const STATUS_CONFIG = buildStatusConfig(t);
+  const FILTER_OPTIONS = buildFilterOptions(t);
+  const PAYMENT_LABELS = buildPaymentLabels(t);
 
   // Order list state
   const [orders, setOrders] = useState([]);
@@ -196,14 +202,14 @@ function MyOrdersPage() {
     setMessages([]);
   };
 
-  const getPaymentLabel = (method) => PAYMENT_LABELS[method] || 'Other';
+  const getPaymentLabel = (method) => PAYMENT_LABELS[method] || t('student:myOrders.paymentLabels.other');
 
   /* ─── Summary Metric Strip ─── */
   const metricCards = [
-    { title: 'Total Orders', value: orders.length, hint: 'Loaded on this page', dotClass: 'bg-sky-400' },
-    { title: 'Active', value: activeOrdersCount, hint: 'Pending or in progress', dotClass: 'bg-amber-400' },
-    { title: 'Completed', value: completedOrdersCount, hint: 'Delivered successfully', dotClass: 'bg-emerald-500' },
-    { title: 'Unread Messages', value: unreadMessageCount, hint: `${unreadThreadCount} thread${unreadThreadCount === 1 ? '' : 's'}`, dotClass: 'bg-violet-500' },
+    { title: t('student:myOrders.metrics.totalOrders'), value: orders.length, hint: t('student:myOrders.metrics.totalOrdersHint'), dotClass: 'bg-sky-400' },
+    { title: t('student:myOrders.metrics.active'), value: activeOrdersCount, hint: t('student:myOrders.metrics.activeHint'), dotClass: 'bg-amber-400' },
+    { title: t('student:myOrders.metrics.completed'), value: completedOrdersCount, hint: t('student:myOrders.metrics.completedHint'), dotClass: 'bg-emerald-500' },
+    { title: t('student:myOrders.metrics.unreadMessages'), value: unreadMessageCount, hint: t('student:myOrders.metrics.unreadThreads', { count: unreadThreadCount }), dotClass: 'bg-violet-500' },
   ];
 
   /* ─── Order Card ─── */
@@ -236,15 +242,15 @@ function MyOrdersPage() {
           </div>
           <div className="flex items-center gap-2">
             <Tag icon={statusCfg.icon} color={statusCfg.color}>{statusCfg.label}</Tag>
-            {order.payment_status === 'completed' && <Tag color="green" icon={paymentIcon}>Paid</Tag>}
-            {order.payment_status === 'pending' && <Tag color="orange" icon={paymentIcon}>Payment Pending</Tag>}
+            {order.payment_status === 'completed' && <Tag color="green" icon={paymentIcon}>{t('student:myOrders.paymentTags.paid')}</Tag>}
+            {order.payment_status === 'pending' && <Tag color="orange" icon={paymentIcon}>{t('student:myOrders.paymentTags.paymentPending')}</Tag>}
           </div>
         </div>
 
         {/* Items preview */}
         <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5">
           <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-slate-400 font-semibold">
-            <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+            <span>{t('student:myOrders.orderCard.items', { count: itemCount })}</span>
             <span className="text-slate-200">|</span>
             <span>{getPaymentLabel(order.payment_method)}</span>
           </div>
@@ -268,8 +274,8 @@ function MyOrdersPage() {
               <div className="flex-1 min-w-0">
                 <span className="block truncate text-sm font-medium text-slate-700">{item.product_name}</span>
                 <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                  <span>Qty: {item.quantity}</span>
-                  {item.selected_size && <span>· Size: {item.selected_size}</span>}
+                  <span>{t('student:myOrders.orderCard.qty', { qty: item.quantity })}</span>
+                  {item.selected_size && <span>· {t('student:myOrders.orderCard.size', { size: item.selected_size })}</span>}
                   {item.selected_color && <span>· {item.selected_color}</span>}
                 </div>
               </div>
@@ -277,7 +283,7 @@ function MyOrdersPage() {
             </div>
           ))}
           {items.length > 3 && (
-            <p className="px-1 text-[11px] text-slate-400">+{items.length - 3} more item{items.length - 3 > 1 ? 's' : ''}</p>
+            <p className="px-1 text-[11px] text-slate-400">{t('student:myOrders.orderCard.moreItems', { count: items.length - 3 })}</p>
           )}
           </div>
         </div>
@@ -285,14 +291,14 @@ function MyOrdersPage() {
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
           <div className="flex items-center gap-2.5 text-[11px] text-slate-400">
-            <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+            <span>{t('student:myOrders.orderCard.items', { count: itemCount })}</span>
             <span className="text-slate-200">·</span>
             <span>{dayjs(order.created_at).format('D MMM YYYY, HH:mm')}</span>
             {unread > 0 && (
               <>
                 <span className="text-slate-200">·</span>
                 <span className="flex items-center gap-1 text-sky-500 font-medium">
-                  <MessageOutlined /> {unread} new
+                  <MessageOutlined /> {t('student:myOrders.orderCard.newMessages', { count: unread })}
                 </span>
               </>
             )}
@@ -315,7 +321,7 @@ function MyOrdersPage() {
           <div className="flex items-center gap-2 text-rose-600">
             {order.status === 'cancelled' ? <CloseCircleOutlined /> : <DollarOutlined />}
             <Text strong className="text-rose-600">
-              Order {order.status === 'cancelled' ? 'Cancelled' : 'Refunded'}
+              {order.status === 'cancelled' ? t('student:myOrders.detail.orderCancelledTitle') : t('student:myOrders.detail.orderRefundedTitle')}
             </Text>
           </div>
           {order.cancelled_at && (
@@ -370,7 +376,7 @@ function MyOrdersPage() {
 
     return (
       <div className="mb-4 rounded-xl border border-slate-100 bg-white p-4">
-        <Text strong className="mb-3 block text-sm text-slate-700">Status History</Text>
+        <Text strong className="mb-3 block text-sm text-slate-700">{t('student:myOrders.detail.statusHistory')}</Text>
         <Timeline
           items={history.map((h) => {
             const cfg = STATUS_CONFIG[h.new_status] || {};
@@ -381,7 +387,7 @@ function MyOrdersPage() {
                   <div className="flex items-center gap-2">
                     <Tag color={cfg.color} size="small">{cfg.label || h.new_status}</Tag>
                     {h.previous_status && (
-                      <Text type="secondary" className="text-xs">from {STATUS_CONFIG[h.previous_status]?.label || h.previous_status}</Text>
+                      <Text type="secondary" className="text-xs">{t('student:myOrders.detail.fromStatus', { status: STATUS_CONFIG[h.previous_status]?.label || h.previous_status })}</Text>
                     )}
                   </div>
                   {h.notes && <Text className="text-xs text-slate-500 block mt-1">{h.notes}</Text>}
@@ -403,7 +409,7 @@ function MyOrdersPage() {
     <div className="flex flex-col rounded-xl border border-slate-100 bg-white p-4" style={{ height: 360 }}>
       <div className="mb-3 flex items-center gap-2">
         <MessageOutlined className="text-sky-500" />
-        <Text strong className="text-sm text-slate-700">Order Messages</Text>
+        <Text strong className="text-sm text-slate-700">{t('student:myOrders.messages.heading')}</Text>
       </div>
 
       {/* Message list */}
@@ -413,7 +419,7 @@ function MyOrdersPage() {
         ) : messages.length === 0 ? (
           <div className="text-center py-8">
             <MessageOutlined className="text-3xl text-slate-300 mb-2 block" />
-            <Text type="secondary" className="text-xs">No messages yet. Ask a question about your order!</Text>
+            <Text type="secondary" className="text-xs">{t('student:myOrders.messages.emptyState')}</Text>
           </div>
         ) : (
           messages.map((msg) => {
@@ -431,7 +437,7 @@ function MyOrdersPage() {
                 <div className={`max-w-[75%] rounded-xl px-3 py-2 ${isMe ? 'bg-sky-500 text-white rounded-br-sm' : 'bg-white border border-slate-200 rounded-bl-sm'}`}>
                   {msg.is_staff && !isMe && (
                     <Text className="text-xs font-semibold block mb-0.5 text-sky-600">
-                      {msg.first_name || 'Staff'}
+                      {msg.first_name || t('student:myOrders.messages.staffFallback')}
                     </Text>
                   )}
                   <Paragraph className={`!mb-0 text-sm ${isMe ? '!text-white' : ''}`} style={{ whiteSpace: 'pre-wrap' }}>
@@ -454,7 +460,7 @@ function MyOrdersPage() {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onPressEnter={(e) => { if (!e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-          placeholder="Type your message..."
+          placeholder={t('student:myOrders.messages.placeholder')}
           autoSize={{ minRows: 1, maxRows: 3 }}
           className="flex-1 !rounded-lg"
           disabled={sending}
@@ -476,26 +482,26 @@ function MyOrdersPage() {
     <div className="mb-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <Text type="secondary" className="text-[11px] block mb-1">Status</Text>
+          <Text type="secondary" className="text-[11px] block mb-1">{t('student:myOrders.detail.infoLabels.status')}</Text>
           <Tag icon={STATUS_CONFIG[order.status]?.icon} color={STATUS_CONFIG[order.status]?.color}>
             {STATUS_CONFIG[order.status]?.label || order.status}
           </Tag>
         </div>
         <div>
-          <Text type="secondary" className="text-[11px] block mb-1">Payment</Text>
+          <Text type="secondary" className="text-[11px] block mb-1">{t('student:myOrders.detail.infoLabels.payment')}</Text>
           <Tag color={order.payment_status === 'completed' ? 'green' : 'orange'} icon={PAYMENT_ICONS[order.payment_method]}>
             {getPaymentLabel(order.payment_method)} · {order.payment_status}
           </Tag>
         </div>
         {order.voucher_code && (
           <div>
-            <Text type="secondary" className="text-[11px] block mb-1">Voucher</Text>
+            <Text type="secondary" className="text-[11px] block mb-1">{t('student:myOrders.detail.infoLabels.voucher')}</Text>
             <Tag icon={<GiftOutlined />} color="purple">{order.voucher_code}</Tag>
           </div>
         )}
         {order.shipping_address && (
           <div className="col-span-2">
-            <Text type="secondary" className="text-[11px] block mb-1">Shipping Address</Text>
+            <Text type="secondary" className="text-[11px] block mb-1">{t('student:myOrders.detail.infoLabels.shippingAddress')}</Text>
             <Text className="text-sm">
               {typeof order.shipping_address === 'object'
                 ? [order.shipping_address.street, order.shipping_address.city, order.shipping_address.country].filter(Boolean).join(', ')
@@ -510,7 +516,7 @@ function MyOrdersPage() {
   /* ─── Order Items List ─── */
   const renderOrderItems = (order) => (
     <div className="mb-4">
-      <Text strong className="text-sm block mb-2 text-slate-700">Items</Text>
+      <Text strong className="text-sm block mb-2 text-slate-700">{t('student:myOrders.detail.itemsHeading')}</Text>
       <div className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
         {(order.items || []).map((item, idx) => (
           <div key={item.id || idx} className="flex items-center gap-3 rounded-lg bg-white px-3 py-2 border border-slate-50">
@@ -531,8 +537,8 @@ function MyOrdersPage() {
             <div className="flex-1 min-w-0">
               <Text className="text-sm font-medium truncate block text-slate-700">{item.product_name}</Text>
               <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                <span>Qty: {item.quantity}</span>
-                {item.selected_size && <span>· Size: {item.selected_size}</span>}
+                <span>{t('student:myOrders.orderCard.qty', { qty: item.quantity })}</span>
+                {item.selected_size && <span>· {t('student:myOrders.orderCard.size', { size: item.selected_size })}</span>}
                 {item.selected_color && <span>· {item.selected_color}</span>}
                 {item.brand && <span>· {item.brand}</span>}
               </div>
@@ -546,18 +552,18 @@ function MyOrdersPage() {
       <div className="mt-3 space-y-1 border-t border-slate-100 pt-3">
         {order.discount_amount > 0 && (
           <div className="flex justify-between text-sm">
-            <Text type="secondary">Subtotal</Text>
+            <Text type="secondary">{t('student:myOrders.detail.totals.subtotal')}</Text>
             <Text>{formatPrice(order.subtotal)}</Text>
           </div>
         )}
         {order.discount_amount > 0 && (
           <div className="flex justify-between text-sm">
-            <Text type="secondary">Discount</Text>
+            <Text type="secondary">{t('student:myOrders.detail.totals.discount')}</Text>
             <Text className="text-emerald-600">-{formatPrice(order.discount_amount)}</Text>
           </div>
         )}
         <div className="flex justify-between text-base">
-          <Text strong>Total</Text>
+          <Text strong>{t('student:myOrders.detail.totals.total')}</Text>
           <Text strong className="text-lg">{formatPrice(order.total_amount)}</Text>
         </div>
       </div>
@@ -579,7 +585,7 @@ function MyOrdersPage() {
               <Text type="secondary" className="text-xs block">{dayjs(order.created_at).format('D MMM YYYY, HH:mm')}</Text>
             </div>
           </div>
-        ) : 'Order Details'}
+        ) : t('student:myOrders.detail.drawerTitle')}
         open={drawerOpen}
         onClose={closeDetail}
         width={520}
@@ -601,7 +607,7 @@ function MyOrdersPage() {
               <div className="mb-4 rounded-xl border border-amber-100 bg-amber-50 p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <ExclamationCircleOutlined className="text-amber-500" />
-                  <Text strong className="text-xs text-amber-700">Order Notes</Text>
+                  <Text strong className="text-xs text-amber-700">{t('student:myOrders.detail.orderNotes')}</Text>
                 </div>
                 <Text className="text-sm text-amber-800">{order.notes}</Text>
               </div>
@@ -632,8 +638,8 @@ function MyOrdersPage() {
             <div className="flex-1">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h1 className="text-lg sm:text-2xl font-bold text-slate-800">My Orders</h1>
-                  <p className="mt-0.5 text-xs sm:text-sm text-slate-400">Track purchases, payments, and conversations</p>
+                  <h1 className="text-lg sm:text-2xl font-bold text-slate-800">{t('student:myOrders.pageTitle')}</h1>
+                  <p className="mt-0.5 text-xs sm:text-sm text-slate-400">{t('student:myOrders.pageSubtitle')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -642,7 +648,7 @@ function MyOrdersPage() {
                     className="!rounded-xl !border-slate-200 !text-slate-600 !shadow-sm hover:!border-sky-200 hover:!text-sky-600"
                     size="middle"
                   >
-                    Browse Shop
+                    {t('student:myOrders.browseShop')}
                   </Button>
                   <Button
                     icon={<ReloadOutlined />}
@@ -695,8 +701,7 @@ function MyOrdersPage() {
               <ShoppingOutlined className="text-sm" />
             </div>
             <p className="text-xs sm:text-sm text-slate-600">
-              Latest order <span className="font-semibold text-slate-700">{latestOrder.order_number}</span> was placed {dayjs(latestOrder.created_at).fromNow()}.
-              Tap to see updates or message the team.
+              {t('student:myOrders.latestOrderHint', { number: latestOrder.order_number, time: dayjs(latestOrder.created_at).fromNow() })}
             </p>
           </div>
         )}
@@ -705,8 +710,8 @@ function MyOrdersPage() {
         <section className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-sm sm:text-base font-semibold text-slate-800">Order history</h2>
-              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Review purchases, track status, and continue conversations</p>
+              <h2 className="text-sm sm:text-base font-semibold text-slate-800">{t('student:myOrders.orderHistory.heading')}</h2>
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">{t('student:myOrders.orderHistory.subheading')}</p>
             </div>
             <div className="w-full lg:max-w-sm">
               <Segmented options={FILTER_OPTIONS} value={filter} onChange={setFilter} block />
@@ -721,20 +726,20 @@ function MyOrdersPage() {
                 <ShoppingOutlined />
               </div>
               <h3 className="text-base font-semibold text-slate-700 mb-1">
-                {filter === 'all' ? 'No orders yet' : `No ${filter} orders`}
+                {filter === 'all' ? t('student:myOrders.emptyState.noOrdersTitle') : t('student:myOrders.emptyState.noFilterTitle', { filter })}
               </h3>
               <p className="mx-auto max-w-sm text-xs sm:text-sm text-slate-400">
                 {filter === 'all'
-                  ? 'Your purchases will show up here with payment details, shipping updates, and messaging.'
-                  : 'Try another filter or refresh to see the latest.'}
+                  ? t('student:myOrders.emptyState.noOrdersBody')
+                  : t('student:myOrders.emptyState.noFilterBody')}
               </p>
               <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
                 <Button type="primary" onClick={() => navigate('/shop')} className="!h-9 !rounded-xl !px-5">
-                  Browse Shop
+                  {t('student:myOrders.browseShop')}
                 </Button>
                 {filter !== 'all' && (
                   <Button onClick={() => setFilter('all')} className="!h-9 !rounded-xl !px-5">
-                    Clear Filter
+                    {t('student:myOrders.emptyState.clearFilter')}
                   </Button>
                 )}
               </div>

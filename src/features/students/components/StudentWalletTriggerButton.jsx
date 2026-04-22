@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { WalletIcon } from '@heroicons/react/24/outline';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
@@ -14,6 +15,7 @@ const variantBadgeClassMap = {
 };
 
 const StudentWalletTriggerButton = ({ onClick, variant = 'light', currency, balance, className = '' }) => {
+  const { t } = useTranslation(['student']);
   const { formatCurrency } = useCurrency();
   const classes = variantClassMap[variant] || variantClassMap.light;
   const hasNumericBalance = typeof balance === 'number' && Number.isFinite(balance);
@@ -22,7 +24,9 @@ const StudentWalletTriggerButton = ({ onClick, variant = 'light', currency, bala
     : null;
   const currencyDisplay = formattedBalance || currency?.symbol || currency?.code;
   const badgeClasses = variantBadgeClassMap[variant] || variantBadgeClassMap.light;
-  const ariaLabel = currencyDisplay ? `Open wallet (${currencyDisplay})` : 'Open wallet';
+  const ariaLabel = currencyDisplay
+    ? t('student:walletTrigger.ariaLabelWithBalance', { balance: currencyDisplay })
+    : t('student:walletTrigger.ariaLabel');
 
   return (
     <button
@@ -32,7 +36,7 @@ const StudentWalletTriggerButton = ({ onClick, variant = 'light', currency, bala
       className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-2xl border px-2.5 py-1.5 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent sm:px-4 sm:py-2 sm:text-sm ${classes} ${className}`}
     >
       <WalletIcon className="h-5 w-5" aria-hidden />
-      <span className="text-[11px] font-semibold sm:text-sm">Wallet</span>
+      <span className="text-[11px] font-semibold sm:text-sm">{t('student:walletTrigger.label')}</span>
       {currencyDisplay ? (
         <span className={`hidden sm:inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold tracking-wide ${badgeClasses}`}>
           {currencyDisplay}

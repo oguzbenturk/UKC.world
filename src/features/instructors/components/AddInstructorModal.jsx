@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Form, Input, Button, Modal, DatePicker, Upload, Select, Steps, Switch, Tag, Radio, InputNumber } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -40,12 +41,7 @@ const AVAILABLE_CURRENCIES = [
   { value: 'TRY', label: '🇹🇷 Turkish Lira (TL)' },
 ];
 
-const STEP_ITEMS = [
-  { title: 'Personal Info', icon: <UserOutlined /> },
-  { title: 'Skills',        icon: <BookOutlined /> },
-  { title: 'Commission',    icon: <DollarOutlined /> },
-  { title: 'Location',      icon: <EnvironmentOutlined /> },
-];
+const STEP_ICONS = [<UserOutlined />, <BookOutlined />, <DollarOutlined />, <EnvironmentOutlined />];
 
 // ── Helper components ─────────────────────────────────────────────────────────
 const Label = ({ children, required }) => (
@@ -65,6 +61,13 @@ const SectionTitle = ({ icon, children }) => (
 
 // ── Main component ────────────────────────────────────────────────────────────
 const AddInstructorModal = ({ open, onClose, onSuccess }) => {
+  const { t } = useTranslation(['instructor']);
+  const STEP_ITEMS = [
+    { title: t('instructor:addInstructor.steps.personalInfo'), icon: STEP_ICONS[0] },
+    { title: t('instructor:addInstructor.steps.skills'),       icon: STEP_ICONS[1] },
+    { title: t('instructor:addInstructor.steps.commission'),   icon: STEP_ICONS[2] },
+    { title: t('instructor:addInstructor.steps.location'),     icon: STEP_ICONS[3] },
+  ];
   const [form] = Form.useForm();
   const { addInstructor } = useData();
   const { businessCurrency } = useCurrency();
@@ -121,7 +124,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
     }
     if (info.file.status === 'error') {
       if (avatarPreviewUrl) { URL.revokeObjectURL(avatarPreviewUrl); setAvatarPreviewUrl(null); }
-      message.error(`${info.file.name} upload failed.`);
+      message.error(`${info.file.name} ${t('instructor:addInstructor.uploadFailed')}`);
     }
   };
 
@@ -137,7 +140,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
   };
 
   const updateCategories = (key, categories) => {
-    if (categories.length === 0) { message.warning('At least one lesson type must be selected'); return; }
+    if (categories.length === 0) { message.warning(t('instructor:addInstructor.atLeastOneLessonType')); return; }
     setSkills(prev => prev.map(s => s.discipline_tag === key ? { ...s, lesson_categories: categories } : s));
   };
 
@@ -167,12 +170,12 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
   // ── Submit (only on last step) ──────────────────────────────────────────────
   const handleSubmit = async () => {
     if (instructorRoleLoading) {
-      message.warning('Loading roles… please try again in a moment.');
+      message.warning(t('instructor:addInstructor.loadingRoles'));
       return;
     }
     if (!instructorRoleId) {
       message.error(
-        instructorRoleError?.message || 'Could not resolve instructor role. Check Roles in settings or try again.'
+        instructorRoleError?.message || t('instructor:addInstructor.couldNotResolveRole')
       );
       return;
     }
@@ -196,7 +199,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
         // Save skills
         if (skills.length > 0) {
           try { await apiClient.put(`/instructors/${instructorId}/skills`, { skills }); }
-          catch { message.warning('Profile saved, but skills could not be saved.'); }
+          catch { message.warning(t('instructor:addInstructor.profileSavedSkillsFailed')); }
         }
         // Save default commission
         try {
@@ -204,7 +207,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
             commissionType,
             commissionValue,
           });
-        } catch { message.warning('Profile saved, but commission could not be set.'); }
+        } catch { message.warning(t('instructor:addInstructor.profileSavedCommissionFailed')); }
         // Save category rates
         const ratesToSave = Object.entries(categoryRates)
           .filter(([, r]) => r.enabled && r.rateValue > 0)
@@ -212,15 +215,15 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
         if (ratesToSave.length > 0) {
           try {
             await apiClient.put(`/instructor-commissions/instructors/${instructorId}/category-rates`, { rates: ratesToSave });
-          } catch { message.warning('Profile saved, but category rates could not be set.'); }
+          } catch { message.warning(t('instructor:addInstructor.profileSavedCategoryRatesFailed')); }
         }
       }
 
-      message.success('Instructor created successfully!');
+      message.success(t('instructor:addInstructor.createdSuccessfully'));
       onSuccess?.();
       onClose();
     } catch (error) {
-      message.error(`Failed to save: ${error.response?.data?.error || error.message}`);
+      message.error(t('instructor:addInstructor.failedToSave', { error: error.response?.data?.error || error.message }));
     } finally {
       setLoading(false);
     }
@@ -243,8 +246,8 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
     >
       {/* ── Modal Header ─── */}
       <div className="px-6 pt-5 pb-3">
-        <h2 className="text-lg font-bold text-slate-900">New Instructor</h2>
-        <p className="text-xs text-slate-400 mt-0.5">Add a new team member in a few steps</p>
+        <h2 className="text-lg font-bold text-slate-900">{t('instructor:addInstructor.title')}</h2>
+        <p className="text-xs text-slate-400 mt-0.5">{t('instructor:addInstructor.subtitle')}</p>
       </div>
 
       {/* ── Step Indicator ─── */}
@@ -313,31 +316,31 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
                 <Form.Item noStyle shouldUpdate={(prev, cur) => prev.first_name !== cur.first_name || prev.last_name !== cur.last_name}>
                   {({ getFieldValue }) => {
                     const name = `${getFieldValue('first_name') || ''} ${getFieldValue('last_name') || ''}`.trim();
-                    return <p className="text-sm font-semibold text-slate-700">{name || 'New Instructor'}</p>;
+                    return <p className="text-sm font-semibold text-slate-700">{name || t('instructor:addInstructor.newInstructorPlaceholder')}</p>;
                   }}
                 </Form.Item>
-                <p className="text-[11px] text-slate-400 mt-0.5">Click to upload photo</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{t('instructor:addInstructor.clickToUploadPhoto')}</p>
               </div>
             </div>
 
             {/* Fields */}
             <div className="grid grid-cols-2 gap-x-3">
-              <Form.Item name="first_name" label={<Label required>First Name</Label>} rules={[{ required: true, message: 'Required' }]}>
+              <Form.Item name="first_name" label={<Label required>{t('instructor:addInstructor.firstName')}</Label>} rules={[{ required: true, message: t('instructor:addInstructor.required') }]}>
                 <Input prefix={<UserOutlined className="text-slate-300" />} placeholder="Alex" />
               </Form.Item>
-              <Form.Item name="last_name" label={<Label required>Last Name</Label>} rules={[{ required: true, message: 'Required' }]}>
+              <Form.Item name="last_name" label={<Label required>{t('instructor:addInstructor.lastName')}</Label>} rules={[{ required: true, message: t('instructor:addInstructor.required') }]}>
                 <Input placeholder="Johnson" />
               </Form.Item>
-              <Form.Item name="email" label={<Label required>Email</Label>} rules={[{ required: true, type: 'email', message: 'Valid email required' }]} className="col-span-2">
+              <Form.Item name="email" label={<Label required>{t('instructor:addInstructor.email')}</Label>} rules={[{ required: true, type: 'email', message: t('instructor:addInstructor.validEmail') }]} className="col-span-2">
                 <Input prefix={<MailOutlined className="text-slate-300" />} placeholder="instructor@example.com" />
               </Form.Item>
-              <Form.Item name="phone" label={<Label>Phone</Label>}>
+              <Form.Item name="phone" label={<Label>{t('instructor:addInstructor.phone')}</Label>}>
                 <Input prefix={<PhoneOutlined className="text-slate-300" />} placeholder="+1 555 000 0000" />
               </Form.Item>
-              <Form.Item name="date_of_birth" label={<Label>Date of Birth</Label>}>
+              <Form.Item name="date_of_birth" label={<Label>{t('instructor:addInstructor.dateOfBirth')}</Label>}>
                 <DatePicker style={{ width: '100%' }} placeholder="Select date" suffixIcon={<CalendarOutlined className="text-slate-300" />} />
               </Form.Item>
-              <Form.Item name="preferred_currency" label={<Label>Preferred Currency</Label>} initialValue="EUR" className="col-span-2">
+              <Form.Item name="preferred_currency" label={<Label>{t('instructor:addInstructor.preferredCurrency')}</Label>} initialValue="EUR" className="col-span-2">
                 <Select>
                   {AVAILABLE_CURRENCIES.map(c => (
                     <Option key={c.value} value={c.value}>{c.label}</Option>
@@ -349,8 +352,8 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
             {/* Freelance toggle */}
             <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5">
               <div>
-                <p className="text-xs font-semibold text-slate-700">Freelance Instructor</p>
-                <p className="text-[11px] text-slate-400">Freelance instructors are not prioritized for lesson assignments</p>
+                <p className="text-xs font-semibold text-slate-700">{t('instructor:addInstructor.freelanceInstructor')}</p>
+                <p className="text-[11px] text-slate-400">{t('instructor:addInstructor.freelanceDesc')}</p>
               </div>
               <Form.Item name="is_freelance" valuePropName="checked" initialValue={false} noStyle>
                 <Switch />
@@ -360,31 +363,31 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
             {/* Password */}
             <div className="border-t border-slate-100 pt-3">
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <LockOutlined className="text-xs" /> Account Password
+                <LockOutlined className="text-xs" /> {t('instructor:addInstructor.accountPassword')}
               </p>
               <div className="grid grid-cols-2 gap-x-3">
                 <Form.Item
                   name="password"
-                  label={<Label required>Password</Label>}
-                  rules={[{ required: true, message: 'Password is required' }, { min: 8, message: 'Min. 8 characters' }]}
+                  label={<Label required>{t('instructor:addInstructor.password')}</Label>}
+                  rules={[{ required: true, message: t('instructor:addInstructor.passwordRequired') }, { min: 8, message: t('instructor:addInstructor.minChars') }]}
                 >
-                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Min. 8 characters" />
+                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder={t('instructor:addInstructor.minChars')} />
                 </Form.Item>
                 <Form.Item
                   name="confirm_password"
-                  label={<Label required>Confirm Password</Label>}
+                  label={<Label required>{t('instructor:addInstructor.confirmPassword')}</Label>}
                   dependencies={['password']}
                   rules={[
-                    { required: true, message: 'Please confirm password' },
+                    { required: true, message: t('instructor:addInstructor.confirmPasswordRequired') },
                     ({ getFieldValue }) => ({
                       validator(_, value) {
                         if (!value || getFieldValue('password') === value) return Promise.resolve();
-                        return Promise.reject(new Error('Passwords do not match'));
+                        return Promise.reject(new Error(t('instructor:addInstructor.passwordsDoNotMatch')));
                       },
                     }),
                   ]}
                 >
-                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder="Repeat password" />
+                  <Input.Password prefix={<LockOutlined className="text-slate-300" />} placeholder={t('instructor:addInstructor.confirmPassword')} />
                 </Form.Item>
               </div>
             </div>
@@ -392,8 +395,8 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
 
           {/* ═══ STEP 1 — Teaching Skills (same UX as InstructorSkillsManager) ═══ */}
           <div className={currentStep === 1 ? '' : 'hidden'}>
-            <SectionTitle icon={<BookOutlined />}>Teaching Skills</SectionTitle>
-            <p className="text-xs text-slate-400 -mt-1 mb-3">Toggle disciplines, then pick lesson types and max level</p>
+            <SectionTitle icon={<BookOutlined />}>{t('instructor:addInstructor.teachingSkills')}</SectionTitle>
+            <p className="text-xs text-slate-400 -mt-1 mb-3">{t('instructor:addInstructor.toggleDisciplinesHint')}</p>
             <div className="space-y-2.5">
               {DISCIPLINES.map((disc) => {
                 const enabled = skills.some(s => s.discipline_tag === disc.key);
@@ -427,7 +430,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
                         {/* Lesson categories as clickable tags */}
                         <div>
                           <p className="text-xs text-gray-500 font-medium mb-1.5 flex items-center gap-1">
-                            <SafetyCertificateOutlined className="text-[10px]" /> Lesson Types
+                            <SafetyCertificateOutlined className="text-[10px]" /> {t('instructor:addInstructor.lessonTypes')}
                           </p>
                           <div className="flex flex-wrap gap-1.5">
                             {LESSON_CATS.map((cat) => {
@@ -457,7 +460,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
                         {/* Max level buttons */}
                         <div>
                           <p className="text-xs text-gray-500 font-medium mb-1.5 flex items-center gap-1">
-                            <TrophyOutlined className="text-[10px]" /> Maximum Teaching Level
+                            <TrophyOutlined className="text-[10px]" /> {t('instructor:addInstructor.maximumTeachingLevel')}
                           </p>
                           <div className="flex gap-2">
                             {LEVELS.map((lvl) => {
@@ -490,15 +493,15 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
 
           {/* ═══ STEP 2 — Default Commission ═══ */}
           <div className={currentStep === 2 ? 'space-y-4' : 'hidden'}>
-            <SectionTitle icon={<DollarOutlined />}>Default Commission</SectionTitle>
+            <SectionTitle icon={<DollarOutlined />}>{t('instructor:addInstructor.defaultCommission')}</SectionTitle>
             <p className="text-xs text-slate-400 -mt-1 mb-3">
-              Set the default commission rate for this instructor. You can fine-tune per-category or per-service later.
+              {t('instructor:addInstructor.defaultCommissionHint')}
             </p>
 
             <div className="rounded-xl border-2 border-slate-200 bg-white p-4 space-y-4">
               {/* Commission Type Selector */}
               <div>
-                <p className="text-xs font-medium text-slate-600 mb-2">Commission Type</p>
+                <p className="text-xs font-medium text-slate-600 mb-2">{t('instructor:addInstructor.commissionType')}</p>
                 <Radio.Group
                   value={commissionType}
                   onChange={(e) => { setCommissionType(e.target.value); setCommissionValue(e.target.value === 'percentage' ? 50 : 20); }}
@@ -508,15 +511,15 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
                     <Radio.Button value="percentage" className="h-auto p-0 text-center overflow-hidden rounded-lg">
                       <div className={`px-4 py-3 rounded-lg border-2 transition-all ${commissionType === 'percentage' ? 'border-sky-400 bg-sky-50' : 'border-transparent'}`}>
                         <PercentageOutlined className="text-lg text-sky-500 block mb-1" />
-                        <div className="text-xs font-semibold text-slate-700">Percentage</div>
-                        <div className="text-[10px] text-slate-400">% of booking price</div>
+                        <div className="text-xs font-semibold text-slate-700">{t('instructor:addInstructor.percentage')}</div>
+                        <div className="text-[10px] text-slate-400">{t('instructor:addInstructor.percentageDesc')}</div>
                       </div>
                     </Radio.Button>
                     <Radio.Button value="fixed" className="h-auto p-0 text-center overflow-hidden rounded-lg">
                       <div className={`px-4 py-3 rounded-lg border-2 transition-all ${commissionType === 'fixed' ? 'border-sky-400 bg-sky-50' : 'border-transparent'}`}>
                         <DollarOutlined className="text-lg text-emerald-500 block mb-1" />
-                        <div className="text-xs font-semibold text-slate-700">Fixed Rate</div>
-                        <div className="text-[10px] text-slate-400">{currencySymbol} per hour</div>
+                        <div className="text-xs font-semibold text-slate-700">{t('instructor:addInstructor.fixedRate')}</div>
+                        <div className="text-[10px] text-slate-400">{t('instructor:addInstructor.fixedRateDesc', { symbol: currencySymbol })}</div>
                       </div>
                     </Radio.Button>
                   </div>
@@ -526,7 +529,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
               {/* Commission Value */}
               <div>
                 <p className="text-xs font-medium text-slate-600 mb-2">
-                  {commissionType === 'percentage' ? 'Commission Percentage' : 'Hourly Rate'}
+                  {commissionType === 'percentage' ? t('instructor:addInstructor.commissionPercentage') : t('instructor:addInstructor.hourlyRate')}
                 </p>
                 <InputNumber
                   value={commissionValue}
@@ -561,10 +564,10 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
 
               {/* Preview */}
               <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
-                <span className="font-medium text-slate-700">Preview: </span>
+                <span className="font-medium text-slate-700">{t('instructor:addInstructor.preview')}: </span>
                 {commissionType === 'percentage'
-                  ? `Instructor earns ${commissionValue}% of each booking's price`
-                  : `Instructor earns ${currencySymbol}${commissionValue} per hour taught`
+                  ? t('instructor:addInstructor.previewPercentage', { value: commissionValue })
+                  : t('instructor:addInstructor.previewFixed', { symbol: currencySymbol, value: commissionValue })
                 }
               </div>
             </div>
@@ -572,8 +575,8 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
             {/* ── Category Rate Overrides ── */}
             <div className="rounded-xl border-2 border-slate-200 bg-white overflow-hidden">
               <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
-                <h4 className="text-xs font-semibold text-slate-700">Category Rate Overrides</h4>
-                <p className="text-[11px] text-slate-400 mt-0.5">Optionally set different rates per lesson type</p>
+                <h4 className="text-xs font-semibold text-slate-700">{t('instructor:addInstructor.categoryRateOverrides')}</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">{t('instructor:addInstructor.categoryRateHint')}</p>
               </div>
               <div className="divide-y divide-slate-100">
                 {LESSON_CATS.map((cat) => {
@@ -602,8 +605,8 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
                             className="w-[110px]"
                             popupMatchSelectWidth={false}
                           >
-                            <Option value="percentage"><PercentageOutlined className="mr-1" />Percent</Option>
-                            <Option value="fixed"><DollarOutlined className="mr-1" />Fixed /h</Option>
+                            <Option value="percentage"><PercentageOutlined className="mr-1" />{t('instructor:addInstructor.percent')}</Option>
+                            <Option value="fixed"><DollarOutlined className="mr-1" />{t('instructor:addInstructor.fixedPerHour')}</Option>
                           </Select>
                           <InputNumber
                             value={rate.rateValue}
@@ -622,7 +625,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
               </div>
               <div className="px-4 py-2 bg-slate-50/70 border-t border-slate-100">
                 <p className="text-[10px] text-slate-400">
-                  Priority: Service-specific → <strong>Category rate</strong> → Default commission
+                  {t('instructor:addInstructor.priorityNote')}
                 </p>
               </div>
             </div>
@@ -631,18 +634,18 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
           {/* ═══ STEP 3 — Location & Settings ═══ */}
           <div className={currentStep === 3 ? 'space-y-4' : 'hidden'}>
             <div>
-              <SectionTitle icon={<EnvironmentOutlined />}>Location</SectionTitle>
-              <Form.Item name="address" label={<Label>Street Address</Label>} className="mb-2">
+              <SectionTitle icon={<EnvironmentOutlined />}>{t('instructor:addInstructor.location')}</SectionTitle>
+              <Form.Item name="address" label={<Label>{t('instructor:addInstructor.streetAddress')}</Label>} className="mb-2">
                 <Input.TextArea rows={2} placeholder="123 Main Street, Apt 4B" className="resize-none" />
               </Form.Item>
               <div className="grid grid-cols-3 gap-x-3">
-                <Form.Item name="city" label={<Label>City</Label>}>
+                <Form.Item name="city" label={<Label>{t('instructor:addInstructor.city')}</Label>}>
                   <Input placeholder="Barcelona" />
                 </Form.Item>
-                <Form.Item name="postal_code" label={<Label>Postal Code</Label>}>
+                <Form.Item name="postal_code" label={<Label>{t('instructor:addInstructor.postalCode')}</Label>}>
                   <Input placeholder="08001" />
                 </Form.Item>
-                <Form.Item name="country" label={<Label>Country</Label>}>
+                <Form.Item name="country" label={<Label>{t('instructor:addInstructor.country')}</Label>}>
                   <Input placeholder="Spain" />
                 </Form.Item>
               </div>
@@ -657,11 +660,11 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
           <div className="flex items-center gap-2">
             {currentStep > 0 && (
               <Button type="button" onClick={goBack} icon={<ArrowLeftOutlined />} size="small">
-                Back
+                {t('instructor:addInstructor.back')}
               </Button>
             )}
             <span className="text-[11px] text-slate-400 ml-1">
-              Step {currentStep + 1} of {STEP_ITEMS.length}
+              {t('instructor:addInstructor.stepOf', { current: currentStep + 1, total: STEP_ITEMS.length })}
             </span>
           </div>
           {currentStep < STEP_ITEMS.length - 1 ? (
@@ -671,7 +674,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
               className="font-semibold px-5"
               style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #4f46e5 100%)', border: 'none' }}
             >
-              Next <ArrowRightOutlined />
+              {t('instructor:addInstructor.next')} <ArrowRightOutlined />
             </Button>
           ) : (
             <Button
@@ -683,7 +686,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
               className="font-semibold px-5"
               style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #4f46e5 100%)', border: 'none' }}
             >
-              Create Instructor
+              {t('instructor:addInstructor.createInstructor')}
             </Button>
           )}
         </div>

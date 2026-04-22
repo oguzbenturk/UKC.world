@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import { BankOutlined } from '@ant-design/icons';
@@ -16,31 +17,32 @@ const accentStyles = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-const getQuickRanges = () => ({
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
-
 export default function WalletDepositsAdmin() {
+  const { t } = useTranslation(['manager']);
   const screens = useBreakpoint();
+
+  const getQuickRanges = () => ({
+    thisWeek: {
+      label: t('manager:finances.overview.quickRanges.thisWeek'),
+      startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('week').format('YYYY-MM-DD')
+    },
+    thisMonth: {
+      label: t('manager:finances.overview.quickRanges.thisMonth'),
+      startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('month').format('YYYY-MM-DD')
+    },
+    thisYear: {
+      label: t('manager:finances.overview.quickRanges.thisYear'),
+      startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('year').format('YYYY-MM-DD')
+    },
+    allHistory: {
+      label: t('manager:finances.overview.quickRanges.allHistory'),
+      startDate: '2020-01-01',
+      endDate: dayjs().endOf('year').format('YYYY-MM-DD')
+    }
+  });
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
     startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
@@ -99,20 +101,20 @@ export default function WalletDepositsAdmin() {
   const headlineStats = useMemo(() => {
     if (!stats) {
       return [
-        { key: 'total', label: 'Total Deposited', value: '--', accent: 'indigo' },
-        { key: 'count', label: 'Deposit Count', value: '--', accent: 'blue' },
-        { key: 'users', label: 'Unique Students', value: '--', accent: 'emerald' },
-        { key: 'avg', label: 'Avg. Deposit', value: '--', accent: 'slate' }
+        { key: 'total', label: t('manager:financePages.walletDeposits.stats.totalDeposited'), value: '--', accent: 'indigo' },
+        { key: 'count', label: t('manager:financePages.walletDeposits.stats.depositCount'), value: '--', accent: 'blue' },
+        { key: 'users', label: t('manager:financePages.walletDeposits.stats.uniqueStudents'), value: '--', accent: 'emerald' },
+        { key: 'avg', label: t('manager:financePages.walletDeposits.stats.avgDeposit'), value: '--', accent: 'slate' }
       ];
     }
 
     return [
-      { key: 'total', label: 'Total Deposited', value: formatCurrency(stats.totalAmount), accent: 'indigo' },
-      { key: 'count', label: 'Deposit Count', value: stats.totalCount.toLocaleString(), accent: 'blue' },
-      { key: 'users', label: 'Unique Students', value: stats.uniqueUsers.toLocaleString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg. Deposit', value: formatCurrency(stats.avgAmount), accent: 'slate' }
+      { key: 'total', label: t('manager:financePages.walletDeposits.stats.totalDeposited'), value: formatCurrency(stats.totalAmount), accent: 'indigo' },
+      { key: 'count', label: t('manager:financePages.walletDeposits.stats.depositCount'), value: stats.totalCount.toLocaleString(), accent: 'blue' },
+      { key: 'users', label: t('manager:financePages.walletDeposits.stats.uniqueStudents'), value: stats.uniqueUsers.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: t('manager:financePages.walletDeposits.stats.avgDeposit'), value: formatCurrency(stats.avgAmount), accent: 'slate' }
     ];
-  }, [stats]);
+  }, [stats, t]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-3 sm:p-6">
@@ -121,10 +123,10 @@ export default function WalletDepositsAdmin() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <BankOutlined style={{ fontSize: 24, color: '#6366f1' }} />
-              <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-semibold text-slate-900 m-0`}>Wallet Deposits</h1>
-              <Tag color="purple" className="text-xs font-medium">Credits</Tag>
+              <h1 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-semibold text-slate-900 m-0`}>{t('manager:financePages.walletDeposits.title')}</h1>
+              <Tag color="purple" className="text-xs font-medium">{t('manager:financePages.walletDeposits.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500 m-0">Wallet Credit & Deposit Activity · {rangeLabel}</p>
+            <p className="text-sm text-slate-500 m-0">{t('manager:financePages.walletDeposits.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">

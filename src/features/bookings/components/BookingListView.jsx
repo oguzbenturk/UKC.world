@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import './booking-list.css';
-import { 
+import {
   Button, Table, Input, Pagination,
   Avatar, Tooltip, Empty, DatePicker, App, Segmented
 } from 'antd';
@@ -33,6 +34,7 @@ const { RangePicker } = DatePicker;
 const BookingListView = () => {
   const navigate = useNavigate();
   const { modal, message } = App.useApp();
+  const { t } = useTranslation(['common']);
   const [bookings, setBookings] = useState([]);
   const [instructors, setInstructors] = useState([]);
   const [usersWithStudentRole, setUsersWithStudentRole] = useState([]);
@@ -159,7 +161,7 @@ const BookingListView = () => {
     const start = dayjs(dates[0]);
     const end = dayjs(dates[1]);
     if (start.year() > 2100 || end.year() > 2100) {
-      message.warning('Invalid date range detected. Resetting to defaults.');
+      message.warning(t('common:bookings.dateRange.invalidRange'));
       const today = dayjs();
       setDateRange([today.subtract(7, 'days'), today.add(30, 'days')]);
       return;
@@ -253,7 +255,7 @@ const BookingListView = () => {
       setUsersWithStudentRole(usersData);
     } catch (error) {
       logger.error('Error fetching bookings list data', { error });
-      message.error('Failed to load bookings data');
+      message.error(t('common:bookings.delete.failed'));
     } finally {
       setLoading(false);
     }
@@ -347,23 +349,23 @@ const BookingListView = () => {
     // If multiple rows are selected, prefer bulk delete flow
     if (selectedRowKeys.length > 1) {
       modal.confirm({
-        title: `Delete ${selectedRowKeys.length} selected bookings?`,
-        content: 'This will reconcile package hours/balances. You can undo within 10 seconds.',
-        okText: 'Delete',
+        title: t('common:bookings.bulk.deleteConfirmTitle', { count: selectedRowKeys.length }),
+        content: t('common:bookings.bulk.deleteConfirmContent'),
+        okText: t('common:buttons.delete'),
         okType: 'danger',
-        cancelText: 'Cancel',
+        cancelText: t('common:buttons.cancel'),
         onOk: async () => {
           try {
             const resp = await DataService.bulkDeleteBookings(selectedRowKeys, 'Bulk delete via row action');
             const { deleted = [], failed = [], undoToken, undoExpiresAt } = resp || {};
-            if (deleted.length) message.success(`${deleted.length} bookings deleted`);
-            if (failed.length) message.warning(`${failed.length} failed to delete`);
+            if (deleted.length) message.success(t('common:bookings.bulk.deletedCount', { count: deleted.length }));
+            if (failed.length) message.warning(t('common:bookings.bulk.failedCount', { count: failed.length }));
             setSelectedRowKeys([]);
             setLastUndo(undoToken ? { token: undoToken, expiresAt: undoExpiresAt } : null);
             fetchData();
           } catch (error) {
             logger.error('Bulk delete (via row) failed', { error, selectedRowKeys });
-            message.error('Bulk delete failed');
+            message.error(t('common:bookings.bulk.failed'));
           }
         }
       });
@@ -372,20 +374,20 @@ const BookingListView = () => {
 
     // Otherwise delete only the clicked one
     modal.confirm({
-      title: 'Are you sure you want to delete this booking?',
-      content: 'This action cannot be undone.',
-      okText: 'Yes, Delete',
+      title: t('common:bookings.delete.confirmTitle'),
+      content: t('common:bookings.delete.confirmContent'),
+      okText: t('common:bookings.delete.okText'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('common:buttons.cancel'),
       onOk: async () => {
         try {
           await DataService.deleteBooking(bookingId);
-          message.success('Booking deleted successfully');
+          message.success(t('common:bookings.delete.success'));
           fetchData();
           window.dispatchEvent(new CustomEvent('booking-deleted', { detail: { bookingId } }));
         } catch (error) {
           logger.error('Error deleting booking', { error, bookingId });
-          message.error('Failed to delete booking');
+          message.error(t('common:bookings.delete.failed'));
         }
       }
     });
@@ -398,23 +400,23 @@ const BookingListView = () => {
   const handleBulkDelete = async () => {
     if (!selectedRowKeys.length) return;
     modal.confirm({
-      title: `Delete ${selectedRowKeys.length} selected bookings?`,
-      content: 'This will reconcile package hours/balances. You can undo within 10 seconds.',
-      okText: 'Delete',
+      title: t('common:bookings.bulk.deleteConfirmTitle', { count: selectedRowKeys.length }),
+      content: t('common:bookings.bulk.deleteConfirmContent'),
+      okText: t('common:buttons.delete'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('common:buttons.cancel'),
       onOk: async () => {
         try {
           const resp = await DataService.bulkDeleteBookings(selectedRowKeys, 'Bulk delete from list view');
           const { deleted = [], failed = [], undoToken, undoExpiresAt } = resp || {};
-          if (deleted.length) message.success(`${deleted.length} bookings deleted`);
-          if (failed.length) message.warning(`${failed.length} failed to delete`);
+          if (deleted.length) message.success(t('common:bookings.bulk.deletedCount', { count: deleted.length }));
+          if (failed.length) message.warning(t('common:bookings.bulk.failedCount', { count: failed.length }));
           setSelectedRowKeys([]);
           setLastUndo(undoToken ? { token: undoToken, expiresAt: undoExpiresAt } : null);
           fetchData();
         } catch (e) {
           logger.error('Bulk delete failed', e);
-          message.error('Bulk delete failed');
+          message.error(t('common:bookings.bulk.failed'));
         }
       }
     });
@@ -424,19 +426,19 @@ const BookingListView = () => {
     if (!lastUndo?.token) return;
     try {
       await DataService.undoDeleteBookings(lastUndo.token);
-      message.success('Undo completed');
+      message.success(t('common:bookings.undo.success'));
       setLastUndo(null);
       fetchData();
     } catch (e) {
       logger.error('Undo failed', e);
-      message.error('Undo failed or expired');
+      message.error(t('common:bookings.undo.failed'));
     }
   };
   
   // Columns definition
   const columns = [
     {
-      title: 'Date & Time',
+      title: t('common:bookings.columns.dateTime'),
       key: 'datetime',
       sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
       width: 160,
@@ -452,7 +454,7 @@ const BookingListView = () => {
       },
     },
     {
-      title: 'Participant',
+      title: t('common:bookings.columns.participant'),
       key: 'user',
       render: (record) => {
         const name = getUserName(record);
@@ -473,7 +475,7 @@ const BookingListView = () => {
       sorter: (a, b) => getUserName(a).localeCompare(getUserName(b)),
     },
     {
-      title: 'Instructor',
+      title: t('common:bookings.columns.instructor'),
       key: 'instructor',
       render: (record) => (
         <span className="text-sm text-slate-700 whitespace-nowrap">{getInstructorName(record)}</span>
@@ -481,7 +483,7 @@ const BookingListView = () => {
       sorter: (a, b) => getInstructorName(a).localeCompare(getInstructorName(b)),
     },
     {
-      title: 'Service',
+      title: t('common:bookings.columns.service'),
       dataIndex: 'service_name',
       key: 'service_name',
       render: (service) => (
@@ -489,7 +491,7 @@ const BookingListView = () => {
       ),
     },
     {
-      title: 'Status',
+      title: t('common:bookings.columns.status'),
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
@@ -518,7 +520,7 @@ const BookingListView = () => {
       width: 120,
     },
     {
-      title: 'Created By',
+      title: t('common:bookings.columns.createdBy'),
       key: 'createdBy',
       render: (_, record) => {
         const label = record.createdByLabel || 'Unknown';
@@ -570,15 +572,15 @@ const BookingListView = () => {
             calendarPath="/bookings/calendar"
             size="default"
           />
-          <h1 className="text-lg font-bold text-slate-800 tracking-tight hidden sm:block">Academy — List View</h1>
+          <h1 className="text-lg font-bold text-slate-800 tracking-tight hidden sm:block">{t('common:bookings.listView')}</h1>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => navigate('/bookings/calendar')}
             className="h-8 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 border-0 shadow-sm"
           >
-            <span className="hidden sm:inline">New Booking</span>
-            <span className="sm:hidden">New</span>
+            <span className="hidden sm:inline">{t('common:bookings.newBooking')}</span>
+            <span className="sm:hidden">{t('common:bookings.new')}</span>
           </Button>
         </div>
       </div>
@@ -589,7 +591,7 @@ const BookingListView = () => {
         {/* ── Toolbar: Search + Filters ──────────────────────── */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <Input
-            placeholder="Search learner, instructor, service…"
+            placeholder={t('common:bookings.searchPlaceholder')}
             prefix={<SearchOutlined className="text-slate-400" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -610,14 +612,14 @@ const BookingListView = () => {
               inputReadOnly
               classNames={{ popup: { root: "booking-date-picker-dropdown" } }}
               disabledDate={(current) => current && current > dayjs().add(2, 'years')}
-              placeholder={datePreset === 'all' ? ['All dates', ''] : ['Start', 'End']}
+              placeholder={datePreset === 'all' ? [t('common:bookings.dateRange.allDates'), ''] : [t('common:bookings.dateRange.start'), t('common:bookings.dateRange.end')]}
             />
             <div className="flex items-center rounded-lg bg-slate-100/80 p-0.5 gap-0.5">
               {[
-                { key: 'today', label: 'Today' },
-                { key: 'week', label: 'Week' },
-                { key: 'month', label: 'Month' },
-                { key: 'all', label: 'All' },
+                { key: 'today', label: t('common:bookings.presets.today') },
+                { key: 'week', label: t('common:bookings.presets.week') },
+                { key: 'month', label: t('common:bookings.presets.month') },
+                { key: 'all', label: t('common:bookings.presets.all') },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -652,12 +654,12 @@ const BookingListView = () => {
         {/* ── Bulk Action Bar ──────────────────────────────── */}
         {selectedRowKeys.length > 1 && (
           <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200/60">
-            <span className="text-sm font-medium text-blue-700">{selectedRowKeys.length} selected</span>
-            <Button size="small" onClick={() => setSelectedRowKeys([])}>Clear</Button>
-            <Button size="small" danger onClick={handleBulkDelete}>Delete Selected</Button>
+            <span className="text-sm font-medium text-blue-700">{t('common:bookings.bulk.selected', { count: selectedRowKeys.length })}</span>
+            <Button size="small" onClick={() => setSelectedRowKeys([])}>{t('common:bookings.bulk.clear')}</Button>
+            <Button size="small" danger onClick={handleBulkDelete}>{t('common:bookings.bulk.deleteSelected')}</Button>
             {selectedRowKeys.length < allIds.length && (
               <Button type="link" size="small" onClick={() => setSelectedRowKeys(allIds)} icon={<CheckSquareOutlined />}>
-                Select all {allIds.length}
+                {t('common:bookings.bulk.selectAll', { count: allIds.length })}
               </Button>
             )}
           </div>
@@ -682,7 +684,7 @@ const BookingListView = () => {
                 indicator: (
                   <div className="flex flex-col items-center gap-3 py-8">
                     <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-blue-500" />
-                    <span className="text-xs text-slate-400">Loading bookings…</span>
+                    <span className="text-xs text-slate-400">{t('common:bookings.loading')}</span>
                   </div>
                 )
               }}
@@ -697,7 +699,7 @@ const BookingListView = () => {
               size="small"
               sticky={{ offsetHeader: 0 }}
               rowClassName="hover:bg-blue-50/30 transition-colors cursor-pointer"
-              locale={{ emptyText: <Empty description="No bookings found" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              locale={{ emptyText: <Empty description={t('common:bookings.notFound')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
               onRow={(record) => ({
                 onClick: (e) => {
                   // Don't open detail when clicking action buttons or checkboxes
@@ -714,12 +716,12 @@ const BookingListView = () => {
             {loading ? (
               <div className="flex flex-col items-center gap-3 py-16">
                 <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-blue-500" />
-                <span className="text-xs text-slate-400">Loading bookings…</span>
+                <span className="text-xs text-slate-400">{t('common:bookings.loading')}</span>
               </div>
             ) : stableBookings.length === 0 ? (
               <div className="bg-white rounded-xl border border-dashed border-slate-200 py-16 text-center">
-                <Empty description="No bookings found" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick} className="mt-4">Create First Booking</Button>
+                <Empty description={t('common:bookings.notFound')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick} className="mt-4">{t('common:bookings.createFirst')}</Button>
               </div>
             ) : (
               <>
@@ -819,10 +821,10 @@ const BookingListView = () => {
           <div className="bg-white shadow-xl rounded-2xl px-5 py-3 border border-blue-200 flex items-center gap-4 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-              <span className="text-sm font-medium text-slate-700">Bookings deleted</span>
+              <span className="text-sm font-medium text-slate-700">{t('common:bookings.undo.deletedMessage')}</span>
             </div>
             <Button type="primary" size="small" onClick={handleUndo} className="bg-blue-500 hover:bg-blue-600 border-0 rounded-lg font-medium">
-              Undo
+              {t('common:bookings.undo.undo')}
             </Button>
           </div>
         </div>

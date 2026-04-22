@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   App,
   Badge,
@@ -53,38 +54,20 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-// Voucher type configurations
-const VOUCHER_TYPES = {
-  percentage: { label: 'Percentage Discount', icon: <PercentageOutlined />, color: 'blue' },
-  fixed_amount: { label: 'Fixed Amount', icon: <TagOutlined />, color: 'green' },
-  wallet_credit: { label: 'Wallet Credit', icon: <WalletOutlined />, color: 'gold' },
-  free_service: { label: 'Free Service', icon: <GiftOutlined />, color: 'purple' },
-  package_upgrade: { label: 'Package Upgrade', icon: <GiftOutlined />, color: 'magenta' }
+// Voucher type icon map (labels come from i18n)
+const VOUCHER_TYPE_ICONS = {
+  percentage: { icon: <PercentageOutlined />, color: 'blue' },
+  fixed_amount: { icon: <TagOutlined />, color: 'green' },
+  wallet_credit: { icon: <WalletOutlined />, color: 'gold' },
+  free_service: { icon: <GiftOutlined />, color: 'purple' },
+  package_upgrade: { icon: <GiftOutlined />, color: 'magenta' }
 };
 
-const APPLIES_TO_OPTIONS = [
-  { value: 'all', label: 'All Services', description: 'Works everywhere — lessons, shop, rentals, etc.', icon: '🌐' },
-  { value: 'shop', label: 'Shop Only', description: 'Physical products and merchandise', icon: '🛍️' },
-  { value: 'lessons', label: 'Lessons Only', description: 'Lesson bookings and training sessions', icon: '🏄' },
-  { value: 'rentals', label: 'Rentals Only', description: 'Equipment rental bookings', icon: '🔧' },
-  { value: 'accommodation', label: 'Accommodation Only', description: 'Room and accommodation bookings', icon: '🏠' },
-  { value: 'packages', label: 'Packages Only', description: 'Package deals and bundles', icon: '📦' },
-  { value: 'wallet', label: 'Wallet Deposits', description: 'Wallet top-up transactions', icon: '💰' }
-];
+const APPLIES_TO_KEYS = ['all', 'shop', 'lessons', 'rentals', 'accommodation', 'packages', 'wallet'];
+const APPLIES_TO_ICONS = { all: '🌐', shop: '🛍️', lessons: '🏄', rentals: '🔧', accommodation: '🏠', packages: '📦', wallet: '💰' };
 
-const VISIBILITY_OPTIONS = [
-  { value: 'public', label: 'Public (Anyone can use)' },
-  { value: 'private', label: 'Private (Assigned users only)' },
-  { value: 'role_based', label: 'Role-Based' }
-];
-
-const USAGE_TYPE_OPTIONS = [
-  { value: 'single_global', label: 'Single Use (Total)' },
-  { value: 'single_per_user', label: 'Single Use Per User' },
-  { value: 'multi_limited', label: 'Limited Uses' },
-  { value: 'multi_per_user', label: 'Limited Per User' },
-  { value: 'unlimited', label: 'Unlimited' }
-];
+const VISIBILITY_KEYS = ['public', 'private', 'role_based'];
+const USAGE_TYPE_KEYS = ['single_global', 'single_per_user', 'multi_limited', 'multi_per_user', 'unlimited'];
 
 const CURRENCY_OPTIONS = [
   { value: 'EUR', label: 'EUR (€)' },
@@ -95,18 +78,10 @@ const CURRENCY_OPTIONS = [
 
 const formatDate = (value) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '—');
 
-const VOUCHER_TYPE_DESCRIPTIONS = {
-  percentage: 'Discount by a percentage of the total. Great for sales & promos.',
-  fixed_amount: 'Flat amount off the order. Simple and clear.',
-  wallet_credit: 'Adds credit to the user\'s wallet. Good for referrals.',
-  free_service: 'Unlock a free service for the customer.',
-  package_upgrade: 'Upgrade the customer\'s package tier.'
-};
-
 // Controlled card-grid selectors — receive value/onChange from Form.Item
-const VoucherTypeCards = ({ value, onChange }) => (
+const VoucherTypeCards = ({ value, onChange, t }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-    {Object.entries(VOUCHER_TYPES).map(([key, config]) => {
+    {Object.entries(VOUCHER_TYPE_ICONS).map(([key, config]) => {
       const selected = value === key;
       return (
         <div
@@ -126,11 +101,11 @@ const VoucherTypeCards = ({ value, onChange }) => (
               {config.icon}
             </span>
             <Text strong style={{ fontSize: 14, color: selected ? '#1890ff' : '#333' }}>
-              {config.label}
+              {t(`admin:vouchers.voucherTypes.${key}.label`)}
             </Text>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {VOUCHER_TYPE_DESCRIPTIONS[key]}
+            {t(`admin:vouchers.voucherTypes.${key}.description`)}
           </Text>
         </div>
       );
@@ -138,14 +113,14 @@ const VoucherTypeCards = ({ value, onChange }) => (
   </div>
 );
 
-const AppliesToCards = ({ value, onChange }) => (
+const AppliesToCards = ({ value, onChange, t }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-    {APPLIES_TO_OPTIONS.map(opt => {
-      const selected = value === opt.value;
+    {APPLIES_TO_KEYS.map(key => {
+      const selected = value === key;
       return (
         <div
-          key={opt.value}
-          onClick={() => onChange?.(opt.value)}
+          key={key}
+          onClick={() => onChange?.(key)}
           style={{
             border: `2px solid ${selected ? '#1890ff' : '#e8e8e8'}`,
             borderRadius: 10,
@@ -156,13 +131,13 @@ const AppliesToCards = ({ value, onChange }) => (
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>{opt.icon}</span>
+            <span style={{ fontSize: 16 }}>{APPLIES_TO_ICONS[key]}</span>
             <Text strong style={{ fontSize: 13, color: selected ? '#1890ff' : '#333' }}>
-              {opt.label}
+              {t(`admin:vouchers.appliesTo.${key}.label`)}
             </Text>
           </div>
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2, marginLeft: 24 }}>
-            {opt.description}
+            {t(`admin:vouchers.appliesTo.${key}.description`)}
           </Text>
         </div>
       );
@@ -171,6 +146,7 @@ const AppliesToCards = ({ value, onChange }) => (
 );
 
 const VoucherManagement = () => {
+  const { t } = useTranslation(['admin']);
   const { message } = App.useApp();
   const [form] = Form.useForm();
   const [bulkForm] = Form.useForm();
@@ -229,7 +205,7 @@ const VoucherManagement = () => {
         });
       }
     } catch (error) {
-      message.error('Failed to load vouchers');
+      message.error(t('admin:vouchers.toast.loadError'));
     } finally {
       setLoading(false);
     }
@@ -248,7 +224,7 @@ const VoucherManagement = () => {
         setRedemptions(response.data.redemptions);
       }
     } catch (error) {
-      message.error('Failed to load redemptions');
+      message.error(t('admin:vouchers.toast.redemptionsError'));
     } finally {
       setRedemptionsLoading(false);
     }
@@ -270,7 +246,7 @@ const VoucherManagement = () => {
       const response = await api.post('/vouchers', payload);
       
       if (response.data.success) {
-        message.success('Voucher created successfully');
+        message.success(t('admin:vouchers.toast.created'));
         setIsCreateModalOpen(false);
         setWizardStep(0);
         form.resetFields();
@@ -278,9 +254,9 @@ const VoucherManagement = () => {
       }
     } catch (error) {
       if (error.response?.data?.error === 'DUPLICATE_CODE') {
-        message.error('A voucher with this code already exists');
+        message.error(t('admin:vouchers.toast.duplicateCode'));
       } else {
-        message.error('Failed to create voucher');
+        message.error(t('admin:vouchers.toast.createError'));
       }
     }
   };
@@ -297,11 +273,11 @@ const VoucherManagement = () => {
       delete payload.code; // Code cannot be changed
       // Strip null/undefined values — Ant Design sends null for empty InputNumber/DatePicker
       Object.keys(payload).forEach(k => { if (payload[k] == null) delete payload[k]; });
-      
+
       const response = await api.put(`/vouchers/${selectedVoucher.id}`, payload);
-      
+
       if (response.data.success) {
-        message.success('Voucher updated successfully');
+        message.success(t('admin:vouchers.toast.updated'));
         setIsCreateModalOpen(false);
         setIsEditing(false);
         setWizardStep(0);
@@ -309,7 +285,7 @@ const VoucherManagement = () => {
         fetchVouchers();
       }
     } catch (error) {
-      message.error('Failed to update voucher');
+      message.error(t('admin:vouchers.toast.updateError'));
     }
   };
 
@@ -317,10 +293,10 @@ const VoucherManagement = () => {
   const handleDeleteVoucher = async (id) => {
     try {
       await api.delete(`/vouchers/${id}`);
-      message.success('Voucher deactivated');
+      message.success(t('admin:vouchers.toast.deactivated'));
       fetchVouchers();
     } catch (error) {
-      message.error('Failed to delete voucher');
+      message.error(t('admin:vouchers.toast.deleteError'));
     }
   };
 
@@ -347,20 +323,20 @@ const VoucherManagement = () => {
       const response = await api.post('/vouchers/bulk', payload);
       
       if (response.data.success) {
-        message.success(`Generated ${response.data.count} voucher codes`);
+        message.success(t('admin:vouchers.toast.bulkGenerated', { count: response.data.count }));
         setIsBulkModalOpen(false);
         bulkForm.resetFields();
         fetchVouchers();
       }
     } catch (error) {
-      message.error('Failed to generate vouchers');
+      message.error(t('admin:vouchers.toast.bulkError'));
     }
   };
 
   // Copy code to clipboard
   const copyCode = (code) => {
     navigator.clipboard.writeText(code);
-    message.success('Code copied to clipboard');
+    message.success(t('admin:vouchers.toast.codeCopied'));
   };
 
   // View voucher details
@@ -385,9 +361,13 @@ const VoucherManagement = () => {
   };
 
   // Table columns
+  const VOUCHER_TYPES = Object.fromEntries(
+    Object.entries(VOUCHER_TYPE_ICONS).map(([key, cfg]) => [key, { ...cfg, label: t(`admin:vouchers.voucherTypes.${key}.label`) }])
+  );
+
   const columns = [
     {
-      title: 'Code',
+      title: t('admin:vouchers.table.code'),
       dataIndex: 'code',
       key: 'code',
       width: 150,
@@ -396,14 +376,14 @@ const VoucherManagement = () => {
           <Tag color={record.is_active ? 'blue' : 'default'} style={{ fontFamily: 'monospace', fontSize: 13 }}>
             {code}
           </Tag>
-          <Tooltip title="Copy code">
+          <Tooltip title={t('admin:vouchers.table.copyCode')}>
             <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => copyCode(code)} />
           </Tooltip>
         </Space>
       )
     },
     {
-      title: 'Name',
+      title: t('admin:vouchers.table.name'),
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
@@ -417,7 +397,7 @@ const VoucherManagement = () => {
       )
     },
     {
-      title: 'Type',
+      title: t('admin:vouchers.table.type'),
       dataIndex: 'voucher_type',
       key: 'voucher_type',
       width: 150,
@@ -431,7 +411,7 @@ const VoucherManagement = () => {
       }
     },
     {
-      title: 'Value',
+      title: t('admin:vouchers.table.value'),
       key: 'value',
       width: 120,
       render: (_, record) => {
@@ -442,12 +422,12 @@ const VoucherManagement = () => {
       }
     },
     {
-      title: 'Usage',
+      title: t('admin:vouchers.table.usage'),
       key: 'usage',
       width: 100,
       render: (_, record) => (
         <Tooltip title={`${record.total_uses || 0} of ${record.max_total_uses || '∞'} uses`}>
-          <Badge 
+          <Badge
             count={`${record.total_uses || 0}/${record.max_total_uses || '∞'}`}
             style={{ backgroundColor: record.total_uses > 0 ? '#52c41a' : '#d9d9d9' }}
           />
@@ -455,26 +435,26 @@ const VoucherManagement = () => {
       )
     },
     {
-      title: 'Validity',
+      title: t('admin:vouchers.table.validity'),
       key: 'validity',
       width: 180,
       render: (_, record) => {
         const now = dayjs();
         const validFrom = record.valid_from ? dayjs(record.valid_from) : null;
         const validUntil = record.valid_until ? dayjs(record.valid_until) : null;
-        
+
         let status = 'active';
         if (validFrom && validFrom.isAfter(now)) status = 'pending';
         if (validUntil && validUntil.isBefore(now)) status = 'expired';
-        
+
         const statusColors = { active: 'green', pending: 'orange', expired: 'red' };
-        
+
         return (
           <div>
             <Tag color={statusColors[status]}>{status.toUpperCase()}</Tag>
             {validUntil && (
               <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                Until: {formatDate(validUntil)}
+                {t('admin:vouchers.table.validUntil', { date: formatDate(validUntil) })}
               </Text>
             )}
           </div>
@@ -482,34 +462,34 @@ const VoucherManagement = () => {
       }
     },
     {
-      title: 'Status',
+      title: t('admin:vouchers.table.status'),
       dataIndex: 'is_active',
       key: 'is_active',
       width: 80,
       render: (isActive) => (
-        <Tag color={isActive ? 'green' : 'default'}>{isActive ? 'Active' : 'Inactive'}</Tag>
+        <Tag color={isActive ? 'green' : 'default'}>{isActive ? t('admin:vouchers.table.active') : t('admin:vouchers.table.inactive')}</Tag>
       )
     },
     {
-      title: 'Actions',
+      title: t('admin:vouchers.table.actions'),
       key: 'actions',
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="View Details">
+          <Tooltip title={t('admin:vouchers.detail.voucherInfo')}>
             <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openViewDrawer(record)} />
           </Tooltip>
-          <Tooltip title="Edit">
+          <Tooltip title={t('admin:vouchers.actions.updateVoucher')}>
             <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
           </Tooltip>
           <Popconfirm
-            title="Deactivate this voucher?"
-            description="Users will no longer be able to use this code."
+            title={t('admin:vouchers.popconfirm.deactivateTitle')}
+            description={t('admin:vouchers.popconfirm.deactivateDescription')}
             onConfirm={() => handleDeleteVoucher(record.id)}
-            okText="Deactivate"
-            cancelText="Cancel"
+            okText={t('admin:vouchers.popconfirm.deactivateOk')}
+            cancelText={t('admin:vouchers.popconfirm.cancel')}
           >
-            <Tooltip title="Deactivate">
+            <Tooltip title={t('admin:vouchers.popconfirm.deactivateOk')}>
               <Button type="text" size="small" danger icon={<DeleteOutlined />} />
             </Tooltip>
           </Popconfirm>
@@ -521,36 +501,36 @@ const VoucherManagement = () => {
   // Redemption history columns
   const redemptionColumns = [
     {
-      title: 'User',
+      title: t('admin:vouchers.detail.redemptionColumns.user'),
       key: 'user',
       render: (_, record) => `${record.first_name} ${record.last_name}`
     },
     {
-      title: 'Email',
+      title: t('admin:vouchers.detail.redemptionColumns.email'),
       dataIndex: 'email',
       key: 'email'
     },
     {
-      title: 'Original Amount',
+      title: t('admin:vouchers.detail.redemptionColumns.originalAmount'),
       dataIndex: 'original_amount',
       key: 'original_amount',
       render: (val, record) => `${val} ${record.currency}`
     },
     {
-      title: 'Discount Applied',
+      title: t('admin:vouchers.detail.redemptionColumns.discountApplied'),
       dataIndex: 'discount_applied',
       key: 'discount_applied',
       render: (val, record) => <Text type="success">-{val} {record.currency}</Text>
     },
     {
-      title: 'Reference',
+      title: t('admin:vouchers.detail.redemptionColumns.reference'),
       key: 'reference',
       render: (_, record) => (
         <Tag>{record.reference_type}: {record.reference_id?.slice(0, 8)}...</Tag>
       )
     },
     {
-      title: 'Date',
+      title: t('admin:vouchers.detail.redemptionColumns.date'),
       dataIndex: 'redeemed_at',
       key: 'redeemed_at',
       render: formatDate
@@ -595,11 +575,11 @@ const VoucherManagement = () => {
          
          <div className="my-2 border-t pt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
              <div>
-               <div>Valid Until:</div>
+               <div>{t('admin:vouchers.mobileCard.validUntil')}</div>
                <div className="text-slate-700 font-medium">{formatDate(record.valid_until)}</div>
              </div>
              <div>
-               <div>Usage:</div>
+               <div>{t('admin:vouchers.mobileCard.usage')}</div>
                <div className="text-slate-700 font-medium">{record.total_uses || 0} / {record.max_total_uses || '∞'}</div>
              </div>
          </div>
@@ -608,7 +588,7 @@ const VoucherManagement = () => {
             <Button size="small" icon={<EyeOutlined />} onClick={() => openViewDrawer(record)} />
             <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
             <Popconfirm
-              title="Deactivate?"
+              title={t('admin:vouchers.popconfirm.deactivateMobile')}
               onConfirm={() => handleDeleteVoucher(record.id)}
             >
               <Button size="small" danger icon={<DeleteOutlined />} />
@@ -624,13 +604,13 @@ const VoucherManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-slate-200/60">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-1 flex items-center gap-2">
-            <GiftOutlined className="text-purple-500" /> Voucher Management
+            <GiftOutlined className="text-purple-500" /> {t('admin:vouchers.title')}
           </h1>
-          <p className="text-sm text-slate-500">Create and manage discount codes, gift vouchers, and promotional offers</p>
+          <p className="text-sm text-slate-500">{t('admin:vouchers.subtitle')}</p>
         </div>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={fetchVouchers}>Refresh</Button>
-          <Button onClick={() => setIsBulkModalOpen(true)}>Bulk Generate</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchVouchers}>{t('admin:vouchers.actions.refresh')}</Button>
+          <Button onClick={() => setIsBulkModalOpen(true)}>{t('admin:vouchers.actions.bulkGenerate')}</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => {
             setIsEditing(false);
             setSelectedVoucher(null);
@@ -638,7 +618,7 @@ const VoucherManagement = () => {
             form.resetFields();
             setIsCreateModalOpen(true);
           }}>
-            Create Voucher
+            {t('admin:vouchers.actions.createVoucher')}
           </Button>
         </Space>
       </div>
@@ -646,10 +626,10 @@ const VoucherManagement = () => {
       {/* Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Total Vouchers', value: stats.totalVouchers, icon: <TagOutlined />, accent: 'text-slate-700' },
-          { label: 'Active Vouchers', value: stats.activeVouchers, accent: 'text-emerald-600' },
-          { label: 'Total Redemptions', value: stats.totalRedemptions, accent: 'text-blue-600' },
-          { label: 'Total Discount Given', value: `€${(stats.totalDiscountGiven || 0).toFixed(2)}`, accent: 'text-purple-600' },
+          { label: t('admin:vouchers.stats.totalVouchers'), value: stats.totalVouchers, icon: <TagOutlined />, accent: 'text-slate-700' },
+          { label: t('admin:vouchers.stats.activeVouchers'), value: stats.activeVouchers, accent: 'text-emerald-600' },
+          { label: t('admin:vouchers.stats.totalRedemptions'), value: stats.totalRedemptions, accent: 'text-blue-600' },
+          { label: t('admin:vouchers.stats.totalDiscountGiven'), value: `€${(stats.totalDiscountGiven || 0).toFixed(2)}`, accent: 'text-purple-600' },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{s.label}</p>
@@ -661,7 +641,7 @@ const VoucherManagement = () => {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <Input
-          placeholder="Search by code or name..."
+          placeholder={t('admin:vouchers.filters.searchPlaceholder')}
           value={filters.search}
           onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
           allowClear
@@ -669,7 +649,7 @@ const VoucherManagement = () => {
           size="large"
         />
         <Select
-          placeholder="Filter by type"
+          placeholder={t('admin:vouchers.filters.filterByType')}
           value={filters.voucher_type}
           onChange={(value) => setFilters(prev => ({ ...prev, voucher_type: value }))}
           allowClear
@@ -681,15 +661,15 @@ const VoucherManagement = () => {
           ))}
         </Select>
         <Select
-          placeholder="Status"
+          placeholder={t('admin:vouchers.table.status')}
           value={filters.is_active}
           onChange={(value) => setFilters(prev => ({ ...prev, is_active: value }))}
           className="sm:w-40"
           size="large"
         >
-          <Select.Option value="active">Active Only</Select.Option>
-          <Select.Option value="inactive">Inactive Only</Select.Option>
-          <Select.Option value="all">All</Select.Option>
+          <Select.Option value="active">{t('admin:vouchers.filters.activeOnly')}</Select.Option>
+          <Select.Option value="inactive">{t('admin:vouchers.filters.inactiveOnly')}</Select.Option>
+          <Select.Option value="all">{t('admin:vouchers.filters.all')}</Select.Option>
         </Select>
       </div>
 
@@ -702,7 +682,7 @@ const VoucherManagement = () => {
         pagination={{
             ...pagination,
             showSizeChanger: true,
-            showTotal: (total) => `Total ${total} vouchers`
+            showTotal: (total) => t('admin:vouchers.table.totalVouchers', { total })
         }}
         onChange={(pag) => setPagination(pag)}
         mobileCardRenderer={(props) => <VoucherMobileCard {...props} />}
@@ -726,12 +706,12 @@ const VoucherManagement = () => {
         {/* Wizard Header */}
         <div style={{ marginBottom: 20 }}>
           <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
-            {isEditing ? '✏️ Edit Voucher' : '🎁 Create Voucher'}
+            {isEditing ? t('admin:vouchers.wizard.editTitle') : t('admin:vouchers.wizard.createTitle')}
           </Title>
           <Text type="secondary">
-            {isEditing 
-              ? 'Update voucher settings' 
-              : 'Set up a new discount code in a few easy steps'}
+            {isEditing
+              ? t('admin:vouchers.wizard.editSubtitle')
+              : t('admin:vouchers.wizard.createSubtitle')}
           </Text>
         </div>
 
@@ -741,10 +721,10 @@ const VoucherManagement = () => {
             size="small"
             style={{ marginBottom: 28 }}
             items={[
-              { title: 'Type' },
-              { title: 'Value & Scope' },
-              { title: 'Rules' },
-              { title: 'Code & Review' },
+              { title: t('admin:vouchers.wizard.steps.type') },
+              { title: t('admin:vouchers.wizard.steps.valueScope') },
+              { title: t('admin:vouchers.wizard.steps.rules') },
+              { title: t('admin:vouchers.wizard.steps.codeReview') },
             ]}
           />
         )}
@@ -770,11 +750,11 @@ const VoucherManagement = () => {
             <div style={{ display: (isEditing || wizardStep === 0) ? 'block' : 'none' }}>
               {!isEditing && (
                 <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
-                  What kind of voucher do you want to create?
+                  {t('admin:vouchers.wizard.step0.prompt')}
                 </Text>
               )}
               
-              <Form.Item name="voucher_type" label={isEditing ? 'Voucher Type' : undefined} rules={[{ required: true }]} style={isEditing ? {} : { marginBottom: 0 }}>
+              <Form.Item name="voucher_type" label={isEditing ? t('admin:vouchers.detail.type') : undefined} rules={[{ required: true }]} style={isEditing ? {} : { marginBottom: 0 }}>
                 {isEditing ? (
                   <Select>
                     {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
@@ -784,7 +764,7 @@ const VoucherManagement = () => {
                     ))}
                   </Select>
                 ) : (
-                  <VoucherTypeCards />
+                  <VoucherTypeCards t={t} />
                 )}
               </Form.Item>
             </div>
@@ -799,11 +779,11 @@ const VoucherManagement = () => {
                     const vType = getFieldValue('voucher_type');
                     return (
                       <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
-                        {vType === 'percentage' && '💰 How much percent off?'}
-                        {vType === 'fixed_amount' && '💰 How much off the total?'}
-                        {vType === 'wallet_credit' && '💰 How much wallet credit?'}
-                        {vType === 'free_service' && '🎁 Free service details'}
-                        {vType === 'package_upgrade' && '⬆️ Package upgrade details'}
+                        {vType === 'percentage' && t('admin:vouchers.wizard.step1.promptPercentage')}
+                        {vType === 'fixed_amount' && t('admin:vouchers.wizard.step1.promptFixed')}
+                        {vType === 'wallet_credit' && t('admin:vouchers.wizard.step1.promptWallet')}
+                        {vType === 'free_service' && t('admin:vouchers.wizard.step1.promptFreeService')}
+                        {vType === 'package_upgrade' && t('admin:vouchers.wizard.step1.promptPackageUpgrade')}
                       </Text>
                     );
                   }}
@@ -823,8 +803,8 @@ const VoucherManagement = () => {
                         <Col span={showCurrency ? 12 : 16}>
                           <Form.Item
                             name="discount_value"
-                            label={isPercentage ? 'Percentage (%)' : vType === 'wallet_credit' ? 'Credit Amount' : 'Discount Amount'}
-                            rules={[{ required: true, type: 'number', min: 0.01, message: 'Enter a value' }]}
+                            label={isPercentage ? t('admin:vouchers.wizard.step1.percentageLabel') : vType === 'wallet_credit' ? t('admin:vouchers.wizard.step1.creditAmountLabel') : t('admin:vouchers.wizard.step1.discountAmountLabel')}
+                            rules={[{ required: true, type: 'number', min: 0.01, message: t('admin:vouchers.validation.enterValue') }]}
                           >
                             <InputNumber 
                               style={{ width: '100%' }} 
@@ -838,7 +818,7 @@ const VoucherManagement = () => {
                         </Col>
                         {showCurrency && (
                           <Col span={12}>
-                            <Form.Item name="currency" label="Currency">
+                            <Form.Item name="currency" label={t('admin:vouchers.wizard.step1.currencyLabel')}>
                               <Select size="large">
                                 {CURRENCY_OPTIONS.map(opt => (
                                   <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
@@ -849,7 +829,7 @@ const VoucherManagement = () => {
                         )}
                         {!showCurrency && (
                           <Col span={8}>
-                            <Form.Item name="currency" label="Currency">
+                            <Form.Item name="currency" label={t('admin:vouchers.wizard.step1.currencyLabel')}>
                               <Select size="large">
                                 {CURRENCY_OPTIONS.map(opt => (
                                   <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
@@ -861,12 +841,12 @@ const VoucherManagement = () => {
                       </Row>
 
                       {showMaxDiscount && (
-                        <Form.Item name="max_discount" label="Maximum Discount Cap" extra="Optional — limits the discount for high-value orders">
+                        <Form.Item name="max_discount" label={t('admin:vouchers.wizard.step1.maxDiscountLabel')} extra={t('admin:vouchers.wizard.step1.maxDiscountExtra')}>
                           <InputNumber style={{ width: '100%' }} min={0} placeholder="No cap" />
                         </Form.Item>
                       )}
 
-                      <Form.Item name="min_purchase_amount" label="Minimum Purchase Amount" extra="Customer must spend at least this much to use the code">
+                      <Form.Item name="min_purchase_amount" label={t('admin:vouchers.wizard.step1.minPurchaseLabel')} extra={t('admin:vouchers.wizard.step1.minPurchaseExtra')}>
                         <InputNumber style={{ width: '100%' }} min={0} placeholder="No minimum" />
                       </Form.Item>
                     </>
@@ -877,18 +857,18 @@ const VoucherManagement = () => {
               <Divider style={{ margin: '16px 0' }} />
 
               <Text strong style={{ display: 'block', marginBottom: 12, fontSize: 14 }}>
-                Where can this voucher be used?
+                {t('admin:vouchers.wizard.step1.whereUsed')}
               </Text>
 
               <Form.Item name="applies_to" rules={[{ required: true }]}>
                 {isEditing ? (
                   <Select>
-                    {APPLIES_TO_OPTIONS.map(opt => (
-                      <Select.Option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</Select.Option>
+                    {APPLIES_TO_KEYS.map(key => (
+                      <Select.Option key={key} value={key}>{APPLIES_TO_ICONS[key]} {t(`admin:vouchers.appliesTo.${key}.label`)}</Select.Option>
                     ))}
                   </Select>
                 ) : (
-                  <AppliesToCards />
+                  <AppliesToCards t={t} />
                 )}
               </Form.Item>
             </div>
@@ -899,16 +879,16 @@ const VoucherManagement = () => {
             <div style={{ display: (isEditing || wizardStep === 2) ? 'block' : 'none' }}>
               {!isEditing && (
                 <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
-                  📋 Set usage rules and restrictions
+                  {t('admin:vouchers.wizard.step2.prompt')}
                 </Text>
               )}
 
-              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Usage Limits</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>{t('admin:vouchers.wizard.step2.usageLimits')}</Text>
 
-              <Form.Item name="usage_type" label="How many times can this be used?">
+              <Form.Item name="usage_type" label={t('admin:vouchers.wizard.step2.howManyTimes')}>
                 <Select size="large">
-                  {USAGE_TYPE_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
+                  {USAGE_TYPE_KEYS.map(key => (
+                    <Select.Option key={key} value={key}>{t(`admin:vouchers.usageType.${key}`)}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -923,14 +903,14 @@ const VoucherManagement = () => {
                     <Row gutter={16}>
                       {showMaxTotal && (
                         <Col span={12}>
-                          <Form.Item name="max_total_uses" label="Max Total Uses" rules={[{ required: true, type: 'number', min: 1 }]}>
+                          <Form.Item name="max_total_uses" label={t('admin:vouchers.wizard.step2.maxTotalUses')} rules={[{ required: true, type: 'number', min: 1 }]}>
                             <InputNumber style={{ width: '100%' }} min={1} placeholder="e.g., 100" />
                           </Form.Item>
                         </Col>
                       )}
                       {showMaxPerUser && (
                         <Col span={showMaxTotal ? 12 : 24}>
-                          <Form.Item name="max_uses_per_user" label="Max Uses Per User">
+                          <Form.Item name="max_uses_per_user" label={t('admin:vouchers.wizard.step2.maxUsesPerUser')}>
                             <InputNumber style={{ width: '100%' }} min={1} />
                           </Form.Item>
                         </Col>
@@ -941,41 +921,41 @@ const VoucherManagement = () => {
               </Form.Item>
 
               <Divider style={{ margin: '16px 0' }} />
-              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Validity Period</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>{t('admin:vouchers.wizard.step2.validityPeriod')}</Text>
 
-              <Form.Item name="validDates" label="Valid Date Range" extra="Leave empty for no time restriction">
-                <RangePicker 
-                  showTime 
+              <Form.Item name="validDates" label={t('admin:vouchers.wizard.step2.validDateRange')} extra={t('admin:vouchers.wizard.step2.validDateExtra')}>
+                <RangePicker
+                  showTime
                   style={{ width: '100%' }}
                   size="large"
-                  placeholder={['Start Date', 'End Date']}
+                  placeholder={[t('admin:vouchers.wizard.step2.startDate'), t('admin:vouchers.wizard.step2.endDate')]}
                 />
               </Form.Item>
 
               <Divider style={{ margin: '16px 0' }} />
-              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Access Control</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>{t('admin:vouchers.wizard.step2.accessControl')}</Text>
 
-              <Form.Item name="visibility" label="Who can use this voucher?">
+              <Form.Item name="visibility" label={t('admin:vouchers.wizard.step2.whoCanUse')}>
                 <Select size="large">
-                  {VISIBILITY_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
+                  {VISIBILITY_KEYS.map(key => (
+                    <Select.Option key={key} value={key}>{t(`admin:vouchers.visibility.${key}`)}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
 
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item name="requires_first_purchase" valuePropName="checked" label="First Purchase Only">
+                  <Form.Item name="requires_first_purchase" valuePropName="checked" label={t('admin:vouchers.wizard.step2.firstPurchaseOnly')}>
                     <Switch />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="can_combine" valuePropName="checked" label="Can Combine">
+                  <Form.Item name="can_combine" valuePropName="checked" label={t('admin:vouchers.wizard.step2.canCombine')}>
                     <Switch />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item name="is_active" valuePropName="checked" label="Active on Create">
+                  <Form.Item name="is_active" valuePropName="checked" label={t('admin:vouchers.wizard.step2.activeOnCreate')}>
                     <Switch />
                   </Form.Item>
                 </Col>
@@ -988,7 +968,7 @@ const VoucherManagement = () => {
             <div style={{ display: (isEditing || wizardStep === 3) ? 'block' : 'none' }}>
               {!isEditing && (
                 <Text strong style={{ display: 'block', marginBottom: 16, fontSize: 15 }}>
-                  🏷️ Name your voucher and review
+                  {t('admin:vouchers.wizard.step3.prompt')}
                 </Text>
               )}
 
@@ -996,14 +976,14 @@ const VoucherManagement = () => {
                 <Col span={12}>
                   <Form.Item
                     name="code"
-                    label="Voucher Code"
+                    label={t('admin:vouchers.wizard.step3.voucherCode')}
                     rules={[
-                      { required: !isEditing, message: 'Code is required' },
-                      { min: 3, message: 'Min 3 characters' },
-                      { max: 50, message: 'Max 50 characters' },
-                      { pattern: /^[A-Za-z0-9_-]+$/, message: 'Only letters, numbers, - and _' }
+                      { required: !isEditing, message: t('admin:vouchers.validation.codeRequired') },
+                      { min: 3, message: t('admin:vouchers.validation.codeMin') },
+                      { max: 50, message: t('admin:vouchers.validation.codeMax') },
+                      { pattern: /^[A-Za-z0-9_-]+$/, message: t('admin:vouchers.validation.codePattern') }
                     ]}
-                    extra="Customers type this code at checkout"
+                    extra={t('admin:vouchers.wizard.step3.voucherCodeExtra')}
                   >
                     <Input 
                       placeholder="e.g., SUMMER20" 
@@ -1016,17 +996,17 @@ const VoucherManagement = () => {
                 <Col span={12}>
                   <Form.Item
                     name="name"
-                    label="Display Name"
-                    rules={[{ required: true, message: 'Name is required' }]}
-                    extra="Internal name (shown to customer on apply)"
+                    label={t('admin:vouchers.wizard.step3.displayName')}
+                    rules={[{ required: true, message: t('admin:vouchers.validation.nameRequired') }]}
+                    extra={t('admin:vouchers.wizard.step3.displayNameExtra')}
                   >
                     <Input placeholder="e.g., Summer Sale 20% Off" size="large" />
                   </Form.Item>
                 </Col>
               </Row>
 
-              <Form.Item name="description" label="Internal Description">
-                <TextArea rows={2} placeholder="Optional notes about this voucher" />
+              <Form.Item name="description" label={t('admin:vouchers.wizard.step3.internalDescription')}>
+                <TextArea rows={2} placeholder={t('admin:vouchers.wizard.step3.descriptionPlaceholder')} />
               </Form.Item>
 
               {/* Review Summary */}
@@ -1041,8 +1021,7 @@ const VoucherManagement = () => {
                     const maxDiscount = getFieldValue('max_discount');
                     const minPurchase = getFieldValue('min_purchase_amount');
                     const config = VOUCHER_TYPES[vType];
-                    const scopeOpt = APPLIES_TO_OPTIONS.find(o => o.value === appliesTo);
-                    const usageOpt = USAGE_TYPE_OPTIONS.find(o => o.value === usageType);
+                    // scopeOpt/usageOpt replaced by direct t() lookups below
 
                     return (
                       <div style={{
@@ -1054,35 +1033,35 @@ const VoucherManagement = () => {
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                           <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
-                          <Text strong style={{ fontSize: 14 }}>Review Summary</Text>
+                          <Text strong style={{ fontSize: 14 }}>{t('admin:vouchers.wizard.step3.reviewSummary')}</Text>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
                           <div>
-                            <Text type="secondary" style={{ fontSize: 11 }}>TYPE</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('admin:vouchers.wizard.step3.type')}</Text>
                             <div>
                               <Tag color={config?.color}>{config?.icon} {config?.label}</Tag>
                             </div>
                           </div>
                           <div>
-                            <Text type="secondary" style={{ fontSize: 11 }}>VALUE</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('admin:vouchers.wizard.step3.value')}</Text>
                             <div>
                               <Text strong style={{ fontSize: 16 }}>
                                 {vType === 'percentage' ? `${value}%` : `${value} ${currency}`}
                               </Text>
-                              {maxDiscount && <Text type="secondary"> (max {maxDiscount} {currency})</Text>}
+                              {maxDiscount && <Text type="secondary"> {t('admin:vouchers.wizard.step3.maxDiscount', { amount: maxDiscount, currency })}</Text>}
                             </div>
                           </div>
                           <div>
-                            <Text type="secondary" style={{ fontSize: 11 }}>APPLIES TO</Text>
-                            <div><Text>{scopeOpt?.icon} {scopeOpt?.label}</Text></div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('admin:vouchers.wizard.step3.appliesTo')}</Text>
+                            <div><Text>{APPLIES_TO_ICONS[appliesTo]} {t(`admin:vouchers.appliesTo.${appliesTo}.label`)}</Text></div>
                           </div>
                           <div>
-                            <Text type="secondary" style={{ fontSize: 11 }}>USAGE</Text>
-                            <div><Text>{usageOpt?.label}</Text></div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>{t('admin:vouchers.wizard.step3.usage')}</Text>
+                            <div><Text>{t(`admin:vouchers.usageType.${usageType}`)}</Text></div>
                           </div>
                           {minPurchase > 0 && (
                             <div>
-                              <Text type="secondary" style={{ fontSize: 11 }}>MIN PURCHASE</Text>
+                              <Text type="secondary" style={{ fontSize: 11 }}>{t('admin:vouchers.wizard.step3.minPurchase')}</Text>
                               <div><Text>{minPurchase} {currency}</Text></div>
                             </div>
                           )}
@@ -1103,12 +1082,12 @@ const VoucherManagement = () => {
             borderTop: '1px solid #f0f0f0'
           }}>
             {!isEditing && (
-              <Button 
+              <Button
                 icon={<ArrowLeftOutlined />}
                 disabled={wizardStep === 0}
                 onClick={() => setWizardStep(s => s - 1)}
               >
-                Back
+                {t('admin:vouchers.wizard.navigation.back')}
               </Button>
             )}
             
@@ -1119,16 +1098,16 @@ const VoucherManagement = () => {
                 setWizardStep(0);
                 form.resetFields();
               }}>
-                Cancel
+                {t('admin:vouchers.wizard.navigation.cancel')}
               </Button>
 
               {isEditing ? (
                 <Button type="primary" htmlType="submit">
-                  Update Voucher
+                  {t('admin:vouchers.actions.updateVoucher')}
                 </Button>
               ) : wizardStep < 3 ? (
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<ArrowRightOutlined />}
                   iconPosition="end"
                   onClick={() => {
@@ -1143,11 +1122,11 @@ const VoucherManagement = () => {
                       .catch(() => {});
                   }}
                 >
-                  {wizardStep === 2 ? 'Review' : 'Next'}
+                  {wizardStep === 2 ? t('admin:vouchers.wizard.navigation.review') : t('admin:vouchers.wizard.navigation.next')}
                 </Button>
               ) : (
                 <Button type="primary" htmlType="submit" icon={<CheckCircleOutlined />} size="large">
-                  Create Voucher
+                  {t('admin:vouchers.wizard.navigation.createVoucher')}
                 </Button>
               )}
             </Space>
@@ -1169,8 +1148,8 @@ const VoucherManagement = () => {
         styles={{ body: { padding: '16px 24px 24px' } }}
       >
         <div style={{ marginBottom: 16 }}>
-          <Title level={4} style={{ margin: 0, marginBottom: 4 }}>📦 Bulk Generate Codes</Title>
-          <Text type="secondary">Generate multiple unique voucher codes with the same settings</Text>
+          <Title level={4} style={{ margin: 0, marginBottom: 4 }}>{t('admin:vouchers.bulk.title')}</Title>
+          <Text type="secondary">{t('admin:vouchers.bulk.subtitle')}</Text>
         </div>
 
         <Form
@@ -1190,14 +1169,14 @@ const VoucherManagement = () => {
             <Col span={12}>
               <Form.Item
                 name="count"
-                label="Number of Codes"
+                label={t('admin:vouchers.bulk.numberOfCodes')}
                 rules={[{ required: true, type: 'number', min: 1, max: 1000 }]}
               >
                 <InputNumber style={{ width: '100%' }} min={1} max={1000} size="large" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="prefix" label="Code Prefix" extra="e.g., GIFT → GIFT-A1B2C3">
+              <Form.Item name="prefix" label={t('admin:vouchers.bulk.codePrefix')} extra={t('admin:vouchers.bulk.codePrefixExtra')}>
                 <Input placeholder="e.g., GIFT" maxLength={10} style={{ textTransform: 'uppercase', fontFamily: 'monospace' }} size="large" />
               </Form.Item>
             </Col>
@@ -1205,7 +1184,7 @@ const VoucherManagement = () => {
 
           <Form.Item
             name="name"
-            label="Voucher Name"
+            label={t('admin:vouchers.bulk.voucherName')}
             rules={[{ required: true }]}
           >
             <Input placeholder="e.g., Holiday Gift Voucher" size="large" />
@@ -1213,7 +1192,7 @@ const VoucherManagement = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="voucher_type" label="Type" rules={[{ required: true }]}>
+              <Form.Item name="voucher_type" label={t('admin:vouchers.bulk.type')} rules={[{ required: true }]}>
                 <Select>
                   {Object.entries(VOUCHER_TYPES).map(([key, config]) => (
                     <Select.Option key={key} value={key}>{config.icon} {config.label}</Select.Option>
@@ -1222,23 +1201,23 @@ const VoucherManagement = () => {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="discount_value" label="Value" rules={[{ required: true, type: 'number', min: 0.01 }]}>
+              <Form.Item name="discount_value" label={t('admin:vouchers.bulk.value')} rules={[{ required: true, type: 'number', min: 0.01 }]}>
                 <InputNumber style={{ width: '100%' }} min={0.01} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="applies_to" label="Scope">
+              <Form.Item name="applies_to" label={t('admin:vouchers.bulk.scope')}>
                 <Select>
-                  {APPLIES_TO_OPTIONS.map(opt => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.icon} {opt.label}</Select.Option>
+                  {APPLIES_TO_KEYS.map(key => (
+                    <Select.Option key={key} value={key}>{APPLIES_TO_ICONS[key]} {t(`admin:vouchers.appliesTo.${key}.label`)}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item name="validDates" label="Valid Date Range" extra="Leave empty for no time restriction">
-            <RangePicker showTime style={{ width: '100%' }} placeholder={['Start Date', 'End Date']} />
+          <Form.Item name="validDates" label={t('admin:vouchers.bulk.validDateRange')} extra={t('admin:vouchers.bulk.validDateExtra')}>
+            <RangePicker showTime style={{ width: '100%' }} placeholder={[t('admin:vouchers.wizard.step2.startDate'), t('admin:vouchers.wizard.step2.endDate')]} />
           </Form.Item>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
@@ -1247,10 +1226,10 @@ const VoucherManagement = () => {
                 setIsBulkModalOpen(false);
                 bulkForm.resetFields();
               }}>
-                Cancel
+                {t('admin:vouchers.bulk.cancel')}
               </Button>
               <Button type="primary" htmlType="submit">
-                Generate Codes
+                {t('admin:vouchers.bulk.generate')}
               </Button>
             </Space>
           </div>
@@ -1259,7 +1238,7 @@ const VoucherManagement = () => {
 
       {/* View Details Drawer */}
       <Drawer
-        title={`Voucher Details: ${selectedVoucher?.code || ''}`}
+        title={t('admin:vouchers.detail.drawerTitle', { code: selectedVoucher?.code || '' })}
         open={isViewDrawerOpen}
         onClose={() => {
           setIsViewDrawerOpen(false);
@@ -1270,10 +1249,10 @@ const VoucherManagement = () => {
       >
         {selectedVoucher && (
           <>
-            <Card title="Voucher Information" style={{ marginBottom: 16 }}>
+            <Card title={t('admin:vouchers.detail.voucherInfo')} style={{ marginBottom: 16 }}>
               <Row gutter={[16, 16]}>
                 <Col span={12}>
-                  <Text type="secondary">Code</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.code')}</Text>
                   <div>
                     <Tag color="blue" style={{ fontSize: 16, padding: '4px 12px' }}>
                       {selectedVoucher.code}
@@ -1286,15 +1265,15 @@ const VoucherManagement = () => {
                   </div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Status</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.status')}</Text>
                   <div>
                     <Tag color={selectedVoucher.is_active ? 'green' : 'red'}>
-                      {selectedVoucher.is_active ? 'Active' : 'Inactive'}
+                      {selectedVoucher.is_active ? t('admin:vouchers.table.active') : t('admin:vouchers.table.inactive')}
                     </Tag>
                   </div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Type</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.type')}</Text>
                   <div>
                     <Tag color={VOUCHER_TYPES[selectedVoucher.voucher_type]?.color}>
                       {VOUCHER_TYPES[selectedVoucher.voucher_type]?.label}
@@ -1302,7 +1281,7 @@ const VoucherManagement = () => {
                   </div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Value</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.value')}</Text>
                   <div>
                     <Text strong>
                       {selectedVoucher.voucher_type === 'percentage' 
@@ -1313,7 +1292,7 @@ const VoucherManagement = () => {
                   </div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Usage</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.usage')}</Text>
                   <div>
                     <Text strong>
                       {selectedVoucher.total_uses || 0} / {selectedVoucher.max_total_uses || '∞'}
@@ -1321,21 +1300,21 @@ const VoucherManagement = () => {
                   </div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Applies To</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.appliesTo')}</Text>
                   <div>
-                    <Text>{APPLIES_TO_OPTIONS.find(o => o.value === selectedVoucher.applies_to)?.label}</Text>
+                    <Text>{t(`admin:vouchers.appliesTo.${selectedVoucher.applies_to}.label`)}</Text>
                   </div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Valid From</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.validFrom')}</Text>
                   <div><Text>{formatDate(selectedVoucher.valid_from)}</Text></div>
                 </Col>
                 <Col span={12}>
-                  <Text type="secondary">Valid Until</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.validUntil')}</Text>
                   <div><Text>{formatDate(selectedVoucher.valid_until)}</Text></div>
                 </Col>
                 <Col span={24}>
-                  <Text type="secondary">Created</Text>
+                  <Text type="secondary">{t('admin:vouchers.detail.created')}</Text>
                   <div>
                     <Text>
                       {formatDate(selectedVoucher.created_at)}
@@ -1346,7 +1325,7 @@ const VoucherManagement = () => {
               </Row>
             </Card>
 
-            <Card title="Redemption History">
+            <Card title={t('admin:vouchers.detail.redemptionHistory')}>
               <Table
                 columns={redemptionColumns}
                 dataSource={redemptions}
@@ -1354,7 +1333,7 @@ const VoucherManagement = () => {
                 loading={redemptionsLoading}
                 pagination={false}
                 size="small"
-                locale={{ emptyText: 'No redemptions yet' }}
+                locale={{ emptyText: t('admin:vouchers.detail.noRedemptions') }}
               />
             </Card>
           </>

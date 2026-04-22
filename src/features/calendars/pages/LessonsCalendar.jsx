@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tabs, Badge } from 'antd';
 import { CalendarDaysIcon, UserGroupIcon, ClockIcon, BanknotesIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import { useSearchParams } from 'react-router-dom';
@@ -16,6 +17,7 @@ import PendingMemberPaymentsTab from '@/features/members/components/PendingMembe
  */
 const LessonsCalendar = () => {
   const { user } = useAuth();
+  const { t } = useTranslation(['common']);
   const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
@@ -100,7 +102,7 @@ const LessonsCalendar = () => {
       label: (
         <span className="flex items-center gap-2">
           <CalendarDaysIcon className="w-4 h-4" />
-          Calendar
+          {t('common:calendars.tabs.calendar')}
         </span>
       ),
       children: (
@@ -114,7 +116,7 @@ const LessonsCalendar = () => {
       label: (
         <span className="flex items-center gap-2">
           <UserGroupIcon className="w-4 h-4" />
-          Group Requests
+          {t('common:calendars.tabs.groupRequests')}
           {groupRequestCount > 0 && (
             <Badge count={groupRequestCount} size="small" style={{ marginLeft: 4 }} />
           )}
@@ -131,7 +133,7 @@ const LessonsCalendar = () => {
       label: (
         <span className="flex items-center gap-2">
           <ClockIcon className="w-4 h-4" />
-          Lesson Match Ups
+          {t('common:calendars.tabs.lessonMatchups')}
           {matchupCount > 0 && (
             <Badge count={matchupCount} size="small" style={{ marginLeft: 4 }} />
           )}
@@ -148,7 +150,7 @@ const LessonsCalendar = () => {
       label: (
         <span className="flex items-center gap-2">
           <BanknotesIcon className="w-4 h-4" />
-          Pending Lessons
+          {t('common:calendars.tabs.pendingLessons')}
           {pendingTransferCount > 0 && (
             <Badge count={pendingTransferCount} size="small" style={{ marginLeft: 4 }} />
           )}
@@ -165,7 +167,7 @@ const LessonsCalendar = () => {
       label: (
         <span className="flex items-center gap-2">
           <CreditCardIcon className="w-4 h-4" />
-          Pending Payments
+          {t('common:calendars.tabs.pendingPayments')}
           {pendingPaymentsCount > 0 && (
             <Badge count={pendingPaymentsCount} size="small" style={{ marginLeft: 4 }} />
           )}

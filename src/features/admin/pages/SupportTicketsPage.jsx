@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Segmented, Drawer, Tag, Button, Space, message } from 'antd';
 import {
   CheckCircleOutlined,
@@ -61,6 +62,7 @@ const MobileCard = ({ record, onSelect }) => (
 /* ── Page ── */
 
 const SupportTicketsPage = () => {
+  const { t } = useTranslation(['admin']);
   const [viewMode, setViewMode] = useState('inbox');
   const [filters, setFilters] = useState({ status: null, priority: null, channel: null });
   const [search, setSearch] = useState('');
@@ -104,14 +106,14 @@ const SupportTicketsPage = () => {
   /* ── table columns ── */
   const columns = [
     {
-      title: 'Priority',
+      title: t('admin:support.table.priority'),
       dataIndex: 'priority',
       key: 'priority',
       width: 100,
       render: (p) => <Tag color={getPriorityColor(p)}>{p?.toUpperCase()}</Tag>,
     },
     {
-      title: 'Status',
+      title: t('admin:support.table.status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -122,7 +124,7 @@ const SupportTicketsPage = () => {
       ),
     },
     {
-      title: 'Student',
+      title: t('admin:support.table.student'),
       key: 'student',
       width: 200,
       render: (_, r) => (
@@ -132,17 +134,17 @@ const SupportTicketsPage = () => {
         </div>
       ),
     },
-    { title: 'Subject', dataIndex: 'subject', key: 'subject', ellipsis: true },
-    { title: 'Channel', dataIndex: 'channel', key: 'channel', width: 100, render: (c) => <Tag>{c}</Tag> },
+    { title: t('admin:support.table.subject'), dataIndex: 'subject', key: 'subject', ellipsis: true },
+    { title: t('admin:support.table.channel'), dataIndex: 'channel', key: 'channel', width: 100, render: (c) => <Tag>{c}</Tag> },
     {
-      title: 'Created',
+      title: t('admin:support.table.created'),
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
       render: (d) => new Date(d).toLocaleDateString(),
     },
     {
-      title: 'Actions',
+      title: t('admin:support.table.actions'),
       key: 'actions',
       width: 200,
       render: (_, record) => (
@@ -155,11 +157,11 @@ const SupportTicketsPage = () => {
               onClick={() =>
                 updateStatus.mutate(
                   { ticketId: record.id, status: 'in_progress' },
-                  { onSuccess: () => message.success('Started') }
+                  { onSuccess: () => message.success(t('admin:support.toast.started')) }
                 )
               }
             >
-              Start
+              {t('admin:support.table.start')}
             </Button>
           )}
           {['open', 'in_progress'].includes(record.status) && (
@@ -170,15 +172,15 @@ const SupportTicketsPage = () => {
               onClick={() =>
                 updateStatus.mutate(
                   { ticketId: record.id, status: 'resolved' },
-                  { onSuccess: () => message.success('Resolved') }
+                  { onSuccess: () => message.success(t('admin:support.toast.resolved')) }
                 )
               }
             >
-              Resolve
+              {t('admin:support.table.resolve')}
             </Button>
           )}
           <Button size="small" icon={<MessageOutlined />} onClick={() => handleSelectTicket(record)}>
-            View
+            {t('admin:support.table.view')}
           </Button>
         </Space>
       ),
@@ -189,8 +191,8 @@ const SupportTicketsPage = () => {
     <div className="space-y-5 p-4 md:p-6">
       {/* Header */}
       <div>
-        <h2 className="font-duotone-bold text-lg text-slate-900">Support Tickets</h2>
-        <p className="text-sm text-slate-500">Manage support requests across all channels</p>
+        <h2 className="font-duotone-bold text-lg text-slate-900">{t('admin:support.title')}</h2>
+        <p className="text-sm text-slate-500">{t('admin:support.subtitle')}</p>
       </div>
 
       {/* Stats */}
@@ -210,8 +212,8 @@ const SupportTicketsPage = () => {
         value={viewMode}
         onChange={setViewMode}
         options={[
-          { value: 'inbox', label: 'Inbox' },
-          { value: 'table', label: 'Table' },
+          { value: 'inbox', label: t('admin:support.viewToggle.inbox') },
+          { value: 'table', label: t('admin:support.viewToggle.table') },
         ]}
       />
 
@@ -243,20 +245,20 @@ const SupportTicketsPage = () => {
             pagination={{
               pageSize: 20,
               showSizeChanger: true,
-              showTotal: (total) => `Total ${total} tickets`,
+              showTotal: (total) => t('admin:support.table.totalTickets', { total }),
             }}
             expandable={{
               expandedRowRender: (record) => (
                 <div className="p-3 space-y-3">
                   <div>
-                    <p className="text-xs font-medium text-slate-500 mb-1">Message</p>
+                    <p className="text-xs font-medium text-slate-500 mb-1">{t('admin:support.table.message')}</p>
                     <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
                       {record.message}
                     </div>
                   </div>
                   {record.metadata?.notes?.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-slate-500 mb-1">Notes</p>
+                      <p className="text-xs font-medium text-slate-500 mb-1">{t('admin:support.table.notes')}</p>
                       {record.metadata.notes.map((n, i) => (
                         <div
                           key={i}
@@ -267,7 +269,7 @@ const SupportTicketsPage = () => {
                           }`}
                         >
                           <p className="text-[10px] text-slate-400 mb-1">
-                            {n.type === 'reply' ? 'Reply' : 'Internal Note'} &middot;{' '}
+                            {n.type === 'reply' ? t('admin:support.table.reply') : t('admin:support.table.internalNote')} &middot;{' '}
                             {new Date(n.timestamp).toLocaleString()}
                           </p>
                           <p>{n.note}</p>
@@ -287,7 +289,7 @@ const SupportTicketsPage = () => {
 
       {/* Mobile drawer for conversation */}
       <Drawer
-        title={activeTicket?.subject || 'Ticket'}
+        title={activeTicket?.subject || t('admin:support.title')}
         open={mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
         width="100%"

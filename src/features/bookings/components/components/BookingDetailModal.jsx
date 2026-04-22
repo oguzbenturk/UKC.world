@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Drawer } from 'antd';
 import { XMarkIcon, PencilSquareIcon, TrashIcon, CheckCircleIcon, CheckIcon, ClockIcon, CurrencyDollarIcon, UserCircleIcon, CalendarDaysIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
@@ -23,6 +24,7 @@ const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/
  * @returns {JSX.Element} BookingDetailModal component
  */
 const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
+  const { t } = useTranslation(['common']);
   const { deleteBooking, updateBooking, refreshData } = useCalendar();
   const { showSuccess, showError } = useToast();
   const { getCurrencySymbol, businessCurrency } = useCurrency();
@@ -327,7 +329,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     
     // Validation
     if (!checkoutForm.actualDuration || checkoutForm.actualDuration <= 0) {
-      showError('Please enter a valid actual duration.');
+      showError(t('common:bookings.detail.checkoutInvalidDuration'));
       return;
     }
     
@@ -346,7 +348,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
       await updateBooking(booking.id, updatePayload);
       
       // Only show success if backend succeeds
-      showSuccess(`Booking ${checkoutAction} successfully! Duration updated to ${checkoutForm.actualDuration} hour${checkoutForm.actualDuration !== 1 ? 's' : ''}.`);
+      showSuccess(t('common:bookings.detail.checkoutSuccess', { action: checkoutAction, duration: checkoutForm.actualDuration }));
       
       // Dispatch event to notify other components about the booking update
       window.dispatchEvent(new CustomEvent('booking-updated', {
@@ -405,7 +407,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
 
       await updateBooking(booking.id, finalPayload);
       
-      showSuccess('Booking updated successfully!');
+      showSuccess(t('common:bookings.detail.updateSuccess'));
       
       // Update the booking object with the new values for immediate display
       Object.assign(booking, finalPayload);
@@ -471,7 +473,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
       // Force an additional refresh to ensure calendar is up to date
       await refreshData();
       
-      showSuccess('Booking deleted successfully!');
+      showSuccess(t('common:bookings.detail.deleteSuccess'));
       
       // Dispatch event to notify other components about the booking deletion
       window.dispatchEvent(new CustomEvent('booking-updated', {
@@ -535,7 +537,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
         throw new Error('Failed to cancel booking');
       }
       
-      showSuccess('Booking cancelled successfully!');
+      showSuccess(t('common:bookings.detail.cancelSuccess'));
       
       // Dispatch event to notify other components about the booking cancellation
       window.dispatchEvent(new CustomEvent('booking-updated', {
@@ -550,7 +552,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     } catch (error) {
       setIsProcessing(false);
   logger.error('Error cancelling booking', { error: String(error) });
-      showError('Failed to cancel booking');
+      showError(t('common:bookings.detail.cancelFailed'));
     }
   };
 
@@ -647,9 +649,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
               <CalendarDaysIcon className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white m-0">Booking Details</h2>
+              <h2 className="text-lg font-bold text-white m-0">{t('common:bookings.detail.title')}</h2>
               <p className="text-slate-300 text-xs mt-0.5 m-0">
-                {booking?.service_name || booking?.serviceName || 'View and manage booking'}
+                {booking?.service_name || booking?.serviceName || t('common:bookings.detail.viewAndManage')}
               </p>
             </div>
           </div>
@@ -673,9 +675,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
                           </svg>
                         </div>                        <div className="ml-4">
-                          <h3 className="text-base font-medium text-red-800">Confirm Deletion</h3>
+                          <h3 className="text-base font-medium text-red-800">{t('common:bookings.detail.confirmDeleteTitle')}</h3>
                           <p className="text-red-700 mt-1 text-sm">
-                            Are you sure you want to delete this booking? This action cannot be undone and will permanently remove all booking data.
+                            {t('common:bookings.detail.confirmDeleteDesc')}
                           </p>
                         </div>
                       </div>
@@ -687,13 +689,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         onClick={() => setIsDeleting(false)}
                         disabled={isProcessing}
                       >
-                        Cancel
+                        {t('common:bookings.detail.back')}
                       </button>
                       <button
                         type="button"
                         className={`px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-all duration-200 ${
-                          isProcessing 
-                            ? 'bg-gray-400 cursor-not-allowed' 
+                          isProcessing
+                            ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500'
                         }`}
                         onClick={handleDeleteBooking}
@@ -705,10 +707,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                             </svg>
-                            Deleting...
+                            {t('common:bookings.detail.deletingLabel')}
                           </div>
                         ) : (
-                          'Delete Booking'
+                          t('common:bookings.detail.deleteBooking')
                         )}
                       </button>
                     </div>
@@ -723,9 +725,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           </svg>
                         </div>
                         <div className="ml-4">
-                          <h3 className="text-base font-medium text-orange-800">Cancel Booking</h3>
+                          <h3 className="text-base font-medium text-orange-800">{t('common:bookings.detail.cancelBookingTitle')}</h3>
                           <p className="text-orange-700 mt-1 text-sm">
-                            This will mark the booking as cancelled and may restore package hours to the customer.
+                            {t('common:bookings.detail.cancelDesc')}
                           </p>
                         </div>
                       </div>
@@ -734,12 +736,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Cancellation Reason (Optional)
+                          {t('common:bookings.detail.cancelReason')}
                         </label>
                         <textarea
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 resize-none"
                           rows="3"
-                          placeholder="Enter reason for cancellation..."
+                          placeholder={t('common:bookings.detail.cancelReasonPlaceholder')}
                           value={cancelForm.reason}
                           onChange={(e) => setCancelForm({ reason: e.target.value })}
                           disabled={isProcessing}
@@ -754,13 +756,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         onClick={() => setIsCancelling(false)}
                         disabled={isProcessing}
                       >
-                        Back
+                        {t('common:bookings.detail.back')}
                       </button>
                       <button
                         type="button"
                         className={`px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-all duration-200 ${
-                          isProcessing 
-                            ? 'bg-gray-400 cursor-not-allowed' 
+                          isProcessing
+                            ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500'
                         }`}
                         onClick={handleCancelBooking}
@@ -772,10 +774,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                             </svg>
-                            Cancelling...
+                            {t('common:bookings.detail.cancellingLabel')}
                           </div>
                         ) : (
-                          'Cancel Booking'
+                          t('common:bookings.detail.cancelBooking')
                         )}
                       </button>
                     </div>
@@ -788,7 +790,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
-                        <p className="text-gray-600 font-medium text-sm">Loading form data...</p>
+                        <p className="text-gray-600 font-medium text-sm">{t('common:bookings.detail.loadingForm')}</p>
                       </div>
                     </div>
                   ) : (                    <div className="space-y-4">
@@ -800,9 +802,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-1.5 rounded-md shadow-sm border border-gray-200 mr-2">
                               <PencilSquareIcon className="h-3 w-3 text-gray-700" />
                             </div>
-                            Edit Booking
+                            {t('common:bookings.detail.editTitle')}
                           </h4>
-                          <p className="text-gray-600 ml-8 text-xs">Update booking information</p>
+                          <p className="text-gray-600 ml-8 text-xs">{t('common:bookings.detail.editSubtitle')}</p>
                         </div>
                       </div>                      {/* Compact Form Fields */}
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -812,7 +814,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-1 rounded-sm mr-1">
                               <InformationCircleIcon className="h-3 w-3 text-gray-700" />
                             </div>
-                            Service
+                            {t('common:bookings.detail.service')}
                           </label>
                           <select
                             className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-xs"
@@ -820,7 +822,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             onChange={(e) => handleEditFormChange('service_id', e.target.value)}
                             disabled={isProcessing}
                           >
-                            <option value="" disabled>Select a service</option>
+                            <option value="" disabled>{t('common:bookings.detail.selectService')}</option>
                             {services.map(service => (
                               <option key={service.id} value={service.id}>{service.name}</option>
                             ))}
@@ -833,7 +835,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-1 rounded-sm mr-1">
                               <UserCircleIcon className="h-3 w-3 text-gray-700" />
                             </div>
-                            Instructor
+                            {t('common:bookings.columns.instructor')}
                           </label>
                           <select
                             className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-xs"
@@ -841,7 +843,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             onChange={(e) => handleEditFormChange('instructor_id', e.target.value)}
                             disabled={isProcessing}
                           >
-                            <option value="" disabled>Select an instructor</option>
+                            <option value="" disabled>{t('common:bookings.detail.selectInstructor')}</option>
                             {instructors.map(instructor => (
                               <option key={instructor.id} value={instructor.id}>{instructor.name}</option>
                             ))}
@@ -854,7 +856,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-1 rounded-sm mr-1">
                               <CalendarDaysIcon className="h-3 w-3 text-gray-700" />
                             </div>
-                            Date
+                            {t('common:bookings.detail.dateLabel')}
                           </label>
                           <input
                             type="date"
@@ -869,7 +871,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-1 rounded-sm mr-1">
                               <ClockIcon className="h-3 w-3 text-gray-700" />
                             </div>
-                            Duration (hours)
+                            {t('common:bookings.detail.durationHours')}
                           </label>
                           <input
                             type="number"
@@ -908,12 +910,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </div>
-                          Notes
+                          {t('common:bookings.detail.notes')}
                         </label>
                         <textarea
                           className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 text-gray-900 resize-none text-xs"
                           rows="2"
-                          placeholder="Add notes..."
+                          placeholder={t('common:bookings.detail.addNotesPlaceholder')}
                           value={editForm.notes}
                           onChange={(e) => handleEditFormChange('notes', e.target.value)}
                           disabled={isProcessing}
@@ -926,7 +928,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-0.5 rounded-sm shadow-sm border border-gray-200 mr-1">
                               <CurrencyDollarIcon className="h-3 w-3 text-green-600" />
                             </div>
-                            Booking Price
+                            {t('common:bookings.detail.bookingPrice')}
                           </label>
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-1.5 flex items-center pointer-events-none">
@@ -963,7 +965,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <svg className="h-2 w-2 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
-                            <p className="text-xs font-semibold">Individual booking price</p>
+                            <p className="text-xs font-semibold">{t('common:bookings.detail.individualBookingPrice')}</p>
                           </div>
                         </div>
 
@@ -973,7 +975,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 p-0.5 rounded-sm shadow-sm border border-gray-200 mr-1">
                               <UserCircleIcon className="h-3 w-3 text-blue-600" />
                             </div>
-                            Instructor Commission
+                            {t('common:bookings.detail.instructorCommission')}
                           </label>
                           <div className="space-y-1">
                             <div className="flex space-x-1">
@@ -1027,12 +1029,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                         }
                                       }}
                                       disabled={isProcessing || !editForm.instructor_id}
-                                      title="Reset to instructor's default rate"
+                                      title={t('common:bookings.detail.resetToDefault')}
                                     >
                                       <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                       </svg>
-                                      <span>Reset</span>
+                                      <span>{t('common:bookings.detail.reset')}</span>
                                     </button>
                                   </>
                                 );
@@ -1045,7 +1047,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               {(() => {
                                 const selectedInstructor = instructors.find(i => i.id === editForm.instructor_id);
                                 const commissionType = selectedInstructor?.commission_type || 'percent';
-                                return commissionType === 'percent' ? 'Percentage commission' : 'Fixed amount commission';
+                                return commissionType === 'percent' ? t('common:bookings.detail.percentageCommission') : t('common:bookings.detail.fixedCommission');
                               })()}
                             </p>
                           </div>
@@ -1058,13 +1060,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           onClick={() => setIsEditing(false)}
                           disabled={isProcessing}
                         >
-                          Cancel
+                          {t('common:bookings.detail.cancel')}
                         </button>
                         <button
                           type="button"
                           className={`px-4 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-bold text-white transition-all duration-200 ${
                             isProcessing || isDataLoading
-                              ? 'bg-gray-400 cursor-not-allowed border-gray-400' 
+                              ? 'bg-gray-400 cursor-not-allowed border-gray-400'
                               : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 '
                           }`}
                           onClick={handleUpdateBooking}
@@ -1076,12 +1078,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                               </svg>
-                              Saving...
+                              {t('common:bookings.detail.savingLabel')}
                             </div>
                           ) : (
                             <>
                               <CheckIcon className="h-3 w-3 mr-1 inline" />
-                              Save
+                              {t('common:bookings.detail.save')}
                             </>
                           )}
                         </button>
@@ -1099,16 +1101,16 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
                           </div>
-                          Complete Booking
+                          {t('common:bookings.detail.completeBooking')}
                         </h4>
-                        <p className="text-gray-600 ml-8 text-xs">Check out and complete the booking</p>
+                        <p className="text-gray-600 ml-8 text-xs">{t('common:bookings.detail.checkoutSubtitle')}</p>
                       </div>
                     </div>
 
                     {/* Checkout Action Selection */}
                     <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                       <label className="block text-sm font-bold text-gray-800 mb-3">
-                        Completion Status
+                        {t('common:bookings.detail.completionStatus')}
                       </label>
                       <div className="space-y-2">
                         <label className="flex items-center">
@@ -1120,7 +1122,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             onChange={(e) => setCheckoutAction(e.target.value)}
                             className="mr-2 text-green-600 focus:ring-green-500"
                           />
-                          <span className="text-sm font-medium text-gray-900">Completed Successfully</span>
+                          <span className="text-sm font-medium text-gray-900">{t('common:bookings.detail.completedSuccessfully')}</span>
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1131,7 +1133,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             onChange={(e) => setCheckoutAction(e.target.value)}
                             className="mr-2 text-red-600 focus:ring-red-500"
                           />
-                          <span className="text-sm font-medium text-gray-900">Cancelled</span>
+                          <span className="text-sm font-medium text-gray-900">{t('common:bookings.statusLabels.cancelled')}</span>
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1142,7 +1144,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             onChange={(e) => setCheckoutAction(e.target.value)}
                             className="mr-2 text-orange-600 focus:ring-orange-500"
                           />
-                          <span className="text-sm font-medium text-gray-900">No Show</span>
+                          <span className="text-sm font-medium text-gray-900">{t('common:bookings.detail.noShow')}</span>
                         </label>
                       </div>
                     </div>
@@ -1150,7 +1152,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                     {/* Actual Duration */}
                     <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                       <label className="block text-sm font-bold text-gray-800 mb-2">
-                        Actual Duration (hours)
+                        {t('common:bookings.detail.actualDuration')}
                       </label>
                       <input
                         type="number"
@@ -1169,12 +1171,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                     {/* Completion Notes */}
                     <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                       <label className="block text-sm font-bold text-gray-800 mb-2">
-                        Completion Notes
+                        {t('common:bookings.detail.completionNotes')}
                       </label>
                       <textarea
                         className="w-full px-3 py-2 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-300 text-gray-900 resize-none"
                         rows="3"
-                        placeholder="Add any notes about the completion..."
+                        placeholder={t('common:bookings.detail.completionNotesPlaceholder')}
                         value={checkoutForm.notes}
                         onChange={(e) => handleCheckoutFormChange('notes', e.target.value)}
                         disabled={isProcessing}
@@ -1189,13 +1191,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         onClick={() => setIsCheckingOut(false)}
                         disabled={isProcessing}
                       >
-                        Cancel
+                        {t('common:bookings.detail.cancel')}
                       </button>
                       <button
                         type="button"
                         className={`px-4 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-bold text-white transition-all duration-200 ${
                           isProcessing
-                            ? 'bg-gray-400 cursor-not-allowed border-gray-400' 
+                            ? 'bg-gray-400 cursor-not-allowed border-gray-400'
                             : 'bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-500 '
                         }`}
                         onClick={handleCheckout}
@@ -1207,12 +1209,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 004 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Completing...
+                            {t('common:bookings.detail.completingLabel')}
                           </div>
                         ) : (
                           <>
                             <CheckIcon className="h-3 w-3 mr-1 inline" />
-                            Complete Booking
+                            {t('common:bookings.detail.completeBooking')}
                           </>
                         )}
                       </button>
@@ -1223,7 +1225,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                         <div>
-                            <h3 className="text-base font-bold text-slate-900 mb-1">{booking.service_name || 'Booking Details'}</h3>
+                            <h3 className="text-base font-bold text-slate-900 mb-1">{booking.service_name || t('common:bookings.detail.title')}</h3>
                             <p className="text-sm text-slate-600 font-medium flex items-center">
                               <CalendarDaysIcon className="h-3.5 w-3.5 mr-1 text-slate-400" />
                               {formatDate(booking.date)}
@@ -1252,7 +1254,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 if (packageInfo) {
                                   return packageInfo.subtitle;
                                 }
-                                return 'Total';
+                                return t('common:bookings.detail.total');
                               })()}
                             </p>
                           </div>
@@ -1293,7 +1295,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                           <h4 className="text-sm font-semibold text-slate-700 flex items-center">
                             <UserCircleIcon className="h-4 w-4 text-slate-400 mr-2" />
-                            People
+                            {t('common:bookings.detail.people')}
                           </h4>
                         </div>
                         <div className="p-3 space-y-2">
@@ -1301,7 +1303,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           {booking.participants && booking.participants.length > 0 ? (
                             <div className="space-y-2">
                               <div className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">
-                                Participants ({booking.participants.length})
+                                {t('common:bookings.detail.participantsCount', { count: booking.participants.length })}
                               </div>
                               {booking.participants.map((participant, index) => (
                                 <div key={participant.userId || index} className="flex items-center space-x-2">
@@ -1321,7 +1323,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                       </button>
                                       {participant.isPrimary && (
                                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                          Primary
+                                          {t('common:bookings.detail.primary')}
                                         </span>
                                       )}
                                     </p>
@@ -1341,7 +1343,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 </svg>
                               </div>
                               <div>
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Student</p>
+                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t('common:bookings.detail.student')}</p>
                                 <p className="text-xs font-bold text-gray-900">
                                   <button
                                     type="button"
@@ -1361,7 +1363,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               </svg>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Instructor</p>
+                              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t('common:bookings.columns.instructor')}</p>
                               <p className="text-xs font-bold text-gray-900">
                                 <button
                                   type="button"
@@ -1381,7 +1383,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                           <h4 className="text-sm font-semibold text-slate-700 flex items-center">
                             <InformationCircleIcon className="h-4 w-4 text-slate-400 mr-2" />
-                            Details
+                            {t('common:bookings.detail.details')}
                           </h4>
                         </div>
                         <div className="p-3 space-y-2">
@@ -1392,7 +1394,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               </svg>
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Service</p>
+                              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t('common:bookings.columns.service')}</p>
                               <p className="text-xs font-bold text-gray-900">{booking.service_name || 'N/A'}</p>
                             </div>
                           </div>
@@ -1400,7 +1402,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <div className="bg-gray-100 rounded-md p-1.5 shadow-sm">
                               <ClockIcon className="h-3 w-3 text-orange-600" />
                             </div>                            <div>
-                              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Duration</p>
+                              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t('common:bookings.detail.duration')}</p>
                               <p className="text-xs font-bold text-gray-900">
                                 {Number(booking.actualDuration) || Number(booking.duration) || 1} hour{(Number(booking.actualDuration) || Number(booking.duration) || 1) !== 1 ? 's' : ''}
                                 {booking.actualDuration && booking.actualDuration !== booking.duration && (
@@ -1415,7 +1417,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 <CurrencyDollarIcon className="h-3 w-3 text-blue-600" />
                               </div>
                               <div>
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Commission</p>
+                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t('common:bookings.detail.commission')}</p>
                                 <p className="text-xs font-bold text-gray-900">
                                   {formatCommissionDisplay(booking.instructor_commission)}
                                 </p>
@@ -1432,7 +1434,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <svg className="h-4 w-4 text-slate-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
-                            Notes
+                            {t('common:bookings.detail.notes')}
                           </h4>
                         </div>
                         <div className="p-4">
@@ -1451,9 +1453,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           disabled={isProcessing}
                         >
                           <PencilSquareIcon className="h-3.5 w-3.5 mr-1" />
-                          Edit
+                          {t('common:bookings.detail.edit')}
                         </button>
-                        
+
                         {booking.status !== 'cancelled' && (
                           <button
                             type="button"
@@ -1462,10 +1464,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             disabled={isProcessing}
                           >
                             <XMarkIcon className="h-3.5 w-3.5 mr-1" />
-                            Cancel
+                            {t('common:bookings.detail.cancelAction')}
                           </button>
                         )}
-                        
+
                         <button
                           type="button"
                           className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 transition-colors"
@@ -1473,7 +1475,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           disabled={isProcessing}
                         >
                           <TrashIcon className="h-3.5 w-3.5 mr-1" />
-                          Delete
+                          {t('common:bookings.detail.deleteAction')}
                         </button>
                       </div>
                       )}
@@ -1502,17 +1504,17 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                         </svg>
-                                        Confirming...
+                                        {t('common:bookings.detail.confirmingLabel')}
                                       </>
                                     ) : (
                                       <>
                                         <CheckCircleIcon className="h-3 w-3 mr-0.5" />
-                                        Confirm
+                                        {t('common:bookings.detail.confirm')}
                                       </>
                                     )}
                                   </button>
                                 )}
-                                
+
                                 {/* Check-In Button - always available for group bookings unless checked-in or completed */}
                                 {checkInStatus !== 'checked-in' && checkInStatus !== 'completed' && (
                                   <button
@@ -1521,12 +1523,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                     onClick={() => handleUpdateStatus('checked-in')}
                                     disabled={isProcessing}
                                   >
-                                    {isProcessing ? 'Checking In...' : (
+                                    {isProcessing ? t('common:bookings.detail.checkingInLabel') : (
                                       <>
                                         <svg className="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                                         </svg>
-                                        Check-In
+                                        {t('common:bookings.detail.checkIn')}
                                       </>
                                     )}
                                   </button>
@@ -1540,12 +1542,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                     onClick={() => setIsCheckingOut(true)}
                                     disabled={isProcessing}
                                   >
-                                    {isProcessing ? 'Processing...' : (
+                                    {isProcessing ? t('common:bookings.detail.processingLabel') : (
                                       <>
                                         <svg className="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                         </svg>
-                                        Check-Out
+                                        {t('common:bookings.detail.checkOut')}
                                       </>
                                     )}
                                   </button>
@@ -1569,12 +1571,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 004 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Confirming...
+                                        {t('common:bookings.detail.confirmingLabel')}
                                       </>
                                     ) : (
                                       <>
                                         <CheckCircleIcon className="h-3 w-3 mr-0.5" />
-                                        Confirm
+                                        {t('common:bookings.detail.confirm')}
                                       </>
                                     )}
                                   </button>
@@ -1588,28 +1590,28 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                       onClick={() => handleUpdateStatus('checked-in')}
                                       disabled={isProcessing}
                                     >
-                                      {isProcessing ? 'Checking In...' : (
+                                      {isProcessing ? t('common:bookings.detail.checkingInLabel') : (
                                         <>
                                           <svg className="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                                           </svg>
-                                          Check-In
+                                          {t('common:bookings.detail.checkIn')}
                                         </>
                                       )}
                                     </button>
-                                    
+
                                     <button
                                       type="button"
                                       className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
                                       onClick={() => setIsCheckingOut(true)}
                                       disabled={isProcessing}
                                     >
-                                      {isProcessing ? 'Processing...' : (
+                                      {isProcessing ? t('common:bookings.detail.processingLabel') : (
                                         <>
                                           <svg className="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1" />
                                           </svg>
-                                          Check-Out
+                                          {t('common:bookings.detail.checkOut')}
                                         </>
                                       )}
                                     </button>
@@ -1623,12 +1625,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                     onClick={() => setIsCheckingOut(true)}
                                     disabled={isProcessing}
                                   >
-                                    {isProcessing ? 'Processing...' : (
+                                    {isProcessing ? t('common:bookings.detail.processingLabel') : (
                                       <>
                                         <svg className="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                         </svg>
-                                        Check-Out
+                                        {t('common:bookings.detail.checkOut')}
                                       </>
                                     )}
                                   </button>

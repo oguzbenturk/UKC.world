@@ -1,5 +1,6 @@
 // src/components/UserForm.jsx
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber, DatePicker } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { UserOutlined, UploadOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined } from '@ant-design/icons';
@@ -384,6 +385,7 @@ const detectCountryFromPhone = (phone) => {
 };
 
 const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _isModal }) => {
+  const { t } = useTranslation(['common']);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user?.profile_image_url || null);
@@ -509,16 +511,16 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
   const persistUser = async (payload) => {
     if (user && user.id) {
       await DataService.updateUser(user.id, payload);
-      message.success('User updated successfully!');
+      message.success(t('common:userForm.userUpdated'));
       onSuccess?.();
       return;
     }
 
     if (!payload.role_id) {
-      throw new Error('Please select a role before creating a user.');
+      throw new Error(t('common:userForm.selectRoleRequired'));
     }
     await DataService.createUser(payload);
-    message.success('User created successfully!');
+    message.success(t('common:userForm.userCreated'));
     form.resetFields();
     setSelectedCountry(null);
     setAvatarUrl(null);
@@ -557,7 +559,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
   await persistUser(payload);
     } catch (error) {
       // Display specific error message if available, otherwise show a generic message
-      message.error(error.message || 'An error occurred while saving the user.');
+      message.error(error.message || t('common:userForm.errorSaving'));
     } finally {
       setLoading(false);
     }
@@ -572,13 +574,13 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       setAvatarUrl(url);
     }
     if (info.file.status === 'done') {
-      message.success(`${info.file.name} file uploaded successfully`);
+      message.success(t('common:userForm.uploadSuccess', { name: info.file.name }));
     } else if (info.file.status === 'error') {
       if (avatarPreviewUrl) {
         URL.revokeObjectURL(avatarPreviewUrl);
         setAvatarPreviewUrl(null);
       }
-      message.error(`${info.file.name} file upload failed.`);
+      message.error(t('common:userForm.uploadFailed', { name: info.file.name }));
     }
   };
 
@@ -592,11 +594,11 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
   const beforeUpload = (file) => {
     const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
     if (!isJpgOrPng) {
-      message.error('You can only upload JPG/PNG file!');
+      message.error(t('common:userForm.jpgPngOnly'));
     }
     const isLt2M = file.size / 1024 / 1024 < 2;
     if (!isLt2M) {
-      message.error('Image must smaller than 2MB!');
+      message.error(t('common:userForm.imageTooLarge'));
     }
     return isJpgOrPng && isLt2M;
   };
@@ -670,7 +672,7 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
               }}
             >
               <Button icon={<UploadOutlined />} style={{ marginTop: 8 }}>
-                Change Avatar
+                {t('common:userForm.changeAvatar')}
               </Button>
             </Upload>
           </div>
@@ -682,19 +684,19 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
         <Col xs={24} sm={12}>
           <Form.Item
             name="first_name"
-            label="First Name"
-            rules={[{ required: true, message: 'Please input the first name!' }]}
+            label={t('common:userForm.firstName')}
+            rules={[{ required: true, message: t('common:userForm.firstNameRequired') }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter first name" autoComplete="given-name" />
+            <Input prefix={<UserOutlined />} placeholder={t('common:userForm.enterFirstName')} autoComplete="given-name" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
           <Form.Item
             name="last_name"
-            label="Last Name"
-            rules={[{ required: true, message: 'Please input the last name!' }]}
+            label={t('common:userForm.lastName')}
+            rules={[{ required: true, message: t('common:userForm.lastNameRequired') }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter last name" autoComplete="family-name" />
+            <Input prefix={<UserOutlined />} placeholder={t('common:userForm.enterLastName')} autoComplete="family-name" />
           </Form.Item>
         </Col>
       </Row>
@@ -703,24 +705,24 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
         <Col xs={24} sm={12}>
           <Form.Item
             name="email"
-            label="Email"
+            label={t('common:userForm.email')}
             rules={[
-              { type: 'email', message: 'The input is not valid E-mail!' },
-              { required: true, message: 'Please input the email!' },
+              { type: 'email', message: t('common:userForm.emailInvalid') },
+              { required: true, message: t('common:userForm.emailRequired') },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="Enter email address" autoComplete="email" />
+            <Input prefix={<MailOutlined />} placeholder={t('common:userForm.enterEmail')} autoComplete="email" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
           <Form.Item
             name="phone"
-            label="Phone Number"
-            rules={[{ required: true, message: 'Please input the phone number!' }]}
+            label={t('common:userForm.phone')}
+            rules={[{ required: true, message: t('common:userForm.phoneRequired') }]}
           >
             <Input 
               prefix={<PhoneOutlined />} 
-              placeholder="Enter phone number with country code" 
+              placeholder={t('common:userForm.enterPhone')}
               autoComplete="tel"
               onChange={handlePhoneChange}
               addonBefore={selectedCountry ? (
@@ -737,10 +739,10 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
 
       <Row gutter={24}>
         <Col xs={24} sm={12}>
-          <Form.Item name="date_of_birth" label="Date of Birth">
+          <Form.Item name="date_of_birth" label={t('common:userForm.dateOfBirth')}>
             <DatePicker
               style={{ width: '100%' }}
-              placeholder="Select date of birth"
+              placeholder={t('common:userForm.selectDateOfBirth')}
               format="DD/MM/YYYY"
               disabledDate={(current) => current && current > dayjs().endOf('day')}
               onChange={(date) => {
@@ -756,13 +758,13 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
           <Form.Item name="age" hidden><InputNumber /></Form.Item>
         </Col>
         <Col xs={24} sm={12}>
-          <Form.Item name="weight" label="Weight (kg)">
-            <InputNumber 
-              min={30} 
-              max={200} 
+          <Form.Item name="weight" label={t('common:userForm.weight')}>
+            <InputNumber
+              min={30}
+              max={200}
               step={0.1}
-              style={{ width: '100%' }} 
-              placeholder="Enter weight in kg"
+              style={{ width: '100%' }}
+              placeholder={t('common:userForm.enterWeightKg')}
               precision={1}
               addonAfter="kg"
             />
@@ -772,8 +774,8 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
 
       <Row gutter={24}>
         <Col xs={24} sm={12}>
-          <Form.Item name="preferred_currency" label="Preferred Currency">
-            <Select placeholder="Select currency">
+          <Form.Item name="preferred_currency" label={t('common:userForm.preferredCurrency')}>
+            <Select placeholder={t('common:userForm.selectCurrency')}>
               <Option value="EUR">EUR - Euro</Option>
               <Option value="USD">USD - US Dollar</Option>
               <Option value="GBP">GBP - British Pound</Option>
@@ -787,9 +789,9 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
-          <Form.Item name="language" label="Preferred Language">
-            <Select 
-              placeholder="Select language"
+          <Form.Item name="language" label={t('common:userForm.preferredLanguage')}>
+            <Select
+              placeholder={t('common:userForm.selectLanguage')}
               showSearch
               filterOption={(input, option) =>
                 option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
@@ -807,17 +809,17 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
 
       <Row gutter={24}>
         <Col xs={24} sm={12}>
-          <Form.Item name="city" label="City">
-            <Input prefix={<EnvironmentOutlined />} placeholder="Enter city" autoComplete="address-level2" />
+          <Form.Item name="city" label={t('common:userForm.city')}>
+            <Input prefix={<EnvironmentOutlined />} placeholder={t('common:userForm.enterCity')} autoComplete="address-level2" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={12}>
-          <Form.Item name="country" label="Country">
-            <Select 
-              placeholder="Select country"
+          <Form.Item name="country" label={t('common:userForm.country')}>
+            <Select
+              placeholder={t('common:userForm.selectCountry')}
               showSearch
               allowClear
-              notFoundContent="No countries found"
+              notFoundContent={t('common:userForm.noCountriesFound')}
               filterOption={(input, option) => {
                 const country = countries.find(c => c.code === option.key);
                 if (!country) return false;
@@ -843,10 +845,10 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       {roles && roles.length > 0 && (
         <Form.Item
           name="role_id"
-          label="Role"
-          rules={[{ required: true, message: 'Please select a role' }]}
+          label={t('common:userForm.role')}
+          rules={[{ required: true, message: t('common:userForm.selectRole') }]}
         >
-          <Select placeholder="Select a role">
+          <Select placeholder={t('common:userForm.selectRole')}>
             {roles.map(role => (
               <Option key={role.id} value={role.id}>{role.name}</Option>
             ))}
@@ -859,32 +861,32 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
           <Col xs={24} sm={12}>
             <Form.Item
               name="password"
-              label="Password"
-              rules={[{ required: true, message: 'Please input a password!' }]}
+              label={t('common:userForm.password')}
+              rules={[{ required: true, message: t('common:userForm.passwordRequired') }]}
               hasFeedback
             >
-              <Input.Password placeholder="Enter password" autoComplete="new-password" />
+              <Input.Password placeholder={t('common:userForm.enterPassword')} autoComplete="new-password" />
             </Form.Item>
           </Col>
           <Col xs={24} sm={12}>
             <Form.Item
               name="confirm_password"
-              label="Confirm Password"
+              label={t('common:userForm.confirmPassword')}
               dependencies={['password']}
               hasFeedback
               rules={[
-                { required: true, message: 'Please confirm your password!' },
+                { required: true, message: t('common:userForm.confirmPasswordRequired') },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue('password') === value) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('The two passwords that you entered do not match!'));
+                    return Promise.reject(new Error(t('common:userForm.passwordMismatch')));
                   },
                 }),
               ]}
             >
-              <Input.Password placeholder="Confirm password" autoComplete="new-password" />
+              <Input.Password placeholder={t('common:userForm.confirmPasswordPlaceholder')} autoComplete="new-password" />
             </Form.Item>
           </Col>
         </Row>
@@ -892,9 +894,9 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
 
       <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
         <Button onClick={onCancel} style={{ marginRight: 8 }}>
-          Cancel
+          {t('common:buttons.cancel')}
         </Button>        <Button type="primary" htmlType="submit" loading={loading}>
-          {user && user.id ? 'Save Changes' : 'Create User'}
+          {user && user.id ? t('common:userForm.saveChanges') : t('common:userForm.createUser')}
         </Button>
       </Form.Item>
     </Form>

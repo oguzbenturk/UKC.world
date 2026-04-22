@@ -7,6 +7,7 @@ import { Table, Button, InputNumber, Input, Popconfirm, Tag, Space } from 'antd'
 import { message } from '@/shared/utils/antdStatic';
 import { PlusOutlined, DeleteOutlined, InboxOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useTranslation } from 'react-i18next';
 
 // ── Size presets per product category ──────────────────────────────
 const SIZE_PRESETS = {
@@ -44,6 +45,7 @@ const getPresets = (category) =>
   SIZE_PRESETS[category] || SIZE_PRESETS._default;
 
 const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null }) => {
+  const { t } = useTranslation(['manager']);
   const [variants, setVariants] = useState(value);
   const { getCurrencySymbol } = useCurrency();
 
@@ -82,7 +84,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
 
   const handleDelete = (key) => {
     push(variants.filter(v => v.key !== key));
-    message.success('Variant removed');
+    message.success(t('manager:products.variantTable.variantRemoved'));
   };
 
   const handleChange = (key, field, val) => {
@@ -104,7 +106,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
   const handleAddAllPresets = () => {
     const missing = presets.sizes.filter(s => !existingLabels.has(s));
     if (missing.length === 0) {
-      message.info('All sizes already added');
+      message.info(t('manager:products.variantTable.allSizesAdded'));
       return;
     }
     const newVariants = missing.map(label => ({
@@ -116,13 +118,13 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
       cost_price: null,
     }));
     push([...variants, ...newVariants]);
-    message.success(`Added ${missing.length} sizes`);
+    message.success(t('manager:products.variantTable.sizesAdded', { count: missing.length }));
   };
 
   // ── Columns ──────────────────────────────────────────────────────
   const columns = [
     {
-      title: 'Size / Variant',
+      title: t('manager:products.variantTable.sizeVariant'),
       dataIndex: 'label',
       key: 'label',
       width: '20%',
@@ -136,7 +138,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
       ),
     },
     {
-      title: 'Qty',
+      title: t('manager:products.variantTable.qty'),
       dataIndex: 'quantity',
       key: 'quantity',
       width: '12%',
@@ -152,7 +154,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
       ),
     },
     {
-      title: 'Cost',
+      title: t('manager:products.variantTable.cost'),
       dataIndex: 'cost_price',
       key: 'cost_price',
       width: '20%',
@@ -171,7 +173,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
       ),
     },
     {
-      title: 'Selling Price',
+      title: t('manager:products.variantTable.sellingPrice'),
       dataIndex: 'price',
       key: 'price',
       width: '22%',
@@ -195,10 +197,10 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
       width: '8%',
       render: (_, record) => (
         <Popconfirm
-          title="Delete this variant?"
+          title={t('manager:products.variantTable.deleteConfirm')}
           onConfirm={() => handleDelete(record.key)}
-          okText="Yes"
-          cancelText="No"
+          okText={t('manager:products.confirm.deleteOk')}
+          cancelText={t('manager:products.confirm.deleteCancel')}
         >
           <Button danger icon={<DeleteOutlined />} size="small" type="text" />
         </Popconfirm>
@@ -225,7 +227,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
             onClick={handleAddAllPresets}
             style={{ fontSize: 12, padding: 0 }}
           >
-            Add all
+            {t('manager:products.variantTable.addAll')}
           </Button>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -261,7 +263,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
         columns={columns}
         pagination={false}
         size="small"
-        locale={{ emptyText: 'Click a size above or "Add Variant" to start.' }}
+        locale={{ emptyText: t('manager:products.variantTable.emptyHint') }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
         <Button
@@ -269,7 +271,7 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
           onClick={() => handleAdd('')}
           icon={<PlusOutlined />}
         >
-          Add Variant
+          {t('manager:products.variantTable.addVariant')}
         </Button>
 
         {/* ── Stock Summary Badge ───────────────────────────── */}
@@ -285,7 +287,9 @@ const VariantTable = ({ value = [], onChange, currency = 'EUR', category = null 
               {stockSummary.total}
             </span>
             <span style={{ color: '#8c8c8c', fontSize: 12 }}>
-              units across {stockSummary.sizeCount} size{stockSummary.sizeCount !== 1 ? 's' : ''}
+              {stockSummary.sizeCount !== 1
+                ? t('manager:products.variantTable.unitsAcrossSizesPlural', { count: stockSummary.sizeCount })
+                : t('manager:products.variantTable.unitsAcrossSizes', { count: stockSummary.sizeCount })}
             </span>
           </Space>
         )}

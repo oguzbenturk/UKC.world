@@ -1,4 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { Select, Spin, Alert, Table, Tag, Empty, Button, Dropdown, Input } from 'antd';
 import {
@@ -27,6 +28,7 @@ const latinize = (value) => {
 const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple' };
 
 const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const { businessCurrency } = useCurrency();
   const { user } = useAuth();
@@ -116,7 +118,7 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
         }
       }
     } catch {
-      setError('Failed to load dashboard data.');
+      setError(t('instructor:payroll.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -244,8 +246,8 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
 
   const handleExport = ({ key }) => { if (key === 'csv') exportCsv(); if (key === 'excel') exportExcel(); if (key === 'pdf') exportPdf(); };
 
-  if (isLoading) return <div className="flex justify-center items-center h-48"><Spin size="large"><div className="p-8">Loading earnings...</div></Spin></div>;
-  if (error) return <Alert message="Error" description={error} type="error" showIcon action={<Button size="small" type="primary" onClick={() => { hasFetchedRef.current = false; fetchDashboardData(); }}>Retry</Button>} />;
+  if (isLoading) return <div className="flex justify-center items-center h-48"><Spin size="large"><div className="p-8">{t('instructor:payroll.loadingEarnings')}</div></Spin></div>;
+  if (error) return <Alert message="Error" description={error} type="error" showIcon action={<Button size="small" type="primary" onClick={() => { hasFetchedRef.current = false; fetchDashboardData(); }}>{t('instructor:payroll.retryBtn')}</Button>} />;
 
   const fmt = (v) => formatCurrency(Number(v) || 0, businessCurrency || 'EUR');
 
@@ -255,10 +257,10 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
       {summaryData && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Total Commission', value: fmt(summaryData.totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Total Lessons', value: summaryData.totalLessons, icon: <CalendarOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Total Hours', value: `${(summaryData.totalHours || 0).toFixed(1)}h`, icon: <ClockCircleOutlined />, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Avg / Lesson', value: fmt(summaryData.averagePerLesson), icon: <DollarCircleOutlined />, color: 'text-purple-600', bg: 'bg-purple-50' },
+            { label: t('instructor:payroll.totalCommission'), value: fmt(summaryData.totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: t('instructor:payroll.totalLessons'), value: summaryData.totalLessons, icon: <CalendarOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: t('instructor:payroll.totalHours'), value: `${(summaryData.totalHours || 0).toFixed(1)}h`, icon: <ClockCircleOutlined />, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: t('instructor:payroll.avgPerLesson'), value: fmt(summaryData.averagePerLesson), icon: <DollarCircleOutlined />, color: 'text-purple-600', bg: 'bg-purple-50' },
           ].map(s => (
             <div key={s.label} className="rounded-xl border border-gray-100 bg-white p-4">
               <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${s.bg} ${s.color} text-base mb-2`}>{s.icon}</div>
@@ -272,7 +274,7 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
       {/* Service hours breakdown */}
       {summaryData?.serviceHours && Object.keys(summaryData.serviceHours).length > 0 && (
         <div className="rounded-xl border border-gray-100 bg-white p-4">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Hours by Service</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:payroll.hoursByService')}</div>
           <div className="flex flex-wrap gap-2">
             {Object.entries(summaryData.serviceHours).map(([service, hours]) => (
               <span key={service} className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1 text-xs text-gray-700">
@@ -286,26 +288,26 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
       {/* ── Earnings table ── */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h4 className="text-sm font-semibold text-gray-800">Earnings Details</h4>
+          <h4 className="text-sm font-semibold text-gray-800">{t('instructor:payroll.earningsDetails')}</h4>
           <div className="flex items-center gap-2">
             <Input.Search
               size="small"
-              placeholder="Search…"
+              placeholder={t('instructor:payroll.searchPlaceholder')}
               allowClear
               value={earningsSearch}
               onChange={e => setEarningsSearch(e.target.value)}
               className="w-32"
             />
             <Dropdown menu={{ items: [{ key: 'csv', label: 'CSV' }, { key: 'excel', label: 'Excel' }, { key: 'pdf', label: 'PDF' }], onClick: handleExport }}>
-              <Button size="small" icon={<DownloadOutlined />}>Export</Button>
+              <Button size="small" icon={<DownloadOutlined />}>{t('instructor:payroll.export')}</Button>
             </Dropdown>
             <Select value={selectedPeriod} onChange={(v) => { setAutoExpanded(false); setSelectedPeriod(v); }} size="small" className="w-36">
-              <Option value="current_month">This Month</Option>
-              <Option value="last_month">Last Month</Option>
-              <Option value="last_3_months">Last 3 Months</Option>
-              <Option value="last_6_months">Last 6 Months</Option>
-              <Option value="current_year">This Year</Option>
-              <Option value="all_time">All Time</Option>
+              <Option value="current_month">{t('instructor:payroll.periodCurrentMonth')}</Option>
+              <Option value="last_month">{t('instructor:payroll.periodLastMonth')}</Option>
+              <Option value="last_3_months">{t('instructor:payroll.periodLast3Months')}</Option>
+              <Option value="last_6_months">{t('instructor:payroll.periodLast6Months')}</Option>
+              <Option value="current_year">{t('instructor:payroll.periodCurrentYear')}</Option>
+              <Option value="all_time">{t('instructor:payroll.periodAllTime')}</Option>
             </Select>
           </div>
         </div>
@@ -313,40 +315,40 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
         {earnings.length === 0 && (
           <div className="px-5 py-2">
             <Alert type="info" showIcon message={
-              selectedPeriod === 'all_time' ? 'No earnings recorded.' : 'No earnings for this period — try a wider range.'
+              selectedPeriod === 'all_time' ? t('instructor:payroll.noEarningsRecorded') : t('instructor:payroll.noEarningsForPeriod')
             } banner className="rounded-lg" />
           </div>
         )}
 
         <Table
           columns={[
-            { title: 'Date', dataIndex: 'lesson_date', key: 'date', render: t => t ? moment.utc(t).format('YYYY-MM-DD') : '—', width: 110 },
-            { title: 'Student', dataIndex: 'student_name', key: 'student', ellipsis: true,
-              render: (t, r) => {
-                const name = latinize(r.participant_names || t);
+            { title: t('instructor:payroll.columns.date'), dataIndex: 'lesson_date', key: 'date', render: v => v ? moment.utc(v).format('YYYY-MM-DD') : '—', width: 110 },
+            { title: t('instructor:payroll.columns.student'), dataIndex: 'student_name', key: 'student', ellipsis: true,
+              render: (val, r) => {
+                const name = latinize(r.participant_names || val);
                 return r.group_size > 1
                   ? <span>{name} <Tag color="purple" bordered={false} className="rounded-full m-0 text-xs">{r.group_size}ppl</Tag></span>
                   : name;
               }
             },
-            { title: 'Service', dataIndex: 'service_name', key: 'service', ellipsis: true,
-              render: (t, r) => (
+            { title: t('instructor:payroll.columns.service'), dataIndex: 'service_name', key: 'service', ellipsis: true,
+              render: (val, r) => (
                 <span className="inline-flex items-center gap-1">
-                  {latinize(t || 'Private Lessons')}
+                  {latinize(val || 'Private Lessons')}
                   {r.package_name && (
                     <Tag color="purple" bordered={false} className="rounded-full m-0 text-[10px] leading-tight px-1.5 py-0 shrink-0">PKG</Tag>
                   )}
                 </span>
               )
             },
-            { title: 'Category', dataIndex: 'lesson_category', key: 'category', width: 100,
+            { title: t('instructor:lessons.category'), dataIndex: 'lesson_category', key: 'category', width: 100,
               render: cat => cat ? <Tag color={CATEGORY_COLORS[cat] || 'default'} bordered={false} className="rounded-full capitalize m-0">{cat}</Tag> : <span className="text-gray-300">—</span> },
-            { title: 'Duration', dataIndex: 'lesson_duration', key: 'dur', render: t => `${t || 0}h`, width: 80 },
-            ...(hideLessonAmount ? [] : [{ title: 'Amount', dataIndex: 'lesson_amount', key: 'amt', render: t => fmt(t), width: 100 }]),
-            { title: 'Rate', dataIndex: 'commission_rate', key: 'rate', width: 90,
+            { title: t('instructor:payroll.columns.duration'), dataIndex: 'lesson_duration', key: 'dur', render: v => `${v || 0}h`, width: 80 },
+            ...(hideLessonAmount ? [] : [{ title: t('instructor:payroll.columns.amount'), dataIndex: 'lesson_amount', key: 'amt', render: v => fmt(v), width: 100 }]),
+            { title: t('instructor:payroll.columns.rate'), dataIndex: 'commission_rate', key: 'rate', width: 90,
               render: (v, r) => r.commission_type === 'fixed' ? `${fmt(v)}/h` : `${Number.parseFloat(v ?? 0).toFixed(1)}%` },
-            { title: 'Commission', dataIndex: 'commission_amount', key: 'comm', render: t => <span className="font-medium text-emerald-700">{fmt(t)}</span>, width: 110 },
-            { title: 'Status', dataIndex: 'status', key: 'status', width: 100,
+            { title: t('instructor:payroll.columns.commission'), dataIndex: 'commission_amount', key: 'comm', render: v => <span className="font-medium text-emerald-700">{fmt(v)}</span>, width: 110 },
+            { title: t('instructor:payroll.columns.status'), dataIndex: 'status', key: 'status', width: 100,
               render: s => <Tag color={s === 'completed' ? 'green' : s === 'confirmed' ? 'blue' : 'orange'} bordered={false} className="rounded-full capitalize m-0">{s || 'pending'}</Tag> },
           ]}
           dataSource={earningsSearch.trim()
@@ -365,7 +367,7 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
           pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
           size="small"
           scroll={{ x: 'max-content' }}
-          locale={{ emptyText: <Empty description="No earnings for this period." image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          locale={{ emptyText: <Empty description={t('instructor:payroll.noEarningsForPeriodShort')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
         />
       </div>
     </div>

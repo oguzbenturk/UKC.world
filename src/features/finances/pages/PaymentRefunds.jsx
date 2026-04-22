@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, Table, Button, Modal, Input, InputNumber, Tag, message, Space, Tooltip, Empty } from 'antd';
 import { ExclamationCircleOutlined, UndoOutlined, SearchOutlined, EuroOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -14,6 +15,7 @@ const { TextArea } = Input;
  * Admin/Manager only - allows refunding Iyzico card payments
  */
 const PaymentRefunds = () => {
+  const { t } = useTranslation(['manager']);
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [refundableTransactions, setRefundableTransactions] = useState([]);
@@ -46,7 +48,7 @@ const PaymentRefunds = () => {
         total: response.data.pagination?.total || 0
       }));
     } catch (error) {
-      message.error('Failed to load refundable transactions');
+      message.error(t('manager:financePages.paymentRefunds.messages.loadRefundableError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -70,7 +72,7 @@ const PaymentRefunds = () => {
         total: response.data.refunds?.length || 0
       }));
     } catch (error) {
-      message.error('Failed to load refund history');
+      message.error(t('manager:financePages.paymentRefunds.messages.loadHistoryError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -99,24 +101,24 @@ const PaymentRefunds = () => {
 
     // Confirm before proceeding
     confirm({
-      title: 'Confirm Refund',
+      title: t('manager:financePages.paymentRefunds.refundModal.confirmTitle'),
       icon: <ExclamationCircleOutlined />,
       content: (
         <div>
-          <p>Are you sure you want to refund this payment?</p>
-          <p><strong>Customer:</strong> {transaction.userName} ({transaction.userEmail})</p>
-          <p><strong>Amount:</strong> {formatCurrency(refundAmount, transaction.currency)}</p>
+          <p>{t('manager:financePages.paymentRefunds.refundModal.confirmContent')}</p>
+          <p><strong>{t('manager:financePages.paymentRefunds.refundModal.customer')}:</strong> {transaction.userName} ({transaction.userEmail})</p>
+          <p><strong>{t('manager:financePages.paymentRefunds.columns.amount')}:</strong> {formatCurrency(refundAmount, transaction.currency)}</p>
           {refundAmount < transaction.amount && (
-            <Tag color="orange">Partial Refund</Tag>
+            <Tag color="orange">{t('manager:financePages.paymentRefunds.refundModal.partialRefundTag')}</Tag>
           )}
           <p className="mt-2 text-gray-500 text-sm">
-            This will refund the money to the customer's original payment method (card).
+            {t('manager:financePages.paymentRefunds.refundModal.cardRefundNote')}
           </p>
         </div>
       ),
-      okText: 'Yes, Process Refund',
+      okText: t('manager:financePages.paymentRefunds.refundModal.processButton'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('manager:financePages.paymentRefunds.refundModal.cancel'),
       onOk: async () => {
         setRefundLoading(true);
         try {
@@ -127,15 +129,15 @@ const PaymentRefunds = () => {
           });
 
           message.success(
-            response.data.refund?.isPartialRefund 
-              ? 'Partial refund processed successfully' 
-              : 'Full refund processed successfully'
+            response.data.refund?.isPartialRefund
+              ? t('manager:financePages.paymentRefunds.messages.partialSuccess')
+              : t('manager:financePages.paymentRefunds.messages.fullSuccess')
           );
           
           setRefundModal({ visible: false, transaction: null });
           fetchRefundableTransactions(pagination.current);
         } catch (error) {
-          message.error(error.response?.data?.details || error.response?.data?.error || 'Refund failed');
+          message.error(error.response?.data?.details || error.response?.data?.error || t('manager:financePages.paymentRefunds.messages.refundFailed'));
           console.error('Refund error:', error);
         } finally {
           setRefundLoading(false);
@@ -147,14 +149,14 @@ const PaymentRefunds = () => {
   // Refundable transactions columns
   const refundableColumns = [
     {
-      title: 'Date',
+      title: t('manager:financePages.paymentRefunds.columns.date'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
       render: (date) => dayjs(date).format('DD MMM YYYY HH:mm')
     },
     {
-      title: 'Customer',
+      title: t('manager:financePages.paymentRefunds.columns.customer'),
       key: 'customer',
       render: (_, record) => (
         <div>
@@ -164,7 +166,7 @@ const PaymentRefunds = () => {
       )
     },
     {
-      title: 'Amount',
+      title: t('manager:financePages.paymentRefunds.columns.amount'),
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
@@ -175,7 +177,7 @@ const PaymentRefunds = () => {
       )
     },
     {
-      title: 'Payment ID',
+      title: t('manager:financePages.paymentRefunds.columns.paymentId'),
       dataIndex: 'paymentId',
       key: 'paymentId',
       width: 120,
@@ -186,7 +188,7 @@ const PaymentRefunds = () => {
       )
     },
     {
-      title: 'Action',
+      title: t('manager:financePages.paymentRefunds.columns.action'),
       key: 'action',
       width: 120,
       render: (_, record) => (
@@ -196,7 +198,7 @@ const PaymentRefunds = () => {
           icon={<UndoOutlined />}
           onClick={() => openRefundModal(record)}
         >
-          Refund
+          {t('manager:financePages.paymentRefunds.refundModal.processButton')}
         </Button>
       )
     }
@@ -205,14 +207,14 @@ const PaymentRefunds = () => {
   // Refund history columns
   const historyColumns = [
     {
-      title: 'Date',
+      title: t('manager:financePages.paymentRefunds.columns.date'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
       render: (date) => dayjs(date).format('DD MMM YYYY HH:mm')
     },
     {
-      title: 'Customer',
+      title: t('manager:financePages.paymentRefunds.columns.customer'),
       key: 'customer',
       render: (_, record) => (
         <div>
@@ -222,7 +224,7 @@ const PaymentRefunds = () => {
       )
     },
     {
-      title: 'Amount',
+      title: t('manager:financePages.paymentRefunds.columns.amount'),
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
@@ -233,24 +235,24 @@ const PaymentRefunds = () => {
       )
     },
     {
-      title: 'Type',
+      title: t('manager:financePages.paymentRefunds.columns.type'),
       key: 'type',
       width: 100,
       render: (_, record) => (
         <Tag color={record.isPartialRefund ? 'orange' : 'red'}>
-          {record.isPartialRefund ? 'Partial' : 'Full'}
+          {record.isPartialRefund ? t('manager:financePages.paymentRefunds.refundTypes.partial') : t('manager:financePages.paymentRefunds.refundTypes.full')}
         </Tag>
       )
     },
     {
-      title: 'Reason',
+      title: t('manager:financePages.paymentRefunds.columns.reason'),
       dataIndex: 'reason',
       key: 'reason',
       ellipsis: true,
       render: (reason) => reason || '-'
     },
     {
-      title: 'Processed By',
+      title: t('manager:financePages.paymentRefunds.columns.processedBy'),
       dataIndex: 'adminName',
       key: 'adminName',
       width: 150
@@ -260,8 +262,8 @@ const PaymentRefunds = () => {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Payment Refunds</h1>
-        <p className="text-gray-500 mt-1">Manage Iyzico card payment refunds</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('manager:financePages.paymentRefunds.title')}</h1>
+        <p className="text-gray-500 mt-1">{t('manager:financePages.paymentRefunds.subtitle')}</p>
       </div>
 
       {/* Tabs */}
@@ -270,13 +272,13 @@ const PaymentRefunds = () => {
           type={activeTab === 'refundable' ? 'primary' : 'default'}
           onClick={() => setActiveTab('refundable')}
         >
-          Refundable Payments
+          {t('manager:financePages.paymentRefunds.tabs.refundable')}
         </Button>
         <Button
           type={activeTab === 'history' ? 'primary' : 'default'}
           onClick={() => setActiveTab('history')}
         >
-          Refund History
+          {t('manager:financePages.paymentRefunds.tabs.history')}
         </Button>
       </div>
 
@@ -285,7 +287,7 @@ const PaymentRefunds = () => {
           {/* Search */}
           <div className="mb-4">
             <Input
-              placeholder="Filter by User ID"
+              placeholder={t('manager:financePages.paymentRefunds.search.placeholder')}
               prefix={<SearchOutlined />}
               value={searchUserId}
               onChange={(e) => setSearchUserId(e.target.value)}
@@ -293,11 +295,11 @@ const PaymentRefunds = () => {
               style={{ width: 300 }}
               allowClear
             />
-            <Button 
-              className="ml-2" 
+            <Button
+              className="ml-2"
               onClick={() => fetchRefundableTransactions(1)}
             >
-              Search
+              {t('manager:financePages.paymentRefunds.search.button')}
             </Button>
           </div>
 
@@ -310,13 +312,13 @@ const PaymentRefunds = () => {
               ...pagination,
               onChange: (page) => fetchRefundableTransactions(page),
               showSizeChanger: false,
-              showTotal: (total) => `Total ${total} transactions`
+              showTotal: (total) => t('manager:financePages.paymentRefunds.pagination.total', { count: total })
             }}
             locale={{
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No refundable Iyzico payments found"
+                  description={t('manager:financePages.paymentRefunds.empty.noRefundable')}
                 />
               )
             }}
@@ -340,7 +342,7 @@ const PaymentRefunds = () => {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="No refunds processed yet"
+                  description={t('manager:financePages.paymentRefunds.empty.noHistory')}
                 />
               )
             }}
@@ -350,12 +352,12 @@ const PaymentRefunds = () => {
 
       {/* Refund Modal */}
       <Modal
-        title="Process Refund"
+        title={t('manager:financePages.paymentRefunds.refundModal.title')}
         open={refundModal.visible}
         onCancel={() => setRefundModal({ visible: false, transaction: null })}
         footer={[
           <Button key="cancel" onClick={() => setRefundModal({ visible: false, transaction: null })}>
-            Cancel
+            {t('manager:financePages.paymentRefunds.refundModal.cancel')}
           </Button>,
           <Button
             key="refund"
@@ -365,20 +367,20 @@ const PaymentRefunds = () => {
             onClick={processRefund}
             icon={<UndoOutlined />}
           >
-            Process Refund
+            {t('manager:financePages.paymentRefunds.refundModal.processButton')}
           </Button>
         ]}
       >
         {refundModal.transaction && (
           <div className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">Customer</p>
+              <p className="text-sm text-gray-500">{t('manager:financePages.paymentRefunds.refundModal.customer')}</p>
               <p className="font-medium">{refundModal.transaction.userName}</p>
               <p className="text-sm text-gray-500">{refundModal.transaction.userEmail}</p>
             </div>
 
             <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">Original Payment</p>
+              <p className="text-sm text-gray-500">{t('manager:financePages.paymentRefunds.refundModal.originalPayment')}</p>
               <p className="font-semibold text-lg text-green-600">
                 {formatCurrency(refundModal.transaction.amount, refundModal.transaction.currency)}
               </p>
@@ -389,7 +391,7 @@ const PaymentRefunds = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Refund Amount
+                {t('manager:financePages.paymentRefunds.refundModal.refundAmount')}
               </label>
               <InputNumber
                 value={refundAmount}
@@ -402,19 +404,19 @@ const PaymentRefunds = () => {
               />
               {refundAmount < refundModal.transaction.amount && (
                 <p className="text-orange-500 text-sm mt-1">
-                  This will be a partial refund
+                  {t('manager:financePages.paymentRefunds.refundModal.partialRefundNote')}
                 </p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Reason (Optional)
+                {t('manager:financePages.paymentRefunds.refundModal.reason')}
               </label>
               <TextArea
                 value={refundReason}
                 onChange={(e) => setRefundReason(e.target.value)}
-                placeholder="Enter reason for refund..."
+                placeholder={t('manager:financePages.paymentRefunds.refundModal.reasonPlaceholder')}
                 rows={3}
                 maxLength={500}
               />

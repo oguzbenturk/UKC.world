@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Card, 
   Tabs, 
@@ -26,6 +27,7 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const LegalDocumentsPage = () => {
+  const { t } = useTranslation(['admin']);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [documents, setDocuments] = useState({
@@ -61,7 +63,7 @@ const LegalDocumentsPage = () => {
       });
     } catch (error) {
       console.error('Failed to load documents:', error);
-      message.error('Failed to load legal documents');
+      message.error(t('admin:legal.toast.loadError'));
     } finally {
       setLoading(false);
     }
@@ -90,12 +92,12 @@ const LegalDocumentsPage = () => {
       };
 
       await apiClient.post('/admin/legal-documents', payload);
-      message.success(`${docType === 'terms' ? 'Terms of Service' : docType === 'privacy' ? 'Privacy Policy' : 'Marketing Preferences'} saved successfully`);
-      
+      message.success(docType === 'terms' ? t('admin:legal.toast.termsSaved') : docType === 'privacy' ? t('admin:legal.toast.privacySaved') : t('admin:legal.toast.marketingSaved'));
+
       await fetchDocuments();
     } catch (error) {
       console.error('Failed to save:', error);
-      message.error('Failed to save document');
+      message.error(t('admin:legal.toast.saveError'));
     } finally {
       setSaving(false);
     }
@@ -125,31 +127,31 @@ const LegalDocumentsPage = () => {
       label: (
         <Space>
           <FileTextOutlined />
-          Terms of Service
+          {t('admin:legal.tabs.terms')}
         </Space>
       ),
       children: (
         <div className="max-w-4xl">
           <Alert
-            message="Terms of Service"
-            description="Users will be required to accept new versions. Update the version number to trigger re-consent."
+            message={t('admin:legal.terms.alertTitle')}
+            description={t('admin:legal.terms.alertDescription')}
             type="info"
             showIcon
             className="mb-6"
           />
-          
+
           <Form form={form} layout="vertical">
             <Form.Item
               name="termsVersion"
-              label="Version"
-              rules={[{ required: true, message: 'Version is required' }]}
+              label={t('admin:legal.terms.versionLabel')}
+              rules={[{ required: true, message: t('admin:legal.terms.versionRequired') }]}
             >
-              <Input placeholder="e.g., 2025-10-01" />
+              <Input placeholder={t('admin:legal.terms.versionPlaceholder')} />
             </Form.Item>
 
             <Form.Item
               name="termsContent"
-              label="Terms Content (HTML supported)"
+              label={t('admin:legal.terms.contentLabel')}
             >
               <ReactQuill
                 theme="snow"
@@ -165,7 +167,7 @@ const LegalDocumentsPage = () => {
                 onClick={() => handleSave('terms')}
                 loading={saving}
               >
-                Save Terms of Service
+                {t('admin:legal.terms.save')}
               </Button>
               <Button
                 icon={<EyeOutlined />}
@@ -177,7 +179,7 @@ const LegalDocumentsPage = () => {
                   window.open(url, '_blank');
                 }}
               >
-                Preview
+                {t('admin:legal.terms.preview')}
               </Button>
             </Space>
           </Form>
@@ -189,31 +191,31 @@ const LegalDocumentsPage = () => {
       label: (
         <Space>
           <SafetyCertificateOutlined />
-          Privacy Policy
+          {t('admin:legal.tabs.privacy')}
         </Space>
       ),
       children: (
         <div className="max-w-4xl">
           <Alert
-            message="Privacy Policy"
-            description="Users will be required to accept new versions. Update the version number to trigger re-consent."
+            message={t('admin:legal.privacy.alertTitle')}
+            description={t('admin:legal.privacy.alertDescription')}
             type="info"
             showIcon
             className="mb-6"
           />
-          
+
           <Form form={form} layout="vertical">
             <Form.Item
               name="privacyVersion"
-              label="Version"
-              rules={[{ required: true, message: 'Version is required' }]}
+              label={t('admin:legal.privacy.versionLabel')}
+              rules={[{ required: true, message: t('admin:legal.privacy.versionRequired') }]}
             >
-              <Input placeholder="e.g., 2025-10-01" />
+              <Input placeholder={t('admin:legal.privacy.versionPlaceholder')} />
             </Form.Item>
 
             <Form.Item
               name="privacyContent"
-              label="Privacy Content (HTML supported)"
+              label={t('admin:legal.privacy.contentLabel')}
             >
               <ReactQuill
                 theme="snow"
@@ -229,7 +231,7 @@ const LegalDocumentsPage = () => {
                 onClick={() => handleSave('privacy')}
                 loading={saving}
               >
-                Save Privacy Policy
+                {t('admin:legal.privacy.save')}
               </Button>
               <Button
                 icon={<EyeOutlined />}
@@ -241,7 +243,7 @@ const LegalDocumentsPage = () => {
                   window.open(url, '_blank');
                 }}
               >
-                Preview
+                {t('admin:legal.privacy.preview')}
               </Button>
             </Space>
           </Form>
@@ -250,25 +252,25 @@ const LegalDocumentsPage = () => {
     },
     {
       key: 'marketing',
-      label: 'Marketing Preferences',
+      label: t('admin:legal.tabs.marketing'),
       children: (
         <div className="max-w-4xl">
           <Alert
-            message="Marketing Communication Preferences"
-            description="Customize the description shown to users when they configure their marketing preferences."
+            message={t('admin:legal.marketing.alertTitle')}
+            description={t('admin:legal.marketing.alertDescription')}
             type="info"
             showIcon
             className="mb-6"
           />
-          
+
           <Form form={form} layout="vertical">
             <Form.Item
               name="marketingDescription"
-              label="Description Text"
+              label={t('admin:legal.marketing.descriptionLabel')}
             >
               <TextArea
                 rows={4}
-                placeholder="These toggles are optional. Opt in to receive updates and booking reminders through the channels you prefer."
+                placeholder={t('admin:legal.marketing.descriptionPlaceholder')}
               />
             </Form.Item>
 
@@ -278,7 +280,7 @@ const LegalDocumentsPage = () => {
               onClick={() => handleSave('marketing')}
               loading={saving}
             >
-              Save Marketing Preferences
+              {t('admin:legal.marketing.save')}
             </Button>
           </Form>
         </div>
@@ -289,10 +291,8 @@ const LegalDocumentsPage = () => {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Title level={2}>Legal Documents & Consent Management</Title>
-        <Text type="secondary">
-          Manage Terms of Service, Privacy Policy, and marketing preference settings
-        </Text>
+        <Title level={2}>{t('admin:legal.title')}</Title>
+        <Text type="secondary">{t('admin:legal.subtitle')}</Text>
       </div>
 
       <Card>

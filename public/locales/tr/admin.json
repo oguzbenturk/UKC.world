@@ -1183,7 +1183,9 @@
         "description": "Mevcut feragatname durumunuzu görüntüleyin ve önceki imzaları inceleyin. Feragatnamenizi imzalamanız veya yenilemeniz gerekiyorsa doğrudan aşağıdan yapabilirsiniz.",
         "loadError": "Feragatname detayları yüklenemiyor",
         "loadErrorDescription": "Hesap bilgilerinizi bulamadık. Lütfen tekrar oturum açıp bu sayfayı ziyaret edin.",
-        "accountError": "Feragatnameyi yüklemek için hesabınız belirlenemedi. Lütfen tekrar oturum açın."
+        "accountError": "Feragatnameyi yüklemek için hesabınız belirlenemedi. Lütfen tekrar oturum açın.",
+        "successToast": "Thanks! Your liability waiver is now up to date.",
+        "cancelToast": "You can sign the waiver whenever you need from this page."
       },
       "export": {
         "title": "Verilerinizi Dışa Aktarın (Madde 15 - Erişim Hakkı)",

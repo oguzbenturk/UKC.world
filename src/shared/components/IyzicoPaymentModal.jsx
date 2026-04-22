@@ -20,6 +20,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Modal } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useRealTimeSync } from '@/shared/hooks/useRealTime';
 
 // Max time before session expires (25 min)
@@ -34,6 +35,7 @@ export default function IyzicoPaymentModal({
   onSuccess,
   onError,
 }) {
+  const { t } = useTranslation(['common']);
   const [windowOpened, setWindowOpened] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [expired, setExpired] = useState(false);
@@ -147,7 +149,7 @@ export default function IyzicoPaymentModal({
             </svg>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white leading-tight">Secure Payment</h3>
+            <h3 className="text-sm font-semibold text-white leading-tight">{t('common:payment.securePayment')}</h3>
             <p className="text-[10px] text-white/50 mt-0.5">iyzico · 256-bit SSL</p>
           </div>
         </div>
@@ -162,9 +164,9 @@ export default function IyzicoPaymentModal({
               <div className="h-14 w-14 rounded-full border-[3px] border-gray-200" />
               <div className="absolute inset-0 h-14 w-14 rounded-full border-[3px] border-transparent border-t-gray-900 animate-spin" />
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1.5">Waiting for Payment...</h3>
+            <h3 className="text-base font-semibold text-gray-900 mb-1.5">{t('common:payment.waitingForPayment')}</h3>
             <p className="text-xs text-gray-500 max-w-[260px] leading-relaxed">
-              Complete the payment in the new tab. This page will update automatically once confirmed.
+              {t('common:payment.waitingDescription')}
             </p>
             <div className="mt-5 flex flex-col gap-2 w-full">
               <button
@@ -172,14 +174,14 @@ export default function IyzicoPaymentModal({
                 onClick={handleOpenPayment}
                 className="w-full rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 active:scale-[0.97] cursor-pointer"
               >
-                Reopen Payment Page
+                {t('common:payment.reopenPaymentPage')}
               </button>
               <button
                 type="button"
                 onClick={handleClose}
                 className="w-full rounded-xl border border-gray-200 bg-white px-5 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 active:scale-[0.97] cursor-pointer"
               >
-                Cancel
+                {t('common:buttons.cancel')}
               </button>
             </div>
           </div>
@@ -191,16 +193,16 @@ export default function IyzicoPaymentModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1.5">Session Expired</h3>
+            <h3 className="text-base font-semibold text-gray-900 mb-1.5">{t('common:payment.sessionExpired')}</h3>
             <p className="text-xs text-gray-500 mb-5 max-w-[260px] leading-relaxed">
-              The payment session has timed out. Please close and try again.
+              {t('common:payment.sessionExpiredDescription')}
             </p>
             <button
               type="button"
               onClick={handleClose}
               className="rounded-xl bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 active:scale-[0.97] cursor-pointer"
             >
-              Close
+              {t('common:buttons.close')}
             </button>
           </div>
         ) : !windowOpened ? (
@@ -211,16 +213,16 @@ export default function IyzicoPaymentModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
               </svg>
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1.5">Ready to Pay</h3>
+            <h3 className="text-base font-semibold text-gray-900 mb-1.5">{t('common:payment.readyToPay')}</h3>
             <p className="text-xs text-gray-500 mb-5 max-w-[260px] leading-relaxed">
-              A secure payment page will open in a new tab. Complete the payment there.
+              {t('common:payment.readyToPayDescription')}
             </p>
             <button
               type="button"
               onClick={handleOpenPayment}
               className="w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 active:scale-[0.97] cursor-pointer"
             >
-              Open Payment Page
+              {t('common:payment.openPaymentPage')}
             </button>
           </div>
         ) : null}

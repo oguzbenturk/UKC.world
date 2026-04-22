@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import { HomeOutlined } from '@ant-design/icons';
@@ -16,36 +17,16 @@ const accentStyles = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-// Quick date range presets
-const getQuickRanges = () => ({
-  today: {
-    label: 'Today',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
-  },
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
-
 const FinanceAccommodation = () => {
+  const { t } = useTranslation(['manager']);
+
+  const getQuickRanges = () => ({
+    today: { label: t('manager:finances.overview.quickRanges.today'), startDate: dayjs().format('YYYY-MM-DD'), endDate: dayjs().format('YYYY-MM-DD') },
+    thisWeek: { label: t('manager:finances.overview.quickRanges.thisWeek'), startDate: dayjs().startOf('week').format('YYYY-MM-DD'), endDate: dayjs().endOf('week').format('YYYY-MM-DD') },
+    thisMonth: { label: t('manager:finances.overview.quickRanges.thisMonth'), startDate: dayjs().startOf('month').format('YYYY-MM-DD'), endDate: dayjs().endOf('month').format('YYYY-MM-DD') },
+    thisYear: { label: t('manager:finances.overview.quickRanges.thisYear'), startDate: dayjs().startOf('year').format('YYYY-MM-DD'), endDate: dayjs().endOf('year').format('YYYY-MM-DD') },
+    allHistory: { label: t('manager:finances.overview.quickRanges.allHistory'), startDate: '2020-01-01', endDate: dayjs().endOf('year').format('YYYY-MM-DD') }
+  });
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -112,10 +93,10 @@ const FinanceAccommodation = () => {
   const headlineStats = useMemo(() => {
     if (!summaryData && bookings.length === 0) {
       return [
-        { key: 'revenue', label: 'Accommodation Revenue', value: '--', accent: 'blue' },
-        { key: 'bookings', label: 'Total Bookings', value: '--', accent: 'indigo' },
-        { key: 'nights', label: 'Total Nights', value: '--', accent: 'emerald' },
-        { key: 'avg', label: 'Avg. Rate/Night', value: '--', accent: 'slate' }
+        { key: 'revenue', label: t('manager:financePages.accommodation.stats.accommodationRevenue'), value: '--', accent: 'blue' },
+        { key: 'bookings', label: t('manager:financePages.accommodation.stats.totalBookings'), value: '--', accent: 'indigo' },
+        { key: 'nights', label: t('manager:financePages.accommodation.stats.totalNights'), value: '--', accent: 'emerald' },
+        { key: 'avg', label: t('manager:financePages.accommodation.stats.avgRatePerNight'), value: '--', accent: 'slate' }
       ];
     }
 
@@ -129,10 +110,10 @@ const FinanceAccommodation = () => {
     const avgNightRate = totalNights > 0 ? totalRevenue / totalNights : 0;
 
     return [
-      { key: 'revenue', label: 'Accommodation Revenue', value: formatCurrency(totalRevenue), accent: 'blue' },
-      { key: 'bookings', label: 'Total Bookings', value: totalBookings.toLocaleString(), accent: 'indigo' },
-      { key: 'nights', label: 'Total Nights', value: totalNights.toLocaleString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg. Rate/Night', value: formatCurrency(avgNightRate), accent: 'slate' }
+      { key: 'revenue', label: t('manager:financePages.accommodation.stats.accommodationRevenue'), value: formatCurrency(totalRevenue), accent: 'blue' },
+      { key: 'bookings', label: t('manager:financePages.accommodation.stats.totalBookings'), value: totalBookings.toLocaleString(), accent: 'indigo' },
+      { key: 'nights', label: t('manager:financePages.accommodation.stats.totalNights'), value: totalNights.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: t('manager:financePages.accommodation.stats.avgRatePerNight'), value: formatCurrency(avgNightRate), accent: 'slate' }
     ];
   }, [summaryData, bookings]);
 
@@ -143,10 +124,10 @@ const FinanceAccommodation = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <HomeOutlined style={{ fontSize: 24, color: '#3b82f6' }} />
-              <h1 className="text-2xl font-semibold text-slate-900">Accommodation Finance</h1>
-              <Tag color="blue" className="text-xs font-medium">Stay</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">{t('manager:financePages.accommodation.title')}</h1>
+              <Tag color="blue" className="text-xs font-medium">{t('manager:financePages.accommodation.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500">Accommodation & Stay Revenue · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">{t('manager:financePages.accommodation.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">

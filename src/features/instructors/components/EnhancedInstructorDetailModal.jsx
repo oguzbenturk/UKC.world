@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Drawer, Tag, Spin, Avatar, Typography, Switch, Tooltip, Form, DatePicker, Select, Button, Empty, Modal } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -26,23 +27,14 @@ import { formatCurrency } from '@/shared/utils/formatters';
 
 const { Text } = Typography;
 
-const NAV_ITEMS = [
-  { key: 'info',         icon: <UserOutlined />,         label: 'Profile'     },
-  { key: 'skills',       icon: <ThunderboltOutlined />,   label: 'Skills'      },
-  { key: 'commissions',  icon: <DollarOutlined />,        label: 'Commissions' },
-  { key: 'dashboard',    icon: <BarChartOutlined />,      label: 'Earnings'    },
-  { key: 'payments',     icon: <WalletOutlined />,        label: 'Payroll'     },
-  { key: 'availability', icon: <CalendarOutlined />,      label: 'Availability'},
+const NAV_ICONS = [
+  { key: 'info',         icon: <UserOutlined /> },
+  { key: 'skills',       icon: <ThunderboltOutlined /> },
+  { key: 'commissions',  icon: <DollarOutlined /> },
+  { key: 'dashboard',    icon: <BarChartOutlined /> },
+  { key: 'payments',     icon: <WalletOutlined /> },
+  { key: 'availability', icon: <CalendarOutlined /> },
 ];
-
-const SECTION_DESCRIPTIONS = {
-  info:         'Personal information and details',
-  skills:       'Manage instructor skills and certifications',
-  commissions:  'Manage commission rates and category overrides',
-  dashboard:    'Earnings overview and analytics',
-  payments:     'Payment history and payroll management',
-  availability: 'Manage instructor availability and approve time-off requests',
-};
 
 // ── Constants shared with the admin availability UI ───────────────────────
 const TYPE_LABELS = {
@@ -66,6 +58,7 @@ const STATUS_COLORS = {
 
 // ── Admin availability panel ──────────────────────────────────────────────
 function AdminAvailabilityPanel({ instructorId }) {
+  const { t } = useTranslation(['instructor']);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
@@ -79,7 +72,7 @@ function AdminAvailabilityPanel({ instructorId }) {
       const data = await fetchInstructorAvailability(instructorId, { from: dayjs().subtract(30, 'day').format('YYYY-MM-DD') });
       setEntries(data);
     } catch (err) {
-      message.error('Failed to load availability');
+      message.error(t('instructor:instructorsList.detailModal.failedToLoadAvailability'));
     } finally {
       setLoading(false);
     }
@@ -99,12 +92,12 @@ function AdminAvailabilityPanel({ instructorId }) {
         reason: values.reason || undefined,
       });
       setEntries((prev) => [entry, ...prev]);
-      message.success('Availability block created (auto-approved)');
+      message.success(t('instructor:instructorsList.detailModal.availabilityBlockCreated'));
       form.resetFields();
       setShowForm(false);
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.error || 'Failed to create block');
+      message.error(err?.response?.data?.error || t('instructor:instructorsList.detailModal.failedToCreateBlock'));
     } finally {
       setSubmitting(false);
     }
@@ -115,9 +108,9 @@ function AdminAvailabilityPanel({ instructorId }) {
     try {
       const updated = await updateAvailabilityStatus(instructorId, entryId, status);
       setEntries((prev) => prev.map((e) => (e.id === entryId ? updated : e)));
-      message.success(`Request ${status}`);
+      message.success(t('instructor:instructorsList.detailModal.requestStatus', { status }));
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Failed to update status');
+      message.error(err?.response?.data?.error || t('instructor:instructorsList.detailModal.failedToUpdateStatus'));
     } finally {
       setActionId(null);
     }
@@ -125,18 +118,18 @@ function AdminAvailabilityPanel({ instructorId }) {
 
   const handleDelete = (entryId) => {
     Modal.confirm({
-      title: 'Delete this availability entry?',
+      title: t('instructor:instructorsList.detailModal.deleteAvailabilityTitle'),
       icon: <ExclamationCircleOutlined />,
-      okText: 'Delete',
+      okText: t('instructor:instructorsList.detailModal.deleteOk'),
       okType: 'danger',
       onOk: async () => {
         setActionId(entryId);
         try {
           await deleteInstructorAvailabilityEntry(instructorId, entryId);
           setEntries((prev) => prev.filter((e) => e.id !== entryId));
-          message.success('Entry deleted');
+          message.success(t('instructor:instructorsList.detailModal.entryDeleted'));
         } catch (err) {
-          message.error(err?.response?.data?.error || 'Failed to delete entry');
+          message.error(err?.response?.data?.error || t('instructor:instructorsList.detailModal.failedToDelete'));
         } finally {
           setActionId(null);
         }
@@ -153,7 +146,7 @@ function AdminAvailabilityPanel({ instructorId }) {
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between mb-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-            <CalendarOutlined /> Create Availability Block
+            <CalendarOutlined /> {t('instructor:instructorsList.detailModal.createAvailabilityBlock')}
           </p>
           <Button
             size="small"
@@ -162,25 +155,25 @@ function AdminAvailabilityPanel({ instructorId }) {
             onClick={() => setShowForm((v) => !v)}
             className={showForm ? '' : '!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700'}
           >
-            {showForm ? 'Cancel' : 'New Block'}
+            {showForm ? t('instructor:instructorsList.detailModal.cancel') : t('instructor:instructorsList.detailModal.newBlock')}
           </Button>
         </div>
 
         {showForm && (
           <Form form={form} layout="vertical" size="middle">
-            <Form.Item name="dateRange" label="Date Range" rules={[{ required: true, message: 'Select a date range' }]} className="!mb-3">
+            <Form.Item name="dateRange" label={t('instructor:instructorsList.detailModal.dateRange')} rules={[{ required: true, message: t('instructor:instructorsList.detailModal.selectDateRange') }]} className="!mb-3">
               <DatePicker.RangePicker className="w-full" format="DD MMM YYYY" />
             </Form.Item>
-            <Form.Item name="type" label="Type" initialValue="off_day" rules={[{ required: true }]} className="!mb-3">
+            <Form.Item name="type" label={t('instructor:instructorsList.detailModal.type')} initialValue="off_day" rules={[{ required: true }]} className="!mb-3">
               <Select options={Object.entries(TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
             </Form.Item>
-            <Form.Item name="reason" label="Reason (optional)" className="!mb-4">
+            <Form.Item name="reason" label={t('instructor:instructorsList.detailModal.reasonOptional')} className="!mb-4">
               <Form.Item name="reason" noStyle>
-                <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Optional reason" maxLength={300} />
+                <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder={t('instructor:instructorsList.detailModal.reasonPlaceholder')} maxLength={300} />
               </Form.Item>
             </Form.Item>
             <Button type="primary" loading={submitting} onClick={handleCreate} className="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 w-full">
-              Create Block (Auto-Approved)
+              {t('instructor:instructorsList.detailModal.createBlockAutoApproved')}
             </Button>
           </Form>
         )}
@@ -190,7 +183,7 @@ function AdminAvailabilityPanel({ instructorId }) {
       {pending.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-600 flex items-center gap-1.5">
-            Pending Requests ({pending.length})
+            {t('instructor:instructorsList.detailModal.pendingRequests', { count: pending.length })}
           </p>
           {pending.map((entry) => (
             <div key={entry.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-start justify-between gap-3">
@@ -209,11 +202,11 @@ function AdminAvailabilityPanel({ instructorId }) {
                 <Button size="small" type="primary" icon={<CheckOutlined />} loading={actionId === entry.id}
                   onClick={() => handleStatusChange(entry.id, 'approved')}
                   className="!bg-green-600 !border-green-600 hover:!bg-green-700">
-                  Approve
+                  {t('instructor:instructorsList.detailModal.approve')}
                 </Button>
                 <Button size="small" danger icon={<StopOutlined />} loading={actionId === entry.id}
                   onClick={() => handleStatusChange(entry.id, 'rejected')}>
-                  Reject
+                  {t('instructor:instructorsList.detailModal.reject')}
                 </Button>
               </div>
             </div>
@@ -225,10 +218,10 @@ function AdminAvailabilityPanel({ instructorId }) {
       {loading ? (
         <div className="flex justify-center py-8"><Spin /></div>
       ) : rest.length === 0 && pending.length === 0 ? (
-        <Empty description="No availability entries" className="py-8" />
+        <Empty description={t('instructor:instructorsList.detailModal.noAvailabilityEntries')} className="py-8" />
       ) : rest.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1">All Entries</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1">{t('instructor:instructorsList.detailModal.allEntries')}</p>
           {rest.map((entry) => (
             <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -244,7 +237,7 @@ function AdminAvailabilityPanel({ instructorId }) {
                 </p>
                 {entry.reason && <p className="text-xs text-slate-400 mt-0.5 truncate">{entry.reason}</p>}
                 {entry.reviewed_by_name && (
-                  <p className="text-[10px] text-slate-400 mt-0.5">Reviewed by {entry.reviewed_by_name}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{t('instructor:instructorsList.detailModal.reviewedBy', { name: entry.reviewed_by_name })}</p>
                 )}
               </div>
               <Button size="small" danger icon={<DeleteOutlined />} loading={actionId === entry.id}
@@ -265,7 +258,21 @@ const EnhancedInstructorDetailModal = ({
   onUpdate = () => {},
   initialTab = 'info',
 }) => {
+  const { t } = useTranslation(['instructor']);
   const { businessCurrency } = useCurrency();
+
+  const NAV_ITEMS = NAV_ICONS.map(({ key, icon }) => ({
+    key, icon,
+    label: t(`instructor:instructorsList.detailModal.navItems.${key}`),
+  }));
+  const SECTION_DESCRIPTIONS = {
+    info: t('instructor:instructorsList.detailModal.sectionDescriptions.info'),
+    skills: t('instructor:instructorsList.detailModal.sectionDescriptions.skills'),
+    commissions: t('instructor:instructorsList.detailModal.sectionDescriptions.commissions'),
+    dashboard: t('instructor:instructorsList.detailModal.sectionDescriptions.dashboard'),
+    payments: t('instructor:instructorsList.detailModal.sectionDescriptions.payments'),
+    availability: t('instructor:instructorsList.detailModal.sectionDescriptions.availability'),
+  };
   const [activeSection, setActiveSection] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [instructorServices, setInstructorServices] = useState([]);
@@ -356,10 +363,10 @@ const EnhancedInstructorDetailModal = ({
       setIsFreelance(checked);
       instructor.is_freelance = checked;
       onUpdate();
-      message.success(checked ? 'Marked as freelance' : 'Removed freelance status');
+      message.success(checked ? t('instructor:instructorsList.detailModal.markedAsFreelance') : t('instructor:instructorsList.detailModal.removedFreelanceStatus'));
     } catch (err) {
       logger.error('Failed to update freelance status', { error: String(err) });
-      message.error('Failed to update freelance status');
+      message.error(t('instructor:instructorsList.detailModal.failedToUpdateFreelance'));
     } finally {
       setFreelanceLoading(false);
     }
@@ -420,16 +427,16 @@ const EnhancedInstructorDetailModal = ({
       {/* Contact info — 3-column compact grid */}
       <div className="rounded-xl border border-gray-100 bg-white p-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
-          {renderInfoCell(<MailOutlined />, 'Email', instructor.email)}
-          {renderInfoCell(<PhoneOutlined />, 'Phone', instructor.phone)}
-          {renderInfoCell(<CalendarOutlined />, 'Date of Birth', instructor.date_of_birth)}
-          {renderInfoCell(<EnvironmentOutlined />, 'Location',
+          {renderInfoCell(<MailOutlined />, t('instructor:instructorsList.detailModal.email'), instructor.email)}
+          {renderInfoCell(<PhoneOutlined />, t('instructor:instructorsList.detailModal.phone'), instructor.phone)}
+          {renderInfoCell(<CalendarOutlined />, t('instructor:instructorsList.detailModal.dateOfBirth'), instructor.date_of_birth)}
+          {renderInfoCell(<EnvironmentOutlined />, t('instructor:instructorsList.detailModal.location'),
             [instructor.city, instructor.country].filter(Boolean).join(', ') || null
           )}
-          {renderInfoCell(<CalendarOutlined />, 'Joined',
+          {renderInfoCell(<CalendarOutlined />, t('instructor:instructorsList.detailModal.joined'),
             instructor.created_at ? new Date(instructor.created_at).toLocaleDateString() : null
           )}
-          {instructor.hourly_rate && renderInfoCell(<DollarOutlined />, 'Hourly Rate',
+          {instructor.hourly_rate && renderInfoCell(<DollarOutlined />, t('instructor:instructorsList.detailModal.hourlyRate'),
             `${formatCurrency(Number(instructor.hourly_rate) || 0, businessCurrency || 'EUR')}/hour`
           )}
         </div>
@@ -438,8 +445,8 @@ const EnhancedInstructorDetailModal = ({
           <div className="flex items-center gap-2">
             <span className="text-gray-400 text-sm"><IdcardOutlined /></span>
             <div>
-              <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Freelance</div>
-              <div className="text-xs text-gray-500 mt-0.5">Freelance instructors only appear in the calendar when they have bookings</div>
+              <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{t('instructor:instructorsList.detailModal.freelanceLabel')}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{t('instructor:instructorsList.detailModal.freelanceDesc')}</div>
             </div>
           </div>
           <Switch
@@ -457,7 +464,7 @@ const EnhancedInstructorDetailModal = ({
           {instructor.specializations?.length > 0 && (
             <div>
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <TrophyOutlined /> Specializations
+                <TrophyOutlined /> {t('instructor:instructorsList.detailModal.specializations')}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {instructor.specializations.map((spec) => (
@@ -469,7 +476,7 @@ const EnhancedInstructorDetailModal = ({
           {instructor.certificates?.length > 0 && (
             <div>
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <IdcardOutlined /> Certificates
+                <IdcardOutlined /> {t('instructor:instructorsList.detailModal.certificates')}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {instructor.certificates.map((cert) => (
@@ -481,7 +488,7 @@ const EnhancedInstructorDetailModal = ({
           {instructor.languages?.length > 0 && (
             <div>
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                Languages
+                {t('instructor:instructorsList.detailModal.languages')}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {instructor.languages.map((lang) => (
@@ -497,18 +504,18 @@ const EnhancedInstructorDetailModal = ({
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">{instructorServices.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Services Assigned</div>
+          <div className="text-xs text-gray-500 mt-1">{t('instructor:instructorsList.detailModal.servicesAssigned')}</div>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
           <div className="text-2xl font-bold text-emerald-600">{recentLessons.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Total Lessons</div>
+          <div className="text-xs text-gray-500 mt-1">{t('instructor:instructorsList.detailModal.totalLessons')}</div>
         </div>
       </div>
 
       {/* Assigned services list */}
       {instructorServices.length > 0 && (
         <div className="rounded-xl border border-gray-100 bg-white p-4">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Assigned Services</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:instructorsList.detailModal.assignedServices')}</div>
           <div className="flex flex-wrap gap-1.5">
             {instructorServices.map((svc) => (
               <Tag key={svc.id} color="blue" bordered={false} className="rounded-full">{svc.name}</Tag>
@@ -520,21 +527,21 @@ const EnhancedInstructorDetailModal = ({
       {/* Balance card */}
       {earningsBalance !== null && (
         <div className="rounded-xl border border-gray-100 bg-white p-4">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Earnings Balance</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">{t('instructor:instructorsList.detailModal.earningsBalance')}</div>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <div className="text-sm font-bold text-gray-800">{formatCurrency(earningsBalance.totalEarned, businessCurrency || 'EUR')}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">Total Earned</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:instructorsList.detailModal.totalEarned')}</div>
             </div>
             <div>
               <div className="text-sm font-bold text-green-600">{formatCurrency(earningsBalance.totalPaid, businessCurrency || 'EUR')}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">Paid Out</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:instructorsList.detailModal.paidOut')}</div>
             </div>
             <div>
               <div className={`text-sm font-bold ${earningsBalance.balance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                 {formatCurrency(earningsBalance.balance, businessCurrency || 'EUR')}
               </div>
-              <div className="text-[11px] text-gray-400 mt-0.5">Available</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:instructorsList.detailModal.available')}</div>
             </div>
           </div>
         </div>
@@ -543,13 +550,13 @@ const EnhancedInstructorDetailModal = ({
       {/* Bio & notes */}
       {instructor.bio && (
         <div className="rounded-xl border border-gray-100 bg-white p-5">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Biography</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:instructorsList.detailModal.biography')}</div>
           <Text className="text-sm text-gray-700 leading-relaxed">{instructor.bio}</Text>
         </div>
       )}
       {instructor.notes && (
         <div className="rounded-xl border border-gray-100 bg-white p-5">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Notes</div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">{t('instructor:instructorsList.detailModal.notes')}</div>
           <Text className="text-sm text-gray-700 leading-relaxed">{instructor.notes}</Text>
         </div>
       )}
@@ -573,7 +580,7 @@ const EnhancedInstructorDetailModal = ({
             ref={serviceCommissionRef}
             instructorId={instructor.id}
             onSave={() => {
-              message.success('Commission settings saved');
+              message.success(t('instructor:instructorsList.detailModal.commissionSaved'));
               refreshActiveSection();
             }}
           />
@@ -612,7 +619,7 @@ const EnhancedInstructorDetailModal = ({
             <button
               onClick={() => setSidebarExpanded(prev => !prev)}
               className="border-0 bg-transparent p-0 cursor-pointer flex-shrink-0 rounded-full hover:ring-2 hover:ring-blue-200 transition-shadow"
-              title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={sidebarExpanded ? t('instructor:instructorsList.detailModal.collapseSidebar') : t('instructor:instructorsList.detailModal.expandSidebar')}
             >
               <Avatar
                 size={36}
@@ -643,7 +650,7 @@ const EnhancedInstructorDetailModal = ({
 
           {/* Close icon */}
           <div className="p-1 border-t border-gray-200">
-            <Tooltip title="Close" placement="right">
+            <Tooltip title={t('instructor:instructorsList.detailModal.close')} placement="right">
               <button onClick={onClose} className="w-full flex items-center justify-center py-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer border-0 bg-transparent">
                 <CloseOutlined className="text-sm" />
               </button>
@@ -711,7 +718,7 @@ const EnhancedInstructorDetailModal = ({
           {/* Close */}
           <div className="p-3 border-t border-gray-200">
             <button onClick={onClose} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer border-0 bg-transparent">
-              <CloseOutlined className="text-xs" /> Close
+              <CloseOutlined className="text-xs" /> {t('instructor:instructorsList.detailModal.close')}
             </button>
           </div>
         </div>

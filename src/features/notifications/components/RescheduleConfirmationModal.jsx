@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Tag } from 'antd';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -44,16 +45,18 @@ const ChangeRow = ({ icon, label, oldValue, newValue }) => (
 );
 
 /** Header banner */
-const RescheduleHeader = ({ count, currentIndex }) => (
+const RescheduleHeader = ({ count, currentIndex, t }) => (
   <div className="bg-gradient-to-br from-amber-500 to-orange-600 px-6 py-5 rounded-t-lg">
     <div className="flex items-center gap-3">
       <div className="bg-white/20 rounded-full p-2">
         <InfoCircleOutlined className="text-white text-xl" />
       </div>
       <div>
-        <h3 className="text-white text-lg font-bold m-0">Lesson Rescheduled</h3>
+        <h3 className="text-white text-lg font-bold m-0">{t('common:notifications.lessonRescheduled')}</h3>
         <p className="text-white/80 text-sm m-0 mt-0.5">
-          {count > 1 ? `${currentIndex + 1} of ${count} updates` : 'Your lesson details have changed'}
+          {count > 1
+            ? t('common:notifications.rescheduledSubtitle', { count: currentIndex + 1, total: count })
+            : t('common:notifications.rescheduledDetails')}
         </p>
       </div>
     </div>
@@ -61,7 +64,7 @@ const RescheduleHeader = ({ count, currentIndex }) => (
 );
 
 /** Changes detail panel */
-const ChangesPanel = ({ current }) => {
+const ChangesPanel = ({ current, t }) => {
   const hasDateChange = current.old_date && current.new_date && current.old_date !== current.new_date;
   const hasTimeChange = current.old_start_hour != null && current.new_start_hour != null &&
     Number(current.old_start_hour) !== Number(current.new_start_hour);
@@ -73,7 +76,7 @@ const ChangesPanel = ({ current }) => {
       {hasDateChange && (
         <ChangeRow
           icon={<CalendarOutlined className="text-amber-500 text-lg mt-0.5" />}
-          label="Date"
+          label={t('common:notifications.date')}
           oldValue={formatDate(current.old_date)}
           newValue={formatDate(current.new_date)}
         />
@@ -81,7 +84,7 @@ const ChangesPanel = ({ current }) => {
       {hasTimeChange && (
         <ChangeRow
           icon={<ClockCircleOutlined className="text-blue-500 text-lg mt-0.5" />}
-          label="Time"
+          label={t('common:notifications.timeAndDuration')}
           oldValue={formatTime(current.old_start_hour)}
           newValue={formatTime(current.new_start_hour)}
         />
@@ -99,21 +102,21 @@ const ChangesPanel = ({ current }) => {
 };
 
 /** Inner content rendered inside the Modal */
-const RescheduleModalContent = ({ current, notifications, currentIndex, confirming, onConfirm, onConfirmAll }) => (
+const RescheduleModalContent = ({ current, notifications, currentIndex, confirming, onConfirm, onConfirmAll, t }) => (
   <>
-    <RescheduleHeader count={notifications.length} currentIndex={currentIndex} />
+    <RescheduleHeader count={notifications.length} currentIndex={currentIndex} t={t} />
 
     <div className="px-6 py-5">
       <div className="flex items-center gap-2 mb-4">
         <Tag color="blue" className="text-sm font-medium px-3 py-0.5">
-          {current.service_name || current.service_name_live || 'Lesson'}
+          {current.service_name || current.service_name_live || t('common:notifications.lesson')}
         </Tag>
         {current.changed_by_name && (
-          <span className="text-xs text-gray-400">Updated by {current.changed_by_name}</span>
+          <span className="text-xs text-gray-400">{t('common:notifications.updatedBy', { name: current.changed_by_name })}</span>
         )}
       </div>
 
-      <ChangesPanel current={current} />
+      <ChangesPanel current={current} t={t} />
 
       {current.message && (
         <p className="text-sm text-gray-500 mt-4 leading-relaxed">{current.message}</p>
@@ -129,11 +132,11 @@ const RescheduleModalContent = ({ current, notifications, currentIndex, confirmi
           onClick={onConfirm}
           className="!bg-emerald-600 !border-emerald-600 hover:!bg-emerald-500 !h-11 !font-semibold"
         >
-          {notifications.length > 1 ? 'Got It — Next' : 'Got It — Confirm'}
+          {notifications.length > 1 ? t('common:notifications.gotItNext') : t('common:notifications.gotItConfirm')}
         </Button>
         {notifications.length > 1 && (
           <Button size="large" block loading={confirming} onClick={onConfirmAll} className="!h-10">
-            Confirm All ({notifications.length})
+            {t('common:notifications.confirmAll', { count: notifications.length })}
           </Button>
         )}
       </div>
@@ -142,6 +145,7 @@ const RescheduleModalContent = ({ current, notifications, currentIndex, confirmi
 );
 
 const RescheduleConfirmationModal = () => {
+  const { t } = useTranslation(['common']);
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -241,6 +245,7 @@ const RescheduleConfirmationModal = () => {
         confirming={confirming}
         onConfirm={handleConfirm}
         onConfirmAll={handleConfirmAll}
+        t={t}
       />
     </Modal>
   );

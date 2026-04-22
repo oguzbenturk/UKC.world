@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFeatures } from '../../../shared/contexts/FeaturesContext';
 import WeatherDashboard from '../components/WeatherDashboard';
-import { 
-  CloudIcon, 
+import {
+  CloudIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 
 const SafetyGuidelines = () => {
+  const { t } = useTranslation(['common']);
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-6">
       <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
         <InformationCircleIcon className="h-5 w-5 mr-2 text-blue-500" />
-        Safety Guidelines
+        {t('common:weather.safety.title')}
       </h3>
       
       <div className="space-y-4">
@@ -21,7 +23,7 @@ const SafetyGuidelines = () => {
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
             <h4 className="font-medium text-green-800 mb-2 flex items-center">
               <CheckCircleIcon className="h-4 w-4 mr-1" />
-              Beginner Safe
+              {t('common:weather.safety.beginnerSafe')}
             </h4>
             <ul className="text-sm text-green-700 space-y-1">
               <li>• Wind: 12-18 m/s</li>
@@ -34,7 +36,7 @@ const SafetyGuidelines = () => {
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h4 className="font-medium text-yellow-800 mb-2 flex items-center">
               <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
-              Intermediate
+              {t('common:weather.safety.intermediate')}
             </h4>
             <ul className="text-sm text-yellow-700 space-y-1">
               <li>• Wind: 10-22 m/s</li>
@@ -47,7 +49,7 @@ const SafetyGuidelines = () => {
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h4 className="font-medium text-blue-800 mb-2 flex items-center">
               <CloudIcon className="h-4 w-4 mr-1" />
-              Advanced
+              {t('common:weather.safety.advanced')}
             </h4>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• Wind: 8-25 m/s</li>
@@ -59,7 +61,7 @@ const SafetyGuidelines = () => {
         </div>
 
         <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <h4 className="font-medium text-red-800 mb-2">⚠️ Dangerous Conditions</h4>
+          <h4 className="font-medium text-red-800 mb-2">⚠️ {t('common:weather.safety.dangerous')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-red-700">
             <ul className="space-y-1">
               <li>• Wind &lt;8 m/s or &gt;25 m/s</li>
@@ -79,6 +81,7 @@ const SafetyGuidelines = () => {
 };
 
 const BookingAlerts = () => {
+  const { t } = useTranslation(['common']);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [weatherAlerts, setWeatherAlerts] = useState([]);
 
@@ -117,7 +120,7 @@ const BookingAlerts = () => {
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h3 className="font-medium text-yellow-800 mb-2 flex items-center">
             <ExclamationTriangleIcon className="h-5 w-5 mr-2" />
-            Weather Alerts
+            {t('common:weather.weatherAlerts')}
           </h3>
           <div className="space-y-2">
             {weatherAlerts.map(alert => (
@@ -131,11 +134,11 @@ const BookingAlerts = () => {
 
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">
-          Upcoming Bookings & Weather Impact
+          {t('common:weather.upcomingBookings')}
         </h3>
-        
+
         {upcomingBookings.length === 0 ? (
-          <p className="text-slate-500">No upcoming bookings in the next 24 hours</p>
+          <p className="text-slate-500">{t('common:weather.noUpcomingBookings')}</p>
         ) : (
           <div className="space-y-3">
             {upcomingBookings.map(booking => (
@@ -159,12 +162,12 @@ const BookingAlerts = () => {
                       ? 'bg-green-100 text-green-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {booking.weather_suitable ? 'Weather OK' : 'Weather Risk'}
+                    {booking.weather_suitable ? t('common:weather.weatherOk') : t('common:weather.weatherRisk')}
                   </div>
                 </div>
                 {!booking.weather_suitable && (
                   <p className="text-sm text-red-600 mt-2">
-                    ⚠️ Consider rescheduling due to unsafe weather conditions
+                    ⚠️ {t('common:weather.rescheduleWarning')}
                   </p>
                 )}
               </div>
@@ -177,6 +180,7 @@ const BookingAlerts = () => {
 };
 
 const WeatherPage = () => {
+  const { t } = useTranslation(['common']);
   const { weather, refreshWeather } = useFeatures();
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -202,9 +206,9 @@ const WeatherPage = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Weather & Safety Dashboard</h1>
+            <h1 className="text-3xl font-bold text-slate-900">{t('common:weather.title')}</h1>
             <p className="text-slate-600 mt-2">
-              Real-time weather conditions and safety assessments for business operations
+              {t('common:weather.subtitle')}
             </p>
           </div>
           
@@ -216,7 +220,7 @@ const WeatherPage = () => {
                 onChange={(e) => setAutoRefresh(e.target.checked)}
                 className="rounded border-slate-300 text-sky-600 shadow-sm focus:border-sky-300 focus:ring focus:ring-sky-200 focus:ring-opacity-50"
               />
-              <span className="ml-2 text-sm text-slate-600">Auto-refresh</span>
+              <span className="ml-2 text-sm text-slate-600">{t('common:weather.autoRefresh')}</span>
             </label>
             
             <button
@@ -230,12 +234,12 @@ const WeatherPage = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Updating...
+                  {t('common:weather.updating')}
                 </>
               ) : (
                 <>
                   <CloudIcon className="h-4 w-4 mr-2" />
-                  Refresh
+                  {t('common:weather.refresh')}
                 </>
               )}
             </button>
@@ -244,7 +248,7 @@ const WeatherPage = () => {
         
         {weather.lastUpdated && (
           <p className="text-sm text-slate-500 mt-2">
-            Last updated: {weather.lastUpdated.toLocaleString()}
+            {t('common:weather.lastUpdated', { time: weather.lastUpdated.toLocaleString() })}
           </p>
         )}
       </div>
@@ -270,7 +274,7 @@ const WeatherPage = () => {
         <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
-            <p className="text-red-800">Error loading weather data: {weather.error}</p>
+            <p className="text-red-800">{t('common:weather.errorLoading', { error: weather.error })}</p>
           </div>
         </div>
       )}

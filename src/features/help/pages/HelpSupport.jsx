@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, Collapse, Input, List, Button, Typography, Anchor, Space } from 'antd';
 import { SearchOutlined, PhoneOutlined, MailOutlined, ToolOutlined } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
@@ -50,6 +51,7 @@ const faqItems = [
 ];
 
 const HelpSupport = () => {
+  const { t } = useTranslation(['common']);
   usePageSEO({
     title: 'Help & Support | UKC. Duotone Pro Center Urla',
     description: 'Help center, FAQs, and support resources for booking lessons, rentals, and using the UKC. platform.',
@@ -69,14 +71,14 @@ const HelpSupport = () => {
           {/* Left column */}
           <div className="lg:col-span-8 space-y-4 lg:space-y-6">
             <Card className="shadow" styles={{ body: { padding: 16 } }}>
-              <Title level={3} className="!mb-2">Help & Support</Title>
+              <Title level={3} className="!mb-2">{t('common:help.title')}</Title>
               <Paragraph className="!mb-0 text-gray-600">
-                Search guides, learn common workflows, and get assistance. Use the AI assistant to generate steps or troubleshoot issues.
+                {t('common:help.subtitle')}
               </Paragraph>
               <div className="mt-3">
                 <Input
                   size="large"
-                  placeholder="Search articles and how-tos"
+                  placeholder={t('common:help.searchPlaceholder')}
                   prefix={<SearchOutlined className="text-gray-400" />}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -134,13 +136,13 @@ const HelpSupport = () => {
             <Card id="contact" title="Contact Support" className="shadow">
               <Space direction="vertical" size="middle">
                 <div className="flex items-center gap-2 text-gray-700">
-                  <PhoneOutlined /> <Text strong>Phone:</Text> <Text>+1 (555) 123-4567</Text>
+                  <PhoneOutlined /> <Text strong>{t('common:help.phone')}:</Text> <Text>+1 (555) 123-4567</Text>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <MailOutlined /> <Text strong>Email:</Text> <Text>support@plannivo.com</Text>
+                  <MailOutlined /> <Text strong>{t('common:help.email')}:</Text> <Text>support@plannivo.com</Text>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <ToolOutlined /> <Text strong>Status:</Text> <a href="https://status.plannivo.com" target="_blank" rel="noreferrer">status.plannivo.com</a>
+                  <ToolOutlined /> <Text strong>{t('common:help.status')}:</Text> <a href="https://status.plannivo.com" target="_blank" rel="noreferrer">status.plannivo.com</a>
                 </div>
               </Space>
             </Card>
@@ -149,7 +151,7 @@ const HelpSupport = () => {
           {/* Right column */}
           <div className="lg:col-span-4 space-y-4">
             <AIAssistantPanel />
-            <Card title="Release Notes" size="small" className="shadow">
+            <Card title={t('common:help.releaseNotes')} size="small" className="shadow">
               <List
                 size="small"
                 dataSource={[
@@ -160,12 +162,12 @@ const HelpSupport = () => {
                 renderItem={(item) => <List.Item>{item}</List.Item>}
               />
             </Card>
-            <Card title="Quick Actions" size="small" className="shadow">
+            <Card title={t('common:help.quickActions')} size="small" className="shadow">
               <Space wrap>
-                <Button href="/settings" type="default" size="small">Open Settings</Button>
-                <Button href="/bookings" type="default" size="small">Open Bookings</Button>
-                <Button href="/finance/settings" type="default" size="small">Finance Settings</Button>
-                <Button href="/services" type="default" size="small">Services</Button>
+                <Button href="/settings" type="default" size="small">{t('common:help.openSettings')}</Button>
+                <Button href="/bookings" type="default" size="small">{t('common:help.openBookings')}</Button>
+                <Button href="/finance/settings" type="default" size="small">{t('common:help.financeSettings')}</Button>
+                <Button href="/services" type="default" size="small">{t('common:help.services')}</Button>
               </Space>
             </Card>
           </div>

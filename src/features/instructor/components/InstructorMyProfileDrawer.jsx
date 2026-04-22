@@ -1,7 +1,7 @@
 // src/features/instructor/components/InstructorMyProfileDrawer.jsx
-// src/features/instructor/components/InstructorMyProfileDrawer.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Drawer, Avatar, Tag, Spin, Tooltip, Form, Input, DatePicker, Button, Empty, Progress, Select, Modal
 } from 'antd';
@@ -22,26 +22,16 @@ import { message } from '@/shared/utils/antdStatic';
 import { logger } from '@/shared/utils/logger';
 import { useInstructorAvailability } from '../hooks/useInstructorAvailability';
 
-// ── Nav items ──────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { key: 'info',         icon: <UserOutlined />,              label: 'Profile'    },
-  { key: 'skills',       icon: <ThunderboltOutlined />,        label: 'Skills'     },
-  { key: 'lessons',      icon: <BookOutlined />,               label: 'Upcoming'   },
-  { key: 'students',     icon: <TeamOutlined />,               label: 'Students'   },
-  { key: 'earnings',     icon: <BarChartOutlined />,           label: 'Earnings'   },
-  { key: 'availability', icon: <CalendarOutlined />,           label: 'Time Off'   },
-  { key: 'security',     icon: <LockOutlined />,               label: 'Security'   },
+// ── Nav item keys — labels injected in the main component via hook ──────────
+const NAV_KEYS = [
+  { key: 'info',         icon: <UserOutlined />         },
+  { key: 'skills',       icon: <ThunderboltOutlined />  },
+  { key: 'lessons',      icon: <BookOutlined />         },
+  { key: 'students',     icon: <TeamOutlined />         },
+  { key: 'earnings',     icon: <BarChartOutlined />     },
+  { key: 'availability', icon: <CalendarOutlined />     },
+  { key: 'security',     icon: <LockOutlined />         },
 ];
-
-const SECTION_DESCRIPTIONS = {
-  info:         'View and edit your personal information',
-  skills:       'Your skills and certifications',
-  lessons:      'Upcoming scheduled lessons',
-  students:     'Your student roster at a glance',
-  earnings:     'Earnings overview and recent payouts',
-  availability: 'Request time off and view your availability schedule',
-  security:     'Change your password and review account security',
-};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const profileImageKeys = [
@@ -124,6 +114,7 @@ function PasswordStrength({ value = '' }) {
 
 // ── Profile section ────────────────────────────────────────────────────────
 function ProfileSection({ user, onSaved }) {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const { refreshUser } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -161,13 +152,13 @@ function ProfileSection({ user, onSaved }) {
         country:       values.country       || null,
       });
       await refreshUser();
-      message.success('Profile updated');
+      message.success(t('instructor:profile.profileUpdated'));
       setEditing(false);
       onSaved?.();
     } catch (err) {
       if (err?.errorFields) return;
       logger.error('Failed to update profile', { error: String(err) });
-      message.error('Failed to save changes');
+      message.error(t('instructor:profile.failedToSave'));
     } finally {
       setSaving(false);
     }
@@ -177,7 +168,7 @@ function ProfileSection({ user, onSaved }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      message.error('Image must be under 2MB');
+      message.error(t('instructor:profile.photoSizeError'));
       return;
     }
     try {
@@ -188,10 +179,10 @@ function ProfileSection({ user, onSaved }) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       await refreshUser();
-      message.success('Profile photo updated');
+      message.success(t('instructor:profile.photoUpdated'));
     } catch (err) {
       logger.error('Avatar upload failed', { error: String(err) });
-      message.error('Failed to upload photo');
+      message.error(t('instructor:profile.failedToUploadPhoto'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -219,7 +210,7 @@ function ProfileSection({ user, onSaved }) {
               <div
                 className="relative group cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
-                title="Change profile photo"
+                title={t('instructor:profile.changeProfilePhoto')}
               >
                 <Avatar
                   size={64}
@@ -260,7 +251,7 @@ function ProfileSection({ user, onSaved }) {
               onClick={startEdit}
               className="text-indigo-600 hover:bg-indigo-50 flex-shrink-0"
             >
-              Edit
+              {t('instructor:profile.edit')}
             </Button>
           )}
         </div>
@@ -268,57 +259,57 @@ function ProfileSection({ user, onSaved }) {
 
       {editing ? (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">Edit Profile</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">{t('instructor:profile.editProfile')}</p>
           <Form form={form} layout="vertical" size="middle">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-              <Form.Item name="first_name" label="First Name" rules={[{ required: true, message: 'Required' }]} className="!mb-3">
-                <Input placeholder="First name" />
+              <Form.Item name="first_name" label={t('instructor:profile.formFields.firstName')} rules={[{ required: true, message: t('instructor:profile.formFields.required') }]} className="!mb-3">
+                <Input placeholder={t('instructor:profile.formFields.firstNamePlaceholder')} />
               </Form.Item>
-              <Form.Item name="last_name" label="Last Name" rules={[{ required: true, message: 'Required' }]} className="!mb-3">
-                <Input placeholder="Last name" />
+              <Form.Item name="last_name" label={t('instructor:profile.formFields.lastName')} rules={[{ required: true, message: t('instructor:profile.formFields.required') }]} className="!mb-3">
+                <Input placeholder={t('instructor:profile.formFields.lastNamePlaceholder')} />
               </Form.Item>
-              <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Valid email required' }]} className="!mb-3">
-                <Input placeholder="email@example.com" />
+              <Form.Item name="email" label={t('instructor:profile.formFields.email')} rules={[{ required: true, type: 'email', message: t('instructor:profile.formFields.validEmail') }]} className="!mb-3">
+                <Input placeholder={t('instructor:profile.formFields.emailPlaceholder')} />
               </Form.Item>
-              <Form.Item name="phone" label="Phone" className="!mb-3">
-                <Input placeholder="+1 234 567 8900" />
+              <Form.Item name="phone" label={t('instructor:profile.formFields.phone')} className="!mb-3">
+                <Input placeholder={t('instructor:profile.formFields.phonePlaceholder')} />
               </Form.Item>
-              <Form.Item name="date_of_birth" label="Date of Birth" className="!mb-3">
+              <Form.Item name="date_of_birth" label={t('instructor:profile.formFields.dateOfBirth')} className="!mb-3">
                 <DatePicker className="w-full" format="YYYY-MM-DD" />
               </Form.Item>
-              <Form.Item name="city" label="City" className="!mb-3">
-                <Input placeholder="City" />
+              <Form.Item name="city" label={t('instructor:profile.formFields.city')} className="!mb-3">
+                <Input placeholder={t('instructor:profile.formFields.cityPlaceholder')} />
               </Form.Item>
-              <Form.Item name="country" label="Country" className="!mb-3">
-                <Input placeholder="Country" />
+              <Form.Item name="country" label={t('instructor:profile.formFields.country')} className="!mb-3">
+                <Input placeholder={t('instructor:profile.formFields.countryPlaceholder')} />
               </Form.Item>
             </div>
-            <Form.Item name="bio" label="Bio" className="!mb-4">
-              <Input.TextArea rows={3} placeholder="Tell students a bit about yourself…" />
+            <Form.Item name="bio" label={t('instructor:profile.formFields.bio')} className="!mb-4">
+              <Input.TextArea rows={3} placeholder={t('instructor:profile.formFields.bioPlaceholder')} />
             </Form.Item>
             <div className="flex gap-2 justify-end">
-              <Button icon={<CloseOutlined />} onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
-              <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>Save changes</Button>
+              <Button icon={<CloseOutlined />} onClick={() => setEditing(false)} disabled={saving}>{t('instructor:profile.cancel')}</Button>
+              <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>{t('instructor:profile.saveChanges')}</Button>
             </div>
           </Form>
         </div>
       ) : (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">Personal Information</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">{t('instructor:profile.personalInformation')}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
-            <InfoCell icon={<MailOutlined />}          label="Email"         value={user?.email} />
-            <InfoCell icon={<PhoneOutlined />}          label="Phone"         value={user?.phone} />
-            <InfoCell icon={<CalendarOutlined />}       label="Date of Birth" value={user?.date_of_birth ? fmtDate(user.date_of_birth) : null} />
-            <InfoCell icon={<EnvironmentOutlined />}    label="Location"      value={[user?.city, user?.country].filter(Boolean).join(', ') || null} />
-            <InfoCell icon={<CalendarOutlined />}       label="Member Since"  value={user?.created_at ? fmtDate(user.created_at) : null} />
-            <InfoCell icon={<IdcardOutlined />}         label="Role"          value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null} />
+            <InfoCell icon={<MailOutlined />}          label={t('instructor:profile.infoFields.email')}       value={user?.email} />
+            <InfoCell icon={<PhoneOutlined />}          label={t('instructor:profile.infoFields.phone')}       value={user?.phone} />
+            <InfoCell icon={<CalendarOutlined />}       label={t('instructor:profile.infoFields.dateOfBirth')} value={user?.date_of_birth ? fmtDate(user.date_of_birth) : null} />
+            <InfoCell icon={<EnvironmentOutlined />}    label={t('instructor:profile.infoFields.location')}    value={[user?.city, user?.country].filter(Boolean).join(', ') || null} />
+            <InfoCell icon={<CalendarOutlined />}       label={t('instructor:profile.infoFields.memberSince')} value={user?.created_at ? fmtDate(user.created_at) : null} />
+            <InfoCell icon={<IdcardOutlined />}         label={t('instructor:profile.infoFields.role')}        value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null} />
           </div>
         </div>
       )}
 
       {!editing && user?.bio && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">Biography</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">{t('instructor:profile.biography')}</p>
           <p className="text-sm text-slate-600 leading-relaxed">{user.bio}</p>
         </div>
       )}
@@ -328,27 +319,28 @@ function ProfileSection({ user, onSaved }) {
 
 // ── Skills section ─────────────────────────────────────────────────────────
 function SkillsSection({ user }) {
+  const { t } = useTranslation(['instructor']);
   const hasContent = user?.specializations?.length > 0 || user?.certificates?.length > 0 || user?.languages?.length > 0;
   if (!hasContent) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No skills or certifications on file" className="py-10" />;
+    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('instructor:profile.noSkills')} className="py-10" />;
   }
   return (
     <div className="space-y-4">
       {user?.specializations?.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5"><TrophyOutlined /> Specializations</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5"><TrophyOutlined /> {t('instructor:profile.specializations')}</p>
           <div className="flex flex-wrap gap-1.5">{user.specializations.map((s) => <Tag key={s} color="green" bordered={false} className="rounded-full">{s}</Tag>)}</div>
         </div>
       )}
       {user?.certificates?.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5"><IdcardOutlined /> Certificates</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5"><IdcardOutlined /> {t('instructor:profile.certificates')}</p>
           <div className="flex flex-wrap gap-1.5">{user.certificates.map((c) => <Tag key={c} color="purple" bordered={false} className="rounded-full">{c}</Tag>)}</div>
         </div>
       )}
       {user?.languages?.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">Languages</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">{t('instructor:profile.languages')}</p>
           <div className="flex flex-wrap gap-1.5">{user.languages.map((l) => <Tag key={l} color="cyan" bordered={false} className="rounded-full">{l}</Tag>)}</div>
         </div>
       )}
@@ -358,9 +350,10 @@ function SkillsSection({ user }) {
 
 // ── Upcoming lessons section ───────────────────────────────────────────────
 function LessonsSection({ lessons = [] }) {
+  const { t } = useTranslation(['instructor']);
   const statusColor = { pending: 'orange', confirmed: 'blue', completed: 'green', cancelled: 'red' };
   if (!lessons.length) {
-    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No upcoming lessons scheduled" className="py-10" />;
+    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('instructor:profile.noLessons')} className="py-10" />;
   }
   return (
     <div className="space-y-2">
@@ -386,32 +379,33 @@ function LessonsSection({ lessons = [] }) {
 
 // ── Students section ───────────────────────────────────────────────────────
 function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWindowDays = 30, onClose, navigate }) {
+  const { t } = useTranslation(['instructor']);
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">{studentStats.uniqueStudents ?? '—'}</div>
-          <div className="text-xs text-slate-500 mt-1">Total Students</div>
+          <div className="text-xs text-slate-500 mt-1">{t('instructor:profile.totalStudents')}</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
           <div className="text-2xl font-bold text-emerald-600">{studentStats.activeThisMonth ?? '—'}</div>
-          <div className="text-xs text-slate-500 mt-1">Active This Month</div>
+          <div className="text-xs text-slate-500 mt-1">{t('instructor:profile.activeThisMonth')}</div>
         </div>
       </div>
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Inactive {inactiveWindowDays}+ days</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{t('instructor:profile.inactive', { days: inactiveWindowDays })}</p>
           <Button
             type="link" size="small" icon={<ArrowRightOutlined />}
             onClick={() => { onClose(); navigate('/instructor/students'); }}
             className="text-indigo-600 p-0 h-auto"
           >
-            View all
+            {t('instructor:profile.viewAll')}
           </Button>
         </div>
         {inactiveStudents.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
-            All students have been active recently
+            {t('instructor:profile.allActive')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -421,10 +415,10 @@ function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWin
                   <Avatar size={32} icon={<UserOutlined />} className="bg-slate-200 flex-shrink-0" />
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-slate-800 truncate">{s.name}</div>
-                    <div className="text-xs text-slate-500">Last: {s.lastLessonAt ? fmtDate(s.lastLessonAt) : 'Never'} · {s.completedLessons} completed</div>
+                    <div className="text-xs text-slate-500">{t('instructor:profile.last', { date: s.lastLessonAt ? fmtDate(s.lastLessonAt) : t('instructor:profile.never') })} · {s.completedLessons} {t('instructor:profile.completed')}</div>
                   </div>
                 </div>
-                <Tag color="orange" bordered={false} className="rounded-full text-xs flex-shrink-0">Inactive</Tag>
+                <Tag color="orange" bordered={false} className="rounded-full text-xs flex-shrink-0">{t('instructor:profile.inactive_tag')}</Tag>
               </div>
             ))}
           </div>
@@ -436,25 +430,26 @@ function StudentsSection({ studentStats = {}, inactiveStudents = [], inactiveWin
 
 // ── Earnings section ───────────────────────────────────────────────────────
 function EarningsSection({ finance = {}, formatAmt }) {
+  const { t } = useTranslation(['instructor']);
   const { recentEarnings = [], recentPayments = [] } = finance;
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">Earnings Balance</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4">{t('instructor:finance.earningsBalance')}</p>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <div className="text-sm font-bold text-slate-800">{formatAmt(finance.totalEarned || 0)}</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Total Earned</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{t('instructor:finance.totalEarned')}</div>
           </div>
           <div>
             <div className="text-sm font-bold text-emerald-600">{formatAmt(finance.totalPaid || 0)}</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Paid Out</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{t('instructor:finance.paidOut')}</div>
           </div>
           <div>
             <div className={`text-sm font-bold ${(finance.pending || 0) > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
               {formatAmt(finance.pending || 0)}
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Pending</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{t('instructor:finance.pending')}</div>
           </div>
         </div>
       </div>
@@ -462,17 +457,17 @@ function EarningsSection({ finance = {}, formatAmt }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
           <div className="text-xl font-bold text-sky-600">{(finance.totalHours || 0).toFixed(1)}h</div>
-          <div className="text-xs text-slate-500 mt-1">Total Hours</div>
+          <div className="text-xs text-slate-500 mt-1">{t('instructor:finance.totalHours')}</div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
           <div className="text-xl font-bold text-emerald-600">{formatAmt(finance.monthToDate || 0)}</div>
-          <div className="text-xs text-slate-500 mt-1">This Month</div>
+          <div className="text-xs text-slate-500 mt-1">{t('instructor:finance.thisMonth')}</div>
         </div>
       </div>
 
       {recentEarnings.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">Recent Earnings</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">{t('instructor:finance.recentEarnings')}</p>
           <div className="space-y-2">
             {recentEarnings.map((e, i) => (
               <div key={e.bookingId || i} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -489,7 +484,7 @@ function EarningsSection({ finance = {}, formatAmt }) {
 
       {recentPayments.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">Recent Payouts</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">{t('instructor:finance.recentPayouts')}</p>
           <div className="space-y-2">
             {recentPayments.map((p) => (
               <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -505,7 +500,7 @@ function EarningsSection({ finance = {}, formatAmt }) {
       )}
 
       {recentEarnings.length === 0 && recentPayments.length === 0 && (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No earnings data yet" className="py-6" />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('instructor:finance.noEarningsData')} className="py-6" />
       )}
     </div>
   );
@@ -534,6 +529,7 @@ const STATUS_COLORS = {
 };
 
 function AvailabilitySection() {
+  const { t } = useTranslation(['instructor']);
   const { entries, loading, error, load, requestOff, cancel } = useInstructorAvailability();
   const [form] = Form.useForm();
   const [showForm, setShowForm] = useState(false);
@@ -553,12 +549,12 @@ function AvailabilitySection() {
         type: values.type,
         reason: values.reason || undefined,
       });
-      message.success('Time-off request submitted');
+      message.success(t('instructor:availability.requestSubmitted'));
       form.resetFields();
       setShowForm(false);
     } catch (err) {
       if (err?.errorFields) return;
-      message.error(err?.response?.data?.error || 'Failed to submit request');
+      message.error(err?.response?.data?.error || t('instructor:availability.failedToSubmit'));
     } finally {
       setSubmitting(false);
     }
@@ -566,18 +562,18 @@ function AvailabilitySection() {
 
   const handleCancel = (id) => {
     Modal.confirm({
-      title: 'Cancel this request?',
+      title: t('instructor:availability.cancelRequest'),
       icon: <ExclamationCircleOutlined />,
-      content: 'The request will be marked as cancelled.',
-      okText: 'Yes, cancel it',
+      content: t('instructor:availability.cancelRequestBody'),
+      okText: t('instructor:availability.yesCancelIt'),
       okType: 'danger',
       onOk: async () => {
         setCancellingId(id);
         try {
           await cancel(id);
-          message.success('Request cancelled');
+          message.success(t('instructor:availability.requestCancelled'));
         } catch (err) {
-          message.error(err?.response?.data?.error || 'Failed to cancel request');
+          message.error(err?.response?.data?.error || t('instructor:availability.failedToCancel'));
         } finally {
           setCancellingId(null);
         }
@@ -594,7 +590,7 @@ function AvailabilitySection() {
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between mb-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-            <CalendarOutlined /> Request Time Off
+            <CalendarOutlined /> {t('instructor:availability.requestTimeOff')}
           </p>
           <Button
             size="small"
@@ -603,7 +599,7 @@ function AvailabilitySection() {
             onClick={() => setShowForm((v) => !v)}
             className={showForm ? '' : '!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700'}
           >
-            {showForm ? 'Cancel' : 'New Request'}
+            {showForm ? t('instructor:availability.cancel') : t('instructor:availability.newRequest')}
           </Button>
         </div>
 
@@ -611,8 +607,8 @@ function AvailabilitySection() {
           <Form form={form} layout="vertical" size="middle">
             <Form.Item
               name="dateRange"
-              label="Date Range"
-              rules={[{ required: true, message: 'Select a date range' }]}
+              label={t('instructor:availability.dateRange')}
+              rules={[{ required: true, message: t('instructor:availability.selectDateRange') }]}
               className="!mb-3"
             >
               <DatePicker.RangePicker
@@ -624,7 +620,7 @@ function AvailabilitySection() {
 
             <Form.Item
               name="type"
-              label="Type"
+              label={t('instructor:availability.type')}
               initialValue="off_day"
               rules={[{ required: true }]}
               className="!mb-3"
@@ -632,8 +628,8 @@ function AvailabilitySection() {
               <Select options={Object.entries(TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))} />
             </Form.Item>
 
-            <Form.Item name="reason" label="Reason (optional)" className="!mb-4">
-              <Input.TextArea rows={2} placeholder="Optional note for your manager" maxLength={300} showCount />
+            <Form.Item name="reason" label={t('instructor:availability.reasonOptional')} className="!mb-4">
+              <Input.TextArea rows={2} placeholder={t('instructor:availability.reasonPlaceholder')} maxLength={300} showCount />
             </Form.Item>
 
             <Button
@@ -642,7 +638,7 @@ function AvailabilitySection() {
               onClick={handleSubmit}
               className="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 w-full"
             >
-              Submit Request
+              {t('instructor:availability.submitRequest')}
             </Button>
           </Form>
         )}
@@ -654,12 +650,12 @@ function AvailabilitySection() {
       {loading ? (
         <div className="flex justify-center py-8"><Spin /></div>
       ) : upcoming.length === 0 && past.length === 0 ? (
-        <Empty description="No time-off requests yet" className="py-8" />
+        <Empty description={t('instructor:availability.noRequests')} className="py-8" />
       ) : (
         <div className="space-y-2">
           {upcoming.length > 0 && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1">Upcoming</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1">{t('instructor:availability.upcoming')}</p>
               {upcoming.map((entry) => (
                 <div key={entry.id} className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -690,7 +686,7 @@ function AvailabilitySection() {
                       onClick={() => handleCancel(entry.id)}
                       className="flex-shrink-0"
                     >
-                      Cancel
+                      {t('instructor:availability.cancel')}
                     </Button>
                   )}
                 </div>
@@ -700,7 +696,7 @@ function AvailabilitySection() {
 
           {past.length > 0 && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1 mt-3">Past / Cancelled</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 px-1 mt-3">{t('instructor:availability.pastCancelled')}</p>
               {past.map((entry) => (
                 <div key={entry.id} className="rounded-xl border border-slate-100 bg-slate-50 p-4 opacity-60">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -728,6 +724,7 @@ function AvailabilitySection() {
 }
 
 function SecuritySection({ user }) {
+  const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
@@ -741,12 +738,12 @@ function SecuritySection({ user }) {
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
       });
-      message.success('Password changed successfully');
+      message.success(t('instructor:security.passwordChanged'));
       form.resetFields();
       setNewPwValue('');
     } catch (err) {
       if (err?.errorFields) return;
-      const errMsg = err?.response?.data?.error || 'Failed to change password';
+      const errMsg = err?.response?.data?.error || t('instructor:security.failedToChange');
       message.error(errMsg);
     } finally {
       setSaving(false);
@@ -758,37 +755,37 @@ function SecuritySection({ user }) {
       {/* Password change form */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
-          <LockOutlined /> Change Password
+          <LockOutlined /> {t('instructor:security.changePassword')}
         </p>
         <Form form={form} layout="vertical" size="middle">
           <Form.Item
             name="currentPassword"
-            label="Current Password"
-            rules={[{ required: true, message: 'Please enter your current password' }]}
+            label={t('instructor:security.currentPassword')}
+            rules={[{ required: true, message: t('instructor:security.pleaseEnterCurrent') }]}
             className="!mb-4"
           >
-            <Input.Password placeholder="Your current password" prefix={<LockOutlined className="text-slate-300" />} />
+            <Input.Password placeholder={t('instructor:security.currentPasswordPlaceholder')} prefix={<LockOutlined className="text-slate-300" />} />
           </Form.Item>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
             <Form.Item
               name="newPassword"
-              label="New Password"
+              label={t('instructor:security.newPassword')}
               rules={[
-                { required: true, message: 'Please enter a new password' },
+                { required: true, message: t('instructor:security.pleaseEnterNew') },
                 {
                   validator: (_, value) => {
                     if (!value) return Promise.resolve();
                     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
                     if (regex.test(value)) return Promise.resolve();
-                    return Promise.reject(new Error('Password does not meet requirements'));
+                    return Promise.reject(new Error(t('instructor:security.doesNotMeetRequirements')));
                   },
                 },
               ]}
               className="!mb-1"
             >
               <Input.Password
-                placeholder="New password"
+                placeholder={t('instructor:security.newPasswordPlaceholder')}
                 prefix={<LockOutlined className="text-slate-300" />}
                 onChange={(e) => setNewPwValue(e.target.value)}
               />
@@ -796,23 +793,23 @@ function SecuritySection({ user }) {
 
             <Form.Item
               name="confirmPassword"
-              label="Confirm New Password"
+              label={t('instructor:security.confirmPassword')}
               dependencies={['newPassword']}
               rules={[
-                { required: true, message: 'Please confirm your new password' },
+                { required: true, message: t('instructor:security.pleaseConfirm') },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue('newPassword') === value) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('Passwords do not match'));
+                    return Promise.reject(new Error(t('instructor:security.passwordsDoNotMatch')));
                   },
                 }),
               ]}
               className="!mb-4"
             >
               <Input.Password
-                placeholder="Confirm new password"
+                placeholder={t('instructor:security.confirmPasswordPlaceholder')}
                 prefix={<LockOutlined className="text-slate-300" />}
               />
             </Form.Item>
@@ -827,7 +824,7 @@ function SecuritySection({ user }) {
               loading={saving}
               onClick={handleChangePassword}
             >
-              Update Password
+              {t('instructor:security.updatePassword')}
             </Button>
           </div>
         </Form>
@@ -836,13 +833,13 @@ function SecuritySection({ user }) {
       {/* Account info */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
-          <SafetyCertificateOutlined /> Account Security
+          <SafetyCertificateOutlined /> {t('instructor:security.accountSecurity')}
         </p>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IdcardOutlined className="text-slate-400 text-sm" />
-              <span className="text-sm text-slate-600">Account Status</span>
+              <span className="text-sm text-slate-600">{t('instructor:security.accountStatus')}</span>
             </div>
             <Tag
               color={user?.status === 'active' ? 'green' : 'red'}
@@ -857,7 +854,7 @@ function SecuritySection({ user }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ClockCircleOutlined className="text-slate-400 text-sm" />
-                <span className="text-sm text-slate-600">Member Since</span>
+                <span className="text-sm text-slate-600">{t('instructor:security.memberSince')}</span>
               </div>
               <span className="text-sm text-slate-500">{fmtDate(user.created_at)}</span>
             </div>
@@ -867,7 +864,7 @@ function SecuritySection({ user }) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <SafetyCertificateOutlined className="text-slate-400 text-sm" />
-                <span className="text-sm text-slate-600">Last Login</span>
+                <span className="text-sm text-slate-600">{t('instructor:security.lastLogin')}</span>
               </div>
               <span className="text-sm text-slate-500">{fmtDateTime(user.last_login_at)}</span>
             </div>
@@ -876,14 +873,14 @@ function SecuritySection({ user }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <LockOutlined className="text-slate-400 text-sm" />
-              <span className="text-sm text-slate-600">Two-Factor Auth</span>
+              <span className="text-sm text-slate-600">{t('instructor:security.twoFactorAuth')}</span>
             </div>
             <Tag
               color={user?.two_factor_enabled ? 'green' : 'default'}
               bordered={false}
               className="rounded-full text-xs m-0"
             >
-              {user?.two_factor_enabled ? 'ENABLED' : 'DISABLED'}
+              {user?.two_factor_enabled ? t('instructor:security.enabled') : t('instructor:security.disabled')}
             </Tag>
           </div>
         </div>
@@ -894,6 +891,7 @@ function SecuritySection({ user }) {
 
 // ── Main drawer component ──────────────────────────────────────────────────
 const InstructorMyProfileDrawer = () => {
+  const { t } = useTranslation(['instructor']);
   const navigate = useNavigate();
   const { user, isAuthenticated, refreshUser } = useAuth();
   const isInstructor = isAuthenticated && ['instructor', 'manager']
@@ -932,6 +930,21 @@ const InstructorMyProfileDrawer = () => {
   }, [formatCurrency, businessCurrency]);
 
   if (!isInstructor) return null;
+
+  const NAV_ITEMS = NAV_KEYS.map((item) => ({
+    ...item,
+    label: t(`instructor:profile.navItems.${item.key}`),
+  }));
+
+  const SECTION_DESCRIPTIONS = {
+    info:         t('instructor:profile.sectionDescriptions.info'),
+    skills:       t('instructor:profile.sectionDescriptions.skills'),
+    lessons:      t('instructor:profile.sectionDescriptions.lessons'),
+    students:     t('instructor:profile.sectionDescriptions.students'),
+    earnings:     t('instructor:profile.sectionDescriptions.earnings'),
+    availability: t('instructor:profile.sectionDescriptions.availability'),
+    security:     t('instructor:profile.sectionDescriptions.security'),
+  };
 
   const profileImage = getProfileImage(user);
   const statusColor  = user?.status === 'active' ? 'green' : 'red';
@@ -993,7 +1006,7 @@ const InstructorMyProfileDrawer = () => {
             <button
               onClick={() => setSidebarExpanded((prev) => !prev)}
               className="border-0 bg-transparent p-0 cursor-pointer flex-shrink-0 rounded-full hover:ring-2 hover:ring-indigo-200 transition-shadow"
-              title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={sidebarExpanded ? t('instructor:profile.collapseSidebar') : t('instructor:profile.expandSidebar')}
             >
               <Avatar
                 size={36}
@@ -1024,7 +1037,7 @@ const InstructorMyProfileDrawer = () => {
 
           {/* Close */}
           <div className="p-1 border-t border-slate-200">
-            <Tooltip title="Close" placement="right">
+            <Tooltip title={t('instructor:detailModal.close')} placement="right">
               <button
                 onClick={handleClose}
                 className="w-full flex items-center justify-center py-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer border-0 bg-transparent"
@@ -1102,7 +1115,7 @@ const InstructorMyProfileDrawer = () => {
               onClick={handleClose}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer border-0 bg-transparent"
             >
-              <CloseOutlined className="text-xs" /> Close
+              <CloseOutlined className="text-xs" /> {t('instructor:detailModal.close')}
             </button>
           </div>
         </div>

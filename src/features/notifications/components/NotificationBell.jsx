@@ -4,6 +4,7 @@ import { message } from '@/shared/utils/antdStatic';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import NotificationList from './NotificationList';
 import { useNotificationActions, useNotificationList } from '../hooks/useNotifications';
 import apiClient from '@/shared/services/apiClient';
@@ -11,6 +12,7 @@ import apiClient from '@/shared/services/apiClient';
 const RATE_BOOKING_STORAGE_KEY = 'pendingRateBooking';
 
 const NotificationBell = () => {
+  const { t } = useTranslation(['common']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -57,17 +59,17 @@ const NotificationBell = () => {
     try {
       await markAllNotificationsRead();
     } catch {
-      message.error('Failed to mark notifications as read. Please try again.');
+      message.error(t('common:notifications.failMarkRead'));
     }
-  }, [markAllNotificationsRead, unreadCount]);
+  }, [markAllNotificationsRead, unreadCount, t]);
 
   const handleClearAll = useCallback(async () => {
     if (!notifications?.length) return;
     try {
       await clearAllNotifications();
-      message.success('All notifications cleared');
+      message.success(t('common:notifications.cleared'));
     } catch {
-      message.error('Failed to clear notifications. Please try again.');
+      message.error(t('common:notifications.failClearAll'));
     }
   }, [clearAllNotifications, notifications?.length]);
 
@@ -83,17 +85,17 @@ const NotificationBell = () => {
     if (notificationType === 'friend_request') {
       const relationshipId = notification?.data?.relationshipId;
       if (!relationshipId) {
-        message.error('Friend request information not found');
+        message.error(t('common:notifications.friendRequestNotFound'));
         return;
       }
-      
+
       try {
         if (actionKey === 'accept') {
           await apiClient.post(`/relationships/${relationshipId}/accept`);
-          message.success('Friend request accepted! You can now invite them to group lessons.');
+          message.success(t('common:notifications.friendAccepted'));
         } else if (actionKey === 'decline') {
           await apiClient.post(`/relationships/${relationshipId}/decline`);
-          message.success('Friend request declined');
+          message.success(t('common:notifications.friendDeclined'));
         }
         
         // Optimistically update notification cache
@@ -116,26 +118,26 @@ const NotificationBell = () => {
           }
         );
       } catch (error) {
-        message.error(error?.response?.data?.error || 'Failed to respond to friend request');
+        message.error(error?.response?.data?.error || t('common:notifications.failFriendRequest'));
       }
       return;
     }
-    
+
     // Handle group booking invitation actions
     if (notificationType === 'group_booking_invitation') {
       const groupBookingId = notification?.data?.groupBookingId;
       if (!groupBookingId) {
-        message.error('Group booking information not found');
+        message.error(t('common:notifications.inviteNotFound'));
         return;
       }
-      
+
       try {
         if (actionKey === 'accept') {
           await apiClient.post(`/group-bookings/${groupBookingId}/accept`);
-          message.success('Invitation accepted! You will be notified when the lesson is confirmed.');
+          message.success(t('common:notifications.inviteAccepted'));
         } else if (actionKey === 'decline') {
           await apiClient.post(`/group-bookings/${groupBookingId}/decline`);
-          message.success('Invitation declined');
+          message.success(t('common:notifications.inviteDeclined'));
         }
         
         // Optimistically update notification cache
@@ -158,7 +160,7 @@ const NotificationBell = () => {
           }
         );
       } catch (error) {
-        message.error(error?.response?.data?.error || 'Failed to respond to invitation');
+        message.error(error?.response?.data?.error || t('common:notifications.failInvite'));
       }
       return;
     }
@@ -274,9 +276,9 @@ const NotificationBell = () => {
     <div style={{ width: '380px', maxWidth: '90vw' }}>
       <div className="px-4 py-3 border-b border-gray-200">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-base font-semibold text-gray-900">Notifications</h3>
+          <h3 className="text-base font-semibold text-gray-900">{t('common:notifications.title')}</h3>
           <span className="text-sm text-gray-600">
-            {unreadCount > 0 ? `${unreadCount} unread` : 'All read'}
+            {unreadCount > 0 ? t('common:notifications.unreadCount', { count: unreadCount }) : t('common:notifications.allRead')}
           </span>
         </div>
         <div className="flex gap-2">
@@ -287,7 +289,7 @@ const NotificationBell = () => {
               loading={markAllNotificationsStatus.isPending}
               className="flex-1"
             >
-              Mark all read
+              {t('common:notifications.markAllRead')}
             </Button>
           )}
           {notifications?.length > 0 && (
@@ -297,7 +299,7 @@ const NotificationBell = () => {
               loading={clearAllNotificationsStatus.isPending}
               className="flex-1"
             >
-              Clear all
+              {t('common:notifications.clearAll')}
             </Button>
           )}
         </div>
@@ -312,17 +314,17 @@ const NotificationBell = () => {
         onAction={handleAction}
         markReadLoadingId={markNotificationReadStatus.isPending ? markingId : null}
         compact
-        emptyDescription="You're all caught up!"
+        emptyDescription={t('common:notifications.caughtUp')}
       />
 
       <Divider className="my-2" />
-      <Button 
-        type="link" 
-        block 
+      <Button
+        type="link"
+        block
         onClick={handleNavigateToCenter}
         className="text-sm"
       >
-        View all notifications
+        {t('common:notifications.viewAll')}
       </Button>
     </div>
   );
@@ -340,7 +342,7 @@ const NotificationBell = () => {
         <button
           type="button"
           className="p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-700/50"
-          aria-label={unreadCount ? `${unreadCount} unread notifications` : 'Notifications'}
+          aria-label={unreadCount ? t('common:notifications.unreadCount', { count: unreadCount }) : t('common:notifications.title')}
         >
           <BellIcon className="h-5 w-5" />
         </button>

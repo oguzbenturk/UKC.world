@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useInstructorStudentProfile } from '../hooks/useInstructorStudentProfile';
 import apiClient from '@/shared/services/apiClient';
 
@@ -23,6 +24,7 @@ const getInitials = (name) => {
 };
 
 const StudentDetail = () => {
+  const { t } = useTranslation(['instructor']);
   const { id } = useParams();
   const navigate = useNavigate();
   const {
@@ -82,37 +84,37 @@ const StudentDetail = () => {
     setProfileError(null);
     try {
       await updateProfile({ level: levelValue || null, notes: notesValue || null });
-      setProfileFeedback('Student details updated');
+      setProfileFeedback(t('instructor:studentDetail.studentUpdated'));
     } catch (err) {
-      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to update student';
+      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || t('instructor:studentDetail.failedToUpdate');
       setProfileError(message);
     }
   };
 
   const handleProgressAdd = async (event) => {
     event.preventDefault();
-    if (!progressSkillId) { setProgressError('Select a skill to record progress'); return; }
+    if (!progressSkillId) { setProgressError(t('instructor:studentDetail.selectSkill')); return; }
     setProgressFeedback(null);
     setProgressError(null);
     try {
       await addProgress({ skillId: progressSkillId, dateAchieved: progressDate, notes: progressNotes || null });
-      setProgressFeedback('Progress recorded');
+      setProgressFeedback(t('instructor:studentDetail.progressRecorded'));
       setProgressNotes('');
     } catch (err) {
-      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to save progress';
+      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || t('instructor:studentDetail.failedToSaveProgress');
       setProgressError(message);
     }
   };
 
   const handleProgressDelete = async (progressId) => {
     if (!progressId) return;
-    if (!window.confirm('Remove this progress entry?')) return;
+    if (!window.confirm(t('instructor:studentDetail.removeProgressConfirm'))) return;
     setProgressError(null); setProgressFeedback(null);
     try {
       await removeProgress(progressId);
-      setProgressFeedback('Progress entry removed');
+      setProgressFeedback(t('instructor:studentDetail.progressRemoved'));
     } catch (err) {
-      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to remove progress';
+      const message = (typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || t('instructor:studentDetail.failedToRemoveProgress');
       setProgressError(message);
     }
   };
@@ -125,11 +127,11 @@ const StudentDetail = () => {
           onClick={() => navigate(-1)}
           className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
-          ← Back
+          {t('instructor:studentDetail.back')}
         </button>
         <span className="text-slate-300 text-sm">/</span>
         <span className="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-600 border border-sky-100">
-          Student Profile
+          {t('instructor:studentDetail.studentProfile')}
         </span>
       </div>
 
@@ -210,6 +212,7 @@ const LoadingSkeleton = () => (
 );
 
 const StudentHeader = ({ student, progressPercent, goalHours, remainingHours }) => {
+  const { t } = useTranslation(['instructor']);
   const initials = getInitials(student.name);
   const hasPackage = goalHours > 0;
   return (
@@ -235,9 +238,9 @@ const StudentHeader = ({ student, progressPercent, goalHours, remainingHours }) 
           {hasPackage ? (
             <div className="w-full">
               <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                <span>Package hours</span>
+                <span>{t('instructor:studentDetail.packageHours')}</span>
                 <span className="font-semibold text-slate-700">
-                  {remainingHours}h left of {goalHours}h
+                  {t('instructor:studentDetail.hoursLeft', { remaining: remainingHours, total: goalHours })}
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
@@ -246,10 +249,10 @@ const StudentHeader = ({ student, progressPercent, goalHours, remainingHours }) 
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <p className="text-right text-xs text-slate-400 mt-1">{progressPercent}% used</p>
+              <p className="text-right text-xs text-slate-400 mt-1">{t('instructor:studentDetail.percentUsed', { percent: progressPercent })}</p>
             </div>
           ) : (
-            <span className="text-xs text-slate-400">No active package</span>
+            <span className="text-xs text-slate-400">{t('instructor:studentDetail.noActivePackage')}</span>
           )}
         </div>
       </div>
@@ -274,14 +277,17 @@ const StatCard = ({ title, value, tone = 'sky' }) => {
   );
 };
 
-const StatsGrid = ({ stats }) => (
-  <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <StatCard title="Total Lessons" value={stats.totalLessons} tone="sky" />
-    <StatCard title="Total Hours" value={stats.totalHours} tone="emerald" />
-    <StatCard title="Last Lesson" value={formatDateTime(stats.lastLessonAt)} tone="slate" />
-    <StatCard title="Next Lesson" value={formatDateTime(stats.nextLessonAt)} tone="amber" />
-  </section>
-);
+const StatsGrid = ({ stats }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
+    <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <StatCard title={t('instructor:studentDetail.totalLessons')} value={stats.totalLessons} tone="sky" />
+      <StatCard title={t('instructor:studentDetail.totalHours')} value={stats.totalHours} tone="emerald" />
+      <StatCard title={t('instructor:studentDetail.lastLesson')} value={formatDateTime(stats.lastLessonAt)} tone="slate" />
+      <StatCard title={t('instructor:studentDetail.nextLesson')} value={formatDateTime(stats.nextLessonAt)} tone="amber" />
+    </section>
+  );
+};
 
 const SectionCard = ({ title, feedback, headerRight, children }) => (
   <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -303,104 +309,112 @@ const SectionCard = ({ title, feedback, headerRight, children }) => (
 const fieldClass = 'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:bg-white focus:outline-none transition-colors';
 const labelClass = 'block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5';
 
-const ProfileForm = ({ levelValue, setLevelValue, levelOptions, notesValue, setNotesValue, onSubmit, saving, feedback, error }) => (
-  <SectionCard title="Skill & Notes" feedback={feedback}>
-    {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-    <form className="space-y-4" onSubmit={onSubmit}>
-      <div>
-        <label className={labelClass}>Skill Level</label>
-        <select
-          value={levelValue || ''}
-          onChange={(e) => setLevelValue(e.target.value)}
-          className={fieldClass}
-        >
-          <option value="">Not specified</option>
-          {levelOptions.map((lvl) => (
-            <option key={lvl.id} value={lvl.name}>{lvl.name}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className={labelClass}>Notes</label>
-        <textarea
-          value={notesValue || ''}
-          onChange={(e) => setNotesValue(e.target.value)}
-          rows={4}
-          className={fieldClass}
-        />
-      </div>
-      <div className="flex justify-end pt-1">
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-5 py-2 rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 text-white text-sm font-medium shadow-sm hover:from-slate-600 hover:to-slate-700 disabled:opacity-50 transition-all"
-        >
-          {saving ? 'Saving…' : 'Save changes'}
-        </button>
-      </div>
-    </form>
-  </SectionCard>
-);
+const ProfileForm = ({ levelValue, setLevelValue, levelOptions, notesValue, setNotesValue, onSubmit, saving, feedback, error }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
+    <SectionCard title={t('instructor:studentDetail.skillAndNotes')} feedback={feedback}>
+      {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <div>
+          <label className={labelClass}>{t('instructor:studentDetail.skillLevel')}</label>
+          <select
+            value={levelValue || ''}
+            onChange={(e) => setLevelValue(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">{t('instructor:studentDetail.notSpecified')}</option>
+            {levelOptions.map((lvl) => (
+              <option key={lvl.id} value={lvl.name}>{lvl.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>{t('instructor:studentDetail.notes')}</label>
+          <textarea
+            value={notesValue || ''}
+            onChange={(e) => setNotesValue(e.target.value)}
+            rows={4}
+            className={fieldClass}
+          />
+        </div>
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2 rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 text-white text-sm font-medium shadow-sm hover:from-slate-600 hover:to-slate-700 disabled:opacity-50 transition-all"
+          >
+            {saving ? t('instructor:studentDetail.saving') : t('instructor:studentDetail.saveChanges')}
+          </button>
+        </div>
+      </form>
+    </SectionCard>
+  );
+};
 
-const ProgressForm = ({ skillOptions, selectedLevel, progressSkillId, setProgressSkillId, progressDate, setProgressDate, progressNotes, setProgressNotes, onSubmit, saving, feedback, error }) => (
-  <SectionCard title="Record Progress" feedback={feedback}>
-    {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-    <form className="space-y-4" onSubmit={onSubmit}>
-      <div>
-        <label className={labelClass}>Skill</label>
-        <select
-          value={progressSkillId}
-          onChange={(e) => setProgressSkillId(e.target.value)}
-          className={fieldClass}
-        >
-          {skillOptions.map((skill) => (
-            <option key={skill.id} value={skill.id}>{skill.name}</option>
-          ))}
-        </select>
-        {selectedLevel && (
-          <p className="text-xs text-slate-500 mt-1.5">
-            Level: <span className="font-medium text-slate-700">{selectedLevel}</span>
-          </p>
-        )}
-      </div>
-      <div>
-        <label className={labelClass}>Date achieved</label>
-        <input
-          type="date"
-          value={progressDate}
-          onChange={(e) => setProgressDate(e.target.value)}
-          className={fieldClass}
-        />
-      </div>
-      <div>
-        <label className={labelClass}>Notes (optional)</label>
-        <textarea
-          value={progressNotes}
-          onChange={(e) => setProgressNotes(e.target.value)}
-          rows={3}
-          className={fieldClass}
-        />
-      </div>
-      <div className="flex justify-end pt-1">
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-sm font-medium shadow-sm hover:from-emerald-500 hover:to-emerald-600 disabled:opacity-50 transition-all"
-        >
-          {saving ? 'Saving…' : 'Add progress'}
-        </button>
-      </div>
-    </form>
-  </SectionCard>
-);
+const ProgressForm = ({ skillOptions, selectedLevel, progressSkillId, setProgressSkillId, progressDate, setProgressDate, progressNotes, setProgressNotes, onSubmit, saving, feedback, error }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
+    <SectionCard title={t('instructor:studentDetail.recordProgress')} feedback={feedback}>
+      {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <div>
+          <label className={labelClass}>{t('instructor:studentDetail.skill')}</label>
+          <select
+            value={progressSkillId}
+            onChange={(e) => setProgressSkillId(e.target.value)}
+            className={fieldClass}
+          >
+            {skillOptions.map((skill) => (
+              <option key={skill.id} value={skill.id}>{skill.name}</option>
+            ))}
+          </select>
+          {selectedLevel && (
+            <p className="text-xs text-slate-500 mt-1.5">
+              {t('instructor:studentDetail.level', { name: selectedLevel })}
+            </p>
+          )}
+        </div>
+        <div>
+          <label className={labelClass}>{t('instructor:studentDetail.dateAchieved')}</label>
+          <input
+            type="date"
+            value={progressDate}
+            onChange={(e) => setProgressDate(e.target.value)}
+            className={fieldClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>{t('instructor:studentDetail.notesOptional')}</label>
+          <textarea
+            value={progressNotes}
+            onChange={(e) => setProgressNotes(e.target.value)}
+            rows={3}
+            className={fieldClass}
+          />
+        </div>
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-sm font-medium shadow-sm hover:from-emerald-500 hover:to-emerald-600 disabled:opacity-50 transition-all"
+          >
+            {saving ? t('instructor:studentDetail.saving') : t('instructor:studentDetail.addProgress')}
+          </button>
+        </div>
+      </form>
+    </SectionCard>
+  );
+};
 
-const ProgressHistory = ({ progress, onDelete }) => (
+const ProgressHistory = ({ progress, onDelete }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <SectionCard
-    title="Progress History"
-    headerRight={<span className="text-xs text-slate-400 font-normal">{progress.length} entries</span>}
+    title={t('instructor:studentDetail.progressHistory')}
+    headerRight={<span className="text-xs text-slate-400 font-normal">{progress.length} {t('instructor:studentDetail.entries')}</span>}
   >
     {progress.length === 0 && (
-      <p className="text-sm text-slate-400 text-center py-6">No progress entries recorded yet.</p>
+      <p className="text-sm text-slate-400 text-center py-6">{t('instructor:studentDetail.noProgressYet')}</p>
     )}
     <ul className="space-y-0">
       {progress.map((entry, idx) => (
@@ -414,7 +428,7 @@ const ProgressHistory = ({ progress, onDelete }) => (
                 onClick={() => onDelete(entry.id)}
                 className="text-xs text-rose-500 hover:text-rose-700 transition-colors shrink-0"
               >
-                Remove
+                {t('instructor:studentDetail.remove')}
               </button>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
@@ -429,7 +443,8 @@ const ProgressHistory = ({ progress, onDelete }) => (
       ))}
     </ul>
   </SectionCard>
-);
+  );
+};
 
 const LESSON_STATUS_STYLES = {
   completed: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -438,13 +453,15 @@ const LESSON_STATUS_STYLES = {
   pending: 'bg-amber-50 text-amber-700 border-amber-100',
 };
 
-const RecentLessons = ({ lessons }) => (
+const RecentLessons = ({ lessons }) => {
+  const { t } = useTranslation(['instructor']);
+  return (
   <SectionCard
-    title="Recent Lessons"
-    headerRight={<span className="text-xs text-slate-400 font-normal">Last {lessons.length}</span>}
+    title={t('instructor:studentDetail.recentLessons')}
+    headerRight={<span className="text-xs text-slate-400 font-normal">{t('instructor:studentDetail.last', { count: lessons.length })}</span>}
   >
     {lessons.length === 0 && (
-      <p className="text-sm text-slate-400 text-center py-6">No lessons yet for this student.</p>
+      <p className="text-sm text-slate-400 text-center py-6">{t('instructor:studentDetail.noLessons')}</p>
     )}
     <ul className="space-y-0">
       {lessons.map((lesson, idx) => (
@@ -460,7 +477,8 @@ const RecentLessons = ({ lessons }) => (
       ))}
     </ul>
   </SectionCard>
-);
+  );
+};
 
 const REC_TYPE_CONFIG = {
   product:       { label: 'Product',       badge: 'bg-sky-50 text-sky-700 border-sky-200' },
@@ -478,6 +496,7 @@ const REC_ENDPOINTS = {
 };
 
 const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) => {
+  const { t } = useTranslation(['instructor']);
   const [showForm, setShowForm] = useState(false);
   const [recType, setRecType] = useState('product');
   const [items, setItems] = useState([]);
@@ -527,28 +546,28 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
         itemImage: itemImage || null,
         notes: notes.trim() || null,
       });
-      setFeedback('Recommendation added');
+      setFeedback(t('instructor:studentDetail.recommendationAdded'));
       setSelectedItemId(''); setCustomName(''); setCustomPrice(''); setNotes('');
       setShowForm(false);
     } catch (err) {
-      setError((typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || 'Failed to add recommendation');
+      setError((typeof err.response?.data?.error === 'string' ? err.response.data.error : err.response?.data?.message) || err.message || t('instructor:studentDetail.failedToAddRec'));
     }
   };
 
   const handleDelete = async (recId) => {
-    if (!window.confirm('Remove this recommendation?')) return;
+    if (!window.confirm(t('instructor:studentDetail.removeRecommendationConfirm'))) return;
     setError(null); setFeedback(null);
     try {
       await onRemove(recId);
-      setFeedback('Recommendation removed');
+      setFeedback(t('instructor:studentDetail.recommendationRemoved'));
     } catch (err) {
-      setError(err.message || 'Failed to remove');
+      setError(err.message || t('instructor:studentDetail.failedToRemoveRec'));
     }
   };
 
   return (
     <SectionCard
-      title="Recommendations"
+      title={t('instructor:studentDetail.recommendations')}
       feedback={feedback}
       headerRight={
         <button
@@ -556,7 +575,7 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
           onClick={() => { setShowForm(v => !v); setError(null); }}
           className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${showForm ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-sky-600 text-white hover:bg-sky-500'}`}
         >
-          {showForm ? 'Cancel' : '+ Add'}
+          {showForm ? t('instructor:studentDetail.cancel') : t('instructor:studentDetail.add')}
         </button>
       }
     >
@@ -566,23 +585,23 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
         <form onSubmit={handleAdd} className="mb-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Category</label>
+              <label className={labelClass}>{t('instructor:studentDetail.category')}</label>
               <select
                 value={recType}
                 onChange={e => { setRecType(e.target.value); setSelectedItemId(''); setCustomName(''); }}
                 className={fieldClass}
               >
-                <option value="product">Product</option>
-                <option value="service">Lesson Service</option>
-                <option value="rental">Rental</option>
-                <option value="accommodation">Accommodation</option>
-                <option value="custom">Custom</option>
+                <option value="product">{t('instructor:studentDetail.recTypes.product')}</option>
+                <option value="service">{t('instructor:studentDetail.recTypes.service')}</option>
+                <option value="rental">{t('instructor:studentDetail.recTypes.rental')}</option>
+                <option value="accommodation">{t('instructor:studentDetail.recTypes.accommodation')}</option>
+                <option value="custom">{t('instructor:studentDetail.recTypes.custom')}</option>
               </select>
             </div>
             <div>
               {recType === 'custom' ? (
                 <>
-                  <label className={labelClass}>Item Name <span className="text-rose-500 normal-case tracking-normal font-normal">*</span></label>
+                  <label className={labelClass}>{t('instructor:studentDetail.itemName')} <span className="text-rose-500 normal-case tracking-normal font-normal">*</span></label>
                   <input
                     value={customName}
                     onChange={e => setCustomName(e.target.value)}
@@ -593,7 +612,7 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
               ) : (
                 <>
                   <label className={labelClass}>
-                    Item {itemsLoading && <span className="text-slate-400 font-normal normal-case">loading…</span>}
+                    {t('instructor:studentDetail.item')} {itemsLoading && <span className="text-slate-400 font-normal normal-case">{t('instructor:studentDetail.itemLoading')}</span>}
                   </label>
                   <select
                     value={selectedItemId}
@@ -601,7 +620,7 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
                     className={fieldClass}
                     disabled={itemsLoading}
                   >
-                    <option value="">Select an item…</option>
+                    <option value="">{t('instructor:studentDetail.selectItem')}</option>
                     {items.map(item => (
                       <option key={item.id} value={item.id}>
                         {item.name}
@@ -615,7 +634,7 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
           </div>
           {recType === 'custom' && (
             <div>
-              <label className={labelClass}>Price (optional)</label>
+              <label className={labelClass}>{t('instructor:studentDetail.priceOptional')}</label>
               <input
                 type="number"
                 step="0.01"
@@ -628,7 +647,7 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
             </div>
           )}
           <div>
-            <label className={labelClass}>Note to student (optional)</label>
+            <label className={labelClass}>{t('instructor:studentDetail.noteToStudent')}</label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -643,14 +662,14 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
               disabled={saving}
               className="px-5 py-2 rounded-lg bg-gradient-to-r from-sky-600 to-sky-700 text-white text-sm font-medium shadow-sm hover:from-sky-500 hover:to-sky-600 disabled:opacity-50 transition-all"
             >
-              {saving ? 'Saving…' : 'Add Recommendation'}
+              {saving ? t('instructor:studentDetail.saving') : t('instructor:studentDetail.addRecommendation')}
             </button>
           </div>
         </form>
       )}
 
       {recommendations.length === 0 && !showForm && (
-        <p className="text-sm text-slate-400 text-center py-6">No recommendations yet. Suggest products or services to this student.</p>
+        <p className="text-sm text-slate-400 text-center py-6">{t('instructor:studentDetail.noRecommendations')}</p>
       )}
 
       <ul className="space-y-3">
@@ -677,7 +696,7 @@ const RecommendationsSection = ({ recommendations, onAdd, onRemove, saving }) =>
                   onClick={() => handleDelete(rec.id)}
                   className="text-xs text-rose-500 hover:text-rose-700 transition-colors shrink-0"
                 >
-                  Remove
+                  {t('instructor:studentDetail.remove')}
                 </button>
               </div>
             </li>

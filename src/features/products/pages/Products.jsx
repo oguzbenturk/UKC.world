@@ -48,6 +48,7 @@ import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 import { CATEGORY_OPTIONS } from '@/shared/constants/productCategories';
+import { useTranslation } from 'react-i18next';
 
 const { Option } = Select;
 const { Search } = Input;
@@ -95,6 +96,7 @@ const normalizePagination = (prevPagination, responsePagination, filteredLength,
 };
 
 const Products = () => {
+  const { t } = useTranslation(['manager']);
   const [products, setProducts] = useState([]);
   const [rawProducts, setRawProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -299,7 +301,7 @@ const Products = () => {
       });
 
     } catch {
-      message.error('Failed to load products');
+      message.error(t('manager:products.messages.loadError'));
     } finally {
       setLoading(false);
     }
@@ -316,20 +318,20 @@ const Products = () => {
     if (selectedProductIds.length === 0) return;
     
     Modal.confirm({
-      title: 'Delete Selected Products',
-      content: `Are you sure you want to delete ${selectedProductIds.length} product(s)? This action cannot be undone.`,
-      okText: 'Delete All',
+      title: t('manager:products.confirm.bulkDeleteTitle'),
+      content: t('manager:products.confirm.bulkDeleteContent', { count: selectedProductIds.length }),
+      okText: t('manager:products.confirm.bulkDeleteOk'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('manager:products.confirm.deleteCancel'),
       onOk: async () => {
         try {
           // Delete products one by one (or use batch API if available)
           await Promise.all(selectedProductIds.map(id => productApi.deleteProduct(id)));
-          message.success(`Successfully deleted ${selectedProductIds.length} product(s)`);
+          message.success(t('manager:products.messages.bulkDeleted', { count: selectedProductIds.length }));
           setSelectedProductIds([]);
           loadProducts();
         } catch {
-          message.error('Failed to delete some products');
+          message.error(t('manager:products.messages.bulkDeleteError'));
         }
       }
     });
@@ -340,20 +342,20 @@ const Products = () => {
     if (selectedProductIds.length === 0) return;
     
     Modal.confirm({
-      title: `${status === 'active' ? 'Activate' : 'Deactivate'} Selected Products`,
-      content: `Are you sure you want to ${status === 'active' ? 'activate' : 'deactivate'} ${selectedProductIds.length} product(s)?`,
-      okText: 'Confirm',
-      cancelText: 'Cancel',
+      title: status === 'active' ? t('manager:products.confirm.bulkActivateTitle') : t('manager:products.confirm.bulkDeactivateTitle'),
+      content: t('manager:products.confirm.bulkStatusContent', { count: selectedProductIds.length, action: status }),
+      okText: t('manager:products.confirm.bulkConfirmOk'),
+      cancelText: t('manager:products.confirm.deleteCancel'),
       onOk: async () => {
         try {
-          await Promise.all(selectedProductIds.map(id => 
+          await Promise.all(selectedProductIds.map(id =>
             productApi.updateProduct(id, { status })
           ));
-          message.success(`Successfully updated ${selectedProductIds.length} product(s)`);
+          message.success(t('manager:products.messages.bulkUpdated', { count: selectedProductIds.length }));
           setSelectedProductIds([]);
           loadProducts();
         } catch {
-          message.error('Failed to update some products');
+          message.error(t('manager:products.messages.bulkUpdateError'));
         }
       }
     });
@@ -408,9 +410,9 @@ const Products = () => {
       await productApi.createProduct(productData);
       setFormDrawerVisible(false);
       loadProducts(); // Reload products
-      message.success('Product created successfully!');
+      message.success(t('manager:products.messages.created'));
     } catch (error) {
-      message.error('Failed to create product');
+      message.error(t('manager:products.messages.createError'));
       throw error;
     } finally {
       setFormLoading(false);
@@ -426,9 +428,9 @@ const Products = () => {
       setEditMode(false);
       setSelectedProduct(null);
       loadProducts(); // Reload products
-      message.success('Product updated successfully!');
+      message.success(t('manager:products.messages.updated'));
     } catch (error) {
-      message.error('Failed to update product');
+      message.error(t('manager:products.messages.updateError'));
       throw error;
     } finally {
       setFormLoading(false);
@@ -438,18 +440,18 @@ const Products = () => {
   // Handle product deletion
   const handleProductDelete = (product) => {
     Modal.confirm({
-      title: 'Delete Product',
-      content: `Are you sure you want to delete "${product.name}"?`,
-      okText: 'Delete',
+      title: t('manager:products.confirm.deleteTitle'),
+      content: t('manager:products.confirm.deleteContent', { name: product.name }),
+      okText: t('manager:products.confirm.deleteOk'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('manager:products.confirm.deleteCancel'),
       onOk: async () => {
         try {
           await productApi.deleteProduct(product.id);
           loadProducts(); // Reload products
-          message.success('Product deleted successfully!');
+          message.success(t('manager:products.messages.deleted'));
         } catch {
-          message.error('Failed to delete product');
+          message.error(t('manager:products.messages.deleteError'));
         }
       }
     });
@@ -477,7 +479,7 @@ const Products = () => {
 
   const columns = [
     {
-      title: 'Product',
+      title: t('manager:products.columns.product'),
       key: 'product',
       width: '35%',
       render: (_, product) => (
@@ -518,35 +520,35 @@ const Products = () => {
       )
     },
     {
-      title: 'SKU',
+      title: t('manager:products.columns.sku'),
       dataIndex: 'sku',
       key: 'sku',
       responsive: ['md'],
       render: (sku) => <span className="text-sm text-slate-600 font-mono">{sku || '—'}</span>
     },
     {
-      title: 'Category',
+      title: t('manager:products.columns.category'),
       dataIndex: 'category',
       key: 'category',
       responsive: ['lg'],
       render: (cat) => <Tag color="blue" className="capitalize">{cat || 'Other'}</Tag>
     },
     {
-      title: 'Brand',
+      title: t('manager:products.columns.brand'),
       dataIndex: 'brand',
       key: 'brand',
       responsive: ['lg'],
       render: (brand) => <span className="text-sm text-slate-600">{brand || '—'}</span>
     },
     {
-      title: 'Price',
+      title: t('manager:products.columns.price'),
       dataIndex: 'price',
       key: 'price',
       align: 'right',
       render: (price) => <span className="font-semibold text-slate-900">{formatCurrency(price)}</span>
     },
     {
-      title: 'Stock',
+      title: t('manager:products.columns.stock'),
       dataIndex: 'stock_quantity',
       key: 'stock',
       align: 'center',
@@ -564,7 +566,7 @@ const Products = () => {
       )
     },
     {
-       title: 'Status',
+       title: t('manager:products.columns.status'),
        dataIndex: 'status',
        key: 'status',
        align: 'center',
@@ -579,12 +581,12 @@ const Products = () => {
        )
     },
     {
-      title: 'Actions',
+      title: t('manager:products.columns.actions'),
       key: 'actions',
       align: 'center',
       render: (_, product) => (
         <div className="flex items-center justify-center gap-1">
-          <Tooltip title="Edit">
+          <Tooltip title={t('manager:products.editProduct')}>
             <Button
               type="text"
               size="small"
@@ -592,7 +594,7 @@ const Products = () => {
               onClick={(e) => { e.stopPropagation(); handleProductEdit(product); }}
             />
           </Tooltip>
-          <Tooltip title="Delete">
+          <Tooltip title={t('manager:products.confirm.deleteOk')}>
             <Button
               type="text"
               size="small"
@@ -657,8 +659,8 @@ const Products = () => {
       {/* Header */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-slate-800">Products</h2>
-          <p className="text-xs text-slate-400">Manage inventory and catalog</p>
+          <h2 className="text-sm font-semibold text-slate-800">{t('manager:products.title')}</h2>
+          <p className="text-xs text-slate-400">{t('manager:products.subtitle')}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <Segmented
@@ -675,7 +677,7 @@ const Products = () => {
             onClick={() => loadProducts()}
             size="small"
           >
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">{t('manager:products.refresh')}</span>
           </Button>
           <Button
             type="primary"
@@ -683,8 +685,8 @@ const Products = () => {
             onClick={() => setFormDrawerVisible(true)}
             size="small"
           >
-            <span className="hidden sm:inline">Add Product</span>
-            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">{t('manager:products.addProduct')}</span>
+            <span className="sm:hidden">{t('common:add', 'Add')}</span>
           </Button>
         </div>
       </div>
@@ -692,25 +694,25 @@ const Products = () => {
       {/* Stats */}
       <div className="mb-3 flex flex-wrap gap-2">
         <StatBadge
-          title="Total"
+          title={t('manager:products.stats.total')}
           value={stats.totalProducts}
           icon={<ShoppingCartOutlined />}
           iconClass="text-purple-500"
         />
         <StatBadge
-          title="Low Stock"
+          title={t('manager:products.stats.lowStock')}
           value={stats.lowStockProducts}
           icon={<WarningOutlined />}
           iconClass={stats.lowStockProducts > 0 ? 'text-orange-500' : 'text-emerald-500'}
         />
         <StatBadge
-          title="Inv. Value"
+          title={t('manager:products.stats.invValue')}
           value={formatCurrency(stats.totalValue)}
           icon={<DollarOutlined />}
           iconClass="text-emerald-500"
         />
         <StatBadge
-          title="Featured"
+          title={t('manager:products.stats.featured')}
           value={stats.featuredProducts}
           icon={<StarFilled />}
           iconClass="text-amber-500"
@@ -722,7 +724,7 @@ const Products = () => {
         <Row gutter={[8, 8]} align="middle">
           <Col xs={24} md={8}>
             <Input
-              placeholder="Search by name, SKU, or brand..."
+              placeholder={t('manager:products.filters.searchPlaceholder')}
               prefix={<SearchOutlined className="text-slate-400" />}
               allowClear
               size="small"
@@ -751,21 +753,21 @@ const Products = () => {
               size="small"
               style={{ width: '100%' }}
             >
-              <Option value="all">All Status</Option>
-              <Option value="active">Active</Option>
-              <Option value="inactive">Inactive</Option>
-              <Option value="discontinued">Discontinued</Option>
+              <Option value="all">{t('manager:products.filters.allStatus')}</Option>
+              <Option value="active">{t('manager:products.filters.active')}</Option>
+              <Option value="inactive">{t('manager:products.filters.inactive')}</Option>
+              <Option value="discontinued">{t('manager:products.filters.discontinued')}</Option>
             </Select>
           </Col>
           <Col xs={12} md={4}>
             <Select
               value={filters.createdBy}
               onChange={(value) => handleFilterChange('createdBy', value)}
-              placeholder="Created by"
+              placeholder={t('manager:products.filters.createdBy')}
               size="small"
               style={{ width: '100%' }}
             >
-              <Option value="all">All Creators</Option>
+              <Option value="all">{t('manager:products.filters.allCreators')}</Option>
               {creatorOptions.map((option) => (
                 <Option key={option.value} value={option.value}>
                   {option.label}
@@ -782,7 +784,7 @@ const Products = () => {
               onClick={() => handleFilterChange('low_stock', !filters.low_stock)}
               block
             >
-              Low Stock Only
+              {t('manager:products.filters.lowStockOnly')}
             </Button>
           </Col>
         </Row>
@@ -791,37 +793,37 @@ const Products = () => {
       {/* Products Count and Bulk Actions */}
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm text-slate-600">
-          Showing {products.length} of {pagination.total} products
+          {t('manager:products.showing', { count: products.length, total: pagination.total })}
         </p>
         
         {/* Bulk Action Bar */}
         {selectedProductIds.length > 0 && (
           <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
             <span className="text-sm text-blue-700 font-medium">
-              {selectedProductIds.length} selected
+              {t('manager:products.selected', { count: selectedProductIds.length })}
             </span>
             <div className="h-4 w-px bg-blue-300" />
-            <Tooltip title="Activate Selected">
+            <Tooltip title={t('manager:products.bulk.activateSelected')}>
               <Button
                 type="text"
                 size="small"
                 icon={<CheckCircleOutlined className="text-green-600" />}
                 onClick={() => handleBulkStatusUpdate('active')}
               >
-                Activate
+                {t('manager:products.bulk.activate')}
               </Button>
             </Tooltip>
-            <Tooltip title="Deactivate Selected">
+            <Tooltip title={t('manager:products.bulk.deactivateSelected')}>
               <Button
                 type="text"
                 size="small"
                 icon={<StopOutlined className="text-orange-600" />}
                 onClick={() => handleBulkStatusUpdate('inactive')}
               >
-                Deactivate
+                {t('manager:products.bulk.deactivate')}
               </Button>
             </Tooltip>
-            <Tooltip title="Delete Selected">
+            <Tooltip title={t('manager:products.bulk.deleteSelected')}>
               <Button
                 type="text"
                 size="small"
@@ -829,7 +831,7 @@ const Products = () => {
                 icon={<DeleteOutlined />}
                 onClick={handleBulkDelete}
               >
-                Delete
+                {t('manager:products.bulk.delete')}
               </Button>
             </Tooltip>
             <Button
@@ -837,7 +839,7 @@ const Products = () => {
               size="small"
               onClick={() => setSelectedProductIds([])}
             >
-              Clear
+              {t('manager:products.bulk.clear')}
             </Button>
           </div>
         )}
@@ -897,7 +899,7 @@ const Products = () => {
                 total={pagination.total}
                 showSizeChanger
                 showQuickJumper
-                showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} products`}
+                showTotal={(total, range) => t('manager:products.pagination.showTotal', { start: range[0], end: range[1], total })}
                 onChange={handlePaginationChange}
                 onShowSizeChange={handlePaginationChange}
               />
@@ -909,9 +911,9 @@ const Products = () => {
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
                 <span className="text-slate-500">
-                  {filters.search || filters.category !== 'all' || filters.status !== 'active' 
-                    ? 'No products match your filters'
-                    : 'No products yet'
+                  {filters.search || filters.category !== 'all' || filters.status !== 'active'
+                    ? t('manager:products.empty.noMatch')
+                    : t('manager:products.empty.noProducts')
                   }
                 </span>
               }
@@ -921,7 +923,7 @@ const Products = () => {
                 icon={<PlusOutlined />}
                 onClick={() => setFormDrawerVisible(true)}
               >
-                Add Product
+                {t('manager:products.empty.addFirst')}
               </Button>
             </Empty>
           </div>
@@ -930,7 +932,7 @@ const Products = () => {
 
       {/* Product Form Drawer */}
       <Drawer
-        title={editMode ? 'Edit Product' : 'Add New Product'}
+        title={editMode ? t('manager:products.editProduct') : t('manager:products.addNewProduct')}
         width={720}
         onClose={handleFormCancel}
         open={formDrawerVisible}

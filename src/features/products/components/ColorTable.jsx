@@ -4,8 +4,10 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Input, InputNumber, Popconfirm, message } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 
 const ColorTable = ({ value = [], onChange }) => {
+  const { t } = useTranslation(['manager']);
   const [colors, setColors] = useState(value);
 
   useEffect(() => {
@@ -28,7 +30,7 @@ const ColorTable = ({ value = [], onChange }) => {
     const updated = colors.filter(c => c.key !== key);
     setColors(updated);
     onChange?.(updated);
-    message.success('Color removed');
+    message.success(t('manager:products.colorTable.colorRemoved'));
   };
 
   const handleChange = (key, field, val) => {
@@ -41,7 +43,7 @@ const ColorTable = ({ value = [], onChange }) => {
 
   const columns = [
     {
-      title: 'Color Code',
+      title: t('manager:products.colorTable.colorCode'),
       dataIndex: 'code',
       key: 'code',
       width: '25%',
@@ -55,7 +57,7 @@ const ColorTable = ({ value = [], onChange }) => {
       )
     },
     {
-      title: 'Color Name',
+      title: t('manager:products.colorTable.colorName'),
       dataIndex: 'name',
       key: 'name',
       width: '45%',
@@ -68,7 +70,7 @@ const ColorTable = ({ value = [], onChange }) => {
       )
     },
     {
-      title: 'Image Count',
+      title: t('manager:products.colorTable.imageCount'),
       dataIndex: 'imageCount',
       key: 'imageCount',
       width: '20%',
@@ -83,15 +85,15 @@ const ColorTable = ({ value = [], onChange }) => {
       )
     },
     {
-      title: 'Action',
+      title: t('manager:products.colorTable.action'),
       key: 'action',
       width: '10%',
       render: (_, record) => (
         <Popconfirm
-          title="Delete this color?"
+          title={t('manager:products.colorTable.deleteConfirm')}
           onConfirm={() => handleDelete(record.key)}
-          okText="Yes"
-          cancelText="No"
+          okText={t('manager:products.confirm.deleteOk')}
+          cancelText={t('manager:products.confirm.deleteCancel')}
         >
           <Button danger icon={<DeleteOutlined />} size="small" />
         </Popconfirm>
@@ -111,7 +113,7 @@ const ColorTable = ({ value = [], onChange }) => {
         columns={columns}
         pagination={false}
         size="small"
-        locale={{ emptyText: 'No colors added. Products can have multiple color options.' }}
+        locale={{ emptyText: t('manager:products.colorTable.noColors') }}
       />
       <Button
         type="dashed"
@@ -119,7 +121,7 @@ const ColorTable = ({ value = [], onChange }) => {
         icon={<PlusOutlined />}
         style={{ width: '100%', marginTop: 16 }}
       >
-        Add Color
+        {t('manager:products.colorTable.addColor')}
       </Button>
     </div>
   );

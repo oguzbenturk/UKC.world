@@ -34,11 +34,13 @@ import ServiceDetailModal from '../components/ServiceDetailModal';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
+import { useTranslation } from 'react-i18next';
 
 
 
 // eslint-disable-next-line complexity
 function Services() {
+  const { t } = useTranslation(['manager']);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { formatCurrency, businessCurrency } = useCurrency();
@@ -150,31 +152,31 @@ function Services() {
   // Service Categories Configuration (memoized)
   const serviceCategories = React.useMemo(() => ({
     all: {
-      title: 'All Services',
+      title: t('manager:services.categories.all'),
       icon: <AppstoreOutlined />,
       color: 'var(--brand-primary)'
     },
     accommodation: {
-      title: 'Accommodation',
+      title: t('manager:services.categories.accommodation'),
       icon: <HomeOutlined />,
       color: '#fa8c16'
     },
     lesson: {
-      title: 'Lessons',
+      title: t('manager:services.categories.lesson'),
       icon: <BookOutlined />,
       color: 'var(--brand-success)'
     },
     rental: {
-      title: 'Rentals',
+      title: t('manager:services.categories.rental'),
       icon: <ToolOutlined />,
       color: '#eb2f96'
     },
     sales: {
-      title: 'Shop',
+      title: t('manager:services.categories.sales'),
       icon: <ShoppingCartOutlined />,
       color: '#722ed1'
     }
-  }), []);
+  }), [t]);
 
   // Count services per category
   const serviceCounts = React.useMemo(() => {
@@ -209,7 +211,7 @@ function Services() {
         setCategories(Array.isArray(categoriesData) ? categoriesData : []);
         setError(null);
   } catch {
-        setError('Failed to load services. Please try again later.');
+        setError(t('manager:services.messages.loadError'));
       } finally {
         setLoading(false);
       }
@@ -253,9 +255,9 @@ function Services() {
   setServices(prev => [...prev, decorateService(newService)]);
       setFormDrawerVisible(false);
       setLessonModalOpen(false);
-      message.success('Service created successfully!');
+      message.success(t('manager:services.messages.created'));
     } catch (error) {
-      message.error(`Failed to create service: ${error.message}`);
+      message.error(t('manager:services.messages.createError', { error: error.message }));
     } finally {
       setLoading(false);
     }
@@ -273,9 +275,9 @@ function Services() {
       setFormDrawerVisible(false);
       setEditMode(false);
       setSelectedService(null);
-      message.success('Service updated successfully!');
+      message.success(t('manager:services.messages.updated'));
     } catch (error) {
-      message.error(`Failed to update service: ${error.message}`);
+      message.error(t('manager:services.messages.updateError', { error: error.message }));
     } finally {
       setLoading(false);
     }
@@ -288,9 +290,9 @@ function Services() {
       setServices(prev => prev.filter(service => service.id !== id));
       setConfirmDeleteVisible(false);
       setSelectedService(null);
-      message.success('Service deleted successfully!');
+      message.success(t('manager:services.messages.deleted'));
     } catch (error) {
-      message.error(`Failed to delete service: ${error.message}`);
+      message.error(t('manager:services.messages.deleteError', { error: error.message }));
     } finally {
       setLoading(false);
     }
@@ -322,7 +324,7 @@ function Services() {
     setCart(prev => [...prev, { ...bookingDetails, _uid: uid }]);
     message.success(
       <span>
-        Added to cart! <a onClick={() => setCartDrawerVisible(true)}>View Cart</a>
+        {t('manager:services.messages.addedToCart')} <a onClick={() => setCartDrawerVisible(true)}>{t('manager:services.messages.viewCart')}</a>
       </span>,
       5
     );
@@ -330,7 +332,7 @@ function Services() {
   
   const handleRemoveFromCart = (index) => {
     setCart(prev => prev.filter((_, i) => i !== index));
-    message.success('Item removed from cart');
+    message.success(t('manager:services.messages.removedFromCart'));
   };
   
   const handleCheckout = () => {
@@ -338,7 +340,7 @@ function Services() {
     navigate('/checkout', { state: { items: cart } });
     setCartDrawerVisible(false);
     setCart([]);
-    message.success('Proceeding to checkout...');
+    message.success(t('manager:services.messages.proceedingToCheckout'));
   };
 
   const hasPermissionToEdit = ['admin', 'manager'].includes(user?.role);
@@ -366,16 +368,16 @@ function Services() {
   );
 
   const categoryTitle = selectedCategory === 'all'
-    ? 'All Services'
-    : serviceCategories[selectedCategory]?.title ?? 'Services';
+    ? t('manager:services.allServices')
+    : serviceCategories[selectedCategory]?.title ?? t('manager:services.title');
 
   const heroStats = React.useMemo(
     () => ([
-      { label: 'Total', value: services.length, hint: 'Catalog items' },
-      { label: 'Categories', value: categoryCount, hint: 'Types offered' },
-      { label: 'In cart', value: cart.length, hint: 'Awaiting checkout' }
+      { label: t('manager:services.stats.total'), value: services.length, hint: t('manager:services.stats.catalogItems') },
+      { label: t('manager:services.stats.categories'), value: categoryCount, hint: t('manager:services.stats.typesOffered') },
+      { label: t('manager:services.stats.inCart'), value: cart.length, hint: t('manager:services.stats.awaitingCheckout') }
     ]),
-    [cart.length, categoryCount, services.length]
+    [cart.length, categoryCount, services.length, t]
   );
 
   const heroDescription = React.useMemo(() => {
@@ -393,7 +395,7 @@ function Services() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
           <div className="flex-1 space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-white/80 shadow-sm">
-              <AppstoreOutlined /> Services Console
+              <AppstoreOutlined /> {t('manager:services.consoleLabel')}
             </div>
             <div className="space-y-3">
               <h1 className="text-3xl font-semibold leading-tight">{categoryTitle}</h1>
@@ -413,7 +415,7 @@ function Services() {
             </div>
           </div>
           <div className="mt-6 flex w-full max-w-xs flex-col gap-3 rounded-3xl border border-white/18 bg-white/14 p-5 backdrop-blur-xl shadow-[0_16px_36px_rgba(14,58,190,0.32)] lg:mt-0 lg:w-80">
-            <p className="text-sm text-white/80">Manage services, organize offerings, and finalize bookings.</p>
+            <p className="text-sm text-white/80">{t('manager:services.manageDesc')}</p>
             {cart.length > 0 && (
               <Button
                 type="primary"
@@ -421,7 +423,7 @@ function Services() {
                 onClick={() => setCartDrawerVisible(true)}
                 className="h-11 rounded-2xl border-0 bg-white text-sky-600 shadow-[0_10px_25px_rgba(11,78,240,0.35)] transition hover:bg-slate-100"
               >
-                Open cart ({cart.length})
+                {t('manager:services.actions.openCart', { count: cart.length })}
               </Button>
             )}
             {hasPermissionToEdit && (
@@ -439,7 +441,7 @@ function Services() {
                 }}
                 className="h-11 rounded-2xl border-white/45 text-white shadow-[0_8px_22px_rgba(255,255,255,0.22)] hover:bg-white/15"
               >
-                Create service
+                {t('manager:services.actions.createService')}
               </Button>
             )}
           </div>
@@ -448,7 +450,7 @@ function Services() {
 
       {error && (
         <Alert
-          message="Unable to load services"
+          message={t('manager:services.messages.loadError')}
           description={error}
           type="error"
           showIcon
@@ -487,7 +489,7 @@ function Services() {
 
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <Input
-            placeholder="Search services..."
+            placeholder={t('manager:services.search.placeholder')}
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -498,7 +500,7 @@ function Services() {
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
             <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
               <SearchOutlined className="text-xs" />
-              Live filter
+              {t('manager:services.search.liveFilter')}
             </span>
             <span>{heroDescription}</span>
           </div>
@@ -527,7 +529,7 @@ function Services() {
             <Empty
               description={
                 <span>
-                  No services found in this category. {hasPermissionToEdit && 'Create a new service to get started.'}
+                  {t('manager:services.empty.noServices')} {hasPermissionToEdit && t('manager:services.empty.createPrompt')}
                 </span>
               }
               image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -547,7 +549,7 @@ function Services() {
                   }}
                   className="rounded-2xl"
                 >
-                  Create service
+                  {t('manager:services.actions.createService')}
                 </Button>
               )}
             </Empty>
@@ -557,7 +559,7 @@ function Services() {
 
       {/* Create/Edit Form Drawer */}
       <Drawer
-        title={editMode ? "Edit Service" : "Create New Service"}
+        title={editMode ? t('manager:services.drawer.editTitle') : t('manager:services.drawer.createTitle')}
         placement="right"
         width={800}
         onClose={() => setFormDrawerVisible(false)}
@@ -591,15 +593,15 @@ function Services() {
       
       {/* Delete Confirmation Modal */}
       <Modal
-        title="Delete Service"
+        title={t('manager:services.delete.title')}
         open={confirmDeleteVisible}
         onCancel={() => setConfirmDeleteVisible(false)}
         onOk={() => handleDeleteService(selectedService?.id)}
-        okText="Delete"
+        okText={t('manager:services.delete.title')}
         okButtonProps={{ danger: true }}
       >
-        <p>Are you sure you want to delete "{selectedService?.name}"?</p>
-        <p className="text-red-600">This action cannot be undone.</p>
+        <p>{t('manager:services.delete.confirm', { name: selectedService?.name })}</p>
+        <p className="text-red-600">{t('manager:services.delete.warning')}</p>
       </Modal>
       
       {/* Shopping Cart Drawer */}
@@ -607,7 +609,7 @@ function Services() {
         title={
           <div className="flex items-center">
             <ShoppingCartOutlined className="mr-2 text-lg" />
-            <span>Your Cart ({cart.length} items)</span>
+            <span>{t('manager:services.cart.title', { count: cart.length })}</span>
           </div>
         }
         placement="right"
@@ -617,7 +619,7 @@ function Services() {
         footer={
           <div className="flex flex-col gap-4">
             <div className="flex justify-between text-lg font-bold">
-              <span>Total:</span>
+              <span>{t('manager:services.cart.total')}</span>
               <span>{formatCurrency(cart.reduce((total, item) => total + Number(item.price || 0), 0), cart[0]?.currency || businessCurrency || 'EUR')}</span>
             </div>
             <Button 
@@ -627,18 +629,18 @@ function Services() {
               onClick={handleCheckout}
               disabled={cart.length === 0}
             >
-              Proceed to Checkout
+              {t('manager:services.actions.proceedToCheckout')}
             </Button>
           </div>
         }
       >
         {cart.length === 0 ? (
-          <Empty description="Your cart is empty" />
+          <Empty description={t('manager:services.cart.empty')} />
         ) : (
           <div className="space-y-4">
             {cart.map((item, index) => (
               <div key={item._uid || `${item.serviceName || 'svc'}-${item.price || '0'}-${item.time || ''}-${item.date || ''}`} className="border border-gray-200 rounded-md p-3 relative">
-                <Tag color="blue" className="mb-2">{item.isPackage ? 'Package' : 'Single Session'}</Tag>
+                <Tag color="blue" className="mb-2">{item.isPackage ? t('manager:services.cart.package') : t('manager:services.cart.singleSession')}</Tag>
                 <h4 className="font-medium">{item.serviceName}</h4>
                 
                 {item.date && item.time && (
@@ -657,7 +659,7 @@ function Services() {
                     size="small" 
                     onClick={() => handleRemoveFromCart(index)}
                   >
-                    Remove
+                    {t('manager:services.cart.remove')}
                   </Button>
                 </div>
               </div>
@@ -667,10 +669,10 @@ function Services() {
               message={
                 <span className="flex items-center">
                   <InfoCircleOutlined className="mr-2" />
-                  Booking Information
+                  {t('manager:services.cart.bookingInfo')}
                 </span>
               }
-              description="You'll be able to choose user details and confirm your booking on the next step."
+              description={t('manager:services.cart.bookingInfoDesc')}
               type="info"
               showIcon={false}
             />

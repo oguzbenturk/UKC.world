@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, DatePicker, Space, Button, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import RentalAnalytics from '../components/RentalAnalytics';
@@ -16,36 +17,16 @@ const accentStyles = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
-// Quick date range presets
-const getQuickRanges = () => ({
-  today: {
-    label: 'Today',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().format('YYYY-MM-DD')
-  },
-  thisWeek: {
-    label: 'This Week',
-    startDate: dayjs().startOf('week').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('week').format('YYYY-MM-DD')
-  },
-  thisMonth: {
-    label: 'This Month',
-    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-  },
-  thisYear: {
-    label: 'This Year',
-    startDate: dayjs().startOf('year').format('YYYY-MM-DD'),
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  },
-  allHistory: {
-    label: 'All History',
-    startDate: '2020-01-01',
-    endDate: dayjs().endOf('year').format('YYYY-MM-DD')
-  }
-});
-
 const FinanceRentals = () => {
+  const { t } = useTranslation(['manager']);
+
+  const getQuickRanges = () => ({
+    today: { label: t('manager:finances.overview.quickRanges.today'), startDate: dayjs().format('YYYY-MM-DD'), endDate: dayjs().format('YYYY-MM-DD') },
+    thisWeek: { label: t('manager:finances.overview.quickRanges.thisWeek'), startDate: dayjs().startOf('week').format('YYYY-MM-DD'), endDate: dayjs().endOf('week').format('YYYY-MM-DD') },
+    thisMonth: { label: t('manager:finances.overview.quickRanges.thisMonth'), startDate: dayjs().startOf('month').format('YYYY-MM-DD'), endDate: dayjs().endOf('month').format('YYYY-MM-DD') },
+    thisYear: { label: t('manager:finances.overview.quickRanges.thisYear'), startDate: dayjs().startOf('year').format('YYYY-MM-DD'), endDate: dayjs().endOf('year').format('YYYY-MM-DD') },
+    allHistory: { label: t('manager:finances.overview.quickRanges.allHistory'), startDate: '2020-01-01', endDate: dayjs().endOf('year').format('YYYY-MM-DD') }
+  });
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [dateRange, setDateRange] = useState({
@@ -104,10 +85,10 @@ const FinanceRentals = () => {
   const headlineStats = useMemo(() => {
     if (!summaryData) {
       return [
-        { key: 'revenue', label: 'Rental Revenue', value: '--', accent: 'orange' },
-        { key: 'count', label: 'Total Rentals', value: '--', accent: 'emerald' },
-        { key: 'avg', label: 'Avg Rental Value', value: '--', accent: 'slate' },
-        { key: 'debt', label: 'Outstanding', value: '--', accent: 'amber' },
+        { key: 'revenue', label: t('manager:financePages.rentals.stats.rentalRevenue'), value: '--', accent: 'orange' },
+        { key: 'count', label: t('manager:financePages.rentals.stats.totalRentals'), value: '--', accent: 'emerald' },
+        { key: 'avg', label: t('manager:financePages.rentals.stats.avgRentalValue'), value: '--', accent: 'slate' },
+        { key: 'debt', label: t('manager:financePages.rentals.stats.outstanding'), value: '--', accent: 'amber' },
       ];
     }
     const revenue = summaryData.revenue || {};
@@ -117,10 +98,10 @@ const FinanceRentals = () => {
     const debt = Number(balances.total_customer_debt || 0);
     const avgValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
     return [
-      { key: 'revenue', label: 'Rental Revenue', value: formatCurrency(rentalRevenue), accent: 'orange' },
-      { key: 'count', label: 'Total Rentals', value: rentalCount.toLocaleString(), accent: 'emerald' },
-      { key: 'avg', label: 'Avg Rental Value', value: formatCurrency(avgValue), accent: 'slate' },
-      { key: 'debt', label: 'Outstanding', value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
+      { key: 'revenue', label: t('manager:financePages.rentals.stats.rentalRevenue'), value: formatCurrency(rentalRevenue), accent: 'orange' },
+      { key: 'count', label: t('manager:financePages.rentals.stats.totalRentals'), value: rentalCount.toLocaleString(), accent: 'emerald' },
+      { key: 'avg', label: t('manager:financePages.rentals.stats.avgRentalValue'), value: formatCurrency(avgValue), accent: 'slate' },
+      { key: 'debt', label: t('manager:financePages.rentals.stats.outstanding'), value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
     ];
   }, [summaryData]);
 
@@ -130,10 +111,10 @@ const FinanceRentals = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-slate-900">Rental Finance</h1>
-              <Tag color="orange" className="text-xs font-medium">Rental</Tag>
+              <h1 className="text-2xl font-semibold text-slate-900">{t('manager:financePages.rentals.title')}</h1>
+              <Tag color="orange" className="text-xs font-medium">{t('manager:financePages.rentals.tag')}</Tag>
             </div>
-            <p className="text-sm text-slate-500">Equipment Rental Revenue · {rangeLabel}</p>
+            <p className="text-sm text-slate-500">{t('manager:financePages.rentals.subtitle', { range: rangeLabel })}</p>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
@@ -201,7 +182,7 @@ const FinanceRentals = () => {
       </Card>
 
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-slate-900">Rental Revenue Analytics</h3>
+        <h3 className="mb-4 text-lg font-semibold text-slate-900">{t('manager:financePages.rentals.analyticsTitle')}</h3>
         <RentalAnalytics
           summaryData={summaryData}
           chartData={[]}

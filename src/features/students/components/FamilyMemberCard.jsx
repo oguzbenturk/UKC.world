@@ -7,6 +7,7 @@
 
 import { memo } from 'react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 import {
   Avatar,
   Button,
@@ -80,7 +81,7 @@ const familyMemberPropType = PropTypes.shape({
   waiver_message: PropTypes.string,
 });
 
-const resolveWaiverDisplay = (member) => {
+const resolveWaiverDisplay = (member, t) => {
   if (!member) {
     return {
       requiresAction: false,
@@ -97,23 +98,23 @@ const resolveWaiverDisplay = (member) => {
   if (isSignedAndCurrent) {
     statusTag = (
       <Tag icon={<SafetyCertificateOutlined />} color="success">
-        Waiver Up to Date
+        {t('student:family.memberCard.waiver.upToDate')}
       </Tag>
     );
   } else if (requiresAction) {
-    const message = member.waiver_is_expired
-      ? 'Waiver Expired'
+    const waiverMsg = member.waiver_is_expired
+      ? t('student:family.memberCard.waiver.expired')
       : member.waiver_needs_new_version
-        ? 'New Version Required'
-        : 'Waiver Pending';
+        ? t('student:family.memberCard.waiver.newVersionRequired')
+        : t('student:family.memberCard.waiver.pending');
 
     statusTag = (
       <Tag icon={<WarningOutlined />} color={member.waiver_is_expired ? 'red' : 'warning'}>
-        {message}
+        {waiverMsg}
       </Tag>
     );
   } else if (isUnknown) {
-    statusTag = <Tag color="default">Waiver Status Unknown</Tag>;
+    statusTag = <Tag color="default">{t('student:family.memberCard.waiver.unknown')}</Tag>;
   }
 
   return {
@@ -126,7 +127,8 @@ const resolveWaiverDisplay = (member) => {
 };
 
 const WaiverSection = ({ member, onSignWaiver }) => {
-  const waiverDisplay = resolveWaiverDisplay(member);
+  const { t } = useTranslation(['student']);
+  const waiverDisplay = resolveWaiverDisplay(member, t);
   const canSign = typeof onSignWaiver === 'function' && waiverDisplay.showSignButton;
 
   return (
@@ -141,13 +143,13 @@ const WaiverSection = ({ member, onSignWaiver }) => {
           onClick={() => onSignWaiver(member)}
           className="mt-1 rounded-lg"
         >
-          Sign Waiver
+          {t('student:family.memberCard.waiver.signButton')}
         </Button>
       )}
 
       {!waiverDisplay.requiresAction && member?.waiver_last_signed && (
         <Text className="text-xs text-slate-400 dark:text-slate-500">
-          Last signed on {familyApi.formatDate(member.waiver_last_signed)}
+          {t('student:family.memberCard.waiver.lastSigned', { date: familyApi.formatDate(member.waiver_last_signed) })}
         </Text>
       )}
 
@@ -170,15 +172,15 @@ WaiverSection.defaultProps = {
   onSignWaiver: undefined,
 };
 
-const buildCardActions = (member, onEdit, onDelete, onSignWaiver, onViewActivity) => {
-  const waiverDisplay = resolveWaiverDisplay(member);
+const buildCardActions = (member, onEdit, onDelete, onSignWaiver, onViewActivity, t) => {
+  const waiverDisplay = resolveWaiverDisplay(member, t);
   const includeSign = typeof onSignWaiver === 'function' && waiverDisplay.showSignButton;
 
   const actions = [];
 
   if (typeof onViewActivity === 'function') {
     actions.push(
-      <Tooltip title="View activity" key="activity">
+      <Tooltip title={t('student:family.memberCard.tooltips.viewActivity')} key="activity">
         <Button
           type="text"
           icon={<HistoryOutlined />}
@@ -192,7 +194,7 @@ const buildCardActions = (member, onEdit, onDelete, onSignWaiver, onViewActivity
 
   if (includeSign) {
     actions.push(
-      <Tooltip title="Sign waiver" key="sign">
+      <Tooltip title={t('student:family.memberCard.tooltips.signWaiver')} key="sign">
         <Button
           type="text"
           icon={<FormOutlined />}
@@ -205,7 +207,7 @@ const buildCardActions = (member, onEdit, onDelete, onSignWaiver, onViewActivity
   }
 
   actions.push(
-    <Tooltip title="Edit" key="edit">
+    <Tooltip title={t('student:family.memberCard.tooltips.edit')} key="edit">
       <Button
         type="text"
         icon={<EditOutlined />}
@@ -217,7 +219,7 @@ const buildCardActions = (member, onEdit, onDelete, onSignWaiver, onViewActivity
   );
 
   actions.push(
-    <Tooltip title="Remove" key="delete">
+    <Tooltip title={t('student:family.memberCard.tooltips.remove')} key="delete">
       <Button
         type="text"
         danger
@@ -232,6 +234,7 @@ const buildCardActions = (member, onEdit, onDelete, onSignWaiver, onViewActivity
 };
 
 const FamilyMemberCard = memo(({ member, onEdit, onDelete, onSignWaiver, onViewActivity }) => {
+  const { t } = useTranslation(['student']);
   const age = familyApi.calculateAge(member.date_of_birth);
   const formattedBirthday = familyApi.formatDate(member.date_of_birth);
 
@@ -239,7 +242,7 @@ const FamilyMemberCard = memo(({ member, onEdit, onDelete, onSignWaiver, onViewA
   const relationshipIcon = relationshipIcons[member.relationship] || '👤';
   const relationshipGradient = relationshipGradients[member.relationship] || relationshipGradients.other;
 
-  const cardActions = buildCardActions(member, onEdit, onDelete, onSignWaiver, onViewActivity);
+  const cardActions = buildCardActions(member, onEdit, onDelete, onSignWaiver, onViewActivity, t);
 
   return (
     <motion.div
@@ -309,7 +312,7 @@ const FamilyMemberCard = memo(({ member, onEdit, onDelete, onSignWaiver, onViewA
           {/* Age and Gender */}
           <Space size="small" className="mb-2">
             <Text className="text-slate-500 dark:text-slate-400">
-              {age} {age === 1 ? 'year' : 'years'} old
+              {t('student:family.memberCard.yearsOld', { count: age })}
             </Text>
             {member.gender && member.gender !== 'prefer_not_to_say' && (
               <>
@@ -333,7 +336,7 @@ const FamilyMemberCard = memo(({ member, onEdit, onDelete, onSignWaiver, onViewA
                 className="mt-3 cursor-help rounded-full"
                 style={{ maxWidth: '100%' }}
               >
-                <span className="truncate">Has medical notes</span>
+                <span className="truncate">{t('student:family.memberCard.hasMedicalNotes')}</span>
               </Tag>
             </Tooltip>
           )}

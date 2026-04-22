@@ -1,8 +1,10 @@
 // src/components/EquipmentDetail.jsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { getStatusColor } from '@/shared/utils/formatters';
 
 function EquipmentDetail({ equipment, onEdit, onBack }) {
+  const { t } = useTranslation(['manager']);
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -17,41 +19,41 @@ function EquipmentDetail({ equipment, onEdit, onBack }) {
 
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Brand</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.brand')}</h3>
               <p className="mt-1 text-sm text-gray-900">{equipment.brand}</p>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Type</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.type')}</h3>
               <p className="mt-1 text-sm text-gray-900">{equipment.type}</p>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Size</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.size')}</h3>
               <p className="mt-1 text-sm text-gray-900">{equipment.size}</p>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Specifications</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.specifications')}</h3>
               <p className="mt-1 text-sm text-gray-900">
                 {equipment.type === 'kite' ? `${equipment.specifications} m²` : equipment.specifications}
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Wind Range</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.windRange')}</h3>
               <p className="mt-1 text-sm text-gray-900">
-                {equipment.windRangeLow} - {equipment.windRangeHigh} knots
+                {t('manager:equipmentPage.detail.windRangeValue', { low: equipment.windRangeLow, high: equipment.windRangeHigh })}
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Serial Number</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.serialNumber')}</h3>
               <p className="mt-1 text-sm text-gray-900">{equipment.serialNumber}</p>
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Purchase Date</h3>
+              <h3 className="text-sm font-medium text-gray-500">{t('manager:equipmentPage.detail.purchaseDate')}</h3>
               <p className="mt-1 text-sm text-gray-900">
                 {new Date(equipment.purchaseDate).toLocaleDateString()}
               </p>
@@ -60,7 +62,7 @@ function EquipmentDetail({ equipment, onEdit, onBack }) {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Maintenance History</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('manager:equipmentPage.detail.maintenanceHistory')}</h3>
           {equipment.maintenanceHistory && equipment.maintenanceHistory.length > 0 ? (
             <div className="space-y-4">
               {equipment.maintenanceHistory.map((record, index) => (
@@ -74,7 +76,7 @@ function EquipmentDetail({ equipment, onEdit, onBack }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">No maintenance history available</p>
+            <p className="text-sm text-gray-500">{t('manager:equipmentPage.detail.noMaintenance')}</p>
           )}
         </div>
       </div>
@@ -84,14 +86,14 @@ function EquipmentDetail({ equipment, onEdit, onBack }) {
           className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
           onClick={onBack}
         >
-          Back to List
+          {t('manager:equipmentPage.detail.backToList')}
         </button>
         {onEdit && (
           <button
             className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700"
             onClick={() => onEdit(equipment.id)}
           >
-            Edit Equipment
+            {t('manager:equipmentPage.detail.editEquipment')}
           </button>
         )}
       </div>

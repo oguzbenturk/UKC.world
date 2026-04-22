@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import {
   Alert,
@@ -42,12 +43,12 @@ const createDefaultFilters = () => ({
   dateRange: [null, null]
 });
 
-const TYPE_FILTER_OPTIONS = [
-  { label: 'All', value: 'all' },
-  { label: 'Bookings', value: 'booking' },
-  { label: 'Rentals', value: 'rental' },
-  { label: 'Waivers', value: 'waiver' },
-  { label: 'Admin', value: 'audit' }
+const buildTypeFilterOptions = (t) => [
+  { label: t('student:family.activity.typeFilters.all'), value: 'all' },
+  { label: t('student:family.activity.typeFilters.booking'), value: 'booking' },
+  { label: t('student:family.activity.typeFilters.rental'), value: 'rental' },
+  { label: t('student:family.activity.typeFilters.waiver'), value: 'waiver' },
+  { label: t('student:family.activity.typeFilters.audit'), value: 'audit' }
 ];
 
 const iconByType = {
@@ -131,34 +132,34 @@ const toNumberOrNull = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
-const renderBookingMetadata = (metadata, formatCurrency) => {
+const renderBookingMetadata = (metadata, formatCurrency, t) => {
   const amount = toNumberOrNull(metadata.finalAmount ?? metadata.amount);
   const currency = metadata.currency || 'EUR';
   return (
     <Space direction="vertical" size={2} className="text-xs text-slate-600">
       {metadata.serviceName && (
-        <Text type="secondary">Service: {metadata.serviceName}</Text>
+        <Text type="secondary">{t('student:family.activity.metadata.service')} {metadata.serviceName}</Text>
       )}
       {metadata.instructorName && (
-        <Text type="secondary">Instructor: {metadata.instructorName}</Text>
+        <Text type="secondary">{t('student:family.activity.metadata.instructor')} {metadata.instructorName}</Text>
       )}
       {(metadata.startAt || metadata.endAt) && (
         <Space direction="vertical" size={0}>
           {metadata.startAt && (
-            <Text type="secondary">Starts: {formatDateTime(metadata.startAt)}</Text>
+            <Text type="secondary">{t('student:family.activity.metadata.starts')} {formatDateTime(metadata.startAt)}</Text>
           )}
           {metadata.endAt && (
-            <Text type="secondary">Ends: {formatDateTime(metadata.endAt)}</Text>
+            <Text type="secondary">{t('student:family.activity.metadata.ends')} {formatDateTime(metadata.endAt)}</Text>
           )}
         </Space>
       )}
       {(metadata.location || metadata.notes) && (
         <Space direction="vertical" size={0}>
           {metadata.location && (
-            <Text type="secondary">Location: {metadata.location}</Text>
+            <Text type="secondary">{t('student:family.activity.metadata.location')} {metadata.location}</Text>
           )}
           {metadata.notes && (
-            <Text type="secondary">Notes: {metadata.notes}</Text>
+            <Text type="secondary">{t('student:family.activity.metadata.notes')} {metadata.notes}</Text>
           )}
         </Space>
       )}
@@ -177,7 +178,7 @@ const renderBookingMetadata = (metadata, formatCurrency) => {
   );
 };
 
-const renderRentalMetadata = (metadata, formatCurrency) => {
+const renderRentalMetadata = (metadata, formatCurrency, t) => {
   const equipmentNames = Array.isArray(metadata.equipmentNames)
     ? metadata.equipmentNames.filter(Boolean)
     : [];
@@ -196,15 +197,15 @@ const renderRentalMetadata = (metadata, formatCurrency) => {
       {(metadata.startAt || metadata.endAt) && (
         <Space direction="vertical" size={0}>
           {metadata.startAt && (
-            <Text type="secondary">From: {formatDateTime(metadata.startAt)}</Text>
+            <Text type="secondary">{t('student:family.activity.metadata.from')} {formatDateTime(metadata.startAt)}</Text>
           )}
           {metadata.endAt && (
-            <Text type="secondary">Until: {formatDateTime(metadata.endAt)}</Text>
+            <Text type="secondary">{t('student:family.activity.metadata.until')} {formatDateTime(metadata.endAt)}</Text>
           )}
         </Space>
       )}
       {metadata.notes && (
-        <Text type="secondary">Notes: {metadata.notes}</Text>
+        <Text type="secondary">{t('student:family.activity.metadata.notes')} {metadata.notes}</Text>
       )}
       <Space size={4} wrap>
         {metadata.paymentStatus && (
@@ -221,28 +222,28 @@ const renderRentalMetadata = (metadata, formatCurrency) => {
   );
 };
 
-const renderWaiverMetadata = (metadata) => (
+const renderWaiverMetadata = (metadata, t) => (
   <Space direction="vertical" size={2} className="text-xs text-slate-600">
     <Space size={4} wrap>
       {metadata.languageCode && (
         <Tag color="blue">{metadata.languageCode.toUpperCase()}</Tag>
       )}
-      {metadata.agreedToTerms && <Tag color="green">Agreed to Terms</Tag>}
-      {metadata.photoConsent && <Tag color="gold">Photo Consent</Tag>}
+      {metadata.agreedToTerms && <Tag color="green">{t('student:family.activity.metadata.agreedToTerms')}</Tag>}
+      {metadata.photoConsent && <Tag color="gold">{t('student:family.activity.metadata.photoConsent')}</Tag>}
     </Space>
     {metadata.signedAt && (
-      <Text type="secondary">Signed: {formatDateTime(metadata.signedAt)}</Text>
+      <Text type="secondary">{t('student:family.activity.metadata.signed')} {formatDateTime(metadata.signedAt)}</Text>
     )}
     {(metadata.signedBy || metadata.signedByEmail) && (
       <Text type="secondary">
-        Signed by: {metadata.signedBy || 'Guardian'}
+        {t('student:family.activity.metadata.signedBy')} {metadata.signedBy || 'Guardian'}
         {metadata.signedByEmail ? ` (${metadata.signedByEmail})` : ''}
       </Text>
     )}
   </Space>
 );
 
-const renderAuditMetadata = (metadata) => {
+const renderAuditMetadata = (metadata, t) => {
   const nestedMetadata = metadata.metadata && typeof metadata.metadata === 'object'
     ? metadata.metadata
     : null;
@@ -250,30 +251,30 @@ const renderAuditMetadata = (metadata) => {
   return (
     <Space direction="vertical" size={2} className="text-xs text-slate-600">
       {metadata.eventType && (
-        <Text type="secondary">Event: {metadata.eventType}</Text>
+        <Text type="secondary">{t('student:family.activity.metadata.event')} {metadata.eventType}</Text>
       )}
       {(metadata.resourceType || metadata.resourceId) && (
         <Text type="secondary">
-          Resource: {metadata.resourceType || 'N/A'}
+          {t('student:family.activity.metadata.resource')} {metadata.resourceType || 'N/A'}
           {metadata.resourceId ? ` (${metadata.resourceId})` : ''}
         </Text>
       )}
       {(metadata.actorName || metadata.actorEmail) && (
         <Text type="secondary">
-          Actor: {metadata.actorName || 'System'}
+          {t('student:family.activity.metadata.actor')} {metadata.actorName || 'System'}
           {metadata.actorEmail ? ` (${metadata.actorEmail})` : ''}
         </Text>
       )}
       {nestedMetadata && Object.keys(nestedMetadata).length > 0 && (
         <Text type="secondary" className="block">
-          Details: {JSON.stringify(nestedMetadata)}
+          {t('student:family.activity.metadata.details')} {JSON.stringify(nestedMetadata)}
         </Text>
       )}
     </Space>
   );
 };
 
-const renderMetadata = (event, formatCurrency) => {
+const renderMetadata = (event, formatCurrency, t) => {
   const metadata = event?.metadata;
   if (!metadata || typeof metadata !== 'object') {
     return null;
@@ -281,19 +282,20 @@ const renderMetadata = (event, formatCurrency) => {
 
   switch (event.type) {
     case 'booking':
-      return renderBookingMetadata(metadata, formatCurrency);
+      return renderBookingMetadata(metadata, formatCurrency, t);
     case 'rental':
-      return renderRentalMetadata(metadata, formatCurrency);
+      return renderRentalMetadata(metadata, formatCurrency, t);
     case 'waiver':
-      return renderWaiverMetadata(metadata);
+      return renderWaiverMetadata(metadata, t);
     case 'audit':
-      return renderAuditMetadata(metadata);
+      return renderAuditMetadata(metadata, t);
     default:
       return null;
   }
 };
 
 const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
+  const { t } = useTranslation(['student']);
   const [state, setState] = useState(createDefaultState);
   const [filters, setFilters] = useState(createDefaultFilters);
   const [loading, setLoading] = useState(false);
@@ -305,7 +307,9 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
   filtersRef.current = filters;
 
   const memberId = member?.id;
-  const drawerTitle = member?.full_name ? `${member.full_name}'s Activity` : 'Family Activity';
+  const drawerTitle = member?.full_name
+    ? t('student:family.activity.drawerTitle', { name: member.full_name })
+    : t('student:family.activity.drawerTitleGeneric');
   const hasActiveFilters = filters.type !== 'all' || (filters.dateRange?.[0] && filters.dateRange?.[1]);
 
   const handleTypeChange = (value) => {
@@ -382,7 +386,7 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
         };
       });
     } catch (apiError) {
-      setError(apiError.message || 'Unable to load activity history');
+      setError(apiError.message || t('student:family.activity.loadError'));
     } finally {
       setLoading(false);
     }
@@ -430,7 +434,7 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
             {event.subtitle && (
               <Text type="secondary">{event.subtitle}</Text>
             )}
-            {renderMetadata(event, formatCurrency)}
+            {renderMetadata(event, formatCurrency, t)}
           </Space>
         </div>
       )
@@ -446,14 +450,14 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
       destroyOnHidden
       extra={(
         <Button type="link" icon={<ReloadOutlined />} onClick={handleRefresh} disabled={loading || !memberId}>
-          Refresh
+          {t('student:family.activity.refreshButton')}
         </Button>
       )}
     >
       {error && (
         <Alert
           type="error"
-          message="Failed to load activity"
+          message={t('student:family.activity.loadError')}
           description={error}
           showIcon
           closable
@@ -464,7 +468,7 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented
-          options={TYPE_FILTER_OPTIONS}
+          options={buildTypeFilterOptions(t)}
           value={filters.type}
           onChange={handleTypeChange}
           size="middle"
@@ -478,19 +482,19 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
         />
         {hasActiveFilters && (
           <Button type="link" size="small" onClick={handleResetFilters}>
-            Reset filters
+            {t('student:family.activity.resetFilters')}
           </Button>
         )}
       </div>
 
-      <Spin spinning={loading && state.items.length === 0} tip="Fetching activity...">
+      <Spin spinning={loading && state.items.length === 0} tip={t('student:family.activity.fetching')}>
         {state.items.length > 0 ? (
           <>
             <Timeline mode="left" items={timelineItems} className="pr-2" />
             {state.hasMore && (
               <div className="mt-4 flex justify-center">
                 <Button onClick={handleLoadMore} loading={loading} disabled={loading}>
-                  Load older activity
+                  {t('student:family.activity.loadOlder')}
                 </Button>
               </div>
             )}
@@ -499,7 +503,7 @@ const FamilyMemberActivity = ({ open, onClose, userId, member }) => {
           !loading && (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No activity recorded yet"
+              description={t('student:family.activity.noActivity')}
             />
           )
         )}
