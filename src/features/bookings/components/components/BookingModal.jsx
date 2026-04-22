@@ -152,9 +152,9 @@ const BookingModal = ({ isOpen, onClose }) => {
       serviceName: serviceName,
       userId: formData.isNewUser ? null : formData.userId,
       user: {
-        name: formData.userName,
-        email: formData.userEmail || '',
-        phone: formData.userPhone || '',
+        name: formData.name,
+        email: formData.email || '',
+        phone: formData.phone || '',
         notes: formData.notes || ''
       },
       price: servicePrice,
