@@ -115,6 +115,7 @@
     "servicesSettings": "Services Settings",
     "marketing": "Marketing",
     "ratingAnalytics": "Rating Analytics",
+    "windReport": "Wind Report",
     "walletPayments": "Wallet Payments",
     "support": "Support",
     "profile": "Profile",
@@ -762,5 +763,112 @@
     "send": "Send",
     "online": "Online",
     "offline": "Offline"
+  },
+  "windReport": {
+    "title": "Wind Report",
+    "subtitle": "Live conditions across İzmir & Çanakkale",
+    "refresh": "Refresh",
+    "dateLabel": "Forecast date",
+    "loading": "Loading forecast…",
+    "error": "Could not load wind data. Please try again.",
+    "unit": { "knots": "kt", "kmh": "km/h", "ms": "m/s" },
+    "spots": {
+      "alacati": "Alaçatı",
+      "pirlanta": "Pırlanta Kitesurf Beach",
+      "gulbahce": "Urla – Gülbahçe",
+      "gokceada": "Gökçeada"
+    },
+    "metrics": {
+      "wind": "Wind",
+      "gusts": "Gusts",
+      "direction": "Direction",
+      "temp": "Temperature",
+      "clouds": "Cloud cover",
+      "peak": "Peak",
+      "peakAt": "Peak at",
+      "avg": "Avg",
+      "hourly": "Hourly forecast"
+    },
+    "sources": {
+      "a": "ECMWF",
+      "b": "GFS",
+      "servedBy": "via Windguru",
+      "modelA": "ECMWF · European model",
+      "modelB": "GFS · American model"
+    },
+    "agreement": {
+      "title": "Model agreement",
+      "strong": "Strong agreement",
+      "moderate": "Moderate agreement",
+      "divergent": "Models diverge — take with caution"
+    },
+    "kiteSizer": {
+      "title": "Your kite size",
+      "weight": "Rider weight",
+      "recommended": "Recommended",
+      "range": "Suggested range",
+      "info": "Sizing based on the Duotone Kiteboarding chart (5–15 m²). Adjusts to the selected hour's wind.",
+      "brand": "Duotone Kiteboarding"
+    },
+    "updated": "Updated",
+    "legend": "Wind scale",
+    "clickHint": "Tap any hour in the timeline for details",
+    "when": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "days": "days"
+    },
+    "skill": {
+      "flat": "Flat",
+      "light": "Light",
+      "beginner": "Beginner",
+      "ideal": "Ideal",
+      "strong": "Strong",
+      "expert": "Expert only"
+    },
+    "verdict": {
+      "sessionWindow": "Session window",
+      "steady": "Steady {{dir}} at {{avg}} kn, peak {{peak}} kn around {{peakTime}}.",
+      "rising": "Building {{dir}} from {{start}} kn to {{peak}} kn by {{peakTime}}.",
+      "falling": "Dropping from {{peak}} kn at {{peakTime}} to {{end}} kn by sunset.",
+      "gusty": "Gusty {{dir}} — {{avg}} kn average with gusts to {{peakGust}} kn.",
+      "tooLight": "Too light — peak only {{peak}} kn. Foil or wing if anything."
+    },
+    "detail": {
+      "humidity": "Humidity",
+      "pressure": "Pressure",
+      "precip": "Precipitation"
+    },
+    "guide": {
+      "scaleTitle": "Wind scale · what's rideable",
+      "decoderTitle": "How to read this table",
+      "bands": {
+        "flat":     "Flat",
+        "light":    "Too light",
+        "beginner": "Beginner",
+        "ideal":    "Ideal",
+        "strong":   "Strong",
+        "expert":   "Expert only"
+      },
+      "columns": {
+        "date":  { "abbr": "Date",  "label": "Day & hour (local time)" },
+        "wspd":  { "abbr": "WSPD",  "label": "Average wind speed" },
+        "gust":  { "abbr": "GUST",  "label": "Gust strength — higher = trickier" },
+        "wdirn": { "abbr": "WDIRN", "label": "Where wind blows FROM (N, S, E, W…)" },
+        "wdeg":  { "abbr": "WDEG",  "label": "Direction in degrees (0–360°)" },
+        "tmp":   { "abbr": "TMP",   "label": "Air temperature (°C)" },
+        "slp":   { "abbr": "SLP",   "label": "Sea-level pressure (hPa)" },
+        "hcld":  { "abbr": "HCLD",  "label": "High cloud cover (%)" }
+      }
+    },
+    "summary": {
+      "stableSunny": "Steady {{dir}} breeze under clear skies — textbook conditions, expect clean power delivery all session.",
+      "stableCloudy": "Consistent {{dir}} flow under overcast skies; power stays even but watch for thermal breaks late afternoon.",
+      "gustySunny": "Sunny with gust factor {{gust}} — plan for lulls, size down if riding unhooked.",
+      "gustyCloudy": "Cloudy and gusty, gust factor {{gust}}; experienced riders only, beginners stay inside the lagoon.",
+      "rising": "Wind building from {{start}} to {{peak}} kt — window opens around {{peakTime}}.",
+      "falling": "Wind dropping off after {{peakTime}} — plan sessions earlier.",
+      "tooLight": "Sub-kiteable today (peak {{peak}} kt). Foil or wing if at all."
+    }
   }
 }

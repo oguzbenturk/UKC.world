@@ -43,7 +43,8 @@ import {
   DocumentTextIcon,
   ArrowUturnLeftIcon,
   CreditCardIcon,
-  BuildingLibraryIcon
+  BuildingLibraryIcon,
+  CloudIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -184,7 +185,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     CalendarDaysIcon, CubeIcon, CogIcon, QuestionMarkCircleIcon, TrashIcon,
     PresentationChartBarIcon, BellAlertIcon, WrenchScrewdriverIcon, MegaphoneIcon,
     ChatBubbleLeftRightIcon, SparklesIcon, WalletIcon, LifebuoyIcon, UserCircleIcon,
-    EnvelopeIcon, RocketLaunchIcon, LinkIcon, DocumentTextIcon, ArrowUturnLeftIcon
+    EnvelopeIcon, RocketLaunchIcon, LinkIcon, DocumentTextIcon, ArrowUturnLeftIcon,
+    CloudIcon
   };
 
   let currentUser = undefined;

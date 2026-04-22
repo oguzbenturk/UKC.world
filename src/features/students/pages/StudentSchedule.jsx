@@ -135,6 +135,7 @@ const DETAIL_STATUS = {
 };
 
 const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
+  const { t } = useTranslation();
   if (!lesson || !meta) return null;
   const canReschedule = meta.status !== 'completed' && meta.status !== 'cancelled';
   const ds = DETAIL_STATUS[meta.status] || DETAIL_STATUS.scheduled;
@@ -251,6 +252,7 @@ const LessonDetailModal = ({ open, lesson, meta, onClose, onReschedule }) => {
 
 /* ── Lesson row ── */
 const LessonRow = ({ lesson, meta, onRowClick, enableActions, onAction, isFirst }) => {
+  const { t } = useTranslation();
   const disableReschedule = meta.status === 'completed';
 
   return (
@@ -331,6 +333,7 @@ const LessonsList = ({ lessons, loading, emptyMessage, enableActions, onAction, 
 
 /* ── Reschedule modal ── */
 const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -520,6 +523,7 @@ const RescheduleModal = ({ open, booking, onClose, onSubmit, submitting }) => {
 
 /* ── Main component ── */
 const StudentSchedule = () => {
+  const { t } = useTranslation();
   const { message, notification } = App.useApp();
   const outletContext = useOutletContext() ?? {};
   const overview = outletContext?.overview;

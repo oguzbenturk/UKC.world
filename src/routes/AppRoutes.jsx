@@ -182,6 +182,9 @@ const MyOrdersPage = lazyWithRetry(() => import('../features/students/pages/MyOr
 // Admin Members
 const AdminMembersPage = lazyWithRetry(() => import('../features/members/pages/AdminMembersPage'));
 
+// Wind Report
+const WindReportPage = lazyWithRetry(() => import('../features/wind-report/pages/WindReportPage'));
+
 import { hasPermission, ROLES, isShopStaff } from '../shared/utils/roleUtils';
 import { featureFlags } from '../shared/config/featureFlags';
 
@@ -416,6 +419,7 @@ const AppRoutes = () => {
         <Route path="/accommodation" element={<AccommodationBookingPage />} />
         <Route path="/repairs" element={<RepairsPage />} />
         <Route path="/shop/my-orders" element={<MyOrdersPage />} />
+        <Route path="/wind-report" element={<WindReportPage />} />
       </Route>
 
       {/* Dashboard routes for staff */}

@@ -2,6 +2,17 @@
   "brand": {
     "name": "Duotone Pro Center Urla"
   },
+  "home": {
+    "description": "Erleben Sie das ultimative Wassersport-Reiseziel. Erstklassige Kite-, Wing- und Foil-Kurse, Duotone-Ausrüstungsverleih und Luxusunterkünfte im Herzen von Urla.",
+    "discover": "ENTDECKEN",
+    "mute": "STUMM",
+    "unmute": "TON AN",
+    "lessons": "KURSE",
+    "rentals": "VERLEIH",
+    "shop": "SHOP",
+    "stay": "UNTERKUNFT",
+    "experience": "ERLEBNIS"
+  },
   "login": {
     "title": "Mitgliederlogin",
     "welcome": "Willkommen zurück bei {{brand}}.",

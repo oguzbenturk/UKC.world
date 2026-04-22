@@ -115,6 +115,7 @@
     "servicesSettings": "Diensteinstellungen",
     "marketing": "Marketing",
     "ratingAnalytics": "Bewertungs-Analytik",
+    "windReport": "Windbericht",
     "walletPayments": "Wallet-Zahlungen",
     "support": "Support",
     "profile": "Profil",
@@ -762,5 +763,112 @@
     "send": "Senden",
     "online": "Online",
     "offline": "Offline"
+  },
+  "windReport": {
+    "title": "Windbericht",
+    "subtitle": "Live-Bedingungen in İzmir & Çanakkale",
+    "refresh": "Aktualisieren",
+    "dateLabel": "Vorhersagedatum",
+    "loading": "Vorhersage wird geladen…",
+    "error": "Winddaten konnten nicht geladen werden. Bitte erneut versuchen.",
+    "unit": { "knots": "kn", "kmh": "km/h", "ms": "m/s" },
+    "spots": {
+      "alacati": "Alaçatı",
+      "pirlanta": "Pırlanta Kitesurf-Strand",
+      "gulbahce": "Urla – Gülbahçe",
+      "gokceada": "Gökçeada"
+    },
+    "metrics": {
+      "wind": "Wind",
+      "gusts": "Böen",
+      "direction": "Richtung",
+      "temp": "Temperatur",
+      "clouds": "Bewölkung",
+      "peak": "Spitze",
+      "peakAt": "Spitze um",
+      "avg": "Durchschnitt",
+      "hourly": "Stündliche Vorhersage"
+    },
+    "sources": {
+      "a": "ECMWF",
+      "b": "GFS",
+      "servedBy": "via Windguru",
+      "modelA": "ECMWF · europäisches Modell",
+      "modelB": "GFS · amerikanisches Modell"
+    },
+    "agreement": {
+      "title": "Modell-Übereinstimmung",
+      "strong": "Starke Übereinstimmung",
+      "moderate": "Moderate Übereinstimmung",
+      "divergent": "Modelle weichen ab — Vorsicht"
+    },
+    "kiteSizer": {
+      "title": "Deine Kite-Größe",
+      "weight": "Fahrergewicht",
+      "recommended": "Empfohlen",
+      "range": "Empfohlener Bereich",
+      "info": "Nach Duotone Kiteboarding Größentabelle (5–15 m²). Passt sich dem Wind der gewählten Stunde an.",
+      "brand": "Duotone Kiteboarding"
+    },
+    "updated": "Aktualisiert",
+    "legend": "Windskala",
+    "clickHint": "Tippe auf eine Stunde für Details",
+    "when": {
+      "today": "Heute",
+      "tomorrow": "Morgen",
+      "days": "Tage"
+    },
+    "skill": {
+      "flat": "Flaute",
+      "light": "Schwach",
+      "beginner": "Anfänger",
+      "ideal": "Ideal",
+      "strong": "Stark",
+      "expert": "Nur Profis"
+    },
+    "verdict": {
+      "sessionWindow": "Fahrfenster",
+      "steady": "Konstanter {{dir}} bei {{avg}} kn, Spitze {{peak}} kn gegen {{peakTime}}.",
+      "rising": "{{dir}} nimmt von {{start}} auf {{peak}} kn bis {{peakTime}} zu.",
+      "falling": "Abfall von {{peak}} kn um {{peakTime}} auf {{end}} kn bis Sonnenuntergang.",
+      "gusty": "Böiger {{dir}} — Mittel {{avg}} kn mit Böen bis {{peakGust}} kn.",
+      "tooLight": "Zu schwach — Spitze nur {{peak}} kn. Foil oder Wing, falls überhaupt."
+    },
+    "detail": {
+      "humidity": "Feuchtigkeit",
+      "pressure": "Druck",
+      "precip": "Niederschlag"
+    },
+    "guide": {
+      "scaleTitle": "Windskala · fahrbar?",
+      "decoderTitle": "Wie man diese Tabelle liest",
+      "bands": {
+        "flat":     "Flaute",
+        "light":    "Zu wenig",
+        "beginner": "Anfänger",
+        "ideal":    "Ideal",
+        "strong":   "Stark",
+        "expert":   "Nur Profis"
+      },
+      "columns": {
+        "date":  { "abbr": "Datum", "label": "Tag & Stunde (lokal)" },
+        "wspd":  { "abbr": "WSPD",  "label": "Durchschnittliche Windgeschwindigkeit" },
+        "gust":  { "abbr": "GUST",  "label": "Böenstärke — höher = schwieriger" },
+        "wdirn": { "abbr": "WDIRN", "label": "Woher der Wind kommt (N, S, O, W…)" },
+        "wdeg":  { "abbr": "WDEG",  "label": "Richtung in Grad (0–360°)" },
+        "tmp":   { "abbr": "TMP",   "label": "Lufttemperatur (°C)" },
+        "slp":   { "abbr": "SLP",   "label": "Luftdruck auf Meereshöhe (hPa)" },
+        "hcld":  { "abbr": "HCLD",  "label": "Hohe Bewölkung (%)" }
+      }
+    },
+    "summary": {
+      "stableSunny": "Gleichmäßige {{dir}}-Brise unter klarem Himmel — Lehrbuchbedingungen, saubere Power die ganze Session.",
+      "stableCloudy": "Konstanter {{dir}}-Flow unter bewölktem Himmel; Power bleibt gleichmäßig, achte auf Thermikabrisse am späten Nachmittag.",
+      "gustySunny": "Sonnig mit Böenfaktor {{gust}} — rechne mit Flauten, kleiner fahren wenn unhooked.",
+      "gustyCloudy": "Bewölkt und böig, Faktor {{gust}}; nur für erfahrene Fahrer, Anfänger bleiben in der Lagune.",
+      "rising": "Wind nimmt von {{start}} auf {{peak}} kn zu — Fenster öffnet gegen {{peakTime}}.",
+      "falling": "Wind schwächt nach {{peakTime}} ab — Sessions früher planen.",
+      "tooLight": "Heute zu schwach (Spitze {{peak}} kn). Foil oder Wing, falls überhaupt."
+    }
   }
 }

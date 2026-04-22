@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import { listSpots, getSpotReport, getAllSpotReports } from '../services/weather/index.js';
 
 const router = express.Router();
 
@@ -65,6 +66,39 @@ router.get('/hourly', async (req, res) => {
     res.json({ date, lat, lon, hours: result });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch hourly weather data' });
+  }
+});
+
+// GET /api/weather/spots — return the list of kite spots (name, coords, windguruSpotId)
+router.get('/spots', (_req, res) => {
+  res.json({ spots: listSpots() });
+});
+
+// GET /api/weather/report/:spotId — dual-purpose: single spot Windguru forecast as JSON
+router.get('/report/:spotId', async (req, res) => {
+  try {
+    const report = await getSpotReport(req.params.spotId, {
+      lang: req.query.lang,
+      windUnit: req.query.wj,
+    });
+    res.json(report);
+  } catch (err) {
+    const msg = err?.message || 'Failed to fetch forecast';
+    if (msg.startsWith('Unknown spot')) return res.status(404).json({ error: msg });
+    res.status(502).json({ error: msg });
+  }
+});
+
+// GET /api/weather/report — all spots in one go
+router.get('/report', async (req, res) => {
+  try {
+    const reports = await getAllSpotReports({
+      lang: req.query.lang,
+      windUnit: req.query.wj,
+    });
+    res.json({ fetchedAt: new Date().toISOString(), reports });
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'Failed to fetch forecasts' });
   }
 });
 

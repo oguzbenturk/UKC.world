@@ -3,6 +3,17 @@
   "brand": {
     "name": "Duotone Pro Center Urla"
   },
+  "home": {
+    "description": "Vivez la destination ultime des sports nautiques. Nous proposons des cours premium de Kite, Wing et Foil, des locations d'équipement Duotone haut de gamme et un hébergement de luxe au cœur d'Urla.",
+    "discover": "DÉCOUVRIR",
+    "mute": "MUET",
+    "unmute": "SON",
+    "lessons": "COURS",
+    "rentals": "LOCATIONS",
+    "shop": "BOUTIQUE",
+    "stay": "HÉBERGEMENT",
+    "experience": "EXPÉRIENCE"
+  },
   "login": {
     "title": "Connexion Membre",
     "welcome": "Bienvenue à nouveau chez {{brand}}.",

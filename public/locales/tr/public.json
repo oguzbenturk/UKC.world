@@ -3,6 +3,17 @@
   "brand": {
     "name": "Duotone Pro Center Urla"
   },
+  "home": {
+    "description": "Nihai su sporları destinasyonunu deneyimleyin. Premium Uçurtma, Kanat ve Foil dersleri, birinci sınıf Duotone ekipman kiralama ve Urla'nın kalbinde lüks konaklama sunuyoruz.",
+    "discover": "KEŞFET",
+    "mute": "SES KAPAT",
+    "unmute": "SES AÇ",
+    "lessons": "DERSLER",
+    "rentals": "KİRALAMA",
+    "shop": "MAĞAZA",
+    "stay": "KONAKLAMA",
+    "experience": "DENEYİM"
+  },
   "login": {
     "title": "Üye Girişi",
     "welcome": "{{brand}}'a tekrar hoş geldiniz.",

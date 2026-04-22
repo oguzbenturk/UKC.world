@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowRightIcon,
   PauseIcon,
@@ -11,6 +12,7 @@ import dpcLogo from '../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
 import { UkcBrandDot, UkcBrandWordmark } from '@/shared/components/ui/UkcBrandDot';
 import { usePageSEO } from '@/shared/utils/seo';
 import bgVideo from '../../../DuotoneFonts/backgroundvideo.mp4';
+import LanguageSelectModal, { hasChosenLanguage } from './LanguageSelectModal';
 
 const formatVideoTime = (seconds) => {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
@@ -25,7 +27,9 @@ const PublicHome = () => {
     description: 'Premium kitesurfing, wing foiling, foil and e-foil lessons, equipment rentals, and watersports gear at Duotone Pro Center Urla, Turkey.',
     path: '/',
   });
+  const { t } = useTranslation('public');
   const navigate = useNavigate();
+  const [showLangModal, setShowLangModal] = React.useState(() => !hasChosenLanguage());
   const [isMuted, setIsMuted] = React.useState(true);
   const [isPlaying, setIsPlaying] = React.useState(true);
   const [currentTime, setCurrentTime] = React.useState(0);
@@ -41,7 +45,7 @@ const PublicHome = () => {
 
     const tryAutoPlay = () => {
       if (cancelled || !v) return;
-      // Only force muted if user hasn't explicitly toggled sound
+      if (showLangModal) return;
       if (!userToggledRef.current) {
         v.muted = true;
       }
@@ -84,6 +88,15 @@ const PublicHome = () => {
       v.removeEventListener('pause', onPause);
     };
   }, []);
+
+  // Play video once language modal is dismissed/confirmed
+  React.useEffect(() => {
+    if (showLangModal) return;
+    const v = videoRef.current;
+    if (!v) return;
+    if (!userToggledRef.current) v.muted = true;
+    v.play().catch(() => {});
+  }, [showLangModal]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -142,8 +155,7 @@ const PublicHome = () => {
           />
           <img src={dpcLogo} alt="Duotone Pro Center Urla" className="h-14 w-auto object-contain sm:h-20" />
           <p className="max-w-md font-duotone-regular text-sm leading-relaxed text-gray-300 drop-shadow-lg sm:max-w-2xl sm:text-base md:text-lg">
-            Experience the ultimate watersports destination. Offering premium Kite, Wing, and Foil lessons,
-            top-tier Duotone equipment rentals, and luxury accommodation in the heart of Urla.
+            {t('home.description')}
           </p>
 
           <div className="group relative">
@@ -157,7 +169,7 @@ const PublicHome = () => {
                 paddingLeft: 'calc(2rem + 0.22em)',
               }}
             >
-              <span>D I S C O V E R</span>
+              <span>{t('home.discover')}</span>
               <span style={{ width: '1px', height: '14px', backgroundColor: 'rgba(0,168,196,0.35)', flexShrink: 0 }} />
               <ArrowRightIcon className="h-4 w-4 flex-shrink-0 text-[#00a8c4] transition-transform duration-300 group-hover:translate-x-1" />
             </button>
@@ -176,7 +188,7 @@ const PublicHome = () => {
                 <SpeakerWaveIcon className="m-auto h-6 w-6 text-white opacity-95" />
               )}
             </span>
-            <span className="mt-1 text-[10px] tracking-wide text-white/75">{isMuted ? 'UNMUTE' : 'MUTE'}</span>
+            <span className="mt-1 text-[10px] tracking-wide text-white/75">{isMuted ? t('home.unmute') : t('home.mute')}</span>
           </button>
         </div>
       </div>
@@ -238,27 +250,28 @@ const PublicHome = () => {
 
         <div className="px-4 text-center sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[10px] font-medium tracking-widest text-gray-200 sm:gap-x-12 sm:text-xs md:text-sm">
-            <span>LESSONS</span>
+            <span>{t('home.lessons')}</span>
             <span className="inline-flex items-center" style={{ fontSize: '0.62rem' }}>
               <UkcBrandDot style={{ top: 0 }} />
             </span>
-            <span>RENTALS</span>
+            <span>{t('home.rentals')}</span>
             <span className="inline-flex items-center" style={{ fontSize: '0.62rem' }}>
               <UkcBrandDot style={{ top: 0 }} />
             </span>
-            <span>SHOP</span>
+            <span>{t('home.shop')}</span>
             <span className="inline-flex items-center" style={{ fontSize: '0.62rem' }}>
               <UkcBrandDot style={{ top: 0 }} />
             </span>
-            <span>STAY</span>
+            <span>{t('home.stay')}</span>
             <span className="inline-flex items-center" style={{ fontSize: '0.62rem' }}>
               <UkcBrandDot style={{ top: 0 }} />
             </span>
-            <span>EXPERIENCE</span>
+            <span>{t('home.experience')}</span>
           </div>
         </div>
       </div>
 
+      <LanguageSelectModal open={showLangModal} onClose={() => setShowLangModal(false)} />
     </div>
   );
 };

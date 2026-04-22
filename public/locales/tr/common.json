@@ -119,6 +119,7 @@
     "servicesSettings": "Hizmet Ayarları",
     "marketing": "Pazarlama",
     "ratingAnalytics": "Puan Analitiği",
+    "windReport": "Rüzgar Raporu",
     "walletPayments": "Cüzdan Ödemeleri",
     "support": "Destek",
     "profile": "Profil",
@@ -766,5 +767,112 @@
     "send": "Gönder",
     "online": "Çevrimiçi",
     "offline": "Çevrimdışı"
+  },
+  "windReport": {
+    "title": "Rüzgar Raporu",
+    "subtitle": "İzmir ve Çanakkale spotlarında canlı koşullar",
+    "refresh": "Yenile",
+    "dateLabel": "Tahmin tarihi",
+    "loading": "Tahmin yükleniyor…",
+    "error": "Rüzgar verisi alınamadı. Lütfen tekrar deneyin.",
+    "unit": { "knots": "kn", "kmh": "km/s", "ms": "m/s" },
+    "spots": {
+      "alacati": "Alaçatı",
+      "pirlanta": "Pırlanta Kitesurf Plajı",
+      "gulbahce": "Urla – Gülbahçe",
+      "gokceada": "Gökçeada"
+    },
+    "metrics": {
+      "wind": "Rüzgar",
+      "gusts": "Hamle",
+      "direction": "Yön",
+      "temp": "Sıcaklık",
+      "clouds": "Bulut örtüsü",
+      "peak": "Zirve",
+      "peakAt": "Zirve saati",
+      "avg": "Ortalama",
+      "hourly": "Saatlik tahmin"
+    },
+    "sources": {
+      "a": "ECMWF",
+      "b": "GFS",
+      "servedBy": "Windguru üzerinden",
+      "modelA": "ECMWF · Avrupa modeli",
+      "modelB": "GFS · Amerikan modeli"
+    },
+    "agreement": {
+      "title": "Model uyumu",
+      "strong": "Güçlü uyum",
+      "moderate": "Orta uyum",
+      "divergent": "Modeller ayrışıyor — dikkatli olun"
+    },
+    "kiteSizer": {
+      "title": "Uçurtma ölçünüz",
+      "weight": "Sürücü ağırlığı",
+      "recommended": "Önerilen",
+      "range": "Önerilen aralık",
+      "info": "Duotone Kiteboarding ölçü tablosuna göre (5–15 m²). Seçili saatin rüzgarına göre güncellenir.",
+      "brand": "Duotone Kiteboarding"
+    },
+    "updated": "Güncel",
+    "legend": "Rüzgar ölçeği",
+    "clickHint": "Detay için saate dokunun",
+    "when": {
+      "today": "Bugün",
+      "tomorrow": "Yarın",
+      "days": "gün"
+    },
+    "skill": {
+      "flat": "Durgun",
+      "light": "Hafif",
+      "beginner": "Yeni başlayan",
+      "ideal": "İdeal",
+      "strong": "Kuvvetli",
+      "expert": "Sadece usta"
+    },
+    "verdict": {
+      "sessionWindow": "Sürüş penceresi",
+      "steady": "Dengeli {{dir}} — {{avg}} kn, zirve {{peakTime}}'de {{peak}} kn.",
+      "rising": "{{dir}} güçleniyor: {{start}} kn'dan {{peakTime}}'de {{peak}} kn'a.",
+      "falling": "{{peakTime}}'de {{peak}} kn olan rüzgar akşama {{end}} kn'a düşüyor.",
+      "gusty": "Hamleli {{dir}} — ortalama {{avg}} kn, hamleler {{peakGust}} kn'a kadar.",
+      "tooLight": "Çok hafif — zirve sadece {{peak}} kn. Olursa foil ya da wing."
+    },
+    "detail": {
+      "humidity": "Nem",
+      "pressure": "Basınç",
+      "precip": "Yağış"
+    },
+    "guide": {
+      "scaleTitle": "Rüzgar ölçeği · sürülebilir mi",
+      "decoderTitle": "Bu tabloyu nasıl okumalı",
+      "bands": {
+        "flat":     "Durgun",
+        "light":    "Çok hafif",
+        "beginner": "Yeni başlayan",
+        "ideal":    "İdeal",
+        "strong":   "Kuvvetli",
+        "expert":   "Sadece usta"
+      },
+      "columns": {
+        "date":  { "abbr": "Tarih", "label": "Gün ve saat (yerel)" },
+        "wspd":  { "abbr": "WSPD",  "label": "Ortalama rüzgar hızı" },
+        "gust":  { "abbr": "GUST",  "label": "Hamle şiddeti — yüksek = zor" },
+        "wdirn": { "abbr": "WDIRN", "label": "Rüzgarın geldiği yön (K, G, D, B…)" },
+        "wdeg":  { "abbr": "WDEG",  "label": "Derece cinsinden yön (0–360°)" },
+        "tmp":   { "abbr": "TMP",   "label": "Hava sıcaklığı (°C)" },
+        "slp":   { "abbr": "SLP",   "label": "Deniz seviyesi basıncı (hPa)" },
+        "hcld":  { "abbr": "HCLD",  "label": "Yüksek bulut örtüsü (%)" }
+      }
+    },
+    "summary": {
+      "stableSunny": "Açık gökyüzü altında dengeli {{dir}} rüzgarı — ders kitabı koşulları, seans boyunca temiz güç bekleyin.",
+      "stableCloudy": "Bulutlu gökyüzü altında sabit {{dir}} akışı; güç eşit kalıyor ama öğleden sonra termik kesintilerine dikkat.",
+      "gustySunny": "Güneşli, hamle faktörü {{gust}} — duraksamalara hazırlıklı olun, kancasız sürüyorsanız küçük ölçü seçin.",
+      "gustyCloudy": "Bulutlu ve hamleli, hamle faktörü {{gust}}; yalnızca deneyimli sürücüler, yeni başlayanlar lagünde kalsın.",
+      "rising": "Rüzgar {{start}} knottan {{peak}} knota yükseliyor — pencere yaklaşık {{peakTime}} açılıyor.",
+      "falling": "{{peakTime}} sonrası rüzgar düşüyor — seansları erkene alın.",
+      "tooLight": "Bugün uçurtma için yetersiz (zirve {{peak}} knot). Olursa foil ya da wing."
+    }
   }
 }

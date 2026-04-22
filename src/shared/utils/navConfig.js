@@ -188,6 +188,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' },
         subItems: COMMUNITY_SUBITEMS
       }),
+      item('/wind-report', 'Wind Report', 'CloudIcon', {
+        labelKey: 'common:nav.windReport',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
+      }),
       item('/contact', 'Contact', 'EnvelopeIcon', {
         labelKey: 'common:nav.contact',
         customStyle: { dotColor: '#2d6a3e', textColor: '#94a3b8' }
@@ -243,6 +247,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         labelKey: 'common:nav.community',
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' },
         subItems: COMMUNITY_SUBITEMS
+      }),
+      item('/wind-report', 'Wind Report', 'CloudIcon', {
+        labelKey: 'common:nav.windReport',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
       }),
       item('/student/payments', 'Wallet Payments', 'WalletIcon', {
         labelKey: 'common:nav.walletPayments',
@@ -302,6 +310,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       }),
       item('/chat', 'Messages', 'ChatBubbleLeftRightIcon', {
         labelKey: 'common:nav.messages',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
+      }),
+      item('/wind-report', 'Wind Report', 'CloudIcon', {
+        labelKey: 'common:nav.windReport',
         customStyle: { dotColor: '#2d6a3e', textColor: '#0ea5e9' }
       }),
       item('/contact', 'Contact', 'EnvelopeIcon', {
@@ -383,6 +395,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
         labelKey: 'common:nav.ratingAnalytics',
         customStyle: { textColor: '#f59e0b' }
+      }),
+      item('/wind-report', 'Wind Report', 'CloudIcon', {
+        labelKey: 'common:nav.windReport',
+        customStyle: { textColor: '#0ea5e9' }
       }),
       item('/shop', 'Shop', 'ShoppingBagIcon', {
         labelKey: 'common:nav.shop',
