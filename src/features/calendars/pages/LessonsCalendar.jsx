@@ -213,12 +213,12 @@ const LessonsCalendar = () => {
           display: flex;
           flex-direction: column;
         }
-        .lessons-calendar-tabs .ant-tabs-tabpane {
+        .lessons-calendar-tabs .ant-tabs-tabpane-active {
           height: 100%;
-          display: flex;
+          display: flex !important;
           flex-direction: column;
         }
-        .lessons-calendar-tabs .ant-tabs-tabpane > div {
+        .lessons-calendar-tabs .ant-tabs-tabpane-active > div {
           flex: 1;
           overflow: hidden;
         }
