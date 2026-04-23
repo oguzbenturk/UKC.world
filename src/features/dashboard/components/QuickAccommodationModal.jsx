@@ -234,12 +234,21 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
                   <Tag icon={<TeamOutlined />} color="purple" className="m-0">
                     Max {selectedAccommodation.capacity || 2} guests
                   </Tag>
-                  {selectedAccommodation.amenities?.slice(0, 4).map((amenity) => (
-                    <Tag key={amenity} className="m-0">{amenity}</Tag>
-                  ))}
-                  {selectedAccommodation.amenities?.length > 4 && (
-                    <Tag className="m-0">+{selectedAccommodation.amenities.length - 4} more</Tag>
-                  )}
+                  {(() => {
+                    const visibleAmenities = (selectedAccommodation.amenities || []).filter(
+                      (a) => typeof a !== 'string' || !a.startsWith('__meta__')
+                    );
+                    return (
+                      <>
+                        {visibleAmenities.slice(0, 4).map((amenity) => (
+                          <Tag key={amenity} className="m-0">{amenity}</Tag>
+                        ))}
+                        {visibleAmenities.length > 4 && (
+                          <Tag className="m-0">+{visibleAmenities.length - 4} more</Tag>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </Card>

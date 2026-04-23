@@ -167,7 +167,7 @@ const Login = () => {
               <div className="flex items-center justify-center gap-3 mb-4">
                 <span className="font-gotham-bold text-4xl text-white tracking-tight inline-flex items-baseline">
                   UKC
-                  <UkcBrandDot style={{ top: '0.18em' }} />
+                  <UkcBrandDot className="ml-[0.08em]" style={{ top: '-0.02em' }} />
                 </span>
               </div>
 

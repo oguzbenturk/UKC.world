@@ -3319,9 +3319,9 @@ router.get('/revenue-analytics', authenticateJWT, authorizeRoles(['admin', 'mana
       }
       const params = [dateStart, dateEnd, includeTypes, EXCLUDED_REVENUE_TYPES];
       const trendsQuery = `
-        SELECT 
+        SELECT
           TO_CHAR(transaction_date, '${dateFormat}') as period,
-          COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN amount ELSE 0 END), 0) as revenue,
+          COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN ABS(amount) ELSE 0 END), 0) as revenue,
           COUNT(CASE WHEN transaction_type = ANY($3) THEN 1 END) as transaction_count
         FROM wallet_transactions
         WHERE transaction_date >= $1::date AND transaction_date <= $2::date

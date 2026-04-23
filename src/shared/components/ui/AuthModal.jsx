@@ -2,7 +2,7 @@
 import { Modal, Button, Form, Input, Divider, Space, App } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
-import { useState, Fragment } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { SIGN_IN_DISABLED_USER_MESSAGE } from '../../services/auth/authService';
@@ -26,7 +26,7 @@ function AuthModalTitle({ title }) {
       className={`${baseClass} flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-1`}
     >
       {segments.map((segment, i) => (
-        <Fragment key={`auth-title-${i}`}>
+        <span key={`auth-title-${i}`} className="inline-flex items-baseline gap-x-1.5">
           {segment ? <span>{segment}</span> : null}
           {i < segments.length - 1 ? (
             <UkcBrandWordmark
@@ -35,7 +35,7 @@ function AuthModalTitle({ title }) {
               rootStyle={{ fontSize: '1.875rem' }}
             />
           ) : null}
-        </Fragment>
+        </span>
       ))}
     </h2>
   );

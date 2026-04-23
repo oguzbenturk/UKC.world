@@ -3,7 +3,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { v4 as uuidv4 } from 'uuid';
-import { lockFundsForBooking, releaseLockedFunds, getBalance } from '../services/walletService.js';
+import { lockFundsForBooking, releaseLockedFunds, getBalance, recordLegacyTransaction } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from '../services/currencyService.js';
@@ -724,6 +724,43 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 			RETURNING *`,
 			[bookingId, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id, paymentStatus, payment_method, walletTxId]
 		);
+
+		// pay_later: record an accommodation_charge so the guest's wallet reflects what they owe
+		if (payment_method === 'pay_later' && total_price > 0) {
+			try {
+				const tx = await recordLegacyTransaction({
+					client,
+					userId: guest_id,
+					amount: -Math.abs(total_price),
+					transactionType: 'accommodation_charge',
+					status: 'completed',
+					direction: 'debit',
+					currency: 'EUR',
+					description: `Accommodation charge: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`,
+					metadata: {
+						accommodationBookingId: bookingId,
+						unitId: unit_id,
+						checkInDate: check_in_date,
+						checkOutDate: check_out_date,
+						nights,
+						source: 'accommodation:create:pay_later'
+					},
+					entityType: 'accommodation_booking',
+					relatedEntityType: 'accommodation_booking',
+					relatedEntityId: bookingId,
+					createdBy: req.user.id,
+					allowNegative: true
+				});
+				await client.query(
+					`UPDATE accommodation_bookings SET wallet_transaction_id = $1 WHERE id = $2`,
+					[tx?.id || null, bookingId]
+				);
+			} catch (chargeErr) {
+				await client.query('ROLLBACK');
+				logger.error('[ACCOMMODATION] Failed to record pay_later charge:', chargeErr);
+				return res.status(500).json({ error: 'Failed to record accommodation charge', details: chargeErr.message });
+			}
+		}
 
 		// Insert bank_transfer_receipts record so it appears in pending payments
 		if (payment_method === 'bank_transfer' && isDeposit) {
