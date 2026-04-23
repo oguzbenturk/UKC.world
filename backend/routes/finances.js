@@ -1212,7 +1212,15 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
 router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount, description = 'Funds added', payment_method, reference_number, currency } = req.body;
+    const {
+      amount,
+      description = 'Funds added',
+      payment_method,
+      reference_number,
+      currency,
+      original_currency,
+      original_amount
+    } = req.body;
 
     const numericAmount = Number.parseFloat(amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -1227,21 +1235,74 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
       targetCurrency = userRow.rows[0]?.preferred_currency || 'EUR';
     }
 
+    // Convert when admin says funds were received in a different currency (e.g. TRY).
+    // Amount stored in the wallet stays in `targetCurrency`; the original TRY value +
+    // rate are preserved on wallet_transactions for the Recent Deposits display.
+    let walletAmount = numericAmount;
+    let originalAmountNumeric = null;
+    let originalCurrencyCode = null;
+    let transactionExchangeRate = null;
+
+    const normalizedOriginalCurrency = typeof original_currency === 'string'
+      ? original_currency.trim().toUpperCase()
+      : null;
+
+    if (normalizedOriginalCurrency && normalizedOriginalCurrency !== targetCurrency) {
+      const parsedOriginalAmount = Number.parseFloat(original_amount ?? numericAmount);
+      if (!Number.isFinite(parsedOriginalAmount) || parsedOriginalAmount <= 0) {
+        return res.status(400).json({ message: 'original_amount must be greater than 0 when original_currency is provided' });
+      }
+
+      const rateLookup = await pool.query(
+        'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1 AND is_active = true',
+        [normalizedOriginalCurrency]
+      );
+      const rawRate = rateLookup.rows[0]?.exchange_rate;
+      const rate = rawRate !== undefined && rawRate !== null ? Number.parseFloat(rawRate) : NaN;
+      if (!Number.isFinite(rate) || rate <= 0) {
+        return res.status(400).json({ message: `No active exchange rate configured for ${normalizedOriginalCurrency}` });
+      }
+
+      // currency_settings.exchange_rate is units-of-currency-per-EUR (e.g. 1 EUR = 40 TRY).
+      // Assume base currency is EUR here, matching the wallet-deposits read path.
+      if (targetCurrency === 'EUR') {
+        walletAmount = Number((parsedOriginalAmount / rate).toFixed(2));
+      } else {
+        // For non-EUR target (rare), convert via EUR.
+        const targetRateLookup = await pool.query(
+          'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1 AND is_active = true',
+          [targetCurrency]
+        );
+        const targetRate = Number.parseFloat(targetRateLookup.rows[0]?.exchange_rate ?? 1);
+        walletAmount = Number(((parsedOriginalAmount / rate) * (Number.isFinite(targetRate) ? targetRate : 1)).toFixed(2));
+      }
+
+      originalAmountNumeric = parsedOriginalAmount;
+      originalCurrencyCode = normalizedOriginalCurrency;
+      transactionExchangeRate = rate;
+    }
+
     const actorId = resolveActorId(req);
 
     const transactionRecord = await recordWalletTransaction({
       userId: id,
-      amount: resolveWalletAmount('wallet_deposit', numericAmount),
+      amount: resolveWalletAmount('wallet_deposit', walletAmount),
       transactionType: 'wallet_deposit',
       currency: targetCurrency,
       description: description || 'Funds added',
       paymentMethod: payment_method || null,
       referenceNumber: reference_number || null,
+      originalAmount: originalAmountNumeric,
+      originalCurrency: originalCurrencyCode,
+      transactionExchangeRate,
       metadata: {
         origin: 'finances_add_funds',
         paymentMethod: payment_method || null,
         referenceNumber: reference_number || null,
-        inputCurrency: currency || null // Track what admin entered for audit
+        inputCurrency: currency || null, // Track what admin entered for audit
+        originalCurrency: originalCurrencyCode,
+        originalAmount: originalAmountNumeric,
+        exchangeRate: transactionExchangeRate
       },
       // A deposit always increases the balance; allow it even when the
       // wallet is currently negative (legacy debt, admin overdraft, etc.)
@@ -3159,6 +3220,9 @@ router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manage
         wt.amount,
         wt.currency,
         ${amountEur} AS amount_eur,
+        wt.original_amount,
+        wt.original_currency,
+        wt.transaction_exchange_rate,
         wt.transaction_type,
         wt.status,
         wt.description,
@@ -3226,17 +3290,30 @@ router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manage
         uniqueUsers: stats.unique_users,
         avgAmount: parseFloat(stats.avg_amount) || 0,
       },
-      deposits: listResult.rows.map(r => ({
-        id: r.id,
-        userId: r.user_id,
-        amount: parseFloat(r.amount_eur) || 0,
-        type: r.transaction_type,
-        status: r.status,
-        description: r.description,
-        createdAt: r.created_at,
-        user: { name: r.user_name, email: r.user_email },
-        createdBy: r.created_by_name,
-      })),
+      deposits: listResult.rows.map(r => {
+        const originalAmount = r.original_amount !== null && r.original_amount !== undefined
+          ? parseFloat(r.original_amount)
+          : (r.currency && r.currency !== 'EUR' ? parseFloat(r.amount) : null);
+        const originalCurrency = r.original_currency || (r.currency && r.currency !== 'EUR' ? r.currency : null);
+        return {
+          id: r.id,
+          userId: r.user_id,
+          amount: parseFloat(r.amount_eur) || 0,
+          currency: 'EUR',
+          originalAmount: Number.isFinite(originalAmount) ? originalAmount : null,
+          originalCurrency,
+          exchangeRate: r.transaction_exchange_rate !== null && r.transaction_exchange_rate !== undefined
+            ? parseFloat(r.transaction_exchange_rate)
+            : null,
+          paymentMethod: r.payment_method || null,
+          type: r.transaction_type,
+          status: r.status,
+          description: r.description,
+          createdAt: r.created_at,
+          user: { name: r.user_name, email: r.user_email },
+          createdBy: r.created_by_name,
+        };
+      }),
       trends: trendsResult.rows.map(r => ({
         month: r.month,
         count: r.count,

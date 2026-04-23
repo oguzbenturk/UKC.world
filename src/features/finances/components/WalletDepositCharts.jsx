@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Empty, Spin, Segmented, Table, Avatar, Grid } from 'antd';
+import { Card, Empty, Spin, Segmented, Table, Avatar, Grid, Tag } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { UserOutlined } from '@ant-design/icons';
@@ -9,6 +9,35 @@ const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#4f46e5', '#4338ca'
 const TREND_COLOR = '#6366f1';
 
 const AVATAR_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+const PAYMENT_METHOD_LABELS = {
+  cash: 'Cash',
+  credit_card: 'Credit Card',
+  bank_transfer: 'Bank Transfer',
+  paypal: 'PayPal',
+  iyzico: 'Iyzico',
+  wallet: 'Wallet',
+  other: 'Other',
+};
+
+const PAYMENT_METHOD_COLORS = {
+  cash: 'green',
+  credit_card: 'blue',
+  bank_transfer: 'geekblue',
+  paypal: 'cyan',
+  iyzico: 'purple',
+  wallet: 'gold',
+  other: 'default',
+};
+
+const CURRENCY_SYMBOLS = { EUR: '€', TRY: '₺', USD: '$', GBP: '£' };
+
+const formatOriginalAmount = (amount, currency) => {
+  if (amount === null || amount === undefined || !Number.isFinite(Number(amount))) return null;
+  const symbol = CURRENCY_SYMBOLS[currency] || '';
+  const formatted = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
+  return symbol ? `${symbol}${formatted}` : `${formatted} ${currency || ''}`.trim();
+};
 
 const WalletDepositCharts = ({ dateRange }) => {
   const [data, setData] = useState(null);
@@ -131,9 +160,33 @@ const WalletDepositCharts = ({ dateRange }) => {
       title: 'Amount',
       dataIndex: 'amount',
       key: 'amount',
-      width: 130,
+      width: 160,
       align: 'right',
-      render: (v) => <span className="font-semibold text-slate-900">{formatCurrency(v)}</span>,
+      render: (v, r) => {
+        const originalLabel = r.originalCurrency && r.originalCurrency !== 'EUR'
+          ? formatOriginalAmount(r.originalAmount, r.originalCurrency)
+          : null;
+        return (
+          <div className="flex flex-col items-end leading-tight">
+            <span className="font-semibold text-slate-900">{formatCurrency(v)}</span>
+            {originalLabel && (
+              <span className="text-xs text-slate-400">/ {originalLabel}</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Payment Method',
+      dataIndex: 'paymentMethod',
+      key: 'paymentMethod',
+      width: 140,
+      render: (v) => {
+        if (!v) return <span className="text-slate-400 text-sm">—</span>;
+        const label = PAYMENT_METHOD_LABELS[v] || v;
+        const color = PAYMENT_METHOD_COLORS[v] || 'default';
+        return <Tag color={color} className="!m-0">{label}</Tag>;
+      },
     },
     {
       title: 'Description',
@@ -265,7 +318,7 @@ const WalletDepositCharts = ({ dateRange }) => {
             showSizeChanger: false,
             showTotal: (total) => `${total} deposit${total !== 1 ? 's' : ''}`,
           }}
-          scroll={{ x: 700 }}
+          scroll={{ x: 860 }}
           size="small"
           rowClassName="hover:bg-slate-50/70 transition-colors"
         />

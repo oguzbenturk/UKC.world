@@ -15,8 +15,13 @@ const currentLocale = () => i18n.resolvedLanguage || i18n.language || 'en';
  */
 export function formatCurrency(value, currencyCode = null, currencySymbol = null) {
   const numValue = parseFloat(value ?? 0) || 0;
+  const hasFraction = Math.abs(numValue - Math.round(numValue)) > 0.005;
+  const fractionDigits = hasFraction ? 2 : 0;
   if (currencySymbol) {
-    return `${currencySymbol}${Math.round(numValue).toLocaleString(currentLocale())}`;
+    return `${currencySymbol}${numValue.toLocaleString(currentLocale(), {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    })}`;
   }
   const code = (currencyCode
     || (typeof window !== 'undefined' && window.__APP_CURRENCY__ && (window.__APP_CURRENCY__.business || window.__APP_CURRENCY__.user))
@@ -25,11 +30,14 @@ export function formatCurrency(value, currencyCode = null, currencySymbol = null
     return new Intl.NumberFormat(currentLocale(), {
       style: 'currency',
       currency: code,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
     }).format(numValue);
   } catch {
-    return `${code}${Math.round(numValue).toLocaleString(currentLocale())}`;
+    return `${code}${numValue.toLocaleString(currentLocale(), {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    })}`;
   }
 }
 

@@ -787,19 +787,24 @@ function CustomerProfilePage() {
   const handleAddFunds = async (values) => {
     setPaymentProcessing(true);
     try {
+      const receivedCurrency = values.receivedCurrency || storageCurrency;
+      const isConversion = receivedCurrency && receivedCurrency !== storageCurrency;
+
       await FinancialService.addFunds(
         id,
         values.amount,
         values.description || 'Account deposit',
         values.paymentMethod,
         values.referenceNumber,
-        storageCurrency
+        storageCurrency,
+        isConversion ? receivedCurrency : null,
+        isConversion ? values.amount : null
       );
-      
+
       message.success('Funds added successfully');
       setShowAddFundsModal(false);
       paymentForm.resetFields();
-      
+
       // Refresh all customer data
       await refreshAllCustomerData();
     } catch (err) {
@@ -2966,27 +2971,50 @@ function CustomerProfilePage() {
             amount: '',
             description: '',
             paymentMethod: 'cash',
-            referenceNumber: ''
+            referenceNumber: '',
+            receivedCurrency: storageCurrency || 'EUR'
           }}
         >
           <Form.Item
-            name="amount"
-            label={`Amount (${currencySymbol})`}
-            rules={[
-              { required: true, message: 'Please enter the amount' },
-              { type: 'number', min: 0.01, message: 'Amount must be greater than 0' }
-            ]}
+            noStyle
+            shouldUpdate={(prev, curr) => prev.receivedCurrency !== curr.receivedCurrency}
           >
-            <InputNumber
-              style={{ width: '100%' }}
-              step={5}
-              min={0.01}
-              precision={2}
-              prefix={currencySymbol}
-              placeholder="Enter amount"
-            />
+            {({ getFieldValue }) => {
+              const rc = getFieldValue('receivedCurrency') || storageCurrency || 'EUR';
+              const receivedSymbol = rc === 'TRY' ? '₺' : currencySymbol;
+              return (
+                <Form.Item
+                  name="amount"
+                  label={`Amount (${receivedSymbol})`}
+                  rules={[
+                    { required: true, message: 'Please enter the amount' },
+                    { type: 'number', min: 0.01, message: 'Amount must be greater than 0' }
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    step={5}
+                    min={0.01}
+                    precision={2}
+                    prefix={receivedSymbol}
+                    placeholder="Enter amount"
+                  />
+                </Form.Item>
+              );
+            }}
           </Form.Item>
-          
+
+          <Form.Item
+            name="receivedCurrency"
+            label="Received In"
+            tooltip="Currency in which the payment was received. TRY will be converted to the wallet currency using the current exchange rate."
+          >
+            <Select>
+              <Option value={storageCurrency || 'EUR'}>{storageCurrency || 'EUR'}</Option>
+              {(storageCurrency || 'EUR') !== 'TRY' && <Option value="TRY">TRY</Option>}
+            </Select>
+          </Form.Item>
+
           <Form.Item
             name="description"
             label="Description"
@@ -2994,7 +3022,7 @@ function CustomerProfilePage() {
           >
             <Input placeholder="e.g., Deposit for lessons, Account credit" />
           </Form.Item>
-          
+
           <Form.Item
             name="paymentMethod"
             label="Payment Method"

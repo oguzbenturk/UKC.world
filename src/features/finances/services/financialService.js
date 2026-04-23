@@ -140,18 +140,29 @@ class FinancialService {
    * @param {string} referenceNumber - Reference number
    * @returns {Promise<Object>} - Transaction result
    */
-  static async addFunds(userId, amount, description = 'Funds added', paymentMethod = null, referenceNumber = null, currency = null) {
+  static async addFunds(
+    userId,
+    amount,
+    description = 'Funds added',
+    paymentMethod = null,
+    referenceNumber = null,
+    currency = null,
+    originalCurrency = null,
+    originalAmount = null
+  ) {
     try {
       const response = await apiClient.post(`/finances/accounts/${userId}/add-funds`, {
         amount,
         description,
         payment_method: paymentMethod,
         reference_number: referenceNumber,
-        currency
+        currency,
+        original_currency: originalCurrency,
+        original_amount: originalAmount
       });
-      
+
       return response.data;
-      
+
     } catch (error) {
       throw new Error(`Failed to add funds: ${error.message}`);
     }

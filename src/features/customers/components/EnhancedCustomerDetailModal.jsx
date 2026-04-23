@@ -339,11 +339,20 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     setPaymentProcessing(true);
     try {
       const inputCurrency = addFundsCurrency || storageCurrency;
-      // Always store in storageCurrency (EUR). If admin entered a different currency, convert first.
-      const amountInStorage = inputCurrency !== storageCurrency
-        ? convertCurrency(values.amount, inputCurrency, storageCurrency)
-        : values.amount;
-      const result = await FinancialService.addFunds(customerId, amountInStorage, values.description || 'Account deposit', values.paymentMethod, values.referenceNumber, storageCurrency);
+      const isConversion = inputCurrency !== storageCurrency;
+      // Pass the original amount + currency through to the backend so the Recent
+      // Deposits view can show "€X / ₺Y". Backend handles the conversion using
+      // the server-side currency_settings rate (source of truth).
+      const result = await FinancialService.addFunds(
+        customerId,
+        values.amount,
+        values.description || 'Account deposit',
+        values.paymentMethod,
+        values.referenceNumber,
+        storageCurrency,
+        isConversion ? inputCurrency : null,
+        isConversion ? values.amount : null
+      );
       message.success('Funds added successfully');
       setShowAddFundsModal(false);
       setAddFundsAmount(null);
