@@ -1467,6 +1467,82 @@ router.post('/:id/cancel', authenticateJWT, async (req, res) => {
   }
 });
 
+// Admin: Permanently delete an order (and restore stock for non-final states).
+// Child rows (items, status history, messages) cascade-delete via FK.
+// Bank transfer receipts SET NULL (preserved for audit).
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const orderId = req.params.id;
+
+    await client.query('BEGIN');
+
+    const orderResult = await client.query('SELECT * FROM shop_orders WHERE id = $1', [orderId]);
+    if (orderResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = orderResult.rows[0];
+
+    // Restore stock when the order had not already been cancelled/refunded
+    // (those flows already returned items to inventory).
+    const stockAlreadyReturned = ['cancelled', 'refunded'].includes(order.status);
+    if (!stockAlreadyReturned) {
+      const orderItems = await client.query(
+        'SELECT product_id, quantity, selected_size FROM shop_order_items WHERE order_id = $1',
+        [orderId]
+      );
+
+      for (const item of orderItems.rows) {
+        await client.query(
+          'UPDATE products SET stock_quantity = stock_quantity + $1, updated_at = NOW() WHERE id = $2',
+          [item.quantity, item.product_id]
+        );
+
+        if (item.selected_size) {
+          await client.query(
+            `UPDATE products
+             SET variants = (
+               SELECT jsonb_agg(
+                 CASE
+                   WHEN elem->>'label' = $2
+                   THEN jsonb_set(elem, '{quantity}', to_jsonb((elem->>'quantity')::int + $1))
+                   ELSE elem
+                 END
+               )
+               FROM jsonb_array_elements(variants) AS elem
+             ),
+             updated_at = NOW()
+             WHERE id = $3 AND variants IS NOT NULL`,
+            [item.quantity, item.selected_size, item.product_id]
+          );
+        }
+      }
+    }
+
+    await client.query('DELETE FROM shop_orders WHERE id = $1', [orderId]);
+
+    await client.query('COMMIT');
+
+    try {
+      const { cancelCommission } = await import('../services/managerCommissionService.js');
+      cancelCommission('shop', orderId, 'order_deleted').catch(() => {});
+    } catch { /* ignore */ }
+
+    logger.info(`Order ${orderId} (${order.order_number}) deleted by admin ${req.user.id}`);
+
+    res.json({ success: true, message: 'Order deleted', stockRestored: !stockAlreadyReturned });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Error deleting order:', error);
+    res.status(500).json({ error: 'Failed to delete order' });
+  } finally {
+    client.release();
+  }
+});
+
 // Admin/Staff: Create order on behalf of customer (Quick Sale from Front Desk)
 router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
   const client = await pool.connect();

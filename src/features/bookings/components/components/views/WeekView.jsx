@@ -224,6 +224,11 @@ const WeekView = ({ onBookingClick, onTimeSlotClick }) => {
     if (event && event.target.closest('.booking-card, [data-booking-id]')) {
       return;
     }
+    // Suppress the DailyView overlay on mobile (< md / 768px). The cramped
+    // overlay is unusable on phones — only open it on tablet+ screens.
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      return;
+    }
     // Do NOT change global selectedDate so the date navigator stays anchored
     setTargetDate(day.dateStr);
     setShowDailyViewOverlay(true);

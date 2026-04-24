@@ -1184,7 +1184,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                   className="absolute left-0 right-0 z-20 pointer-events-none flex items-center justify-end pr-1"
                   style={{ top: `${nowTopPx - 4}px` }}
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500/50" />
                 </div>
               )}
             </div>
@@ -1259,8 +1259,8 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                             style={{ top: `${nowTopPx}px` }}
                           >
                             <div className="relative flex items-center">
-                              <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 -ml-1" />
-                              <div className="flex-1 h-[2px] bg-red-500 opacity-80" />
+                              <div className="w-2 h-2 rounded-full bg-red-500/50 flex-shrink-0 -ml-1" />
+                              <div className="flex-1 h-[2px] bg-red-500/40" />
                             </div>
                           </div>
                         )}

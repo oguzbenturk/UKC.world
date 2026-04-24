@@ -243,22 +243,26 @@ const UpdateLogsModal = memo(function UpdateLogsModal({ isOpen, onClose, currenc
   );
 });
 
-const CustomerRateCard = memo(function CustomerRateCard({ currency, onRefresh, onMarginSave, isLoading }) {
-  const [marginInput, setMarginInput] = useState(String(currency.rate_margin_percent ?? 0));
+const CustomerRateCard = memo(function CustomerRateCard({ currencies, onRefresh, onMarginSave, isLoading }) {
+  const sharedMargin = currencies.length > 0
+    ? Number(currencies[0].rate_margin_percent ?? 0)
+    : 0;
+  const [marginInput, setMarginInput] = useState(String(sharedMargin));
   const [saving, setSaving] = useState(false);
   const { showSuccess, showError } = useToast();
 
   // Keep local state in sync when currency data refreshes
   useEffect(() => {
-    setMarginInput(String(currency.rate_margin_percent ?? 0));
-  }, [currency.rate_margin_percent]);
+    setMarginInput(String(sharedMargin));
+  }, [sharedMargin]);
 
-  const rawRate = Number(currency.raw_rate || currency.exchange_rate || 0);
   const margin = parseFloat(marginInput) || 0;
-  const previewRate = useMemo(
-    () => rawRate > 0 ? (rawRate * (1 + margin / 100)).toFixed(4) : '—',
-    [rawRate, margin]
-  );
+  const marginChanged = parseFloat(marginInput) !== sharedMargin;
+
+  const previewFor = (c) => {
+    const raw = Number(c.raw_rate || c.exchange_rate || 0);
+    return raw > 0 ? (raw * (1 + margin / 100)).toFixed(4) : '—';
+  };
 
   const handleSaveMargin = async () => {
     const val = parseFloat(marginInput);
@@ -268,8 +272,8 @@ const CustomerRateCard = memo(function CustomerRateCard({ currency, onRefresh, o
     }
     setSaving(true);
     try {
-      await onMarginSave(currency.code, val);
-      showSuccess(`Margin updated — customers now see 1 EUR = ${previewRate} TRY`);
+      await Promise.all(currencies.map(c => onMarginSave(c.code, val)));
+      showSuccess(`Margin updated — applied to ${currencies.map(c => c.code).join(', ')}`);
     } catch {
       showError('Failed to save margin');
     } finally {
@@ -279,94 +283,117 @@ const CustomerRateCard = memo(function CustomerRateCard({ currency, onRefresh, o
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleSaveMargin();
-    if (e.key === 'Escape') setMarginInput(String(currency.rate_margin_percent ?? 0));
+    if (e.key === 'Escape') setMarginInput(String(sharedMargin));
   };
 
-  const marginChanged = parseFloat(marginInput) !== Number(currency.rate_margin_percent ?? 0);
   const sourceLabels = { yahoo: 'Yahoo Finance (live)', open_er: 'Open ER (hourly)', fxrates: 'FXRates API', ecb: 'ECB', manual: 'Manual', cached: 'Cached' };
-  const sourceLabel = sourceLabels[currency.last_update_source] || currency.last_update_source || '—';
+  const anyAutoUpdate = currencies.some(c => c.auto_update_enabled !== false);
+  const mixedMargins = currencies.some(c => Number(c.rate_margin_percent ?? 0) !== sharedMargin);
+
+  if (currencies.length === 0) return null;
 
   return (
     <div className="rounded-xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <BoltIcon className="w-5 h-5 text-sky-500" />
-          <span className="font-semibold text-slate-800 text-base">EUR → TRY — Customer Rate</span>
-          {currency.auto_update_enabled !== false && (
+          <span className="font-semibold text-slate-800 text-base">
+            EUR → {currencies.map(c => c.code).join(' / ')} — Customer Rate
+          </span>
+          {anyAutoUpdate && (
             <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Auto-update ON</span>
           )}
+          {mixedMargins && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full" title="Stored margins differ across currencies. Saving will set all to the input value.">
+              Mixed margins
+            </span>
+          )}
         </div>
-        <button
-          onClick={() => onRefresh(currency.code)}
-          disabled={isLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-sky-600 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg disabled:opacity-50 transition-colors"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Fetch live rate
-        </button>
+        <div className="flex items-center gap-2">
+          {currencies.map(c => (
+            <button
+              key={c.code}
+              onClick={() => onRefresh(c.code)}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-sky-600 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg disabled:opacity-50 transition-colors"
+            >
+              <ArrowPathIcon className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              {c.code}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        {/* Live market rate */}
-        <div className="bg-white rounded-lg border border-slate-200 p-3">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Live market rate</p>
-          <p className="text-2xl font-bold text-slate-800 font-mono">
-            {rawRate > 0 ? rawRate.toFixed(4) : '—'}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            {currency.last_updated_at ? `Updated ${formatDate(currency.last_updated_at)}` : 'Never fetched'}
-          </p>
-          <p className="text-xs text-slate-400">Source: {sourceLabel}</p>
-        </div>
-
-        {/* Margin control */}
-        <div className="bg-white rounded-lg border border-slate-200 p-3">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Your margin</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-lg font-semibold text-slate-500">+</span>
-            <input
-              type="number"
-              min="0"
-              max="20"
-              step="0.1"
-              value={marginInput}
-              onChange={(e) => setMarginInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-20 text-xl font-bold font-mono border-b-2 border-slate-300 focus:border-sky-500 outline-none bg-transparent text-slate-800 pb-0.5"
-            />
-            <span className="text-lg font-semibold text-slate-500">%</span>
+      {/* Single shared margin control */}
+      <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Your margin (applied to all)</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-lg font-semibold text-slate-500">+</span>
+              <input
+                type="number"
+                min="0"
+                max="20"
+                step="0.1"
+                value={marginInput}
+                onChange={(e) => setMarginInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-24 text-xl font-bold font-mono border-b-2 border-slate-300 focus:border-sky-500 outline-none bg-transparent text-slate-800 pb-0.5"
+              />
+              <span className="text-lg font-semibold text-slate-500">%</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-2">Markup added to live rates for {currencies.map(c => c.code).join(', ')}</p>
           </div>
-          <p className="text-xs text-slate-400 mt-2">Markup added to live rate</p>
           {marginChanged && (
             <button
               onClick={handleSaveMargin}
               disabled={saving}
-              className="mt-2 w-full py-1 text-xs font-medium bg-sky-500 hover:bg-sky-600 text-white rounded-md disabled:opacity-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-sky-500 hover:bg-sky-600 text-white rounded-md disabled:opacity-50 transition-colors"
             >
-              {saving ? 'Saving…' : 'Save margin'}
+              {saving ? 'Saving…' : `Save margin (${currencies.length} ${currencies.length === 1 ? 'currency' : 'currencies'})`}
             </button>
           )}
         </div>
-
-        {/* Customer sees */}
-        <div className="bg-sky-500 rounded-lg p-3 text-white">
-          <p className="text-xs font-medium text-sky-100 uppercase tracking-wide mb-1">Customers see</p>
-          <p className="text-2xl font-bold font-mono">
-            {previewRate}
-          </p>
-          <p className="text-xs text-sky-200 mt-1">1 EUR = {previewRate} TRY</p>
-          <p className="text-xs text-sky-200 mt-1">
-            {marginChanged
-              ? 'Preview — save to apply'
-              : 'Currently stored rate'}
-          </p>
-        </div>
       </div>
 
-      <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">
-        <span>Auto-update: every {currency.update_frequency_hours || 1}h</span>
-        <span>·</span>
-        <StatusBadge status={currency.last_update_status} />
+      {/* Per-currency rate columns */}
+      <div className={`grid gap-3 ${currencies.length === 1 ? 'grid-cols-1' : currencies.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        {currencies.map(c => {
+          const rawRate = Number(c.raw_rate || c.exchange_rate || 0);
+          const sourceLabel = sourceLabels[c.last_update_source] || c.last_update_source || '—';
+          return (
+            <div key={c.code} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+              <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">EUR → {c.code}</span>
+                <span className="text-[10px] text-slate-400">Source: {sourceLabel}</span>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-slate-100">
+                <div className="p-3">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-1">Live</p>
+                  <p className="text-base font-bold text-slate-800 font-mono">
+                    {rawRate > 0 ? rawRate.toFixed(4) : '—'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {c.last_updated_at ? `Updated ${formatDate(c.last_updated_at)}` : 'Never fetched'}
+                  </p>
+                </div>
+                <div className="p-3 bg-sky-500 text-white">
+                  <p className="text-[10px] font-medium text-sky-100 uppercase tracking-wide mb-1">Customers see</p>
+                  <p className="text-base font-bold font-mono">{previewFor(c)}</p>
+                  <p className="text-[10px] text-sky-200 mt-1">
+                    {marginChanged ? 'Preview — save to apply' : 'Currently stored'}
+                  </p>
+                </div>
+              </div>
+              <div className="px-3 py-1.5 border-t border-slate-100 flex items-center gap-2 text-[10px] text-slate-400">
+                <span>Auto-update: every {c.update_frequency_hours || 1}h</span>
+                <span>·</span>
+                <StatusBadge status={c.last_update_status} />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -458,13 +485,16 @@ const CurrencyManagementSection = memo(function CurrencyManagementSection() {
 
   const activeCurrencies = currencies.filter(c => c.is_active);
   const inactiveCurrencies = currencies.filter(c => !c.is_active);
-  const tryCurrency = currencies.find(c => c.code === 'TRY');
+  const CUSTOMER_RATE_CODES = ['TRY', 'USD', 'GBP'];
+  const customerRateCurrencies = CUSTOMER_RATE_CODES
+    .map(code => activeCurrencies.find(c => c.code === code))
+    .filter(c => c && !c.base_currency);
 
   return (
     <div className="space-y-6">
-      {tryCurrency && !tryCurrency.base_currency && (
+      {customerRateCurrencies.length > 0 && (
         <CustomerRateCard
-          currency={tryCurrency}
+          currencies={customerRateCurrencies}
           onRefresh={handleRefresh}
           onMarginSave={handleMarginSave}
           isLoading={isLoading}

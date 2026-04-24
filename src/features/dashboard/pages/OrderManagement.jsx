@@ -32,7 +32,8 @@ import {
   FileImageOutlined,
   HistoryOutlined,
   EditOutlined,
-  SendOutlined
+  SendOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
@@ -305,9 +306,11 @@ const OrderManagement = ({ embedded = false }) => {
               { key: 'shipped', label: 'Mark Shipped', icon: <CarOutlined />, disabled: !['confirmed', 'processing'].includes(record.status) },
               { key: 'delivered', label: 'Mark Delivered', icon: <CheckCircleOutlined />, disabled: record.status !== 'shipped' },
               { type: 'divider' },
-              { key: 'cancel', label: 'Cancel Order', icon: <CloseCircleOutlined />, danger: true, disabled: ['delivered', 'cancelled', 'refunded'].includes(record.status) }
+              { key: 'cancel', label: 'Cancel Order', icon: <CloseCircleOutlined />, danger: true, disabled: ['delivered', 'cancelled', 'refunded'].includes(record.status) },
+              { key: 'delete', label: 'Delete Order', icon: <DeleteOutlined />, danger: true }
             ],
-            onClick: async ({ key }) => {
+            onClick: async ({ key, domEvent }) => {
+              domEvent?.stopPropagation?.();
               if (key === 'view') {
                 handleViewOrder(record);
               } else if (key === 'cancel') {
@@ -323,6 +326,27 @@ const OrderManagement = ({ embedded = false }) => {
                       fetchLowStock();
                     } catch (err) {
                       message.error(err.response?.data?.error || 'Failed to cancel order');
+                    }
+                  }
+                });
+              } else if (key === 'delete') {
+                const stockWillRestore = !['cancelled', 'refunded'].includes(record.status);
+                Modal.confirm({
+                  title: `Delete order ${record.order_number}?`,
+                  icon: <ExclamationCircleOutlined />,
+                  okText: 'Delete',
+                  okButtonProps: { danger: true },
+                  content: stockWillRestore
+                    ? 'This permanently removes the order and its items, status history, and messages. Stock will be restored. This cannot be undone.'
+                    : 'This permanently removes the order and its items, status history, and messages. This cannot be undone.',
+                  onOk: async () => {
+                    try {
+                      await apiClient.delete(`/shop-orders/${record.id}`);
+                      message.success('Order deleted');
+                      fetchOrders();
+                      fetchLowStock();
+                    } catch (err) {
+                      message.error(err.response?.data?.error || 'Failed to delete order');
                     }
                   }
                 });
