@@ -139,8 +139,16 @@ export async function getInstructorEarningsData(
         COALESCE(rental_srv.price, 0) as pkg_rental_daily_rate,
         COALESCE(accom_unit.price_per_night, 0) as pkg_accom_nightly_rate,
         sp.package_hourly_rate as pkg_hourly_rate,
-        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0) as commission_rate,
-        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN COALESCE(idc.self_student_commission_rate, 45) END,
+          bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0
+        ) as commission_rate,
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN 'percentage' END,
+          bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+        ) as commission_type
       FROM bookings b
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN services srv ON srv.id = b.service_id
@@ -296,10 +304,19 @@ export async function getAllInstructorBalances() {
       cp.used_hours as package_used_hours,
       COALESCE(sp.sessions_count, gb_sp.sessions_count) as package_sessions_count,
       srv.duration as fallback_session_duration,
-      COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0) as commission_rate,
-      COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type
+      COALESCE(
+        CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+             THEN COALESCE(idc.self_student_commission_rate, 45) END,
+        bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0
+      ) as commission_rate,
+      COALESCE(
+        CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+             THEN 'percentage' END,
+        bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+      ) as commission_type
     FROM bookings b
     JOIN users u ON u.id = b.instructor_user_id
+    LEFT JOIN users s ON s.id = b.student_user_id
     LEFT JOIN roles r ON r.id = u.role_id
     LEFT JOIN services srv ON srv.id = b.service_id
     LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id

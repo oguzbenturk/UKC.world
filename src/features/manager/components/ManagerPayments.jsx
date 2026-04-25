@@ -32,7 +32,7 @@ const sumPayments = (payments) => {
     if (amt >= 0) paid = paid.plus(amt);
     else deducted = deducted.plus(Math.abs(amt));
   }
-  return { paid: paid.toNumber(), deducted: deducted.toNumber(), net: paid.minus(deducted).toNumber() };
+  return { paid: paid.toNumber(), deducted: deducted.toNumber(), net: paid.plus(deducted).toNumber() };
 };
 
 const buildPayload = (values, type, record, managerName) => {
@@ -253,8 +253,15 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
           <div className="flex items-center gap-2 mb-1">
             <CheckCircleOutlined className="text-green-500" />
             <span className="text-xs text-gray-500">{t('manager:payments.totalPaidOut')}</span>
-            <span className="ml-auto font-semibold text-green-600">{formatCurrency(totalPaid, 'EUR')}</span>
+            <span className="ml-auto font-semibold text-green-600">{formatCurrency(payTotals.paid, 'EUR')}</span>
           </div>
+          {payTotals.deducted > 0 && (
+            <div className="flex items-center gap-2 mb-1">
+              <MinusOutlined className="text-red-500" />
+              <span className="text-xs text-gray-500">{t('manager:payments.totalDeducted', 'Total Deducted')}</span>
+              <span className="ml-auto font-semibold text-red-600">{formatCurrency(payTotals.deducted, 'EUR')}</span>
+            </div>
+          )}
           <div className="border-t border-gray-100 mt-2 pt-2 flex items-center justify-between">
             <span className="text-xs font-medium text-gray-600">{t('manager:payments.balanceOwed')}</span>
             <span className={`text-lg font-bold ${totalBalance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>

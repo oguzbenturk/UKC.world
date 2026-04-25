@@ -18,7 +18,7 @@ const router = express.Router();
 
 // Rol ismine göre izin verilen alanlar
 const roleSpecificFields = {
-  student: ['package_hours', 'remaining_hours', 'instructor_id', 'next_lesson', 'last_lesson', 'first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency', 'bio', 'profile_image_url', 'level', 'notes'],
+  student: ['package_hours', 'remaining_hours', 'instructor_id', 'self_student_of_instructor_id', 'next_lesson', 'last_lesson', 'first_name', 'last_name', 'date_of_birth', 'age', 'weight', 'address', 'city', 'country', 'zip_code', 'preferred_currency', 'bio', 'profile_image_url', 'level', 'notes'],
   instructor: [
     'first_name',
     'last_name',

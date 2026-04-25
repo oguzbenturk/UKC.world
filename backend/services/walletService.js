@@ -891,6 +891,7 @@ export async function getWalletAccountSummary(userId, currency = DEFAULT_CURRENC
 
   let totalCredits = 0;
   let ledgerDebits = 0;
+  let ledgerRefunds = 0;
   let lastCreditAt = null;
   let lastTransactionAt = null;
 
@@ -899,6 +900,9 @@ export async function getWalletAccountSummary(userId, currency = DEFAULT_CURRENC
       `SELECT
          COALESCE(SUM(CASE WHEN status = 'completed' AND available_delta > 0 THEN available_delta ELSE 0 END), 0) AS total_credits,
          COALESCE(SUM(CASE WHEN status = 'completed' AND available_delta < 0 THEN -available_delta ELSE 0 END), 0) AS total_debits,
+         COALESCE(SUM(CASE WHEN status = 'completed' AND available_delta > 0
+                            AND (transaction_type ILIKE '%refund%' OR transaction_type ILIKE '%reversal%')
+                       THEN available_delta ELSE 0 END), 0) AS total_refunds,
          MAX(CASE WHEN status = 'completed' AND available_delta > 0 THEN transaction_date END) AS last_credit_at,
          MAX(transaction_date) AS last_transaction_at
        FROM wallet_transactions
@@ -910,6 +914,7 @@ export async function getWalletAccountSummary(userId, currency = DEFAULT_CURRENC
       const ledgerRow = rows[0];
       totalCredits = toNumeric(ledgerRow.total_credits);
       ledgerDebits = toNumeric(ledgerRow.total_debits);
+      ledgerRefunds = toNumeric(ledgerRow.total_refunds);
       lastCreditAt = ledgerRow.last_credit_at || null;
       lastTransactionAt = ledgerRow.last_transaction_at || null;
     }
@@ -919,8 +924,11 @@ export async function getWalletAccountSummary(userId, currency = DEFAULT_CURRENC
     }
   }
 
+  // Net spending: gross debits minus refunds/reversals, so deleting and re-adding
+  // a package doesn't inflate lifetime value on each cycle.
+  const netLedgerDebits = Math.max(0, ledgerDebits - ledgerRefunds);
   const derivedDebits = toNumeric(totalCredits - available);
-  const resolvedDebits = Math.max(0, ledgerDebits, derivedDebits);
+  const resolvedDebits = Math.max(0, netLedgerDebits, derivedDebits - ledgerRefunds);
   const totalSpent = toNumeric(resolvedDebits);
 
   return {

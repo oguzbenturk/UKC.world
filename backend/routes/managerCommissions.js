@@ -499,7 +499,8 @@ router.post('/admin/managers/:managerId/payments', authenticateJWT, authorizeRol
       entityType: 'manager_payment',
       relatedEntityType: 'manager',
       relatedEntityId: managerId,
-      createdBy: actorId || null
+      createdBy: actorId || null,
+      allowNegative: true
     });
 
     res.json({

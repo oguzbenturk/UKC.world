@@ -22,6 +22,44 @@ import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
 
 const router = express.Router();
+
+// If the booking's student is personally linked to its instructor (self-student),
+// freeze a booking_custom_commissions row at the instructor's per-instructor
+// self-student rate (default 45%). Idempotent on booking_id (UNIQUE).
+// No-op when no self-student match, when fields are missing, or when an
+// admin-set custom commission already exists (we don't want to clobber it).
+async function applySelfStudentCommissionIfMatch(client, booking) {
+  if (!booking?.id || !booking.student_user_id || !booking.instructor_user_id || !booking.service_id) {
+    return;
+  }
+  const existing = await client.query(
+    'SELECT 1 FROM booking_custom_commissions WHERE booking_id = $1',
+    [booking.id]
+  );
+  if (existing.rows.length > 0) return;
+
+  const ssRow = await client.query(
+    `SELECT u.self_student_of_instructor_id,
+            COALESCE(idc.self_student_commission_rate, 45) AS rate
+       FROM users u
+       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = $2
+      WHERE u.id = $1`,
+    [booking.student_user_id, booking.instructor_user_id]
+  );
+  const row = ssRow.rows[0];
+  if (!row || row.self_student_of_instructor_id !== booking.instructor_user_id) return;
+
+  await client.query(
+    `INSERT INTO booking_custom_commissions
+       (booking_id, instructor_id, service_id, commission_type, commission_value, created_at, updated_at)
+     VALUES ($1, $2, $3, 'percentage', $4, NOW(), NOW())
+     ON CONFLICT (booking_id) DO UPDATE
+       SET commission_type = 'percentage',
+           commission_value = EXCLUDED.commission_value,
+           updated_at = NOW()`,
+    [booking.id, booking.instructor_user_id, booking.service_id, row.rate]
+  );
+}
 // Feature flag to optionally create cash transactions for partial package users
 const BILLING_PARTIAL_PRECISION = (process.env.BILLING_PARTIAL_PRECISION === '1');
 const DEFAULT_CURRENCY = process.env.DEFAULT_WALLET_CURRENCY?.toUpperCase() || 'EUR';
@@ -396,8 +434,16 @@ router.get('/',
         srv.duration as service_duration,
         cp.package_name as customer_package_name,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
-        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value) as instructor_commission,
-        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type,
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN COALESCE(idc.self_student_commission_rate, 45) END,
+          bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value
+        ) as instructor_commission,
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN 'percentage' END,
+          bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+        ) as commission_type,
         t.id as transaction_id,
         creator.name as created_by_name,
         creator.email as created_by_email,
@@ -515,7 +561,7 @@ router.get('/',
       }
     }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, t.id, creator.name, creator.email, updater.name, updater.email
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, s.self_student_of_instructor_id, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, idc.self_student_commission_rate, t.id, creator.name, creator.email, updater.name, updater.email
                ORDER BY b.date DESC
                LIMIT $${paramCount++}`;
     
@@ -671,8 +717,16 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
         i.name as instructor_name,
         srv.name as service_name,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
-        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value) as instructor_commission,
-        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type,
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN COALESCE(idc.self_student_commission_rate, 45) END,
+          bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value
+        ) as instructor_commission,
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN 'percentage' END,
+          bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+        ) as commission_type,
         COALESCE(
           json_agg(
             CASE
@@ -721,7 +775,7 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
       params.push(instructor_id);
     }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, i.name, srv.name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type`;
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.self_student_of_instructor_id, i.name, srv.name, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, idc.self_student_commission_rate`;
     query += ` ORDER BY b.start_hour ASC`;
     
     const { rows } = await pool.query(query, params);
@@ -1241,8 +1295,16 @@ router.get('/:id', authenticateJWT, async (req, res) => {
         cp.total_hours as package_total_hours,
         cp.purchase_price as package_price,
         COALESCE(b.final_amount, b.amount, srv.price, 0) as display_amount,
-        COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0) as instructor_commission,
-        COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN COALESCE(idc.self_student_commission_rate, 45) END,
+          bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0
+        ) as instructor_commission,
+        COALESCE(
+          CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+               THEN 'percentage' END,
+          bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+        ) as commission_type
       FROM bookings b
       LEFT JOIN users s ON s.id = b.student_user_id
       LEFT JOIN users i ON i.id = b.instructor_user_id
@@ -1890,8 +1952,10 @@ router.post('/',
     const insertBookingQuery = `INSERT INTO bookings (${bookingInsertColumns.join(', ')}) VALUES (${bookingPlaceholders}) RETURNING *`;
 
     const bookingResult = await client.query(insertBookingQuery, bookingInsertValues);
-    
+
     const booking = bookingResult.rows[0];
+
+    await applySelfStudentCommissionIfMatch(client, booking);
 
     // For bank transfers, insert the receipt tracking row immediately
     if (requestedPaymentMethod === 'bank_transfer' && req.body.receiptUrl) {
@@ -2914,9 +2978,11 @@ router.post('/group',
     const groupBookingQuery = `INSERT INTO bookings (${groupBookingInsertColumns.join(', ')}) VALUES (${groupBookingPlaceholders}) RETURNING *`;
 
     const bookingResult = await client.query(groupBookingQuery, groupBookingInsertValues);
-    
+
     const booking = bookingResult.rows[0];
-    
+
+    await applySelfStudentCommissionIfMatch(client, booking);
+
     // Insert all participants into booking_participants table with their payment details
     for (const participant of processedParticipants) {
       const participantColumns = [
@@ -3700,10 +3766,12 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       const { columns: bookingInsertColumns, values: bookingInsertValues } = appendCreatedBy(bookingColumns, bookingValues, actorId);
       const bookingPlaceholders = bookingInsertColumns.map((_, idx) => `$${idx + 1}`).join(', ');
       const booking = await client.query(
-        `INSERT INTO bookings (${bookingInsertColumns.join(', ')}) VALUES (${bookingPlaceholders}) RETURNING id`,
+        `INSERT INTO bookings (${bookingInsertColumns.join(', ')}) VALUES (${bookingPlaceholders}) RETURNING *`,
         bookingInsertValues
       );
       const bookingId = booking.rows[0].id;
+
+      await applySelfStudentCommissionIfMatch(client, booking.rows[0]);
 
       if (individualChargeEntry) {
         const metadata = {

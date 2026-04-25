@@ -24,8 +24,8 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
 
     // Get default commission for the instructor
     const defaultCommissionResult = await pool.query(
-      `SELECT commission_type, commission_value 
-       FROM instructor_default_commissions 
+      `SELECT commission_type, commission_value, self_student_commission_rate
+       FROM instructor_default_commissions
        WHERE instructor_id = $1`,
       [instructorId]
     );
@@ -44,14 +44,16 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
     
     // Format the response
     const response = {
-      defaultCommission: defaultCommissionResult.rows.length > 0 
+      defaultCommission: defaultCommissionResult.rows.length > 0
         ? {
             type: defaultCommissionResult.rows[0].commission_type,
-            value: defaultCommissionResult.rows[0].commission_value
+            value: defaultCommissionResult.rows[0].commission_value,
+            selfStudentRate: defaultCommissionResult.rows[0].self_student_commission_rate ?? 45
           }
         : {
             type: 'fixed', // Default to fixed rate (hourly)
-            value: 50 // Default €50/hour
+            value: 50, // Default €50/hour
+            selfStudentRate: 45
           },
       commissions: commissionResult.rows.map(row => ({
         key: row.service_id,
@@ -74,41 +76,53 @@ router.get('/instructors/:instructorId/commissions', authenticateJWT, authorizeR
 // Update default commission for an instructor
 router.put('/instructors/:instructorId/default-commission', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
   const { instructorId } = req.params;
-  const { commissionType, commissionValue } = req.body;
-  
+  const { commissionType, commissionValue, selfStudentRate } = req.body;
+
   if (!commissionType || commissionValue === undefined) {
     return res.status(400).json({ error: 'Commission type and value are required' });
   }
-  
+
+  if (selfStudentRate !== undefined && selfStudentRate !== null) {
+    const n = Number(selfStudentRate);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      return res.status(400).json({ error: 'selfStudentRate must be between 0 and 100' });
+    }
+  }
+
+  const ssRate = (selfStudentRate === undefined || selfStudentRate === null)
+    ? 45
+    : Number(selfStudentRate);
+
   try {
     // Check if a default commission already exists
     const existingResult = await pool.query(
       'SELECT id FROM instructor_default_commissions WHERE instructor_id = $1',
       [instructorId]
     );
-    
+
     let result;
-    
+
     if (existingResult.rows.length > 0) {
       // Update existing default commission
       result = await pool.query(
         `UPDATE instructor_default_commissions
-         SET commission_type = $1, commission_value = $2, updated_at = NOW()
-         WHERE instructor_id = $3
+         SET commission_type = $1, commission_value = $2,
+             self_student_commission_rate = $3, updated_at = NOW()
+         WHERE instructor_id = $4
          RETURNING *`,
-        [commissionType, commissionValue, instructorId]
+        [commissionType, commissionValue, ssRate, instructorId]
       );
     } else {
       // Insert new default commission
       result = await pool.query(
         `INSERT INTO instructor_default_commissions
-         (instructor_id, commission_type, commission_value, created_at, updated_at)
-         VALUES ($1, $2, $3, NOW(), NOW())
+         (instructor_id, commission_type, commission_value, self_student_commission_rate, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())
          RETURNING *`,
-        [instructorId, commissionType, commissionValue]
+        [instructorId, commissionType, commissionValue, ssRate]
       );
     }
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     logger.error('Error updating default commission:', err);

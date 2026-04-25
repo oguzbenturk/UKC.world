@@ -332,7 +332,28 @@ class BookingUpdateCascadeService {
   static async getCommissionRate(client, booking) {
     let commissionType = 'percentage';
     let commissionValue = 50; // Default fallback
-    
+
+    // 0. Self-student override: if the student is personally linked to THIS instructor,
+    //    use the instructor's configured self-student commission (default 45%).
+    if (booking.student_user_id && booking.instructor_user_id) {
+      const selfStudent = await client.query(
+        `SELECT u.self_student_of_instructor_id,
+                COALESCE(idc.self_student_commission_rate, 45) AS rate
+           FROM users u
+           LEFT JOIN instructor_default_commissions idc
+                  ON idc.instructor_id = $2
+          WHERE u.id = $1`,
+        [booking.student_user_id, booking.instructor_user_id]
+      );
+      const row = selfStudent.rows[0];
+      if (row && row.self_student_of_instructor_id === booking.instructor_user_id) {
+        return {
+          commissionType: 'percentage',
+          commissionValue: new Decimal(row.rate).toNumber(),
+        };
+      }
+    }
+
     // 1. Check for booking-specific custom commission first (this is the primary source)
     const customCommission = await client.query(
       'SELECT commission_type, commission_value FROM booking_custom_commissions WHERE booking_id = $1',

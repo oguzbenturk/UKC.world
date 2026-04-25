@@ -598,8 +598,14 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const getPackageDisplayInfo = () => {
     if (isPackageBooking(booking)) {
       const packageName = booking.package_name || null;
+      const totalHours = parseFloat(booking.package_total_hours);
+      const packagePrice = parseFloat(booking.package_price);
+      const pricePerHour = (Number.isFinite(totalHours) && totalHours > 0 && Number.isFinite(packagePrice))
+        ? packagePrice / totalHours
+        : null;
       return {
         subtitle: packageName && packageName !== 'Package Hours' ? `Package: ${packageName}` : 'Paid with Package',
+        pricePerHour,
       };
     }
 
@@ -1257,6 +1263,17 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 return t('common:bookings.detail.total');
                               })()}
                             </p>
+                            {(() => {
+                              const packageInfo = getPackageDisplayInfo();
+                              if (packageInfo && packageInfo.pricePerHour != null) {
+                                return (
+                                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                    {`${currencySymbol}${packageInfo.pricePerHour.toFixed(2)} / hour`}
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                         )}
                       </div>

@@ -322,6 +322,22 @@ apiClient.interceptors.response.use(
           window.location.href = '/login';
         }
       } else if (error.response.status === 403) {
+        // CSRF token validation failed = no Bearer token in the request = session expired
+        const isCsrfFailure = error.response.data?.error?.includes?.('CSRF');
+        if (isCsrfFailure) {
+          inMemoryAccessToken = null;
+          try {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userRole');
+          } catch { /* ignore */ }
+          window.dispatchEvent(new Event('sessionExpired'));
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
         error.isAuthError = true;
         error.authMessage = 'You do not have permission to perform this action.';
       } else if (error.response.status === 500) {

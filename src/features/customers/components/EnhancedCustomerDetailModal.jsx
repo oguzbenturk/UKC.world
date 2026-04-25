@@ -166,6 +166,10 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const [paymentForm] = Form.useForm();
   const [chargeForm] = Form.useForm();
 
+  // Local toggle for the Self Student checkbox so the Select can be enabled
+  // before an instructor is actually chosen (commit happens on Select change).
+  const [selfStudentEnabled, setSelfStudentEnabled] = useState(false);
+
   // ─── Currency helpers ─────────────────────────────────────────
   const isStaff = useMemo(() => {
     const staffRoles = ['admin', 'manager', 'developer', 'instructor'];
@@ -281,6 +285,11 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       setAddFundsAmount(null);
     }
   }, [isOpen, customerId, fetchCustomerData]);
+
+  // Sync the checkbox with whatever the customer record currently holds.
+  useEffect(() => {
+    setSelfStudentEnabled(!!customer?.self_student_of_instructor_id);
+  }, [customer?.self_student_of_instructor_id]);
 
   // ─── Computed ─────────────────────────────────────────────────
   const customerFullName = useMemo(() => {
@@ -402,6 +411,20 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     } catch (err) {
       message.error('Failed to update profile: ' + (err.message || 'Unknown error'));
     } finally { setPaymentProcessing(false); }
+  };
+
+  const handleSelfStudentChange = async (instructorId) => {
+    if (!customerId) return;
+    const previous = customer?.self_student_of_instructor_id ?? null;
+    setCustomer(prev => (prev ? { ...prev, self_student_of_instructor_id: instructorId } : prev));
+    try {
+      await DataService.updateUser(customerId, { self_student_of_instructor_id: instructorId });
+      message.success(instructorId ? 'Marked as self-student' : 'Self-student link removed');
+      onUpdate();
+    } catch (err) {
+      setCustomer(prev => (prev ? { ...prev, self_student_of_instructor_id: previous } : prev));
+      message.error('Failed to update self-student link: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const handleDeleteBooking = useCallback((booking) => {
@@ -797,6 +820,44 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           {renderInfoCell(<ClockCircleOutlined />, 'Since', customer?.created_at ? new Date(customer.created_at).toLocaleDateString() : null)}
         </div>
       </div>
+
+      {/* Self-student linkage (admin/manager only) */}
+      {isAdmin && (() => {
+        const linkedId = customer?.self_student_of_instructor_id || null;
+        const teachingStaff = (instructors || []).filter(i => i.role_name === 'instructor' || i.role_name === 'manager');
+        const labelOf = (i) => `${i.first_name ?? ''} ${i.last_name ?? ''}`.trim() || i.name || i.email;
+        return (
+          <div className="rounded-xl border border-sky-100 bg-sky-50/40 px-4 py-3">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div>
+                <div className="text-sm font-semibold text-gray-800">Self Student</div>
+                <div className="text-[11px] text-gray-500">Link this customer to the instructor who personally brought them in. That instructor will earn a percentage commission (default 45%) on lessons with this student.</div>
+              </div>
+              <Checkbox
+                checked={selfStudentEnabled}
+                disabled={readOnly}
+                onChange={(e) => {
+                  setSelfStudentEnabled(e.target.checked);
+                  if (!e.target.checked && linkedId) handleSelfStudentChange(null);
+                }}
+              >
+                Enable
+              </Checkbox>
+            </div>
+            <Select
+              showSearch
+              allowClear
+              placeholder="Select an instructor"
+              optionFilterProp="label"
+              disabled={readOnly || !selfStudentEnabled}
+              value={linkedId || undefined}
+              onChange={(val) => handleSelfStudentChange(val || null)}
+              style={{ width: '100%' }}
+              options={teachingStaff.map(i => ({ value: i.id, label: labelOf(i) }))}
+            />
+          </div>
+        );
+      })()}
 
       {/* Quick highlights */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

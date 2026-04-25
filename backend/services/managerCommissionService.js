@@ -1227,11 +1227,11 @@ export async function getAllManagersWithCommissionSettings() {
             )
         ) as total_commission,
         (
-          SELECT COALESCE(SUM(amount), 0)
-          FROM wallet_transactions 
-          WHERE user_id = u.id 
+          SELECT COALESCE(SUM(ABS(amount)), 0)
+          FROM wallet_transactions
+          WHERE user_id = u.id
             AND entity_type = 'manager_payment'
-            AND transaction_type = 'payment'
+            AND transaction_type IN ('payment', 'deduction')
             AND status != 'cancelled'
         ) as total_paid
        FROM users u

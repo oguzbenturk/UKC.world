@@ -65,6 +65,7 @@ router.get('/', publicApiLimiter, cacheMiddleware(300), async (req, res) => {
       SELECT u.*, r.name as role_name,
              COALESCE(idc.commission_value, 0) as commission_rate,
              COALESCE(idc.commission_type, 'percent') as commission_type,
+             COALESCE(idc.self_student_commission_rate, 45) as self_student_commission_rate,
              COALESCE(
                json_agg(
                  json_build_object(
@@ -88,6 +89,7 @@ router.get('/', publicApiLimiter, cacheMiddleware(300), async (req, res) => {
         AND (tms.visible IS NULL OR tms.visible = true)
         ${contextFilter}
       GROUP BY u.id, r.name, idc.commission_value, idc.commission_type,
+               idc.self_student_commission_rate,
                tms.visible, tms.display_order, tms.featured, tms.custom_bio
       ORDER BY
         CASE WHEN tms.featured = true THEN 0 ELSE 1 END,
@@ -118,7 +120,8 @@ router.get('/', publicApiLimiter, cacheMiddleware(300), async (req, res) => {
       visible_fields: visibleFields,
       ...(req.user ? {
         commission_rate: row.commission_rate,
-        commission_type: row.commission_type
+        commission_type: row.commission_type,
+        self_student_commission_rate: row.self_student_commission_rate
       } : {})
     }));
 
@@ -135,7 +138,8 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     const userQuery = `
       SELECT u.*, r.name as role_name,
              COALESCE(idc.commission_value, 0) as commission_rate,
-             COALESCE(idc.commission_type, 'percent') as commission_type
+             COALESCE(idc.commission_type, 'percent') as commission_type,
+             COALESCE(idc.self_student_commission_rate, 45) as self_student_commission_rate
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
