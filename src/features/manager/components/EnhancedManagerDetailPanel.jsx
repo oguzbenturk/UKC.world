@@ -924,7 +924,7 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   };
 
   const renderPayroll = () => (
-    <ManagerPayments manager={manager} onPaymentSuccess={() => fetchData()} />
+    <ManagerPayments manager={manager} onPaymentSuccess={() => { fetchData(); onUpdate(); }} />
   );
 
   // ─── Content Router ────────────────────────────────────────────

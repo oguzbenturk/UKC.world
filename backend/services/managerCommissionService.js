@@ -802,14 +802,19 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
       params
     );
 
-    // Get actual payments from wallet_transactions
+    // Get actual payments + deductions from wallet_transactions.
+    // Both reduce what the manager is still owed: payments are money paid out,
+    // deductions are amounts forgiven/clawed back. Pending must subtract both.
     const paymentsResult = await pool.query(
-      `SELECT COALESCE(SUM(amount), 0) as total_paid,
-              COUNT(*) as payment_count
+      `SELECT
+         COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as total_paid,
+         COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) as total_deducted,
+         COUNT(*) FILTER (WHERE amount > 0) as payment_count,
+         COUNT(*) FILTER (WHERE amount < 0) as deduction_count
        FROM wallet_transactions
        WHERE user_id = $1
          AND entity_type = 'manager_payment'
-         AND transaction_type = 'payment'
+         AND transaction_type IN ('payment', 'deduction')
          AND status != 'cancelled'`,
       [managerUserId]
     );
@@ -817,7 +822,8 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
     const row = result.rows[0];
     const totalEarned = parseFloat(row.total_earned) || 0;
     const totalPaid = parseFloat(paymentsResult.rows[0]?.total_paid) || 0;
-    const pendingAmount = Math.max(totalEarned - totalPaid, 0);
+    const totalDeducted = parseFloat(paymentsResult.rows[0]?.total_deducted) || 0;
+    const pendingAmount = Math.max(totalEarned - totalPaid - totalDeducted, 0);
 
     return {
       pending: {
@@ -827,6 +833,10 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
       paid: {
         count: parseInt(paymentsResult.rows[0]?.payment_count) || 0,
         amount: totalPaid
+      },
+      deducted: {
+        count: parseInt(paymentsResult.rows[0]?.deduction_count) || 0,
+        amount: totalDeducted
       },
       cancelled: {
         count: parseInt(row.cancelled_count) || 0,
