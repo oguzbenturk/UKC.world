@@ -21,6 +21,9 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
     const avgRentalValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
     const collectionRate = rentalRevenue > 0 ? 100 : 0;
     const overdueAmount = outstandingBalance;
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
+    const managerCommissionRate = rentalRevenue > 0 ? (managerCommission / rentalRevenue) * 100 : 0;
+    const netRevenue = rentalRevenue - managerCommission;
 
     return {
       totalRentals: rentalCount,
@@ -29,7 +32,10 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
       collectedPayments,
       avgRentalValue,
       collectionRate,
-      overdueAmount
+      overdueAmount,
+      managerCommission,
+      managerCommissionRate,
+      netRevenue
     };
   }, [summaryData]);
 
@@ -122,6 +128,34 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
             />
             <div className="mt-2 text-xs text-slate-500">
               {rentalMetrics.outstandingBalance > 0 ? 'Needs follow-up' : 'All settled'}
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="h-full">
+            <Statistic
+              title="Manager Commission"
+              value={rentalMetrics.managerCommission}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#e11d48' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              {rentalMetrics.managerCommissionRate.toFixed(1)}% of rental revenue
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="h-full">
+            <Statistic
+              title="Net Rental Revenue"
+              value={rentalMetrics.netRevenue}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#52c41a' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              After manager commission
             </div>
           </Card>
         </Col>

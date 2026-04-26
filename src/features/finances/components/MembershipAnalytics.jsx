@@ -17,12 +17,16 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
     const membershipCount = Number(revenue.membership_count || 0);
     const outstandingBalance = Number(balances.total_customer_debt || 0);
     const avgValue = membershipCount > 0 ? membershipRevenue / membershipCount : 0;
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
+    const netRevenue = membershipRevenue - managerCommission;
 
     return {
       membershipRevenue,
       membershipCount,
       avgValue,
-      outstandingBalance
+      outstandingBalance,
+      managerCommission,
+      netRevenue
     };
   }, [summaryData]);
 
@@ -91,6 +95,34 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
             />
             <div className="mt-2 text-xs text-slate-500">
               {membershipMetrics.outstandingBalance > 0 ? 'Needs follow-up' : 'All settled'}
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="h-full">
+            <Statistic
+              title="Manager Commission"
+              value={membershipMetrics.managerCommission}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#e11d48' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              Configured rate · paid to manager
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="h-full">
+            <Statistic
+              title="Net Membership Revenue"
+              value={membershipMetrics.netRevenue}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#52c41a' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              After manager commission
             </div>
           </Card>
         </Col>

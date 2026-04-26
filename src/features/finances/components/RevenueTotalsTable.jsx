@@ -135,11 +135,18 @@ function RevenueTotalsTable({ dateRange, serviceType = 'all', financialSettings:
     : (ledgerCommissionRate || 0) * 100;
 
   const revenueTotals = summary?.accrual?.revenue || summary?.cash?.revenue || {};
+  const managerCommissionInput = toNumber(summary?.accrual?.managerCommission?.total ?? summary?.cash?.managerCommission?.total);
+  // Subtract manager commission unconditionally — `ensureExpensesFromSettings` may
+  // skip the recompute when financialSettings is null, so guarantee the deduction here.
+  if (managerCommissionInput > 0) {
+    net -= managerCommissionInput;
+  }
   const adjustedNetData = ensureExpensesFromSettings({
     supported: hasSnapshots,
     gross,
     net,
     commission,
+    managerCommission: managerCommissionInput,
     tax,
     insurance,
     equipment,
@@ -153,6 +160,7 @@ function RevenueTotalsTable({ dateRange, serviceType = 'all', financialSettings:
 
   gross = toNumber(adjustedNetData?.gross ?? gross);
   commission = toNumber(adjustedNetData?.commission ?? commission);
+  const managerCommission = toNumber(adjustedNetData?.managerCommission ?? managerCommissionInput);
   tax = toNumber(adjustedNetData?.tax ?? tax);
   insurance = toNumber(adjustedNetData?.insurance ?? insurance);
   equipment = toNumber(adjustedNetData?.equipment ?? equipment);
@@ -160,16 +168,22 @@ function RevenueTotalsTable({ dateRange, serviceType = 'all', financialSettings:
   net = toNumber(adjustedNetData?.net ?? net);
 
   const effectiveCommissionRate = adjustedNetData?.commissionRate ?? baseCommissionRate;
+  const managerCommissionRate = adjustedNetData?.managerCommissionRate ?? (managerCommission > 0 && gross > 0 ? (managerCommission / gross) * 100 : 0);
 
   const rows = (summary?.accrual?.netRevenue || summary?.accrual?.revenue || summary?.cash?.netRevenue)
     ? [
         { key: 'gross', label: 'Income', value: formatCurrency(gross) },
-        { 
-          key: 'commission', 
-          label: summary?.cash?.netRevenue?.instructor_earnings_method === 'actual_earnings' 
-            ? 'Instructor Earnings (Actual)' 
-            : 'Commission', 
-          value: `${formatCurrency(commission)}${effectiveCommissionRate > 0 ? ` (${effectiveCommissionRate.toFixed(1)}%)` : ''}` 
+        {
+          key: 'commission',
+          label: summary?.cash?.netRevenue?.instructor_earnings_method === 'actual_earnings'
+            ? 'Instructor Earnings (Actual)'
+            : 'Instructor Commission',
+          value: `${formatCurrency(commission)}${effectiveCommissionRate > 0 ? ` (${effectiveCommissionRate.toFixed(1)}%)` : ''}`
+        },
+        {
+          key: 'managerCommission',
+          label: 'Manager Commission',
+          value: `${formatCurrency(managerCommission)}${managerCommissionRate > 0 ? ` (${managerCommissionRate.toFixed(1)}%)` : ''}`
         },
         { key: 'tax', label: 'Tax', value: formatCurrency(tax) },
         { key: 'insurance', label: 'Insurance', value: formatCurrency(insurance) },

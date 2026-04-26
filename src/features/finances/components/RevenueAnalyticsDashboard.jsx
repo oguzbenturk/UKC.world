@@ -39,7 +39,9 @@ const DEFAULT_KPIS = {
   missingTransactions: 0,
   calculatedMissing: 0,
   outstandingBalances: 0,
-  serviceRevenueTotal: 0
+  serviceRevenueTotal: 0,
+  managerCommission: 0,
+  netRevenue: 0
 };
 
 const toNumber = (value) => {
@@ -137,6 +139,8 @@ function RevenueAnalyticsDashboard({ dateRange, onDateRangeChange: _onDateRangeC
     const outstandingBalances = toNumber(balances.total_customer_debt);
     const calculatedMissing = Math.max(0, serviceRevenueTotal - collectedRevenue);
     const missingTransactions = outstandingBalances !== 0 ? outstandingBalances : calculatedMissing;
+    const managerCommission = toNumber(summary.managerCommission?.total);
+    const netRevenue = collectedRevenue - managerCommission;
 
     return {
       totalTransactions,
@@ -148,7 +152,9 @@ function RevenueAnalyticsDashboard({ dateRange, onDateRangeChange: _onDateRangeC
       missingTransactions,
       calculatedMissing,
       outstandingBalances,
-      serviceRevenueTotal
+      serviceRevenueTotal,
+      managerCommission,
+      netRevenue
     };
   }, [data]);
 
@@ -321,6 +327,21 @@ function RevenueAnalyticsDashboard({ dateRange, onDateRangeChange: _onDateRangeC
               </Tag>
             </div>
           </Card>
+
+          <Card size="small" className="h-full" styles={kpiCardStyles}>
+            <div className="flex justify-between gap-3">
+              <div className="flex-1">
+                <div className="text-xs text-gray-500">Manager Commission</div>
+                <div className="text-base font-semibold text-rose-600">{formatCurrency(kpis.managerCommission)}</div>
+                <div className="text-xs text-gray-500">Configured rate · paid to manager</div>
+              </div>
+              <div className="flex-1 text-right">
+                <div className="text-xs text-gray-500">Net Revenue</div>
+                <div className="text-base font-semibold text-emerald-600">{formatCurrency(kpis.netRevenue)}</div>
+                <div className="text-xs text-gray-500">After manager commission</div>
+              </div>
+            </div>
+          </Card>
         </div>
 
         <Card title="Top Services" size="small">
@@ -465,6 +486,28 @@ function RevenueAnalyticsDashboard({ dateRange, onDateRangeChange: _onDateRangeC
             <div className="text-sm text-gray-400">
               {`${formatCurrency(kpis.serviceRevenueTotal)} - ${formatCurrency(kpis.collectedRevenue)} = ${formatCurrency(kpis.calculatedMissing)}`}
             </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="h-full" styles={kpiCardStyles}>
+            <Statistic
+              title="Manager Commission"
+              value={kpis.managerCommission}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#e11d48' }}
+            />
+            <div className="text-sm text-gray-500 mt-2">Configured rate · paid to manager</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="h-full" styles={kpiCardStyles}>
+            <Statistic
+              title="Net Revenue"
+              value={kpis.netRevenue}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: 'var(--brand-success)' }}
+            />
+            <div className="text-sm text-gray-500 mt-2">After manager commission</div>
           </Card>
         </Col>
       </Row>

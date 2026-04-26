@@ -125,6 +125,9 @@ export const useDashboardData = () => {
 
     const customersWithDebt = number(balances.customers_with_debt);
     const totalCustomerDebt = number(balances.total_customer_debt);
+    const managerCommission = number(summary?.managerCommission?.total);
+    const managerCommissionByService = summary?.managerCommission?.byServiceType || {};
+    const netRevenue = totalRevenue - totalRefunds - managerCommission;
 
     return {
       totalRevenue,
@@ -137,11 +140,16 @@ export const useDashboardData = () => {
       completedRentals,
       avgBookingValue,
       customersWithDebt,
-      totalCustomerDebt
+      totalCustomerDebt,
+      managerCommission,
+      managerCommissionByService,
+      netRevenue
     };
   }, [summary, ops]);
 
   // Phase 2: operational KPIs from /api/dashboard/summary
+  // /dashboard/summary doesn't include manager commission, so we splice it in from
+  // the /finances/summary response (`summary?.managerCommission?.total`) and recompute net.
   const operationalKpis = useMemo(() => {
     const ds = dashboardSummary || {};
     const lessons = ds.lessons || {};
@@ -150,6 +158,9 @@ export const useDashboardData = () => {
     const cust = ds.customers || {};
     const rev = ds.revenue || {};
     const svc = ds.services || {};
+    const managerCommission = number(summary?.managerCommission?.total);
+    const dsNet = number(rev.net);
+    const netRevenue = dsNet - managerCommission;
 
     return {
       upcomingBookings: number(lessons.upcoming),
@@ -168,12 +179,13 @@ export const useDashboardData = () => {
       instructors: number(cust.instructors),
       staff: number(cust.staff),
       newThisMonth: number(cust.newThisMonth),
-      netRevenue: number(rev.net),
+      netRevenue,
       income: number(rev.income),
       expenses: number(rev.expenses),
       transactions: number(rev.transactions),
       instructorPayouts: number(rev.instructorPayouts),
       instructorCommissions: number(rev.instructorCommissions),
+      managerCommission,
       grossLessonRevenue: number(rev.grossLessonRevenue),
       grossRentalRevenue: number(rentals.totalRevenue),
       paidRentalRevenue: number(rentals.paidRevenue),
@@ -193,7 +205,7 @@ export const useDashboardData = () => {
       membershipBreakdown: Array.isArray((ds.membership || {}).offeringBreakdown) ? ds.membership.offeringBreakdown : [],
       shopCustomers: number((ds.shopCustomers || {}).total),
     };
-  }, [dashboardSummary]);
+  }, [dashboardSummary, summary]);
 
   const trendData = useMemo(() => {
     const trends = analytics?.trends || [];

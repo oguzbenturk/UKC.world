@@ -9,11 +9,18 @@ RUN npm install -g npm@11.5.1
 # Copy package files and install dependencies as root (for proper permissions)
 COPY package*.json ./
 
-# Install build tools needed for bcrypt (Alpine uses musl, no prebuilt binaries)
-RUN apk add --no-cache python3 make g++ && \
-    npm ci --omit=dev --silent && \
-    npm cache verify && \
-    apk del python3 make g++
+# Install build tools needed for bcrypt (Alpine uses musl, no prebuilt binaries).
+# Split into separate steps so intermediate memory pressure is released between
+# stages — combining them into one RUN was OOM-killing on small servers.
+RUN apk add --no-cache python3 make g++
+
+# Cap heap and parallelism for the install command only (not the runtime image).
+# Inline NODE_OPTIONS so it does NOT persist into the container's environment.
+RUN NODE_OPTIONS=--max-old-space-size=512 \
+    npm ci --omit=dev --silent --maxsockets=2 --no-audit --no-fund
+
+RUN npm cache clean --force \
+ && apk del python3 make g++
 
 # Copy application code
 COPY . .

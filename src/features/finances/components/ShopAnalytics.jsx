@@ -17,13 +17,17 @@ const ShopAnalytics = ({ summaryData, chartData = [] }) => {
     const totalTransactions = Number(revenue.shop_order_count || 0);
     const avgTransactionValue = totalTransactions > 0 ? shopRevenue / totalTransactions : 0;
     const collectionRate = 100; // Shop orders are always paid upfront
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
+    const netRevenue = shopRevenue - managerCommission;
 
     return {
       shopRevenue,
       totalTransactions,
       collectedPayments: shopRevenue,
       avgTransactionValue,
-      collectionRate
+      collectionRate,
+      managerCommission,
+      netRevenue
     };
   }, [summaryData]);
 
@@ -92,6 +96,34 @@ const ShopAnalytics = ({ summaryData, chartData = [] }) => {
             />
             <div className="mt-2 text-xs text-slate-500">
               Per sale
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="h-full">
+            <Statistic
+              title="Manager Commission"
+              value={shopMetrics.managerCommission}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#e11d48' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              Configured rate · paid to manager
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={8}>
+          <Card className="h-full">
+            <Statistic
+              title="Net Shop Revenue"
+              value={shopMetrics.netRevenue}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#52c41a' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              After manager commission
             </div>
           </Card>
         </Col>

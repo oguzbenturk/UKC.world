@@ -177,15 +177,18 @@ const FinanceShop = () => {
     const revenue = summaryData?.revenue || {};
     const apiShopRevenue = Number(revenue.shop_revenue || 0);
     const displayRevenue = shopRevenue > 0 ? shopRevenue : apiShopRevenue;
-    
-    // Calculate profit margin percentage
-    const profitMargin = displayRevenue > 0 ? ((netProfit / displayRevenue) * 100).toFixed(1) : 0;
+    const managerCommission = Number(summaryData?.managerCommission?.total || 0);
+
+    const adjustedNetProfit = netProfit - managerCommission;
+    // Calculate profit margin percentage based on the net-of-manager-commission profit
+    const profitMargin = displayRevenue > 0 ? ((adjustedNetProfit / displayRevenue) * 100).toFixed(1) : 0;
 
     if (!summaryData && shopOrders.length === 0) {
       return [
         { key: 'revenue', label: t('manager:financePages.shop.stats.totalRevenue'), value: '--', accent: 'cyan' },
         { key: 'orders', label: t('manager:financePages.shop.stats.totalOrders'), value: '--', accent: 'emerald' },
         { key: 'cost', label: t('manager:financePages.shop.stats.costOfGoods'), value: '--', accent: 'amber' },
+        { key: 'managerCommission', label: t('manager:financePages.shop.stats.managerCommission'), value: '--', accent: 'rose' },
         { key: 'profit', label: t('manager:financePages.shop.stats.netProfit'), value: '--', accent: 'emerald', subtitle: '--' }
       ];
     }
@@ -194,15 +197,16 @@ const FinanceShop = () => {
       { key: 'revenue', label: t('manager:financePages.shop.stats.totalRevenue'), value: formatCurrency(displayRevenue), accent: 'cyan' },
       { key: 'orders', label: t('manager:financePages.shop.stats.totalOrders'), value: shopOrderCount.toLocaleString(), accent: 'slate' },
       { key: 'cost', label: t('manager:financePages.shop.stats.costOfGoods'), value: formatCurrency(totalCostPrice), accent: 'amber' },
+      { key: 'managerCommission', label: t('manager:financePages.shop.stats.managerCommission'), value: formatCurrency(managerCommission), accent: 'rose' },
       {
         key: 'profit',
         label: t('manager:financePages.shop.stats.netProfit'),
-        value: formatCurrency(netProfit),
-        accent: netProfit >= 0 ? 'emerald' : 'rose',
-        subtitle: `${profitMargin}% margin`
+        value: formatCurrency(adjustedNetProfit),
+        accent: adjustedNetProfit >= 0 ? 'emerald' : 'rose',
+        subtitle: `${profitMargin}% margin · after manager commission`
       }
     ];
-  }, [summaryData, shopOrderCount, shopRevenue, shopOrders, totalCostPrice, netProfit]);
+  }, [summaryData, shopOrderCount, shopRevenue, shopOrders, totalCostPrice, netProfit, t]);
 
   // Transform shop orders into transaction-like format for TransactionHistory component
   const shopTransactions = useMemo(() => {
@@ -286,7 +290,7 @@ const FinanceShop = () => {
           </Space>
         </div>
       </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {headlineStats.map((stat) => {
             const accent = accentStyles[stat.accent] || accentStyles.slate;
             return (

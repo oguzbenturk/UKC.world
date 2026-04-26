@@ -18,17 +18,21 @@ const LessonAnalytics = ({ summaryData, chartData = [] }) => {
     const totalBookings = Number(bookingsData.completed_bookings) || Number(bookingsData.total_bookings) || 0;
     const lessonRevenue = Number(revenue.lesson_revenue || 0);
     const instructorCommission = Number(netRevenueData.commission_total || 0);
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
     const avgBookingValue = totalBookings > 0 ? lessonRevenue / totalBookings : 0;
-    const netRevenue = lessonRevenue - instructorCommission;
+    const netRevenue = lessonRevenue - instructorCommission - managerCommission;
     const commissionRate = lessonRevenue > 0 ? (instructorCommission / lessonRevenue) * 100 : 0;
+    const managerCommissionRate = lessonRevenue > 0 ? (managerCommission / lessonRevenue) * 100 : 0;
 
     return {
       totalBookings,
       lessonRevenue,
       instructorCommission,
+      managerCommission,
       avgBookingValue,
       netRevenue,
-      commissionRate
+      commissionRate,
+      managerCommissionRate
     };
   }, [summaryData]);
 
@@ -104,13 +108,27 @@ const LessonAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="h-full">
             <Statistic
+              title="Manager Commission"
+              value={lessonMetrics.managerCommission}
+              formatter={(value) => formatCurrency(value)}
+              valueStyle={{ color: '#e11d48' }}
+            />
+            <div className="mt-2 text-xs text-slate-500">
+              {lessonMetrics.managerCommissionRate.toFixed(1)}% of lesson revenue
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="h-full">
+            <Statistic
               title="Net Profit"
               value={lessonMetrics.netRevenue}
               formatter={(value) => formatCurrency(value)}
               valueStyle={{ color: '#52c41a' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              After commissions
+              After instructor + manager commission
             </div>
           </Card>
         </Col>

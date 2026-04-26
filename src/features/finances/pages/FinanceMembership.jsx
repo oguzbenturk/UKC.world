@@ -14,6 +14,8 @@ const accentStyles = {
   purple: { bg: 'bg-purple-50', text: 'text-purple-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
@@ -102,6 +104,8 @@ const FinanceMembership = () => {
         { key: 'revenue', label: t('manager:financePages.membership.stats.membershipRevenue'), value: '--', accent: 'purple' },
         { key: 'count', label: t('manager:financePages.membership.stats.totalPurchases'), value: '--', accent: 'emerald' },
         { key: 'avg', label: t('manager:financePages.membership.stats.avgMembershipValue'), value: '--', accent: 'slate' },
+        { key: 'managerCommission', label: t('manager:financePages.membership.stats.managerCommission'), value: '--', accent: 'rose' },
+        { key: 'net', label: t('manager:financePages.membership.stats.netMembershipRevenue'), value: '--', accent: 'indigo' },
         { key: 'debt', label: t('manager:financePages.membership.stats.outstanding'), value: '--', accent: 'amber' },
       ];
     }
@@ -112,11 +116,15 @@ const FinanceMembership = () => {
     const membershipCount = Number(revenue.membership_count || 0);
     const debt = Number(balances.total_customer_debt || 0);
     const avgValue = membershipCount > 0 ? membershipRevenue / membershipCount : 0;
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
+    const netRevenue = membershipRevenue - managerCommission;
 
     return [
       { key: 'revenue', label: t('manager:financePages.membership.stats.membershipRevenue'), value: formatCurrency(membershipRevenue), accent: 'purple' },
       { key: 'count', label: t('manager:financePages.membership.stats.totalPurchases'), value: membershipCount.toLocaleString(), accent: 'emerald' },
       { key: 'avg', label: t('manager:financePages.membership.stats.avgMembershipValue'), value: formatCurrency(avgValue), accent: 'slate' },
+      { key: 'managerCommission', label: t('manager:financePages.membership.stats.managerCommission'), value: formatCurrency(managerCommission), accent: 'rose' },
+      { key: 'net', label: t('manager:financePages.membership.stats.netMembershipRevenue'), value: formatCurrency(netRevenue), accent: 'indigo' },
       { key: 'debt', label: t('manager:financePages.membership.stats.outstanding'), value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
     ];
   }, [summaryData]);
@@ -177,7 +185,7 @@ const FinanceMembership = () => {
             </Space>
           </div>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {headlineStats.map((stat) => {
             const accent = accentStyles[stat.accent] || accentStyles.slate;
             return (
