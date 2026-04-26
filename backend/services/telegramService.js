@@ -66,15 +66,12 @@ export async function initialize({ webhookUrl, webhookSecret, attachHandlers } =
       logger.warn('Failed to register Telegram webhook', { webhookUrl, error: error?.message });
     }
   } else {
-    // No webhook URL → fall back to long polling. This is the dev-friendly
-    // path: works without a public HTTPS URL or a tunnel. Drop any existing
-    // webhook first so getUpdates doesn't 409.
+    // No webhook URL → fall back to long polling (dev convenience).
     try {
       await bot.api.deleteWebhook({ drop_pending_updates: false });
     } catch (error) {
       logger.warn('deleteWebhook before polling failed (continuing)', { error: error?.message });
     }
-    // bot.start() runs forever — fire-and-forget so server boot proceeds.
     bot.start({
       drop_pending_updates: false,
       onStart: (info) => logger.info(`✅ Telegram bot polling started for @${info.username}`)
@@ -105,16 +102,17 @@ export async function sendToChat(chatId, text, options = {}) {
       code: error?.error_code
     });
 
+    // 403 = the user blocked the bot or removed it. Detach this chat so we
+    // stop trying to deliver to it.
     if (error?.error_code === 403) {
       try {
         await pool.query(
-          `UPDATE users SET telegram_chat_id = NULL, telegram_username = NULL, telegram_linked_at = NULL
-           WHERE telegram_chat_id = $1`,
+          `DELETE FROM user_telegram_chats WHERE chat_id = $1`,
           [chatId]
         );
-        logger.info('Cleared telegram_chat_id after 403 from Telegram', { chatId });
+        logger.info('Removed user_telegram_chats row after 403 from Telegram', { chatId });
       } catch (clearErr) {
-        logger.warn('Failed to clear telegram_chat_id after 403', { chatId, error: clearErr.message });
+        logger.warn('Failed to clear chat after 403', { chatId, error: clearErr.message });
       }
     }
 
@@ -122,19 +120,30 @@ export async function sendToChat(chatId, text, options = {}) {
   }
 }
 
+/**
+ * Send a Telegram message to every chat the given user has linked.
+ * Used by the dispatcher; returns aggregate stats per call.
+ */
 export async function sendToUser(userId, text, options = {}) {
-  if (!userId) return { sent: false, reason: 'missing-user-id' };
-  if (!isTelegramEnabled()) return { sent: false, reason: 'telegram-disabled' };
+  if (!userId) return { sent: 0, failed: 0, reason: 'missing-user-id' };
+  if (!isTelegramEnabled()) return { sent: 0, failed: 0, reason: 'telegram-disabled' };
 
-  const result = await pool.query(
-    `SELECT telegram_chat_id FROM users
-     WHERE id = $1 AND deleted_at IS NULL AND telegram_chat_id IS NOT NULL`,
+  const { rows } = await pool.query(
+    `SELECT chat_id FROM user_telegram_chats WHERE user_id = $1`,
     [userId]
   );
-  const chatId = result.rows[0]?.telegram_chat_id;
-  if (!chatId) return { sent: false, reason: 'not-linked' };
+  if (!rows.length) return { sent: 0, failed: 0, reason: 'not-linked' };
 
-  return sendToChat(chatId, text, options);
+  let sent = 0;
+  let failed = 0;
+  await Promise.all(
+    rows.map(async ({ chat_id }) => {
+      const result = await sendToChat(chat_id, text, options);
+      if (result.sent) sent++;
+      else failed++;
+    })
+  );
+  return { sent, failed };
 }
 
 export async function generateLinkCode(userId) {
@@ -158,8 +167,10 @@ export async function generateLinkCode(userId) {
 }
 
 /**
- * Look up a link code, mark it consumed, and bind the chat to the user.
- * Returns one of: 'ok' | 'expired' | 'consumed' | 'not-found'
+ * Look up a link code, mark it consumed, and add the chat to the user.
+ * If the chat is already linked to the SAME user, this is a no-op success.
+ * If the chat is currently linked to a DIFFERENT user, that link is moved.
+ * Returns: 'ok' | 'already-linked' | 'expired' | 'consumed' | 'not-found'
  */
 export async function consumeLinkCode({ code, chatId, username }) {
   if (!code || !chatId) return { status: 'not-found' };
@@ -191,24 +202,23 @@ export async function consumeLinkCode({ code, chatId, username }) {
       return { status: 'expired' };
     }
 
-    // Detach this chat from any other user (in case they relinked).
+    // Detach this chat from any other user (chat_id is globally unique).
     await client.query(
-      `UPDATE users
-         SET telegram_chat_id = NULL,
-             telegram_username = NULL,
-             telegram_linked_at = NULL
-       WHERE telegram_chat_id = $1 AND id <> $2`,
+      `DELETE FROM user_telegram_chats WHERE chat_id = $1 AND user_id <> $2`,
       [chatId, row.user_id]
     );
 
-    await client.query(
-      `UPDATE users
-         SET telegram_chat_id = $1,
-             telegram_username = $2,
-             telegram_linked_at = NOW()
-       WHERE id = $3`,
-      [chatId, username || null, row.user_id]
+    // Upsert the link for the target user — if they already linked this same
+    // chat, just refresh the username/linked_at.
+    const upsertResult = await client.query(
+      `INSERT INTO user_telegram_chats (user_id, chat_id, username, linked_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, chat_id)
+       DO UPDATE SET username = EXCLUDED.username, linked_at = NOW()
+       RETURNING (xmax = 0) AS inserted`,
+      [row.user_id, chatId, username || null]
     );
+    const wasNewLink = upsertResult.rows[0]?.inserted === true;
 
     await client.query(
       `UPDATE telegram_link_codes SET consumed_at = NOW() WHERE code = $1`,
@@ -221,7 +231,10 @@ export async function consumeLinkCode({ code, chatId, username }) {
     );
 
     await client.query('COMMIT');
-    return { status: 'ok', user: userRows[0] };
+    return {
+      status: wasNewLink ? 'ok' : 'already-linked',
+      user: userRows[0]
+    };
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     logger.error('consumeLinkCode failed', { error: error.message });
@@ -231,43 +244,61 @@ export async function consumeLinkCode({ code, chatId, username }) {
   }
 }
 
-export async function unlinkUser(userId) {
-  if (!userId) return { unlinked: false };
-  const { rowCount } = await pool.query(
-    `UPDATE users
-       SET telegram_chat_id = NULL,
-           telegram_username = NULL,
-           telegram_linked_at = NULL
-     WHERE id = $1 AND telegram_chat_id IS NOT NULL`,
-    [userId]
-  );
+/**
+ * Unlink a single chat. If userId is supplied the row must belong to that user
+ * (used by the authenticated REST endpoint); without userId it's used by the
+ * /unlink bot command which keys off the chat alone.
+ */
+export async function unlinkChat({ chatId, userId } = {}) {
+  if (!chatId) return { unlinked: false };
+  const params = [chatId];
+  let sql = `DELETE FROM user_telegram_chats WHERE chat_id = $1`;
+  if (userId) {
+    sql += ` AND user_id = $2`;
+    params.push(userId);
+  }
+  const { rowCount } = await pool.query(sql, params);
   return { unlinked: rowCount > 0 };
 }
 
-export async function unlinkChat(chatId) {
-  if (!chatId) return { unlinked: false };
+/**
+ * Remove every linked chat for a user. Used by the "Unlink all" path.
+ */
+export async function unlinkAllForUser(userId) {
+  if (!userId) return { unlinked: 0 };
   const { rowCount } = await pool.query(
-    `UPDATE users
-       SET telegram_chat_id = NULL,
-           telegram_username = NULL,
-           telegram_linked_at = NULL
-     WHERE telegram_chat_id = $1`,
-    [chatId]
+    `DELETE FROM user_telegram_chats WHERE user_id = $1`,
+    [userId]
   );
-  return { unlinked: rowCount > 0 };
+  return { unlinked: rowCount };
+}
+
+/**
+ * List every chat linked to the given user. The frontend renders one row per
+ * entry so users can see and remove individual devices.
+ */
+export async function listChatsForUser(userId) {
+  if (!userId) return [];
+  const { rows } = await pool.query(
+    `SELECT chat_id, username, linked_at
+       FROM user_telegram_chats
+      WHERE user_id = $1
+      ORDER BY linked_at DESC`,
+    [userId]
+  );
+  return rows.map((r) => ({
+    chatId: String(r.chat_id),
+    username: r.username,
+    linkedAt: r.linked_at
+  }));
 }
 
 export async function getStatusForUser(userId) {
-  const { rows } = await pool.query(
-    `SELECT telegram_username, telegram_linked_at
-     FROM users WHERE id = $1`,
-    [userId]
-  );
-  const row = rows[0];
+  const chats = await listChatsForUser(userId);
   return {
-    linked: !!row?.telegram_linked_at,
-    username: row?.telegram_username || null,
-    linkedAt: row?.telegram_linked_at || null
+    linked: chats.length > 0,
+    chats,
+    botUsername: _botUsername || process.env.TELEGRAM_BOT_USERNAME || null
   };
 }
 
@@ -280,7 +311,8 @@ export default {
   sendToUser,
   generateLinkCode,
   consumeLinkCode,
-  unlinkUser,
   unlinkChat,
+  unlinkAllForUser,
+  listChatsForUser,
   getStatusForUser
 };

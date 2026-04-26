@@ -244,7 +244,13 @@
     "codeCopied": "Kod kopyalandı — Telegram'a yapıştırın.",
     "copyFailed": "Kopyalanamadı. Lütfen manuel olarak seçip kopyalayın.",
     "reopenTelegram": "Telegram'da yeniden aç",
-    "codeExpires": "Kod {{time}} saatinde sona eriyor"
+    "codeExpires": "Kod {{time}} saatinde sona eriyor",
+    "addAnother": "Başka bir Telegram ekle",
+    "connectedChats_one": "{{count}} bağlı sohbet",
+    "connectedChats_other": "{{count}} bağlı sohbet",
+    "confirmUnlink": "Bu sohbete bildirim göndermeyi durduralım mı?",
+    "cancel": "İptal",
+    "linkedSuccess": "Telegram bağlandı!"
   },
   "profile": {
     "navItems": {

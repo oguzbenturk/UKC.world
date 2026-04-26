@@ -6,7 +6,8 @@ import {
   getBot,
   isTelegramEnabled,
   generateLinkCode,
-  unlinkUser,
+  unlinkChat,
+  unlinkAllForUser,
   getStatusForUser
 } from '../services/telegramService.js';
 
@@ -37,7 +38,7 @@ router.use(authenticateJWT);
 router.get('/status', async (req, res) => {
   try {
     const status = await getStatusForUser(req.user.id);
-    res.json({ ...status, botUsername: process.env.TELEGRAM_BOT_USERNAME || null });
+    res.json(status);
   } catch (error) {
     logger.error('Telegram status fetch failed', { userId: req.user?.id, error: error.message });
     res.status(500).json({ error: 'Failed to load Telegram status' });
@@ -57,12 +58,25 @@ router.post('/link-code', async (req, res) => {
   }
 });
 
-router.post('/unlink', async (req, res) => {
+// Remove a single linked chat (per-device unlink button in the UI).
+router.delete('/chats/:chatId', async (req, res) => {
   try {
-    const result = await unlinkUser(req.user.id);
+    const { chatId } = req.params;
+    const result = await unlinkChat({ chatId, userId: req.user.id });
     res.json(result);
   } catch (error) {
-    logger.error('Telegram unlink failed', { userId: req.user?.id, error: error.message });
+    logger.error('Telegram chat unlink failed', { userId: req.user?.id, error: error.message });
+    res.status(500).json({ error: 'Failed to unlink chat' });
+  }
+});
+
+// Remove all linked chats for the current user.
+router.post('/unlink', async (req, res) => {
+  try {
+    const result = await unlinkAllForUser(req.user.id);
+    res.json(result);
+  } catch (error) {
+    logger.error('Telegram unlink-all failed', { userId: req.user?.id, error: error.message });
     res.status(500).json({ error: 'Failed to unlink Telegram' });
   }
 });

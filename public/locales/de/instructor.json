@@ -244,7 +244,13 @@
     "codeCopied": "Code kopiert — fügen Sie ihn in Telegram ein.",
     "copyFailed": "Kopieren fehlgeschlagen. Bitte manuell auswählen und kopieren.",
     "reopenTelegram": "Erneut in Telegram öffnen",
-    "codeExpires": "Code läuft ab um {{time}}"
+    "codeExpires": "Code läuft ab um {{time}}",
+    "addAnother": "Weitere Telegram hinzufügen",
+    "connectedChats_one": "{{count}} verbundener Chat",
+    "connectedChats_other": "{{count}} verbundene Chats",
+    "confirmUnlink": "Benachrichtigungen an diesen Chat stoppen?",
+    "cancel": "Abbrechen",
+    "linkedSuccess": "Telegram verknüpft!"
   },
   "profile": {
     "navItems": {

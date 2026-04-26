@@ -438,11 +438,12 @@ const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, 
 
   const gross = operationalKpis.grossLessonRevenue || 0;
   const commissions = operationalKpis.instructorCommissions || 0;
-  const net = gross - commissions;
+  const managerCommission = operationalKpis.managerCommission || 0;
+  const net = gross - commissions - managerCommission;
 
   return (
     <Row gutter={[24, 24]}>
-      <Col xs={24} sm={8}>
+      <Col xs={24} sm={6}>
         <KpiCard
           title="Gross Lessons"
           value={gross}
@@ -453,7 +454,7 @@ const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, 
           isLoading={loading}
         />
       </Col>
-      <Col xs={24} sm={8}>
+      <Col xs={24} sm={6}>
         <KpiCard
           title="Instructor Payouts"
           value={commissions}
@@ -464,14 +465,25 @@ const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, 
           isLoading={loading}
         />
       </Col>
-      <Col xs={24} sm={8}>
+      <Col xs={24} sm={6}>
+        <KpiCard
+          title="Manager Commission"
+          value={managerCommission}
+          prefix={currencySymbol}
+          precision={2}
+          color="#e11d48"
+          note="Configured rate · paid to manager"
+          isLoading={loading}
+        />
+      </Col>
+      <Col xs={24} sm={6}>
         <KpiCard
           title="Net Revenue"
           value={net}
           prefix={currencySymbol}
           precision={2}
           color={net >= 0 ? '#3b82f6' : '#ef4444'}
-          note="After instructor commissions"
+          note="After instructor + manager commission"
           isLoading={loading}
         />
       </Col>

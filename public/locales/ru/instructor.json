@@ -244,7 +244,15 @@
     "codeCopied": "Код скопирован — вставьте его в Telegram.",
     "copyFailed": "Не удалось скопировать. Выделите и скопируйте вручную.",
     "reopenTelegram": "Открыть в Telegram снова",
-    "codeExpires": "Код истекает в {{time}}"
+    "codeExpires": "Код истекает в {{time}}",
+    "addAnother": "Добавить ещё один Telegram",
+    "connectedChats_one": "{{count}} подключённый чат",
+    "connectedChats_few": "{{count}} подключённых чата",
+    "connectedChats_many": "{{count}} подключённых чатов",
+    "connectedChats_other": "{{count}} подключённых чатов",
+    "confirmUnlink": "Прекратить отправку уведомлений в этот чат?",
+    "cancel": "Отмена",
+    "linkedSuccess": "Telegram подключён!"
   },
   "profile": {
     "navItems": {

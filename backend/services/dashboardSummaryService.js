@@ -141,6 +141,23 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     WHERE ${revenueConditions.join(' AND ')}
   `;
 
+  // Manager commission (already calculated and stored at booking/rental completion).
+  const managerCommissionParams = [];
+  const managerCommissionConditions = [`status <> 'cancelled'`];
+  if (startDateOnly) {
+    managerCommissionParams.push(startDateOnly);
+    managerCommissionConditions.push(`source_date >= $${managerCommissionParams.length}::date`);
+  }
+  if (endDateOnly) {
+    managerCommissionParams.push(endDateOnly);
+    managerCommissionConditions.push(`source_date <= $${managerCommissionParams.length}::date`);
+  }
+  const managerCommissionQuery = `
+    SELECT COALESCE(SUM(commission_amount), 0)::numeric AS total
+    FROM manager_commissions
+    WHERE ${managerCommissionConditions.join(' AND ')}
+  `;
+
   const servicesQuery = `
     SELECT
       COUNT(*)::int AS total,
@@ -309,7 +326,7 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     WHERE b.instructor_user_id IS NOT NULL AND ${instructorCommConditions.join(' AND ')}
   `;
 
-  const [bookingsResult, rentalsResult, revenueResult, servicesResult, equipmentResult, customersResult, bookingCategoryResult, rentalBreakdownResult, accommodationResult, membershipResult, shopCustomersResult, instructorCommResult] = await Promise.all([
+  const [bookingsResult, rentalsResult, revenueResult, servicesResult, equipmentResult, customersResult, bookingCategoryResult, rentalBreakdownResult, accommodationResult, membershipResult, shopCustomersResult, instructorCommResult, managerCommResult] = await Promise.all([
     pool.query(bookingsQuery, bookingParams),
     pool.query(rentalsQuery, rentalParams),
     pool.query(revenueQuery, revenueParams),
@@ -321,7 +338,8 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     pool.query(accommodationQuery, accommodationParams),
     pool.query(membershipQuery, membershipParams),
     pool.query(shopCustomersQuery),
-    pool.query(instructorCommQuery, instructorCommParams)
+    pool.query(instructorCommQuery, instructorCommParams),
+    pool.query(managerCommissionQuery, managerCommissionParams)
   ]);
 
   const bookingsRow = bookingsResult.rows[0] || {};
@@ -417,15 +435,19 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     count: toNumber(row.count)
   }));
 
+  const managerCommissionTotal = toNumber((managerCommResult.rows[0] || {}).total);
   const revenue = {
     transactions: toNumber(revenueRow.total_transactions),
     income: toNumber(revenueRow.income),
     expenses: toNumber(revenueRow.expenses),
-    net: toNumber(revenueRow.net),
+    // Net here is the source-of-truth front-desk net: subtract manager commission
+    // (which is owed to the manager and is therefore an expense from the centre's POV).
+    net: toNumber(revenueRow.net) - managerCommissionTotal,
     serviceRevenue: toNumber(revenueRow.service_revenue),
     rentalRevenue: toNumber(revenueRow.rental_revenue),
     instructorPayouts: toNumber(revenueRow.instructor_payouts),
     instructorCommissions: totalInstructorCommissions,
+    managerCommission: managerCommissionTotal,
     grossLessonRevenue: totalGrossLessonRevenue
   };
 

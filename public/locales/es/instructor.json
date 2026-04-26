@@ -244,7 +244,13 @@
     "codeCopied": "Código copiado — pégalo en Telegram.",
     "copyFailed": "No se pudo copiar. Selecciona y copia manualmente.",
     "reopenTelegram": "Reabrir en Telegram",
-    "codeExpires": "El código expira a las {{time}}"
+    "codeExpires": "El código expira a las {{time}}",
+    "addAnother": "Añadir otro Telegram",
+    "connectedChats_one": "{{count}} chat conectado",
+    "connectedChats_other": "{{count}} chats conectados",
+    "confirmUnlink": "¿Dejar de enviar notificaciones a este chat?",
+    "cancel": "Cancelar",
+    "linkedSuccess": "¡Telegram vinculado!"
   },
   "profile": {
     "navItems": {

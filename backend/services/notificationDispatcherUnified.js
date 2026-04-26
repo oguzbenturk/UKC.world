@@ -24,7 +24,7 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { insertNotification } from './notificationWriter.js';
-import { sendToChat as sendTelegramToChat, isTelegramEnabled } from './telegramService.js';
+import { sendToUser as sendTelegramToUser, isTelegramEnabled } from './telegramService.js';
 import { buildTelegramMessageForType } from './telegramTemplates/index.js';
 
 // ─── Notification type registry ───────────────────────────────────────────────
@@ -313,32 +313,29 @@ async function deliverTelegram({ executor, userId, type, title, message, data })
   const telegramText = buildTelegramMessageForType(type, data || {});
   if (!telegramText) return;
 
-  let row;
+  // Preference check — gated on notification_settings.telegram_notifications.
+  let prefAllowed = true;
   try {
     const result = await executor.query(
-      `SELECT u.telegram_chat_id,
-              COALESCE(ns.telegram_notifications, true) AS telegram_notifications
+      `SELECT COALESCE(ns.telegram_notifications, true) AS telegram_notifications
        FROM users u
        LEFT JOIN notification_settings ns ON ns.user_id = u.id
        WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [userId]
     );
-    row = result.rows[0];
+    if (result.rows[0]?.telegram_notifications === false) prefAllowed = false;
   } catch (err) {
-    logger.warn('Failed to load Telegram delivery state', { userId, type, error: err.message });
+    logger.warn('Failed to load Telegram preference', { userId, type, error: err.message });
     return;
   }
+  if (!prefAllowed) return;
 
-  if (!row?.telegram_chat_id) return;
-  if (row.telegram_notifications === false) return;
-
-  // Title/message are useful as fallback when no template matched a richer view,
-  // but buildTelegramMessageForType returns null for unknown types so we never
-  // get here for those.
   void title;
   void message;
 
-  await sendTelegramToChat(row.telegram_chat_id, telegramText);
+  // sendToUser fans out to every linked chat for this user. Failures per-chat
+  // are logged inside the service and never bubble up to the caller.
+  await sendTelegramToUser(userId, telegramText);
 }
 
 /**

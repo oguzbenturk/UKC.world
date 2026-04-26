@@ -2,7 +2,8 @@ import { logger } from '../middlewares/errorHandler.js';
 import { pool } from '../db.js';
 import {
   consumeLinkCode,
-  unlinkChat
+  unlinkChat,
+  listChatsForUser
 } from './telegramService.js';
 import {
   buildLinkSuccess,
@@ -85,7 +86,7 @@ export function attachTelegramHandlers(bot) {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
     try {
-      await unlinkChat(chatId);
+      await unlinkChat({ chatId });
       await replyHtml(ctx, buildUnlinkSuccess());
     } catch (error) {
       logger.warn('Telegram /unlink failed', { chatId, error: error?.message });
@@ -97,15 +98,28 @@ export function attachTelegramHandlers(bot) {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
     try {
-      const { rows } = await pool.query(
-        `SELECT name FROM users WHERE telegram_chat_id = $1 AND deleted_at IS NULL`,
+      // Find which user (if any) this chat belongs to.
+      const { rows: linkRows } = await pool.query(
+        `SELECT utc.user_id, u.name
+           FROM user_telegram_chats utc
+           JOIN users u ON u.id = utc.user_id
+          WHERE utc.chat_id = $1 AND u.deleted_at IS NULL`,
         [chatId]
       );
-      if (rows.length) {
-        await replyHtml(ctx, buildStatusLinked({ name: rows[0].name }));
-      } else {
+
+      if (!linkRows.length) {
         await replyHtml(ctx, buildStatusUnlinked());
+        return;
       }
+
+      const { user_id: userId, name } = linkRows[0];
+      const allChats = await listChatsForUser(userId);
+      const otherCount = Math.max(0, allChats.length - 1);
+      const extra = otherCount > 0
+        ? `\n\nThis account has ${otherCount} other Telegram chat${otherCount === 1 ? '' : 's'} linked.`
+        : '';
+
+      await replyHtml(ctx, buildStatusLinked({ name }) + extra);
     } catch (error) {
       logger.warn('Telegram /status failed', { chatId, error: error?.message });
       await replyHtml(ctx, '⚠️ Status check failed. Please try again later.');
