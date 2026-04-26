@@ -156,7 +156,8 @@
       "progress": "Progreso"
     },
     "noActivePackage": "Sin paquete activo",
-    "left": "restantes de"
+    "left": "restantes de",
+    "progressLabel": "{{remaining}}h restantes de {{total}}h"
   },
   "studentDetail": {
     "back": "← Volver",
@@ -221,6 +222,30 @@
       "custom": "Personalizado"
     }
   },
+  "telegram": {
+    "title": "Notificaciones de Telegram",
+    "description": "Recibe un mensaje de Telegram en cuanto se asigne, reprograme o cancele una clase.",
+    "connect": "Conectar Telegram",
+    "connectFailed": "No se pudo iniciar la conexión. Inténtalo de nuevo.",
+    "unlink": "Desconectar",
+    "unlinked": "Telegram desconectado.",
+    "unlinkFailed": "No se pudo desconectar. Inténtalo de nuevo.",
+    "linkedAs": "Conectado como @{{username}}",
+    "linkedNoUsername": "Cuenta de Telegram conectada",
+    "linkedOn": "Conectado el {{date}}",
+    "linkOpenedHint": "Telegram debería abrirse. Si no, revisa tu bloqueador de pop-ups.",
+    "disabled": "Telegram aún no está configurado en este espacio de trabajo. Pide a un administrador que configure TELEGRAM_BOT_TOKEN.",
+    "notificationsToggle": "Enviar notificaciones de Telegram",
+    "notificationsToggleHint": "Desactiva para conservar el enlace pero dejar de recibir mensajes.",
+    "prefSaveFailed": "No se pudo guardar la preferencia. Inténtalo de nuevo.",
+    "fallbackTitle": "¿No se vinculó automáticamente?",
+    "fallbackHint": "Abre el bot en Telegram y pega este comando. El botón de Iniciar solo funciona la primera vez que abres el bot.",
+    "copy": "Copiar",
+    "codeCopied": "Código copiado — pégalo en Telegram.",
+    "copyFailed": "No se pudo copiar. Selecciona y copia manualmente.",
+    "reopenTelegram": "Reabrir en Telegram",
+    "codeExpires": "El código expira a las {{time}}"
+  },
   "profile": {
     "navItems": {
       "info": "Perfil",
@@ -228,6 +253,7 @@
       "lessons": "Lecciones",
       "students": "Estudiantes",
       "earnings": "Ganancias",
+      "notifications": "Notificaciones",
       "timeOff": "Tiempo libre",
       "security": "Seguridad"
     },
@@ -237,6 +263,7 @@
       "lessons": "Próximas clases programadas",
       "students": "Tu lista de estudiantes de un vistazo",
       "earnings": "Resumen de ganancias y últimos pagos",
+      "notifications": "Gestiona dónde se entregan las actualizaciones de clases",
       "availability": "Solicitar tiempo libre y ver tu agenda",
       "security": "Cambiar contraseña y revisar seguridad"
     },

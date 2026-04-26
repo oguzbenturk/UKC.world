@@ -10,6 +10,11 @@ import { authRateLimit, passwordResetRateLimit, setCsrfCookie } from '../middlew
 import { logger } from '../middlewares/errorHandler.js';
 import { getConsentStatus, LATEST_TERMS_VERSION } from '../services/userConsentService.js';
 import { requestPasswordReset, validateResetToken, resetPassword } from '../services/passwordResetService.js';
+import {
+  sendVerificationEmail,
+  verifyEmailToken,
+  resendVerification
+} from '../services/emailVerificationService.js';
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { ERROR_CODES } from '../shared/errorCodes.js';
@@ -171,6 +176,18 @@ router.post('/login', authRateLimit, async (req, res) => {
       return res.status(401).json({
         error: 'Invalid email or password',
         code: ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      });
+    }
+
+    // Block login until the user has verified their email address.
+    // Existing users (before migration 242) were grandfathered as verified, so this only
+    // gates accounts created via /register on or after the verification rollout.
+    if (user.email_verified === false) {
+      await logSecurityEvent(user.id, 'login_blocked_email_unverified', req);
+      return res.status(403).json({
+        error: 'Please verify your email address before signing in. Check your inbox for the verification link.',
+        code: 'EMAIL_NOT_VERIFIED',
+        email: user.email,
       });
     }
 
@@ -730,8 +747,20 @@ router.post('/register', authRateLimit, async (req, res) => {
       role: 'outsider'
     });
 
+    // Send verification email — do not block registration if email send fails;
+    // user can request a fresh link from the login screen.
+    try {
+      await sendVerificationEmail(newUser.id, newUser.email, newUser.first_name || newUser.name);
+    } catch (emailErr) {
+      logger.error('Failed to send verification email after registration', {
+        userId: newUser.id,
+        error: emailErr.message
+      });
+    }
+
     res.status(201).json({
-      message: 'Registration successful. Please login to complete your profile.',
+      message: 'Registration successful. Please check your email to verify your account before logging in.',
+      requiresEmailVerification: true,
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -993,6 +1022,67 @@ router.post('/reset-password', passwordResetRateLimit, async (req, res) => {
   } catch (error) {
     logger.error('Password reset error:', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed to reset password. Please try again.' });
+  }
+});
+
+// =============================================
+// EMAIL VERIFICATION ENDPOINTS
+// =============================================
+
+/**
+ * Verify a user's email using a token from their inbox.
+ * POST /api/auth/verify-email
+ */
+router.post('/verify-email', authRateLimit, async (req, res) => {
+  const { token, email } = req.body;
+
+  if (!token || !email) {
+    return res.status(400).json({ success: false, error: 'Token and email are required' });
+  }
+
+  try {
+    const result = await verifyEmailToken(token, email);
+
+    if (result.success) {
+      await logSecurityEvent(null, 'email_verified', req, { email: email.substring(0, 3) + '***' });
+      return res.json(result);
+    }
+
+    await logSecurityEvent(null, 'email_verification_failed', req, {
+      email: email.substring(0, 3) + '***',
+      reason: result.expired ? 'expired' : 'invalid'
+    });
+    return res.status(400).json(result);
+  } catch (error) {
+    logger.error('Email verification error:', { error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to verify email. Please try again.' });
+  }
+});
+
+/**
+ * Resend the verification email for an unverified account.
+ * POST /api/auth/resend-verification
+ */
+router.post('/resend-verification', passwordResetRateLimit, async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const result = await resendVerification(email);
+    await logSecurityEvent(null, 'verification_resend_requested', req, {
+      email: email.substring(0, 3) + '***'
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error('Resend verification error:', { error: error.message });
+    // Always return the same generic message to prevent email enumeration.
+    return res.json({
+      success: true,
+      message: 'If an account exists with this email, a new verification link has been sent.'
+    });
   }
 });
 

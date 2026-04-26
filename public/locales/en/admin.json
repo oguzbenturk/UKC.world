@@ -918,7 +918,8 @@
       "teachingPrefs": "Teaching Preferences",
       "instructorNotifications": "Notifications",
       "teamNotifications": "Team Notifications",
-      "operationalDefaults": "Operational Defaults"
+      "operationalDefaults": "Operational Defaults",
+      "telegram": "Telegram"
     },
     "groups": {
       "personal": "Personal",
@@ -954,7 +955,8 @@
       "teachingPrefs": "Configure your teaching preferences and specializations",
       "instructorNotifications": "Choose which notifications you receive as an instructor",
       "teamNotifications": "Configure team activity and operational notifications",
-      "operationalDefaults": "Set default values for daily booking operations"
+      "operationalDefaults": "Set default values for daily booking operations",
+      "telegram": "Connect your Telegram account to receive instant lesson updates"
     },
     "loggedInAs": "Logged in as",
     "roleLabels": {

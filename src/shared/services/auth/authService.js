@@ -41,6 +41,13 @@ class AuthService {
         throw new Error(SIGN_IN_DISABLED_USER_MESSAGE);
       }
 
+      if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const verifyError = new Error(error.response.data.error || 'Please verify your email before signing in.');
+        verifyError.code = 'EMAIL_NOT_VERIFIED';
+        verifyError.email = error.response.data.email || null;
+        throw verifyError;
+      }
+
       const text = apiErrorText(error);
       if (text) {
         throw new Error(text);
@@ -52,6 +59,11 @@ class AuthService {
         throw new Error('Login failed. Please try again.');
       }
     }
+  }
+
+  async resendVerification(email) {
+    const response = await apiClient.post('/auth/resend-verification', { email });
+    return response.data;
   }
 
   /**

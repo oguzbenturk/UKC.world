@@ -156,7 +156,8 @@
       "progress": "İlerleme"
     },
     "noActivePackage": "Aktif paket yok",
-    "left": "içinde kalan"
+    "left": "içinde kalan",
+    "progressLabel": "{{total}} saatten {{remaining}} saat kaldı"
   },
   "studentDetail": {
     "back": "← Geri",
@@ -221,6 +222,30 @@
       "custom": "Özel"
     }
   },
+  "telegram": {
+    "title": "Telegram bildirimleri",
+    "description": "Bir ders atandığında, ertelendiğinde veya iptal edildiğinde anında Telegram mesajı alın.",
+    "connect": "Telegram'ı bağla",
+    "connectFailed": "Bağlantı başlatılamadı. Lütfen tekrar deneyin.",
+    "unlink": "Bağlantıyı kaldır",
+    "unlinked": "Telegram bağlantısı kaldırıldı.",
+    "unlinkFailed": "Bağlantı kaldırılamadı. Lütfen tekrar deneyin.",
+    "linkedAs": "@{{username}} olarak bağlı",
+    "linkedNoUsername": "Telegram hesabı bağlı",
+    "linkedOn": "{{date}} tarihinde bağlandı",
+    "linkOpenedHint": "Telegram açılmalı. Açılmadıysa pop-up engelleyicinizi kontrol edin.",
+    "disabled": "Bu çalışma alanı için Telegram henüz yapılandırılmamış. Bir yöneticiden TELEGRAM_BOT_TOKEN ayarlamasını isteyin.",
+    "notificationsToggle": "Telegram bildirimleri gönder",
+    "notificationsToggleHint": "Bağlantıyı korumak ama mesaj almamak için kapatın.",
+    "prefSaveFailed": "Tercih kaydedilemedi. Lütfen tekrar deneyin.",
+    "fallbackTitle": "Otomatik bağlanmadı mı?",
+    "fallbackHint": "Telegram'da botu açın ve bu komutu yapıştırın. Başlat düğmesi yalnızca botu ilk açtığınızda çalışır.",
+    "copy": "Kopyala",
+    "codeCopied": "Kod kopyalandı — Telegram'a yapıştırın.",
+    "copyFailed": "Kopyalanamadı. Lütfen manuel olarak seçip kopyalayın.",
+    "reopenTelegram": "Telegram'da yeniden aç",
+    "codeExpires": "Kod {{time}} saatinde sona eriyor"
+  },
   "profile": {
     "navItems": {
       "info": "Profil",
@@ -228,6 +253,7 @@
       "lessons": "Dersler",
       "students": "Öğrenciler",
       "earnings": "Kazançlar",
+      "notifications": "Bildirimler",
       "timeOff": "İzin",
       "security": "Güvenlik"
     },
@@ -237,6 +263,7 @@
       "lessons": "Planlanan yaklaşan dersler",
       "students": "Bir bakışta öğrenci listeniz",
       "earnings": "Kazanç özeti ve son ödemeler",
+      "notifications": "Ders güncellemelerinin nereye geleceğini yönetin",
       "availability": "İzin talep et ve müsaitlik takvimine bak",
       "security": "Şifreni değiştir ve hesap güvenliğini incele"
     },

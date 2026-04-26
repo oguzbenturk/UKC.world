@@ -156,7 +156,8 @@
       "progress": "Fortschritt"
     },
     "noActivePackage": "Kein aktives Paket",
-    "left": "verbleibend von"
+    "left": "verbleibend von",
+    "progressLabel": "{{remaining}} Std. von {{total}} Std. übrig"
   },
   "studentDetail": {
     "back": "← Zurück",
@@ -221,6 +222,30 @@
       "custom": "Benutzerdefiniert"
     }
   },
+  "telegram": {
+    "title": "Telegram-Benachrichtigungen",
+    "description": "Erhalten Sie eine Telegram-Nachricht, sobald eine Lektion zugewiesen, verschoben oder abgesagt wird.",
+    "connect": "Telegram verbinden",
+    "connectFailed": "Verbindung konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "unlink": "Trennen",
+    "unlinked": "Telegram getrennt.",
+    "unlinkFailed": "Trennen fehlgeschlagen. Bitte erneut versuchen.",
+    "linkedAs": "Verbunden als @{{username}}",
+    "linkedNoUsername": "Telegram-Konto verbunden",
+    "linkedOn": "Verbunden am {{date}}",
+    "linkOpenedHint": "Telegram sollte sich öffnen. Falls nicht, prüfen Sie Ihren Popup-Blocker.",
+    "disabled": "Telegram ist für diesen Workspace noch nicht konfiguriert. Bitten Sie einen Admin, TELEGRAM_BOT_TOKEN zu setzen.",
+    "notificationsToggle": "Telegram-Benachrichtigungen senden",
+    "notificationsToggleHint": "Deaktivieren, um die Verbindung zu behalten, aber keine Nachrichten zu erhalten.",
+    "prefSaveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "fallbackTitle": "Verknüpfung nicht automatisch erfolgt?",
+    "fallbackHint": "Öffnen Sie den Bot in Telegram und fügen Sie diesen Befehl ein. Der Start-Knopf funktioniert nur beim ersten Öffnen des Bots.",
+    "copy": "Kopieren",
+    "codeCopied": "Code kopiert — fügen Sie ihn in Telegram ein.",
+    "copyFailed": "Kopieren fehlgeschlagen. Bitte manuell auswählen und kopieren.",
+    "reopenTelegram": "Erneut in Telegram öffnen",
+    "codeExpires": "Code läuft ab um {{time}}"
+  },
   "profile": {
     "navItems": {
       "info": "Profil",
@@ -228,6 +253,7 @@
       "lessons": "Unterricht",
       "students": "Schüler",
       "earnings": "Einnahmen",
+      "notifications": "Benachrichtigungen",
       "timeOff": "Freizeit",
       "security": "Sicherheit"
     },
@@ -237,6 +263,7 @@
       "lessons": "Bevorstehende geplante Lektionen",
       "students": "Ihre Schülerliste auf einen Blick",
       "earnings": "Einnahmenübersicht und aktuelle Auszahlungen",
+      "notifications": "Verwalten, wo Lektionsupdates eingehen",
       "availability": "Freizeit beantragen und Ihren Verfügbarkeitsplan anzeigen",
       "security": "Passwort ändern und Kontosicherheit überprüfen"
     },

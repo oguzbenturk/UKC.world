@@ -2145,14 +2145,14 @@ router.use('/transactions/:id', (req, res, next) => {
  * GET /api/finances/summary
  * Get comprehensive financial summary with analytics
  */
-router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(60, (req) => `api:finances:summary:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}:${req.query.mode || 'cash'}`), async (req, res) => {
+router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(60, (req) => `api:finances:summary:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}:${req.query.serviceType || 'all'}:${req.query.mode || 'cash'}`), async (req, res) => {
   try {
   const { startDate, endDate, serviceType, mode = 'accrual' } = req.query;
-    
+
     // Use parameterized queries for better security and proper type handling
     const dateStart = startDate || '1900-01-01';
     const dateEnd = endDate || '2100-01-01';
-    
+
     // Revenue analytics by category (standardized types)
     const { PAYMENT_TYPES, REFUND_TYPES, EXCLUDED_REVENUE_TYPES } = await import('../constants/transactions.js');
 
@@ -2162,6 +2162,21 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
     if (serviceType && serviceType !== 'all') {
       paramsAccrual.push(serviceType);
       accrualExtra = ` AND service_type = $${paramsAccrual.length}`;
+    }
+
+    // Map frontend serviceType filter to manager_commissions.source_type values
+    const MANAGER_COMMISSION_SOURCE_MAP = {
+      lessons: ['booking'],
+      rentals: ['rental'],
+      membership: ['membership', 'package'],
+      shop: ['shop'],
+      accommodation: ['accommodation']
+    };
+    const managerCommissionParams = [dateStart, dateEnd];
+    let managerCommissionFilter = '';
+    if (serviceType && serviceType !== 'all' && MANAGER_COMMISSION_SOURCE_MAP[serviceType]) {
+      managerCommissionParams.push(MANAGER_COMMISSION_SOURCE_MAP[serviceType]);
+      managerCommissionFilter = ` AND source_type = ANY($${managerCommissionParams.length}::text[])`;
     }
 
     // ── Run ALL independent queries in parallel ──────────────────
@@ -2176,6 +2191,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
       membershipResult,
       packageResult,
       shopResult,
+      managerCommissionResult,
+      managerCommissionByTypeResult,
     ] = await Promise.all([
 
       // 1. Wallet revenue & refunds
@@ -2358,6 +2375,32 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
             OR (related_entity_type = 'shop_order')
           )
       `, [dateStart, dateEnd]),
+
+      // 11. Manager commission (already calculated and stored at booking/rental completion).
+      // commission_amount is in EUR. We read stored values rather than re-computing the rate
+      // so that whatever per_category / flat / tiered config was active at calculation time
+      // is faithfully reflected.
+      pool.query(`
+        SELECT
+          COALESCE(SUM(commission_amount), 0) AS manager_commission_total,
+          COUNT(*)                            AS manager_commission_count
+        FROM manager_commissions
+        WHERE source_date >= $1::date AND source_date <= $2::date
+          AND status <> 'cancelled'
+          ${managerCommissionFilter}
+      `, managerCommissionParams),
+
+      // 12. Manager commission grouped by source_type (always unscoped — the all-services
+      // dashboard wants the full breakdown even when the page is filtered).
+      pool.query(`
+        SELECT
+          source_type,
+          COALESCE(SUM(commission_amount), 0) AS total
+        FROM manager_commissions
+        WHERE source_date >= $1::date AND source_date <= $2::date
+          AND status <> 'cancelled'
+        GROUP BY source_type
+      `, [dateStart, dateEnd]),
     ]);
 
     // ── Extract values from parallel results ─────────────────────
@@ -2502,12 +2545,25 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
       instructor_commission: instructorCommission
     };
 
+    const managerCommissionTotal = parseFloat(managerCommissionResult.rows[0]?.manager_commission_total) || 0;
+    const managerCommissionCount = parseInt(managerCommissionResult.rows[0]?.manager_commission_count, 10) || 0;
+    const managerCommissionByType = (managerCommissionByTypeResult.rows || []).reduce((acc, row) => {
+      acc[row.source_type] = parseFloat(row.total) || 0;
+      return acc;
+    }, {});
+    const managerCommission = {
+      total: managerCommissionTotal,
+      count: managerCommissionCount,
+      byServiceType: managerCommissionByType
+    };
+
     res.json({
       success: true,
       dateRange: { startDate, endDate },
       serviceType: serviceType || 'all',
       revenue: finalRevenue,
       netRevenue: finalNetRevenue,
+      managerCommission,
       balances: balancesResult.rows[0],
       bookings: bookingsResult.rows[0],
       serviceLedger,
@@ -3116,6 +3172,26 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
 
     const commission = parseFloat(commissionResult.rows[0]?.instructor_commission) || 0;
 
+    // ── Manager commission (already calculated and stored) ─────────────────
+    // commission_amount is stored in EUR. Reading stored values respects whatever
+    // per_category / flat / tiered config was active at calculation time.
+    const managerCommissionResult = await pool.query(`
+      SELECT
+        source_type,
+        COALESCE(SUM(commission_amount), 0) AS total
+      FROM manager_commissions
+      WHERE source_date BETWEEN $1::date AND $2::date
+        AND status <> 'cancelled'
+      GROUP BY source_type
+    `, [startDate, endDate]);
+
+    const managerCommissionByType = managerCommissionResult.rows.reduce((acc, row) => {
+      acc[row.source_type] = parseFloat(row.total) || 0;
+      return acc;
+    }, {});
+    const managerCommissionTotal = Object.values(managerCommissionByType)
+      .reduce((sum, value) => sum + value, 0);
+
     // ── Expense breakdown by transaction type ──────────────────────────────
     const expenseResult = await pool.query(`
       SELECT
@@ -3139,7 +3215,12 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
         totalDeposits:    parseFloat(h.total_deposits)   || 0,
         serviceRevenue:   parseFloat(h.service_revenue)  || 0,
         instructorCommission: commission,
+        managerCommission: managerCommissionTotal,
         totalTransactions: h.total_transactions
+      },
+      managerCommission: {
+        total: managerCommissionTotal,
+        byServiceType: managerCommissionByType
       },
       serviceBreakdown: {
         lessons:    parseFloat(sb.lesson_revenue)      || 0,

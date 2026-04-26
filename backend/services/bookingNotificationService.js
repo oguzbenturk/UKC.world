@@ -1098,6 +1098,176 @@ class BookingNotificationService {
     return Math.min(delay, this.maxRetryDelayMs);
   }
 
+  // ── Instructor-side notifications (for Telegram + in-app) ─────────────────
+  // These fire alongside the existing student/staff dispatches so instructors
+  // also get a heads-up when a lesson is assigned, rescheduled, reassigned
+  // away from them, or cancelled. The unified dispatcher handles Telegram
+  // delivery automatically when the instructor has linked their account.
+
+  async notifyInstructorAssigned({ bookingId, instructorUserId, isReassignment = false } = {}) {
+    if (!bookingId || !instructorUserId) return;
+    try {
+      const ctx = await fetchBookingContext(pool, bookingId);
+      if (!ctx) return;
+
+      const studentNames = ctx.students.map((s) => s.name).filter(Boolean).join(', ') || 'A student';
+      const titlePrefix = isReassignment ? 'Lesson reassigned' : 'New lesson';
+      const title = `${titlePrefix}: ${ctx.serviceName}`;
+      const message = buildInstructorMessage({
+        serviceName: ctx.serviceName,
+        studentNames: ctx.students.map((s) => s.name).filter(Boolean),
+        dateLabel: ctx.dateLabel,
+        timeLabel: ctx.timeLabel
+      });
+
+      await dispatchNotification({
+        userId: instructorUserId,
+        type: isReassignment ? 'booking_reassigned_instructor' : 'booking_assigned',
+        title,
+        message,
+        data: {
+          bookingId: ctx.booking.id,
+          role: 'instructor',
+          serviceName: ctx.serviceName,
+          date: ctx.isoDate,
+          startHour: Number(ctx.booking.start_hour),
+          duration: ctx.durationHours,
+          studentName: studentNames,
+          location: ctx.booking.location || null,
+          cta: {
+            label: 'View in daily program',
+            href: ctx.isoDate ? `/bookings/calendar?view=daily&date=${ctx.isoDate}&bookingId=${ctx.booking.id}` : '/bookings/calendar'
+          }
+        },
+        idempotencyKey: `instructor-${isReassignment ? 'reassigned' : 'assigned'}:${bookingId}:${instructorUserId}`
+      });
+    } catch (error) {
+      logger.warn('notifyInstructorAssigned failed (non-blocking)', { bookingId, instructorUserId, error: error.message });
+    }
+  }
+
+  async notifyInstructorRescheduled({
+    bookingId,
+    instructorUserId,
+    oldDate,
+    oldStartHour,
+    oldLocation,
+    newDate,
+    newStartHour,
+    newLocation
+  } = {}) {
+    if (!bookingId || !instructorUserId) return;
+    try {
+      const ctx = await fetchBookingContext(pool, bookingId);
+      if (!ctx) return;
+
+      const studentNames = ctx.students.map((s) => s.name).filter(Boolean).join(', ') || 'student';
+      const message = `${ctx.serviceName} with ${studentNames} has been rescheduled.`;
+
+      await dispatchNotification({
+        userId: instructorUserId,
+        type: 'booking_rescheduled_instructor',
+        title: `${ctx.serviceName} rescheduled`,
+        message,
+        data: {
+          bookingId: ctx.booking.id,
+          role: 'instructor',
+          serviceName: ctx.serviceName,
+          studentName: studentNames,
+          duration: ctx.durationHours,
+          oldDate: oldDate || null,
+          oldStartHour: oldStartHour ?? null,
+          oldLocation: oldLocation ?? null,
+          newDate: newDate || ctx.isoDate,
+          newStartHour: newStartHour ?? Number(ctx.booking.start_hour),
+          newLocation: newLocation ?? ctx.booking.location ?? null,
+          // Aliases used by the Telegram template:
+          date: newDate || ctx.isoDate,
+          startHour: newStartHour ?? Number(ctx.booking.start_hour),
+          cta: {
+            label: 'View in daily program',
+            href: ctx.isoDate ? `/bookings/calendar?view=daily&date=${ctx.isoDate}&bookingId=${ctx.booking.id}` : '/bookings/calendar'
+          }
+        },
+        idempotencyKey: `instructor-rescheduled:${bookingId}:${instructorUserId}:${Date.now()}`
+      });
+    } catch (error) {
+      logger.warn('notifyInstructorRescheduled failed (non-blocking)', { bookingId, instructorUserId, error: error.message });
+    }
+  }
+
+  async notifyInstructorUnassigned({ bookingId, oldInstructorUserId, newInstructorUserId } = {}) {
+    if (!bookingId || !oldInstructorUserId) return;
+    try {
+      const ctx = await fetchBookingContext(pool, bookingId);
+      if (!ctx) return;
+
+      let newInstructorName = null;
+      if (newInstructorUserId) {
+        const { rows } = await pool.query('SELECT name FROM users WHERE id = $1', [newInstructorUserId]);
+        newInstructorName = rows[0]?.name || null;
+      }
+
+      const studentNames = ctx.students.map((s) => s.name).filter(Boolean).join(', ') || 'student';
+
+      await dispatchNotification({
+        userId: oldInstructorUserId,
+        type: 'booking_unassigned_instructor',
+        title: `Lesson removed: ${ctx.serviceName}`,
+        message: `${ctx.serviceName} with ${studentNames} on ${ctx.dateLabel} at ${ctx.timeLabel} was reassigned.`,
+        data: {
+          bookingId: ctx.booking.id,
+          role: 'instructor',
+          serviceName: ctx.serviceName,
+          studentName: studentNames,
+          date: ctx.isoDate,
+          startHour: Number(ctx.booking.start_hour),
+          newInstructorName,
+          cta: {
+            label: 'View schedule',
+            href: '/bookings/calendar'
+          }
+        },
+        idempotencyKey: `instructor-unassigned:${bookingId}:${oldInstructorUserId}`
+      });
+    } catch (error) {
+      logger.warn('notifyInstructorUnassigned failed (non-blocking)', { bookingId, oldInstructorUserId, error: error.message });
+    }
+  }
+
+  async notifyInstructorCancelled({ bookingId, instructorUserId, reason } = {}) {
+    if (!bookingId || !instructorUserId) return;
+    try {
+      const ctx = await fetchBookingContext(pool, bookingId);
+      if (!ctx) return;
+
+      const studentNames = ctx.students.map((s) => s.name).filter(Boolean).join(', ') || 'student';
+
+      await dispatchNotification({
+        userId: instructorUserId,
+        type: 'booking_cancelled_instructor',
+        title: `Lesson cancelled: ${ctx.serviceName}`,
+        message: `${ctx.serviceName} with ${studentNames} on ${ctx.dateLabel} at ${ctx.timeLabel} was cancelled.`,
+        data: {
+          bookingId: ctx.booking.id,
+          role: 'instructor',
+          serviceName: ctx.serviceName,
+          studentName: studentNames,
+          date: ctx.isoDate,
+          startHour: Number(ctx.booking.start_hour),
+          reason: reason || null,
+          cta: {
+            label: 'View schedule',
+            href: '/bookings/calendar'
+          }
+        },
+        idempotencyKey: `instructor-cancelled:${bookingId}:${instructorUserId}`
+      });
+    } catch (error) {
+      logger.warn('notifyInstructorCancelled failed (non-blocking)', { bookingId, instructorUserId, error: error.message });
+    }
+  }
+
   // ── Rental notifications ──────────────────────────────────────────────────
 
   async sendRentalCreated({ rentalId, immediate = false } = {}) {

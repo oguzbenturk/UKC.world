@@ -918,7 +918,8 @@
       "teachingPrefs": "Lehrpräferenzen",
       "instructorNotifications": "Benachrichtigungen",
       "teamNotifications": "Team-Benachrichtigungen",
-      "operationalDefaults": "Betriebliche Standardwerte"
+      "operationalDefaults": "Betriebliche Standardwerte",
+      "telegram": "Telegram"
     },
     "groups": {
       "personal": "Persönlich",
@@ -954,7 +955,8 @@
       "teachingPrefs": "Lehrpräferenzen und Spezialisierungen konfigurieren",
       "instructorNotifications": "Benachrichtigungen als Instruktor auswählen",
       "teamNotifications": "Team-Aktivitäts- und Betriebsbenachrichtigungen konfigurieren",
-      "operationalDefaults": "Standardwerte für tägliche Buchungsvorgänge festlegen"
+      "operationalDefaults": "Standardwerte für tägliche Buchungsvorgänge festlegen",
+      "telegram": "Verbinden Sie Ihr Telegram-Konto, um sofortige Unterrichts-Updates zu erhalten"
     },
     "loggedInAs": "Angemeldet als",
     "roleLabels": {

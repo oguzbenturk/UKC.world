@@ -45,6 +45,7 @@ import DataService from '@/shared/services/dataService';
 import FinanceSettingsView from '@/features/finances/components/FinanceSettingsView';
 import ForecastSettings from '@/features/forecast/components/ForecastSettings';
 import CurrencyManagementSection from '@/features/dashboard/components/CurrencyManagementSection';
+import TelegramConnectCard from '@/features/settings/components/TelegramConnectCard';
 
 // Lazy-loaded admin page components
 const Categories = lazy(() => import('@/features/services/pages/Categories'));
@@ -504,6 +505,10 @@ const UserSettings = () => {
   const isTrustedCustomer = useMemo(() => userRole === 'trusted_customer', [userRole]);
   const isInstructor = useMemo(() => userRole === 'instructor', [userRole]);
   const isManager = useMemo(() => userRole === 'manager', [userRole]);
+  const canUseTelegram = useMemo(
+    () => ['admin', 'super_admin', 'manager', 'owner', 'instructor', 'frontdesk'].includes(userRole),
+    [userRole]
+  );
 
   // Initialize selected currency from user profile
   useEffect(() => {
@@ -673,8 +678,14 @@ const UserSettings = () => {
         { key: 'operational-defaults', label: t('admin:settings.tabs.operationalDefaults'), icon: <ToolOutlined />, group: t('admin:settings.groups.operations') },
       );
     }
+    // Telegram tab — admin/manager/owner/instructor/frontdesk
+    if (canUseTelegram) {
+      tabs.push(
+        { key: 'telegram', label: t('admin:settings.tabs.telegram'), icon: <NotificationOutlined />, group: t('admin:settings.groups.personal') }
+      );
+    }
     return tabs;
-  }, [isAdmin, isManager, isStudent, isInstructor, t]);
+  }, [isAdmin, isManager, isStudent, isInstructor, canUseTelegram, t]);
 
   const groupedTabs = useMemo(() => {
     const groups = [];
@@ -849,6 +860,10 @@ case 'finance':
       case 'operational-defaults':
         return isManager ? <ManagerOperationalDefaults /> : null;
 
+      // Telegram (admin/manager/owner/instructor/frontdesk)
+      case 'telegram':
+        return canUseTelegram ? <TelegramConnectCard /> : null;
+
       default:
         return null;
     }
@@ -941,6 +956,7 @@ case 'finance':
                 {activeTab === 'instructor-notifications' && t('admin:settings.tabDescriptions.instructorNotifications')}
                 {activeTab === 'team-notifications' && t('admin:settings.tabDescriptions.teamNotifications')}
                 {activeTab === 'operational-defaults' && t('admin:settings.tabDescriptions.operationalDefaults')}
+                {activeTab === 'telegram' && t('admin:settings.tabDescriptions.telegram')}
               </Paragraph>
             </div>
 

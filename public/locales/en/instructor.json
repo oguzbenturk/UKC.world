@@ -156,7 +156,8 @@
       "progress": "Progress"
     },
     "noActivePackage": "No active package",
-    "left": "left of"
+    "left": "left of",
+    "progressLabel": "{{remaining}}h left of {{total}}h"
   },
   "studentDetail": {
     "back": "← Back",
@@ -221,6 +222,30 @@
       "custom": "Custom"
     }
   },
+  "telegram": {
+    "title": "Telegram notifications",
+    "description": "Get a Telegram message the moment a lesson is assigned, rescheduled, or cancelled.",
+    "connect": "Connect Telegram",
+    "connectFailed": "Could not start the connection. Please try again.",
+    "unlink": "Unlink",
+    "unlinked": "Telegram disconnected.",
+    "unlinkFailed": "Could not unlink. Please try again.",
+    "linkedAs": "Linked as @{{username}}",
+    "linkedNoUsername": "Telegram account linked",
+    "linkedOn": "Linked on {{date}}",
+    "linkOpenedHint": "Telegram should open. If it didn't, check your popup blocker.",
+    "disabled": "Telegram is not configured for this workspace yet. Ask an admin to set TELEGRAM_BOT_TOKEN.",
+    "notificationsToggle": "Send Telegram notifications",
+    "notificationsToggleHint": "Turn off to keep your link but stop receiving messages.",
+    "prefSaveFailed": "Could not save preference. Please try again.",
+    "fallbackTitle": "Didn't link automatically?",
+    "fallbackHint": "Open the bot in Telegram and paste this command. Tapping the Start button only works the first time you open the bot.",
+    "copy": "Copy",
+    "codeCopied": "Code copied — paste it in Telegram.",
+    "copyFailed": "Could not copy. Select and copy manually.",
+    "reopenTelegram": "Reopen in Telegram",
+    "codeExpires": "Code expires at {{time}}"
+  },
   "profile": {
     "navItems": {
       "info": "Profile",
@@ -228,6 +253,7 @@
       "lessons": "Lessons",
       "students": "Students",
       "earnings": "Earnings",
+      "notifications": "Notifications",
       "timeOff": "Time Off",
       "security": "Security"
     },
@@ -237,6 +263,7 @@
       "lessons": "Upcoming scheduled lessons",
       "students": "Your student roster at a glance",
       "earnings": "Earnings overview and recent payouts",
+      "notifications": "Manage where lesson updates are delivered",
       "availability": "Request time off and view your availability schedule",
       "security": "Change your password and review account security"
     },

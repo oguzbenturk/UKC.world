@@ -316,6 +316,8 @@
         "refundsSub": "An Kunden zurückgezahltes Geld",
         "instructorCommission": "Instruktor-Provision",
         "instructorCommissionSub": "An Instruktoren gezahlt",
+        "managerCommission": "Manager-Provision",
+        "managerCommissionSub": "Konfigurierte Sätze · an Manager gezahlt",
         "depositsHelper": "{{amount}} in Einlagen",
         "transactionsHelper": "{{count}} Transaktionen"
       }
@@ -1175,6 +1177,7 @@
         "lessonRevenue": "Unterrichtseinnahmen",
         "totalBookings": "Buchungen gesamt",
         "instructorCommissions": "Instructor-Provisionen",
+        "managerCommission": "Manager-Provision",
         "netLessonRevenue": "Netto-Unterrichtseinnahmen"
       }
     },
@@ -1187,6 +1190,8 @@
         "rentalRevenue": "Verleiheinnahmen",
         "totalRentals": "Verleihvorgänge gesamt",
         "avgRentalValue": "Durchschn. Verleihwert",
+        "managerCommission": "Manager-Provision",
+        "netRentalRevenue": "Netto-Verleiheinnahmen",
         "outstanding": "Ausstehend"
       }
     },
@@ -1546,6 +1551,7 @@
     "stats": {
       "totalIncome": "Gesamteinnahmen",
       "netRevenue": "Nettoumsatz",
+      "managerCommission": "Manager-Provision",
       "transactions": "Transaktionen",
       "rentals": "{{active}} aktiv / {{total}} gesamt"
     },

@@ -130,16 +130,22 @@ export const twoFactorRateLimit = rateLimit({
   keyGenerator: (req) => `2fa_${req.ip}`
 });
 
+const defaultPasswordResetLimit = () => {
+  const fallback = CURRENT_ENV === 'production' ? 3 : 1000;
+  return parsePositiveInt(process.env.PASSWORD_RESET_RATE_LIMIT_MAX, fallback);
+};
+
 export const passwordResetRateLimit = rateLimit({
   windowMs: parsePositiveInt(process.env.PASSWORD_RESET_RATE_LIMIT_WINDOW_MS, 60 * 60 * 1000),
-  max: () => parsePositiveInt(process.env.PASSWORD_RESET_RATE_LIMIT_MAX, 3),
+  max: () => defaultPasswordResetLimit(),
   message: {
     error: 'Too many password reset attempts, please try again later.',
     retryAfter: '1 hour'
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `pwd_reset_${req.ip}_${req.body?.email || 'unknown'}`
+  keyGenerator: (req) => `pwd_reset_${req.ip}_${req.body?.email || 'unknown'}`,
+  skip: shouldSkipRateLimit
 });
 
 // Rate limiting for form submissions (public forms)

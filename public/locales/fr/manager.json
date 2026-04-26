@@ -316,6 +316,8 @@
         "refundsSub": "Argent retourné aux clients",
         "instructorCommission": "Commission Instructeur",
         "instructorCommissionSub": "Versée aux instructeurs",
+        "managerCommission": "Commission Manager",
+        "managerCommissionSub": "Taux configurés · versée aux managers",
         "depositsHelper": "{{amount}} en dépôts",
         "transactionsHelper": "{{count}} transactions"
       }
@@ -1175,6 +1177,7 @@
         "lessonRevenue": "Revenus des cours",
         "totalBookings": "Total réservations",
         "instructorCommissions": "Commissions instructeurs",
+        "managerCommission": "Commission manager",
         "netLessonRevenue": "Revenu net des cours"
       }
     },
@@ -1187,6 +1190,8 @@
         "rentalRevenue": "Revenus de location",
         "totalRentals": "Total locations",
         "avgRentalValue": "Valeur moy. location",
+        "managerCommission": "Commission manager",
+        "netRentalRevenue": "Revenu net des locations",
         "outstanding": "En attente"
       }
     },
@@ -1546,6 +1551,7 @@
     "stats": {
       "totalIncome": "Revenu total",
       "netRevenue": "Revenu net",
+      "managerCommission": "Commission manager",
       "transactions": "Transactions",
       "rentals": "{{active}} actives / {{total}} total"
     },

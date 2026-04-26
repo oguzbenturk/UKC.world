@@ -14,6 +14,8 @@ const accentStyles = {
   orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
@@ -88,6 +90,8 @@ const FinanceRentals = () => {
         { key: 'revenue', label: t('manager:financePages.rentals.stats.rentalRevenue'), value: '--', accent: 'orange' },
         { key: 'count', label: t('manager:financePages.rentals.stats.totalRentals'), value: '--', accent: 'emerald' },
         { key: 'avg', label: t('manager:financePages.rentals.stats.avgRentalValue'), value: '--', accent: 'slate' },
+        { key: 'managerCommission', label: t('manager:financePages.rentals.stats.managerCommission'), value: '--', accent: 'rose' },
+        { key: 'net', label: t('manager:financePages.rentals.stats.netRentalRevenue'), value: '--', accent: 'indigo' },
         { key: 'debt', label: t('manager:financePages.rentals.stats.outstanding'), value: '--', accent: 'amber' },
       ];
     }
@@ -97,10 +101,14 @@ const FinanceRentals = () => {
     const rentalCount = Number(revenue.rental_count || 0);
     const debt = Number(balances.total_customer_debt || 0);
     const avgValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
+    const netRevenue = rentalRevenue - managerCommission;
     return [
       { key: 'revenue', label: t('manager:financePages.rentals.stats.rentalRevenue'), value: formatCurrency(rentalRevenue), accent: 'orange' },
       { key: 'count', label: t('manager:financePages.rentals.stats.totalRentals'), value: rentalCount.toLocaleString(), accent: 'emerald' },
       { key: 'avg', label: t('manager:financePages.rentals.stats.avgRentalValue'), value: formatCurrency(avgValue), accent: 'slate' },
+      { key: 'managerCommission', label: t('manager:financePages.rentals.stats.managerCommission'), value: formatCurrency(managerCommission), accent: 'rose' },
+      { key: 'net', label: t('manager:financePages.rentals.stats.netRentalRevenue'), value: formatCurrency(netRevenue), accent: 'indigo' },
       { key: 'debt', label: t('manager:financePages.rentals.stats.outstanding'), value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
     ];
   }, [summaryData]);
@@ -161,7 +169,7 @@ const FinanceRentals = () => {
             </Space>
           </div>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {headlineStats.map((stat) => {
             const accent = accentStyles[stat.accent] || accentStyles.slate;
             return (

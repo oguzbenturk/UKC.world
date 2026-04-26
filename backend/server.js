@@ -93,7 +93,11 @@ import assistantRouter from './routes/assistant.js';
 import agentRouter from './routes/agent.js';
 import { authenticateAgentRequest } from './middlewares/authenticateAgent.js';
 import MessageCleanupService from './services/messageCleanupService.js';
+import { startLessonReminderJob } from './jobs/lessonReminderJob.js';
 import './services/alerts/notificationAlertService.js';
+import telegramRouter from './routes/telegram.js';
+import { initialize as initializeTelegramBot } from './services/telegramService.js';
+import { attachTelegramHandlers } from './services/telegramBotHandlers.js';
 import {
   securityHeaders,
   apiRateLimit,
@@ -420,6 +424,7 @@ app.use('/api/students', (req, res, next) => {
 // === ROUTES ===
 app.use('/api/auth', authRouter);
 app.use('/api/2fa', twoFactorRouter);
+app.use('/api/telegram', telegramRouter);
 app.use('/api/user-consents', authenticateJWT, userConsentsRouter);
 app.use('/api/gdpr', gdprRouter);
 app.use('/api/users', authenticateJWT, usersRouter);
@@ -1629,6 +1634,26 @@ if (shouldStartServer) {
     } catch (error) {
       logger.error('❌ Failed to start message cleanup scheduler:', error);
     }
+
+    // Start 24h-ahead lesson reminder cron (every 15 min)
+    try {
+      startLessonReminderJob();
+      logger.info('✅ Lesson reminder cron started');
+    } catch (error) {
+      logger.error('❌ Failed to start lesson reminder cron:', error);
+    }
+
+    // Initialize Telegram bot (registers webhook + attaches command handlers).
+    // Non-blocking — server stays up even if the bot fails to authenticate.
+    initializeTelegramBot({
+      webhookUrl: process.env.TELEGRAM_WEBHOOK_URL || null,
+      webhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || null,
+      attachHandlers: attachTelegramHandlers
+    }).catch((error) => {
+      logger.warn('Telegram bot initialization error (continuing without Telegram)', {
+        error: error?.message
+      });
+    });
 
     // Auto-cancel stale pending_payment member purchases (abandoned Iyzico flows)
     const STALE_PURCHASE_INTERVAL = 15 * 60 * 1000; // every 15 min

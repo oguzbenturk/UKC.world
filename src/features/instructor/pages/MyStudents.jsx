@@ -3,15 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useInstructorStudents } from '../hooks/useInstructorStudents';
 
-const fmtDate = (iso) => {
+const fmtDateTime = (iso) => {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
-
-const fmtTime = (iso) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
@@ -26,11 +21,15 @@ const MyStudents = () => {
     let list = students;
     if (query) {
       const q = query.toLowerCase();
-      list = list.filter(s => (s.name || '').toLowerCase().includes(q));
+      list = list.filter(s =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.skillLevel || '').toLowerCase().includes(q)
+      );
     }
     const { field, dir } = sort;
     list = [...list].sort((a, b) => {
-      const av = a[field] ?? 0; const bv = b[field] ?? 0;
+      const av = Number(a[field] ?? 0);
+      const bv = Number(b[field] ?? 0);
       if (av === bv) return 0;
       return dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
     });
@@ -102,9 +101,9 @@ const MyStudents = () => {
                     </td>
                     <td className="px-4 py-3 text-slate-600">{s.skillLevel || '—'}</td>
                     <td className="px-4 py-3 text-slate-700">{s.totalLessonCount}</td>
-                    <td className="px-4 py-3 text-slate-700">{s.totalHours}</td>
-                    <td className="px-4 py-3 text-slate-500">{fmtDate(s.lastLessonAt)}</td>
-                    <td className="px-4 py-3 text-slate-500">{fmtTime(s.upcomingLessonAt)}</td>
+                    <td className="px-4 py-3 text-slate-700">{Number(s.totalHours).toFixed(1)}h</td>
+                    <td className="px-4 py-3 text-slate-500">{fmtDateTime(s.lastLessonAt)}</td>
+                    <td className="px-4 py-3 text-slate-500">{fmtDateTime(s.upcomingLessonAt)}</td>
                     <td className="px-4 py-3">
                       {s.packageHours?.totalHours > 0 ? (
                         <div className="flex flex-col gap-1">
@@ -116,7 +115,7 @@ const MyStudents = () => {
                           </div>
                           <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500">
                             <span>{s.progressPercent}%</span>
-                            <span>{s.packageHours.remainingHours}h {t('instructor:myStudents.left')} {s.packageHours.totalHours}h</span>
+                            <span>{t('instructor:myStudents.progressLabel', { remaining: s.packageHours.remainingHours, total: s.packageHours.totalHours })}</span>
                           </div>
                         </div>
                       ) : (

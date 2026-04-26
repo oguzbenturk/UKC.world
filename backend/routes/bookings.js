@@ -2206,6 +2206,7 @@ router.post('/',
         });
       }
     } else if (createdByRole === 'instructor') {
+      // Instructor creating a booking — handled below with admin/manager approval flow.
       // Instructor bookings go as pending — notify admins/managers for approval
       const instructorName = req.user?.name || req.user?.first_name || 'An instructor';
       const sessionDate = date;
@@ -2254,11 +2255,30 @@ router.post('/',
         }
       }
     } else {
-      logger.info('Skipping booking notifications - created by staff', {
+      logger.info('Skipping student/staff fan-out - created by staff', {
         bookingId: booking.id,
         createdBy: actorId,
         role: createdByRole
       });
+    }
+
+    // Notify the assigned instructor for staff-created bookings. The
+    // student-created path already notifies them via sendBookingCreated
+    // (booking_instructor), so skip there to avoid duplicates. We DON'T
+    // skip self-assignment — many users wear both manager and instructor
+    // hats and want the Telegram ping for their own bookings.
+    if (isStaffCreated && booking.instructor_user_id) {
+      try {
+        await bookingNotificationService.notifyInstructorAssigned({
+          bookingId: booking.id,
+          instructorUserId: booking.instructor_user_id
+        });
+      } catch (err) {
+        logger.warn('Failed to notify instructor of new assignment', {
+          bookingId: booking.id,
+          error: err?.message
+        });
+      }
     }
 
     // Notify partner about the group session booking
@@ -3880,6 +3900,17 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         }
       }
 
+      // Notify the assigned instructor (in-app + Telegram). We notify even
+      // when the creator IS the assigned instructor, since many users wear
+      // both manager and instructor hats and want the Telegram confirmation
+      // for their own bookings too.
+      if (instructorId) {
+        bookingNotificationService.notifyInstructorAssigned({
+          bookingId: booking.rows[0].id,
+          instructorUserId: instructorId
+        }).catch((err) => logger.warn('notifyInstructorAssigned (calendar) error', { error: err?.message }));
+      }
+
       res.status(201).json({
         success: true,
         id: booking.rows[0].id,
@@ -4360,13 +4391,25 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
                   text: `Hi ${student.name || 'there'}, your ${serviceName} has been rescheduled. ${changeParts.join('. ')}. Please log in to confirm.`
                 });
 
-                // Mark email as sent
-                await pool.query(`
-                  UPDATE booking_reschedule_notifications
-                  SET email_sent = TRUE, email_sent_at = NOW()
-                  WHERE booking_id = $1 AND student_user_id = $2 AND status = 'pending'
-                  ORDER BY created_at DESC LIMIT 1
-                `, [updatedBooking.id, studentId]);
+                // Mark email as sent — Postgres UPDATE doesn't support ORDER BY + LIMIT
+                // directly, so target the most recent matching row via a subquery.
+                try {
+                  await pool.query(`
+                    UPDATE booking_reschedule_notifications
+                    SET email_sent = TRUE, email_sent_at = NOW()
+                    WHERE id = (
+                      SELECT id FROM booking_reschedule_notifications
+                      WHERE booking_id = $1 AND student_user_id = $2 AND status = 'pending'
+                      ORDER BY created_at DESC
+                      LIMIT 1
+                    )
+                  `, [updatedBooking.id, studentId]);
+                } catch (markErr) {
+                  logger.warn('Email sent but reschedule tracking row not updated', {
+                    bookingId: updatedBooking.id,
+                    error: markErr.message
+                  });
+                }
               } catch (emailErr) {
                 logger.warn('Failed to send reschedule email', { bookingId: updatedBooking.id, error: emailErr.message });
               }
@@ -4379,6 +4422,37 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
               timeChanged,
               instructorChanged
             });
+          }
+
+          // Notify the involved instructor(s).
+          if (instructorChanged) {
+            // Old instructor lost the lesson.
+            if (currentBooking.instructor_user_id) {
+              await bookingNotificationService.notifyInstructorUnassigned({
+                bookingId: updatedBooking.id,
+                oldInstructorUserId: currentBooking.instructor_user_id,
+                newInstructorUserId: instructor_user_id
+              }).catch((err) => logger.warn('notifyInstructorUnassigned error', { error: err?.message }));
+            }
+            // New instructor gained it.
+            if (instructor_user_id) {
+              await bookingNotificationService.notifyInstructorAssigned({
+                bookingId: updatedBooking.id,
+                instructorUserId: instructor_user_id,
+                isReassignment: true
+              }).catch((err) => logger.warn('notifyInstructorAssigned error', { error: err?.message }));
+            }
+          } else if ((dateChanged || timeChanged) && updatedBooking.instructor_user_id) {
+            await bookingNotificationService.notifyInstructorRescheduled({
+              bookingId: updatedBooking.id,
+              instructorUserId: updatedBooking.instructor_user_id,
+              oldDate: currentBooking.date ? String(currentBooking.date).slice(0, 10) : null,
+              oldStartHour: currentBooking.start_hour != null ? Number(currentBooking.start_hour) : null,
+              oldLocation: currentBooking.location ?? null,
+              newDate: updatedBooking.date ? String(updatedBooking.date).slice(0, 10) : null,
+              newStartHour: updatedBooking.start_hour != null ? Number(updatedBooking.start_hour) : null,
+              newLocation: updatedBooking.location ?? null
+            }).catch((err) => logger.warn('notifyInstructorRescheduled error', { error: err?.message }));
           }
         }
       } catch (rescheduleErr) {
@@ -5331,7 +5405,15 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
         
   logger.info('Sending delete success response');
         res.json(response);
-        
+
+        // Notify instructor about the deletion (in-app + Telegram).
+        if (booking.instructor_user_id) {
+          bookingNotificationService.notifyInstructorCancelled({
+            bookingId,
+            instructorUserId: booking.instructor_user_id,
+            reason: reason || 'Booking deleted'
+          }).catch((err) => logger.warn('notifyInstructorCancelled (delete) error', { error: err?.message }));
+        }
     } catch (error) {
         await client.query('ROLLBACK');
   logger.error('Error deleting booking:', error);
@@ -6070,7 +6152,15 @@ router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager'])
       balanceRefunded,
       refundType
     });
-    
+
+    // Notify instructor about the cancellation (in-app + Telegram).
+    if (booking.instructor_user_id) {
+      bookingNotificationService.notifyInstructorCancelled({
+        bookingId: booking.id,
+        instructorUserId: booking.instructor_user_id,
+        reason: cancellation_reason
+      }).catch((err) => logger.warn('notifyInstructorCancelled (cancel) error', { error: err?.message }));
+    }
   } catch (error) {
     await client.query('ROLLBACK');
   logger.error('Error cancelling booking:', error);
@@ -6356,6 +6446,15 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
           bookingId: booking.id, studentId: booking.student_user_id, error: notifErr?.message
         });
       }
+    }
+
+    // === Notify instructor when booking is cancelled (in-app + Telegram) ===
+    if (status === 'cancelled' && booking.instructor_user_id) {
+      bookingNotificationService.notifyInstructorCancelled({
+        bookingId: booking.id,
+        instructorUserId: booking.instructor_user_id,
+        reason: 'Booking declined'
+      }).catch((err) => logger.warn('notifyInstructorCancelled (status patch) error', { error: err?.message }));
     }
     
     // Update notification status for this booking

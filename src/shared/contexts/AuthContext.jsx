@@ -293,7 +293,7 @@ export function AuthProvider({ children }) {
     } catch (e) {
       const errorMessage = e?.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
-      if (errorMessage === SIGN_IN_DISABLED_USER_MESSAGE) {
+      if (errorMessage === SIGN_IN_DISABLED_USER_MESSAGE || e?.code === 'EMAIL_NOT_VERIFIED') {
         throw e;
       }
       return false;

@@ -316,6 +316,8 @@
         "refundsSub": "Money returned to customers",
         "instructorCommission": "Instructor Commission",
         "instructorCommissionSub": "Paid to instructors",
+        "managerCommission": "Manager Commission",
+        "managerCommissionSub": "Configured rates · paid to managers",
         "depositsHelper": "{{amount}} in deposits",
         "transactionsHelper": "{{count}} transactions"
       }
@@ -1177,6 +1179,7 @@
         "lessonRevenue": "Lesson Revenue",
         "totalBookings": "Total Bookings",
         "instructorCommissions": "Instructor Commissions",
+        "managerCommission": "Manager Commission",
         "netLessonRevenue": "Net Lesson Revenue"
       }
     },
@@ -1189,6 +1192,8 @@
         "rentalRevenue": "Rental Revenue",
         "totalRentals": "Total Rentals",
         "avgRentalValue": "Avg Rental Value",
+        "managerCommission": "Manager Commission",
+        "netRentalRevenue": "Net Rental Revenue",
         "outstanding": "Outstanding"
       }
     },
@@ -1548,6 +1553,7 @@
     "stats": {
       "totalIncome": "Total Income",
       "netRevenue": "Net Revenue",
+      "managerCommission": "Manager Commission",
       "transactions": "Transactions",
       "rentals": "{{active}} active / {{total}} total"
     },

@@ -316,6 +316,8 @@
         "refundsSub": "Dinero devuelto a clientes",
         "instructorCommission": "Comisión Instructor",
         "instructorCommissionSub": "Pagada a instructores",
+        "managerCommission": "Comisión del Gerente",
+        "managerCommissionSub": "Tarifas configuradas · pagada a gerentes",
         "depositsHelper": "{{amount}} en depósitos",
         "transactionsHelper": "{{count}} transacciones"
       }
@@ -1175,6 +1177,7 @@
         "lessonRevenue": "Ingresos de clases",
         "totalBookings": "Total reservas",
         "instructorCommissions": "Comisiones instructores",
+        "managerCommission": "Comisión del gerente",
         "netLessonRevenue": "Ingresos netos de clases"
       }
     },
@@ -1187,6 +1190,8 @@
         "rentalRevenue": "Ingresos de alquiler",
         "totalRentals": "Total alquileres",
         "avgRentalValue": "Valor medio alquiler",
+        "managerCommission": "Comisión del gerente",
+        "netRentalRevenue": "Ingresos netos de alquiler",
         "outstanding": "Pendiente"
       }
     },
@@ -1546,6 +1551,7 @@
     "stats": {
       "totalIncome": "Ingreso total",
       "netRevenue": "Ingreso neto",
+      "managerCommission": "Comisión del gerente",
       "transactions": "Transacciones",
       "rentals": "{{active}} activas / {{total}} total"
     },

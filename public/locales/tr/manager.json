@@ -316,6 +316,8 @@
         "refundsSub": "Müşterilere iade edilen para",
         "instructorCommission": "Eğitmen Komisyonu",
         "instructorCommissionSub": "Eğitmenlere ödenen",
+        "managerCommission": "Yönetici Komisyonu",
+        "managerCommissionSub": "Yapılandırılmış oran · yöneticiye ödenen",
         "depositsHelper": "{{amount}} depozito",
         "transactionsHelper": "{{count}} işlem"
       }
@@ -1175,6 +1177,7 @@
         "lessonRevenue": "Ders Geliri",
         "totalBookings": "Toplam Rezervasyon",
         "instructorCommissions": "Eğitmen Komisyonları",
+        "managerCommission": "Yönetici Komisyonu",
         "netLessonRevenue": "Net Ders Geliri"
       }
     },
@@ -1187,6 +1190,8 @@
         "rentalRevenue": "Kiralama Geliri",
         "totalRentals": "Toplam Kiralama",
         "avgRentalValue": "Ort. Kiralama Değeri",
+        "managerCommission": "Yönetici Komisyonu",
+        "netRentalRevenue": "Net Kiralama Geliri",
         "outstanding": "Bekleyen"
       }
     },
@@ -1546,6 +1551,7 @@
     "stats": {
       "totalIncome": "Toplam Gelir",
       "netRevenue": "Net Gelir",
+      "managerCommission": "Yönetici Komisyonu",
       "transactions": "Islemler",
       "rentals": "{{active}} aktif / {{total}} toplam"
     },

@@ -7,7 +7,8 @@ import { sumExpenses } from '../utils/expenseCalculations';
 import { buildNetData } from '../utils/netRevenue';
 
 const buildBreakdown = (netData) => ([
-  { key: 'commission', label: 'Commission', value: netData.commission },
+  { key: 'commission', label: 'Instructor Commission', value: netData.commission },
+  { key: 'managerCommission', label: 'Manager Commission', value: netData.managerCommission },
   { key: 'tax', label: 'Tax', value: netData.tax },
   { key: 'insurance', label: 'Insurance', value: netData.insurance },
   { key: 'equipment', label: 'Equipment', value: netData.equipment },
@@ -124,6 +125,14 @@ const buildMetricCards = (netData, revenueTotals, ledger, serviceType) => {
       helper: netData.commission > 0
         ? `${Number(netData.commissionRate || 0).toFixed(1)}% effective rate`
         : 'No commission captured',
+    },
+    {
+      key: 'managerCommission',
+      label: 'Manager commission',
+      value: formatCurrency(netData.managerCommission),
+      helper: netData.managerCommission > 0
+        ? `${Number(netData.managerCommissionRate || 0).toFixed(1)}% effective rate`
+        : 'No manager commission configured',
     }
   ];
 };
@@ -239,7 +248,7 @@ function NetRevenueCard({ summary, dateRange, onModeChange, financialSettings })
         </Space>
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {metricCards.map((card) => (
           <div
             key={card.key}

@@ -918,7 +918,8 @@
       "teachingPrefs": "Предпочтения преподавания",
       "instructorNotifications": "Уведомления",
       "teamNotifications": "Уведомления команды",
-      "operationalDefaults": "Операционные настройки"
+      "operationalDefaults": "Операционные настройки",
+      "telegram": "Telegram"
     },
     "groups": {
       "personal": "Личные",
@@ -954,7 +955,8 @@
       "teachingPrefs": "Настройте предпочтения преподавания и специализации",
       "instructorNotifications": "Выберите уведомления, которые вы получаете как инструктор",
       "teamNotifications": "Настройте уведомления об активности команды и операциях",
-      "operationalDefaults": "Задайте значения по умолчанию для ежедневных операций бронирования"
+      "operationalDefaults": "Задайте значения по умолчанию для ежедневных операций бронирования",
+      "telegram": "Подключите Telegram, чтобы получать мгновенные обновления об уроках"
     },
     "loggedInAs": "Вы вошли как",
     "roleLabels": {

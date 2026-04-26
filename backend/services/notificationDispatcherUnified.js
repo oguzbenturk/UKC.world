@@ -24,6 +24,8 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { insertNotification } from './notificationWriter.js';
+import { sendToChat as sendTelegramToChat, isTelegramEnabled } from './telegramService.js';
+import { buildTelegramMessageForType } from './telegramTemplates/index.js';
 
 // ─── Notification type registry ───────────────────────────────────────────────
 // All valid notification types in the system.  When db-optimizer lands the
@@ -40,6 +42,13 @@ const NOTIFICATION_TYPES = new Set([
   'booking_rescheduled',
   'booking_rescheduled_by_admin',
   'booking',                        // legacy: partner invite / accept / decline
+
+  // Instructor-side booking notifications (NEW — Telegram integration)
+  'booking_assigned',
+  'booking_reassigned_instructor',
+  'booking_rescheduled_instructor',
+  'booking_unassigned_instructor',
+  'booking_cancelled_instructor',
 
   // Rentals
   'rental_customer',
@@ -112,6 +121,13 @@ const PREFERENCE_MAP = {
   booking_rescheduled:        'booking_updates',
   booking_rescheduled_by_admin: 'booking_updates',
   booking:                    'booking_updates',
+
+  // Instructor-side
+  booking_assigned:               'new_booking_alerts',
+  booking_reassigned_instructor:  'new_booking_alerts',
+  booking_rescheduled_instructor: 'booking_updates',
+  booking_unassigned_instructor:  'booking_updates',
+  booking_cancelled_instructor:   'booking_updates',
 
   // Rentals → new_booking_alerts (same toggle as bookings for staff)
   rental_customer:            'booking_updates',
@@ -270,6 +286,11 @@ export async function dispatchNotification({
       return { sent: false, reason: result.reason || 'not-inserted' };
     }
 
+    // Telegram fan-out — best effort, never blocks the in-app insert.
+    deliverTelegram({ executor, userId, type, title, message, data }).catch((err) => {
+      logger.warn('Telegram fan-out failed', { userId, type, error: err?.message });
+    });
+
     return { sent: true, id: result.id };
   } catch (error) {
     logger.error('dispatchNotification failed', {
@@ -277,6 +298,47 @@ export async function dispatchNotification({
     });
     throw error;
   }
+}
+
+/**
+ * Deliver a Telegram message in addition to the in-app notification.
+ * Skips silently when Telegram is disabled, the user is not linked, or the
+ * user has telegram_notifications=false. A failure here is logged but never
+ * surfaced to the caller — the dispatch already succeeded once the in-app
+ * notification was written.
+ */
+async function deliverTelegram({ executor, userId, type, title, message, data }) {
+  if (!isTelegramEnabled()) return;
+
+  const telegramText = buildTelegramMessageForType(type, data || {});
+  if (!telegramText) return;
+
+  let row;
+  try {
+    const result = await executor.query(
+      `SELECT u.telegram_chat_id,
+              COALESCE(ns.telegram_notifications, true) AS telegram_notifications
+       FROM users u
+       LEFT JOIN notification_settings ns ON ns.user_id = u.id
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
+      [userId]
+    );
+    row = result.rows[0];
+  } catch (err) {
+    logger.warn('Failed to load Telegram delivery state', { userId, type, error: err.message });
+    return;
+  }
+
+  if (!row?.telegram_chat_id) return;
+  if (row.telegram_notifications === false) return;
+
+  // Title/message are useful as fallback when no template matched a richer view,
+  // but buildTelegramMessageForType returns null for unknown types so we never
+  // get here for those.
+  void title;
+  void message;
+
+  await sendTelegramToChat(row.telegram_chat_id, telegramText);
 }
 
 /**

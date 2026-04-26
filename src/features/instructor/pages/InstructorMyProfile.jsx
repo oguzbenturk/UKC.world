@@ -10,8 +10,9 @@ import {
   TeamOutlined, DollarOutlined, ClockCircleOutlined, BookOutlined,
   ThunderboltOutlined, TrophyOutlined, IdcardOutlined, EditOutlined,
   SaveOutlined, CloseOutlined, BarChartOutlined, WalletOutlined,
-  EnvironmentOutlined, ArrowRightOutlined
+  EnvironmentOutlined, ArrowRightOutlined, BellOutlined
 } from '@ant-design/icons';
+import TelegramConnectCard from '@/features/settings/components/TelegramConnectCard';
 import dayjs from 'dayjs';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useInstructorDashboard } from '../hooks/useInstructorDashboard';
@@ -22,11 +23,12 @@ import { logger } from '@/shared/utils/logger';
 
 // ── Nav items — labels injected via hook below ──────────────────────────────
 const NAV_KEYS = [
-  { key: 'info',     icon: <UserOutlined />       },
-  { key: 'skills',   icon: <ThunderboltOutlined /> },
-  { key: 'lessons',  icon: <BookOutlined />        },
-  { key: 'students', icon: <TeamOutlined />        },
-  { key: 'earnings', icon: <BarChartOutlined />    },
+  { key: 'info',          icon: <UserOutlined />        },
+  { key: 'skills',        icon: <ThunderboltOutlined /> },
+  { key: 'lessons',       icon: <BookOutlined />        },
+  { key: 'students',      icon: <TeamOutlined />        },
+  { key: 'earnings',      icon: <BarChartOutlined />    },
+  { key: 'notifications', icon: <BellOutlined />        },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -538,11 +540,12 @@ export default function InstructorMyProfile() {
   }));
 
   const SECTION_DESCRIPTIONS = {
-    info:     t('instructor:profile.sectionDescriptions.info'),
-    skills:   t('instructor:profile.sectionDescriptions.skills'),
-    lessons:  t('instructor:profile.sectionDescriptions.lessons'),
-    students: t('instructor:profile.sectionDescriptions.students'),
-    earnings: t('instructor:profile.sectionDescriptions.earnings'),
+    info:          t('instructor:profile.sectionDescriptions.info'),
+    skills:        t('instructor:profile.sectionDescriptions.skills'),
+    lessons:       t('instructor:profile.sectionDescriptions.lessons'),
+    students:      t('instructor:profile.sectionDescriptions.students'),
+    earnings:      t('instructor:profile.sectionDescriptions.earnings'),
+    notifications: t('instructor:profile.sectionDescriptions.notifications'),
   };
 
   const [activeSection, setActiveSection] = useState('info');
@@ -588,6 +591,8 @@ export default function InstructorMyProfile() {
             <EarningsSection finance={dashData?.finance || {}} formatAmt={formatAmt} />
           </Spin>
         );
+      case 'notifications':
+        return <TelegramConnectCard />;
       default:
         return null;
     }

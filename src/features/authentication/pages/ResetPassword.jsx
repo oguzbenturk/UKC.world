@@ -28,7 +28,11 @@ const ResetPassword = () => {
   const [tokenValid, setTokenValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState(null);
+  const [tokenError, setTokenError] = useState(null);
+  const [formError, setFormError] = useState(null);
+
+  // Mirrors backend regex: 1 lowercase, 1 uppercase, 1 digit, 1 special (@$!%*?&), min 8 chars.
+  const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
   useEffect(() => {
     validateToken();
@@ -36,7 +40,7 @@ const ResetPassword = () => {
 
   const validateToken = async () => {
     if (!token || !email) {
-      setError(t('public:resetPassword.errors.invalidLink'));
+      setTokenError(t('public:resetPassword.errors.invalidLink'));
       setValidating(false);
       setLoading(false);
       return;
@@ -48,11 +52,11 @@ const ResetPassword = () => {
       if (response.data.valid) {
         setTokenValid(true);
       } else {
-        setError(response.data.error || t('public:resetPassword.errors.expiredLink'));
+        setTokenError(response.data.error || t('public:resetPassword.errors.expiredLink'));
       }
     } catch (err) {
       console.error('Token validation failed:', err);
-      setError(err.response?.data?.error || t('public:resetPassword.errors.validateFailed'));
+      setTokenError(err.response?.data?.error || t('public:resetPassword.errors.validateFailed'));
     } finally {
       setValidating(false);
       setLoading(false);
@@ -61,19 +65,19 @@ const ResetPassword = () => {
 
   const handleSubmit = async (values) => {
     const { password, confirmPassword } = values;
+    setFormError(null);
 
     if (password !== confirmPassword) {
-      message.error(t('public:resetPassword.errors.passwordsMismatch'));
+      setFormError(t('public:resetPassword.errors.passwordsMismatch'));
       return;
     }
 
-    if (password.length < 8) {
-      message.error(t('public:resetPassword.errors.passwordTooShort'));
+    if (!STRONG_PW.test(password)) {
+      setFormError('Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character (@$!%*?&).');
       return;
     }
 
     setSubmitting(true);
-    setError(null);
 
     try {
       const response = await apiClient.post('/auth/reset-password', { token, email, password });
@@ -82,11 +86,11 @@ const ResetPassword = () => {
         setSuccess(true);
         message.success(t('public:resetPassword.successToast'));
       } else {
-        setError(response.data.error || t('public:resetPassword.errors.resetFailed'));
+        setFormError(response.data.error || t('public:resetPassword.errors.resetFailed'));
       }
     } catch (err) {
       console.error('Password reset failed:', err);
-      setError(err.response?.data?.error || t('public:resetPassword.errors.resetGenericFailed'));
+      setFormError(err.response?.data?.error || t('public:resetPassword.errors.resetGenericFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +139,7 @@ const ResetPassword = () => {
     );
   }
 
-  if (!tokenValid || error) {
+  if (!tokenValid || tokenError) {
     return (
       <div className="min-h-screen bg-[#0f1013] flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-12 text-center shadow-2xl">
@@ -144,7 +148,7 @@ const ResetPassword = () => {
           </div>
           <h2 className="font-duotone-bold-extended text-2xl text-white mb-4 uppercase tracking-tight">{t('public:resetPassword.invalid.title')}</h2>
           <p className="font-duotone-regular text-gray-400 mb-6">
-            {error || t('public:resetPassword.invalid.defaultBody')}
+            {tokenError || t('public:resetPassword.invalid.defaultBody')}
           </p>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left mb-8">
             <p className="font-duotone-regular text-xs text-duotone-blue leading-relaxed m-0">
@@ -188,6 +192,14 @@ const ResetPassword = () => {
           </p>
         </div>
 
+        {formError && (
+          <div className="bg-red-500/10 border border-red-500/25 rounded-xl p-4 mb-6">
+            <p className="font-duotone-regular text-red-300 text-sm text-center m-0">
+              {formError}
+            </p>
+          </div>
+        )}
+
         <Form
           form={form}
           layout="vertical"
@@ -201,6 +213,10 @@ const ResetPassword = () => {
             rules={[
               { required: true, message: t('public:resetPassword.errors.enterPassword') },
               { min: 8, message: t('public:resetPassword.errors.passwordMinValidation') },
+              {
+                pattern: STRONG_PW,
+                message: 'Must include uppercase, lowercase, a number, and a special character (@$!%*?&).'
+              },
             ]}
           >
             <Input.Password

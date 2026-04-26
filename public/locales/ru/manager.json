@@ -316,6 +316,8 @@
         "refundsSub": "Деньги, возвращённые клиентам",
         "instructorCommission": "Комиссия Инструктора",
         "instructorCommissionSub": "Выплачено инструкторам",
+        "managerCommission": "Комиссия Менеджера",
+        "managerCommissionSub": "Настроенные ставки · выплачено менеджерам",
         "depositsHelper": "{{amount}} в депозитах",
         "transactionsHelper": "{{count}} транзакций"
       }
@@ -1175,6 +1177,7 @@
         "lessonRevenue": "Доход от уроков",
         "totalBookings": "Всего бронирований",
         "instructorCommissions": "Комиссии инструкторов",
+        "managerCommission": "Комиссия менеджера",
         "netLessonRevenue": "Чистый доход от уроков"
       }
     },
@@ -1187,6 +1190,8 @@
         "rentalRevenue": "Доход от аренды",
         "totalRentals": "Всего аренд",
         "avgRentalValue": "Ср. стоимость аренды",
+        "managerCommission": "Комиссия менеджера",
+        "netRentalRevenue": "Чистый доход от аренды",
         "outstanding": "Задолженность"
       }
     },
@@ -1546,6 +1551,7 @@
     "stats": {
       "totalIncome": "Общий доход",
       "netRevenue": "Чистый доход",
+      "managerCommission": "Комиссия менеджера",
       "transactions": "Транзакции",
       "rentals": "{{active}} активных / {{total}} всего"
     },

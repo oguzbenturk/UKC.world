@@ -26,7 +26,7 @@ const invalidateInstructorDashboardCache = async (instructorId) => {
 async function ensureStudentAccess(client, instructorId, studentId) {
   const studentRes = await client.query(
     `SELECT u.id, u.first_name, u.last_name,
-            COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name) AS full_name,
+            COALESCE(NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), ''), u.name) AS full_name,
             u.email, u.phone, u.level, u.notes,
             u.created_at, u.updated_at
        FROM users u
@@ -80,28 +80,26 @@ export async function getInstructorStudents(instructorId) {
   const client = await pool.connect();
   try {
     const query = `
-      WITH lesson_data AS (
+      WITH active_bookings AS (
         SELECT
-          b.student_user_id AS student_id,
-          COUNT(b.id) FILTER (WHERE b.status NOT IN ('cancelled')) AS total_lessons,
-          COALESCE(SUM(b.duration),0) AS total_hours,
-          MAX( (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) ) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()) AS last_lesson_ts,
-          MIN( (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) ) FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()) AS upcoming_lesson_ts,
-          to_char(
-            MAX(b.date + (b.start_hour * INTERVAL '1 hour'))
-              FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()),
-            'YYYY-MM-DD"T"HH24:MI:SS'
-          ) AS last_lesson_iso,
-          to_char(
-            MIN(b.date + (b.start_hour * INTERVAL '1 hour'))
-              FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()),
-            'YYYY-MM-DD"T"HH24:MI:SS'
-          ) AS upcoming_lesson_iso
+          b.id,
+          b.student_user_id,
+          b.duration,
+          (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS lesson_ts
         FROM bookings b
         WHERE b.instructor_user_id = $1
           AND b.student_user_id IS NOT NULL
-          AND (b.status IS NULL OR b.status <> 'archived')
-        GROUP BY b.student_user_id
+          AND b.deleted_at IS NULL
+          AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))
+      ), lesson_data AS (
+        SELECT
+          ab.student_user_id AS student_id,
+          COUNT(ab.id) AS total_lessons,
+          COALESCE(SUM(ab.duration), 0) AS total_hours,
+          MAX(ab.lesson_ts) FILTER (WHERE ab.lesson_ts < NOW()) AS last_lesson_ts,
+          MIN(ab.lesson_ts) FILTER (WHERE ab.lesson_ts > NOW()) AS upcoming_lesson_ts
+        FROM active_bookings ab
+        GROUP BY ab.student_user_id
       ), progress_counts AS (
         SELECT student_id, COUNT(*) AS progress_events
         FROM student_progress
@@ -120,20 +118,19 @@ export async function getInstructorStudents(instructorId) {
       )
       SELECT
         u.id AS student_id,
-        COALESCE(u.name, CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) AS name,
+        COALESCE(NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), ''), u.name) AS name,
         u.level AS skill_level,
         ld.total_lessons,
         ld.total_hours,
-        ld.last_lesson_ts,
-        ld.upcoming_lesson_ts,
-        ld.last_lesson_iso,
-        ld.upcoming_lesson_iso,
+        to_char(ld.last_lesson_ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_lesson_iso,
+        to_char(ld.upcoming_lesson_ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS upcoming_lesson_iso,
         COALESCE(pc.progress_events,0) AS progress_events,
         pd.pkg_total_hours,
         pd.pkg_used_hours,
         pd.pkg_remaining_hours
       FROM lesson_data ld
       JOIN users u ON u.id = ld.student_id
+      JOIN roles r ON r.id = u.role_id AND r.name = 'student'
       LEFT JOIN progress_counts pc ON pc.student_id = ld.student_id
       LEFT JOIN package_data pd ON pd.student_id = ld.student_id
       ORDER BY ld.upcoming_lesson_ts NULLS LAST, ld.last_lesson_ts DESC NULLS LAST
@@ -170,17 +167,23 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
 
     const [statsRes, progressRes, levelsRes, skillsRes, lessonsRes, recsRes, pkgRes] = await Promise.all([
       client.query(
-        `SELECT COUNT(*) FILTER (WHERE b.status IS NULL OR b.status <> 'cancelled') AS total_lessons,
-                COALESCE(SUM(b.duration), 0) AS total_hours,
+        `SELECT COUNT(*) FILTER (WHERE b.status IS NULL OR b.status NOT IN ('cancelled', 'archived')) AS total_lessons,
+                COALESCE(SUM(b.duration) FILTER (WHERE b.status IS NULL OR b.status NOT IN ('cancelled', 'archived')), 0) AS total_hours,
                 to_char(
-                  MAX(b.date + (b.start_hour * INTERVAL '1 hour'))
-                    FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()),
-                  'YYYY-MM-DD"T"HH24:MI:SS'
+                  MAX((b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AT TIME ZONE 'UTC')
+                    FILTER (
+                      WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()
+                        AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))
+                    ),
+                  'YYYY-MM-DD"T"HH24:MI:SS"Z"'
                 ) AS last_lesson_iso,
                 to_char(
-                  MIN(b.date + (b.start_hour * INTERVAL '1 hour'))
-                    FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()),
-                  'YYYY-MM-DD"T"HH24:MI:SS'
+                  MIN((b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AT TIME ZONE 'UTC')
+                    FILTER (
+                      WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()
+                        AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))
+                    ),
+                  'YYYY-MM-DD"T"HH24:MI:SS"Z"'
                 ) AS next_lesson_iso
            FROM bookings b
           WHERE b.instructor_user_id = $1
@@ -217,12 +220,12 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
       client.query(
         `SELECT b.id,
                 to_char(
-                  b.date + (b.start_hour * INTERVAL '1 hour'),
-                  'YYYY-MM-DD"T"HH24:MI:SS'
+                  (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AT TIME ZONE 'UTC',
+                  'YYYY-MM-DD"T"HH24:MI:SS"Z"'
                 ) AS start_iso,
                 to_char(
-                  b.date + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour'),
-                  'YYYY-MM-DD"T"HH24:MI:SS'
+                  (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour')) AT TIME ZONE 'UTC',
+                  'YYYY-MM-DD"T"HH24:MI:SS"Z"'
                 ) AS end_iso,
                 b.duration,
                 b.status

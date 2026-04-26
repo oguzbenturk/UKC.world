@@ -6,25 +6,29 @@ import {
   numberOrZero
 } from './expenseCalculations';
 
-const buildLedgerFallbackNetData = ({ grossRevenue, refundTotal, ledgerCommission, ledgerRate }) => {
+const buildLedgerFallbackNetData = ({ grossRevenue, refundTotal, ledgerCommission, ledgerRate, managerCommission }) => {
   const commission = ledgerCommission;
   const gross = grossRevenue;
   return {
     supported: false,
     gross,
-    net: gross - refundTotal - commission,
+    net: gross - refundTotal - commission - managerCommission,
     commission,
+    managerCommission,
     tax: 0,
     insurance: 0,
     equipment: 0,
     paymentFee: 0,
     commissionRate: commission > 0 && gross > 0
       ? (commission / gross) * 100
-      : ledgerRate * 100
+      : ledgerRate * 100,
+    managerCommissionRate: managerCommission > 0 && gross > 0
+      ? (managerCommission / gross) * 100
+      : 0
   };
 };
 
-const buildSnapshotNetData = (net, { grossRevenue, refundTotal }, ledgerCommission, ledgerRate) => {
+const buildSnapshotNetData = (net, { grossRevenue, refundTotal }, ledgerCommission, ledgerRate, managerCommission) => {
   const hasSnapshots = Number(net.items_count || 0) > 0 || numberOrZero(net.gross_total) > 0;
   const grossBase = hasSnapshots ? numberOrZero(net.gross_total) : grossRevenue;
   let commissionValue = hasSnapshots ? numberOrZero(net.commission_total) : 0;
@@ -39,8 +43,14 @@ const buildSnapshotNetData = (net, { grossRevenue, refundTotal }, ledgerCommissi
     netValue -= ledgerCommission;
   }
 
+  // Manager commission is independent of the revenue-snapshot commission column,
+  // so always subtract it here regardless of which branch above produced netValue.
+  if (managerCommission > 0) {
+    netValue -= managerCommission;
+  }
+
   const resolvedGross = Math.max(grossBase, grossRevenue);
-  const recomputedNet = resolvedGross - commissionValue - taxValue - insuranceValue - equipmentValue - paymentFeeValue - refundTotal;
+  const recomputedNet = resolvedGross - commissionValue - managerCommission - taxValue - insuranceValue - equipmentValue - paymentFeeValue - refundTotal;
   if (recomputedNet > netValue) {
     netValue = recomputedNet;
   }
@@ -49,13 +59,17 @@ const buildSnapshotNetData = (net, { grossRevenue, refundTotal }, ledgerCommissi
     gross: resolvedGross,
     net: netValue,
     commission: commissionValue,
+    managerCommission,
     tax: taxValue,
     insurance: insuranceValue,
     equipment: equipmentValue,
     paymentFee: paymentFeeValue,
     commissionRate: commissionValue > 0 && resolvedGross > 0
       ? (commissionValue / resolvedGross) * 100
-      : ledgerRate * 100
+      : ledgerRate * 100,
+    managerCommissionRate: managerCommission > 0 && resolvedGross > 0
+      ? (managerCommission / resolvedGross) * 100
+      : 0
   };
 };
 
@@ -67,10 +81,11 @@ export const buildNetData = (summary, ledger, financialSettings) => {
   const ledgerExpected = numberOrZero(ledger?.expectedTotal);
   const grossRevenue = ledgerExpected > 0 ? ledgerExpected : numberOrZero(revenue.total_revenue);
   const refundTotal = numberOrZero(revenue.total_refunds);
+  const managerCommission = numberOrZero(summary?.managerCommission?.total);
 
   const baseNet = net
-    ? buildSnapshotNetData(net, { grossRevenue, refundTotal }, ledgerCommission, ledgerRate)
-    : buildLedgerFallbackNetData({ grossRevenue, refundTotal, ledgerCommission, ledgerRate });
+    ? buildSnapshotNetData(net, { grossRevenue, refundTotal }, ledgerCommission, ledgerRate, managerCommission)
+    : buildLedgerFallbackNetData({ grossRevenue, refundTotal, ledgerCommission, ledgerRate, managerCommission });
 
   return ensureExpensesFromSettings(baseNet, {
     financialSettings,

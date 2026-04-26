@@ -91,18 +91,25 @@ export const ensureExpensesFromSettings = (
   }
 
   const commission = numberOrZero(updated.commission);
+  const managerCommission = numberOrZero(updated.managerCommission);
   const tax = numberOrZero(updated.tax);
   const insurance = numberOrZero(updated.insurance);
   const equipment = numberOrZero(updated.equipment);
   const fee = numberOrZero(updated.paymentFee);
   const refunds = numberOrZero(refundTotal);
 
-  updated.net = resolvedGross - refunds - commission - tax - insurance - equipment - fee;
+  updated.net = resolvedGross - refunds - commission - managerCommission - tax - insurance - equipment - fee;
 
   if (commission > 0 && resolvedGross > 0) {
     updated.commissionRate = (commission / resolvedGross) * 100;
   } else if (!updated.commissionRate) {
     updated.commissionRate = 0;
+  }
+
+  if (managerCommission > 0 && resolvedGross > 0) {
+    updated.managerCommissionRate = (managerCommission / resolvedGross) * 100;
+  } else if (!updated.managerCommissionRate) {
+    updated.managerCommissionRate = 0;
   }
 
   return updated;
@@ -114,6 +121,7 @@ export const sumExpenses = (netData) => {
   }
   return (
     numberOrZero(netData.commission) +
+    numberOrZero(netData.managerCommission) +
     numberOrZero(netData.tax) +
     numberOrZero(netData.insurance) +
     numberOrZero(netData.equipment) +

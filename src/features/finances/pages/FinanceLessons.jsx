@@ -14,6 +14,7 @@ const accentStyles = {
   indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
   emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  rose: { bg: 'bg-rose-50', text: 'text-rose-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' }
 };
 
@@ -119,24 +120,27 @@ const FinanceLessons = () => {
         { key: 'lessons', label: t('manager:financePages.lessons.stats.lessonRevenue'), value: '--', accent: 'indigo' },
         { key: 'bookings', label: t('manager:financePages.lessons.stats.totalBookings'), value: '--', accent: 'emerald' },
         { key: 'commission', label: t('manager:financePages.lessons.stats.instructorCommissions'), value: '--', accent: 'amber' },
+        { key: 'managerCommission', label: t('manager:financePages.lessons.stats.managerCommission'), value: '--', accent: 'rose' },
         { key: 'net', label: t('manager:financePages.lessons.stats.netLessonRevenue'), value: '--', accent: 'slate' }
       ];
     }
 
-    // API returns nested structure: { revenue: {...}, netRevenue: {...}, bookings: {...} }
+    // API returns nested structure: { revenue: {...}, netRevenue: {...}, bookings: {...}, managerCommission: {...} }
     const revenue = summaryData.revenue || {};
     const netRevenueData = summaryData.netRevenue || {};
     const bookingsData = summaryData.bookings || {};
-    
+
     const lessonRevenue = Number(revenue.lesson_revenue || 0);
     const totalBookings = Number(bookingsData.completed_bookings) || Number(bookingsData.total_bookings) || 0;
     const instructorCommission = Number(netRevenueData.commission_total || 0);
-    const netRevenue = lessonRevenue - instructorCommission;
+    const managerCommission = Number(summaryData.managerCommission?.total || 0);
+    const netRevenue = lessonRevenue - instructorCommission - managerCommission;
 
     return [
       { key: 'lessons', label: t('manager:financePages.lessons.stats.lessonRevenue'), value: formatCurrency(lessonRevenue), accent: 'indigo' },
       { key: 'bookings', label: t('manager:financePages.lessons.stats.totalBookings'), value: totalBookings.toLocaleString(), accent: 'emerald' },
       { key: 'commission', label: t('manager:financePages.lessons.stats.instructorCommissions'), value: formatCurrency(instructorCommission), accent: 'amber' },
+      { key: 'managerCommission', label: t('manager:financePages.lessons.stats.managerCommission'), value: formatCurrency(managerCommission), accent: 'rose' },
       { key: 'net', label: t('manager:financePages.lessons.stats.netLessonRevenue'), value: formatCurrency(netRevenue), accent: 'slate' }
     ];
   }, [summaryData]);
@@ -199,7 +203,7 @@ const FinanceLessons = () => {
             </Space>
           </div>
         </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {headlineStats.map((stat) => {
             const accent = accentStyles[stat.accent] || accentStyles.slate;
             return (

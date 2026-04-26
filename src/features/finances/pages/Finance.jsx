@@ -122,6 +122,8 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
   const overviewStats = useMemo(() => {
     const h = overviewData?.headline;
     if (!h) return null;
+    const managerCommission = Number(h.managerCommission || 0);
+    const netProfit = h.totalCharges - h.totalRefunds - h.instructorCommission - managerCommission;
     return [
       {
         key: 'income',
@@ -147,9 +149,9 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
         key: 'net',
         label: t('manager:finances.overview.stats.netProfit'),
         sublabel: t('manager:finances.overview.stats.netProfitSub'),
-        value: formatCurrency(h.totalCharges - h.totalRefunds - h.instructorCommission),
-        raw: h.totalCharges - h.totalRefunds - h.instructorCommission,
-        accent: (h.totalCharges - h.totalRefunds - h.instructorCommission) >= 0 ? 'indigo' : 'rose',
+        value: formatCurrency(netProfit),
+        raw: netProfit,
+        accent: netProfit >= 0 ? 'indigo' : 'rose',
         icon: null,
         helper: null
       },
@@ -169,6 +171,16 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
         sublabel: t('manager:finances.overview.stats.instructorCommissionSub'),
         value: formatCurrency(h.instructorCommission),
         raw: h.instructorCommission,
+        accent: 'slate',
+        icon: null,
+        helper: null
+      },
+      {
+        key: 'managerCommission',
+        label: t('manager:finances.overview.stats.managerCommission'),
+        sublabel: t('manager:finances.overview.stats.managerCommissionSub'),
+        value: formatCurrency(managerCommission),
+        raw: managerCommission,
         accent: 'slate',
         icon: null,
         helper: null
@@ -240,11 +252,12 @@ function FinanceAdminView({ defaultFilter = 'all' }) {
         <Spin spinning={overviewLoading}>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {(overviewStats || [
-              { key: 'income',     label: t('manager:finances.overview.stats.totalIncome'),         sublabel: t('manager:finances.overview.stats.totalIncomeSub'),        value: '--', accent: 'emerald', icon: <ArrowUpOutlined />,   helper: null },
-              { key: 'charges',    label: t('manager:finances.overview.stats.totalCharges'),        sublabel: t('manager:finances.overview.stats.totalChargesSub'),       value: '--', accent: 'rose',    icon: <ArrowDownOutlined />, helper: null },
-              { key: 'net',        label: t('manager:finances.overview.stats.netProfit'),           sublabel: t('manager:finances.overview.stats.netProfitSub'), value: '--', accent: 'indigo', icon: null, helper: null },
-              { key: 'refunds',    label: t('manager:finances.overview.stats.refundsIssued'),       sublabel: t('manager:finances.overview.stats.refundsSub'),  value: '--', accent: 'amber',   icon: null, helper: null },
-              { key: 'commission', label: t('manager:finances.overview.stats.instructorCommission'), sublabel: t('manager:finances.overview.stats.instructorCommissionSub'),          value: '--', accent: 'slate',   icon: null, helper: null }
+              { key: 'income',            label: t('manager:finances.overview.stats.totalIncome'),         sublabel: t('manager:finances.overview.stats.totalIncomeSub'),        value: '--', accent: 'emerald', icon: <ArrowUpOutlined />,   helper: null },
+              { key: 'charges',           label: t('manager:finances.overview.stats.totalCharges'),        sublabel: t('manager:finances.overview.stats.totalChargesSub'),       value: '--', accent: 'rose',    icon: <ArrowDownOutlined />, helper: null },
+              { key: 'net',               label: t('manager:finances.overview.stats.netProfit'),           sublabel: t('manager:finances.overview.stats.netProfitSub'),          value: '--', accent: 'indigo',  icon: null, helper: null },
+              { key: 'refunds',           label: t('manager:finances.overview.stats.refundsIssued'),       sublabel: t('manager:finances.overview.stats.refundsSub'),            value: '--', accent: 'amber',   icon: null, helper: null },
+              { key: 'commission',        label: t('manager:finances.overview.stats.instructorCommission'),sublabel: t('manager:finances.overview.stats.instructorCommissionSub'), value: '--', accent: 'slate',   icon: null, helper: null },
+              { key: 'managerCommission', label: t('manager:finances.overview.stats.managerCommission'),   sublabel: t('manager:finances.overview.stats.managerCommissionSub'),  value: '--', accent: 'slate',   icon: null, helper: null }
             ]).map((stat) => {
               const accent = accentStyles[stat.accent] || accentStyles.slate;
               return (

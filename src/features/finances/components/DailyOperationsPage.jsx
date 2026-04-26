@@ -12,6 +12,7 @@ import {
 import dayjs from 'dayjs';
 import { getDailyOperations } from '../services/dailyOperationsService.js';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import apiClient from '@/shared/services/apiClient';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const { Title, Text } = Typography;
@@ -56,14 +57,29 @@ export default function DailyOperationsPage() {
   const { formatCurrency } = useCurrency();
   const [date, setDate] = useState(dayjs());
   const [data, setData] = useState(null);
+  const [managerCommissionByType, setManagerCommissionByType] = useState({ booking: 0, rental: 0, total: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const load = useCallback(() => {
-    setLoading(true); 
+    setLoading(true);
     setError(null);
-    getDailyOperations({ date: date.format('YYYY-MM-DD'), rentalsScope: 'both' })
-      .then(setData)
+    const dateStr = date.format('YYYY-MM-DD');
+    Promise.all([
+      getDailyOperations({ date: dateStr, rentalsScope: 'both' }),
+      apiClient.get('/finances/summary', {
+        params: { startDate: dateStr, endDate: dateStr, mode: 'accrual' }
+      }).then(({ data: summary }) => summary).catch(() => null)
+    ])
+      .then(([ops, summary]) => {
+        setData(ops);
+        const byType = summary?.managerCommission?.byServiceType || {};
+        setManagerCommissionByType({
+          booking: Number(byType.booking || 0),
+          rental: Number(byType.rental || 0),
+          total: Number(summary?.managerCommission?.total || 0)
+        });
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [date]);
@@ -73,29 +89,33 @@ export default function DailyOperationsPage() {
   // Calculate daily stats
   const dailyStats = useMemo(() => {
     if (!data) return null;
-    
+
     const payments = data.payments || [];
     const rentals = [...(data.rentalsCreated || []), ...(data.rentalsActive || [])];
-    
+
     // Remove duplicate rentals
     const uniqueRentals = Array.from(new Map(rentals.map(r => [r.id, r])).values());
-    
+
     const totalIncome = payments.filter(p => p.amount > 0).reduce((sum, p) => sum + p.amount, 0);
     const totalRefunds = payments.filter(p => p.amount < 0).reduce((sum, p) => sum + Math.abs(p.amount), 0);
-    const netIncome = totalIncome - totalRefunds;
+    const managerCommission = Number(managerCommissionByType.total || 0);
+    const netIncome = totalIncome - totalRefunds - managerCommission;
     const transactionCount = payments.length;
     const rentalCount = uniqueRentals.length;
     const activeRentals = uniqueRentals.filter(r => ['active', 'in_progress'].includes(r.status)).length;
-    
+
     return {
       totalIncome,
       totalRefunds,
       netIncome,
+      managerCommission,
+      managerCommissionLessons: Number(managerCommissionByType.booking || 0),
+      managerCommissionRentals: Number(managerCommissionByType.rental || 0),
       transactionCount,
       rentalCount,
       activeRentals
     };
-  }, [data]);
+  }, [data, managerCommissionByType]);
 
   // Income transactions (positive payments)
   const incomeTransactions = useMemo(() => {
@@ -349,7 +369,7 @@ export default function DailyOperationsPage() {
         {/* Summary Stats */}
         {!loading && dailyStats && (
           <Row gutter={[16, 16]} className="mt-6">
-            <Col xs={12} md={6}>
+            <Col xs={12} md={8} lg={isMobile ? 8 : 6} xl={4}>
               <StatCard
                 title={t('manager:dailyOperations.stats.totalIncome')}
                 value={formatCurrency(dailyStats.totalIncome)}
@@ -357,7 +377,15 @@ export default function DailyOperationsPage() {
                 color="green"
               />
             </Col>
-            <Col xs={12} md={6}>
+            <Col xs={12} md={8} xl={4}>
+              <StatCard
+                title={t('manager:dailyOperations.stats.managerCommission')}
+                value={formatCurrency(dailyStats.managerCommission)}
+                icon={<DollarOutlined className="text-xl" />}
+                color="rose"
+              />
+            </Col>
+            <Col xs={12} md={8} xl={4}>
               <StatCard
                 title={t('manager:dailyOperations.stats.netRevenue')}
                 value={formatCurrency(dailyStats.netIncome)}
@@ -365,7 +393,7 @@ export default function DailyOperationsPage() {
                 color="cyan"
               />
             </Col>
-            <Col xs={12} md={6}>
+            <Col xs={12} md={8} xl={4}>
               <StatCard
                 title={t('manager:dailyOperations.stats.transactions')}
                 value={dailyStats.transactionCount}
@@ -373,7 +401,7 @@ export default function DailyOperationsPage() {
                 color="purple"
               />
             </Col>
-            <Col xs={12} md={6}>
+            <Col xs={12} md={8} xl={4}>
               <StatCard
                 title={t('manager:dailyOperations.stats.rentals', { active: dailyStats.activeRentals, total: dailyStats.rentalCount })}
                 value={`${dailyStats.activeRentals} / ${dailyStats.rentalCount}`}

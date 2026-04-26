@@ -4,7 +4,7 @@ import { message } from '@/shared/utils/antdStatic';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/shared/hooks/useAuth';
-import { SIGN_IN_DISABLED_USER_MESSAGE } from '@/shared/services/auth/authService';
+import authService, { SIGN_IN_DISABLED_USER_MESSAGE } from '@/shared/services/auth/authService';
 import RegisterModal from '../components/RegisterModal';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
 import dpcLogo from '../../../../DuotoneFonts/DPSLOGOS/DPC-transparant-white.svg';
@@ -63,6 +63,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,6 +118,8 @@ const Login = () => {
     e.preventDefault();
     clearError?.();
     setError('');
+    setUnverifiedEmail('');
+    setResendSent(false);
 
     if (!email.trim()) {
       setError(t('public:login.errors.enterEmail'));
@@ -141,9 +146,25 @@ const Login = () => {
         setError(t('public:login.errors.incorrect'));
       }
     } catch (err) {
-      setError(err.message || t('public:login.errors.genericFailed'));
+      if (err?.code === 'EMAIL_NOT_VERIFIED') {
+        setUnverifiedEmail(err.email || email);
+        setError(err.message);
+      } else {
+        setError(err.message || t('public:login.errors.genericFailed'));
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail) return;
+    setResending(true);
+    try {
+      await authService.resendVerification(unverifiedEmail);
+    } finally {
+      setResendSent(true);
+      setResending(false);
     }
   };
 
@@ -183,7 +204,7 @@ const Login = () => {
               </p>
             </div>
 
-            {error && (
+            {error && !unverifiedEmail && (
               <div
                 className={
                   error === SIGN_IN_DISABLED_USER_MESSAGE
@@ -200,6 +221,28 @@ const Login = () => {
                 >
                   {error}
                 </p>
+              </div>
+            )}
+
+            {unverifiedEmail && (
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 mb-6">
+                <p className="font-duotone-regular text-amber-200/90 text-sm text-center mb-3">
+                  {error || 'Please verify your email address before signing in.'}
+                </p>
+                {resendSent ? (
+                  <p className="font-duotone-regular text-amber-200/70 text-xs text-center m-0">
+                    A new verification link has been sent to <strong className="text-white">{unverifiedEmail}</strong>. Check your inbox.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resending}
+                    className="block w-full font-duotone-bold text-xs uppercase tracking-widest text-duotone-blue hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    {resending ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                )}
               </div>
             )}
 

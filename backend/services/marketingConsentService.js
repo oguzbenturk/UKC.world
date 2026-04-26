@@ -28,7 +28,8 @@ export const CHANNEL = {
   SMS: 'sms',
   WHATSAPP: 'whatsapp',
   IN_APP: 'in_app', // In-app notifications are always allowed
-  PUSH: 'push'
+  PUSH: 'push',
+  TELEGRAM: 'telegram'
 };
 
 // Transactional notification types that bypass consent (always allowed)
@@ -210,6 +211,13 @@ export async function canSendCommunication({ userId, channel, notificationType, 
   // In-app notifications are always allowed
   if (channel === CHANNEL.IN_APP) {
     return { allowed: true, reason: 'In-app notifications always allowed' };
+  }
+
+  // Telegram is always treated transactional in this system — instructors
+  // explicitly link their account expecting lesson updates. Marketing/promotional
+  // Telegram is not supported.
+  if (channel === CHANNEL.TELEGRAM) {
+    return { allowed: true, reason: 'Telegram channel always allowed (transactional only)' };
   }
 
   // Classify the notification

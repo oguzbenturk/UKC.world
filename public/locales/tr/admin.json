@@ -918,7 +918,8 @@
       "teachingPrefs": "Öğretim Tercihleri",
       "instructorNotifications": "Bildirimler",
       "teamNotifications": "Takım Bildirimleri",
-      "operationalDefaults": "Operasyonel Varsayılanlar"
+      "operationalDefaults": "Operasyonel Varsayılanlar",
+      "telegram": "Telegram"
     },
     "groups": {
       "personal": "Kişisel",
@@ -954,7 +955,8 @@
       "teachingPrefs": "Öğretim tercihlerinizi ve uzmanlık alanlarınızı yapılandırın",
       "instructorNotifications": "Eğitmen olarak hangi bildirimleri aldığınızı seçin",
       "teamNotifications": "Takım aktivitesi ve operasyonel bildirimleri yapılandırın",
-      "operationalDefaults": "Günlük rezervasyon operasyonları için varsayılan değerleri ayarlayın"
+      "operationalDefaults": "Günlük rezervasyon operasyonları için varsayılan değerleri ayarlayın",
+      "telegram": "Anında ders güncellemeleri almak için Telegram hesabınızı bağlayın"
     },
     "loggedInAs": "Giriş yapıldı:",
     "roleLabels": {

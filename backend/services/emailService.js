@@ -4,7 +4,7 @@ import { canSendCommunication, CHANNEL, recordMarketingCommunication } from './m
 
 let transporterPromise = null;
 const EMAIL_DISABLED = (process.env.EMAIL_TRANSPORT || '').toLowerCase() === 'none';
-const DEFAULT_FROM = process.env.EMAIL_FROM || 'Plannivo <no-reply@plannivo.com>';
+const DEFAULT_FROM = process.env.EMAIL_FROM || 'Plannivo <info@plannivo.com>';
 
 function buildSmtpTransport() {
   const host = process.env.SMTP_HOST;

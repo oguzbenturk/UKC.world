@@ -94,62 +94,42 @@ export async function requestPasswordReset(email, ipAddress, userAgent) {
     // Send email (transactional - skip consent check)
     const userName = user.first_name || user.name || 'User';
     
+    const { buildBrandedEmail } = await import('./emailTemplates/brandedLayout.js');
+    const branded = buildBrandedEmail({
+      preheader: 'Reset your UKC• password',
+      eyebrow: 'Account · Security',
+      title: 'Reset your password',
+      greeting: `Hi ${userName},`,
+      bodyParagraphs: [
+        'You requested to reset the password on your <strong>UKC•</strong> Duotone Pro Center Urla account.',
+        'Click the button below to choose a new password.'
+      ],
+      ctaLabel: 'Reset password',
+      ctaUrl: resetUrl,
+      fineprint: [
+        `This link expires in ${TOKEN_EXPIRY_HOURS} hour${TOKEN_EXPIRY_HOURS === 1 ? '' : 's'}.`,
+        'If you didn\'t request this, you can safely ignore this email — your password will not change.',
+        `Request received from IP ${ipAddress}.`
+      ]
+    });
+
     await sendEmail({
       to: user.email,
-      subject: 'Reset Your Plannivo Password',
-      notificationType: 'password_reset', // Transactional type
-      skipConsentCheck: true, // Password reset is transactional, always allowed
-      text: `
-Hi ${userName},
+      subject: 'Reset your UKC• password',
+      notificationType: 'password_reset',
+      skipConsentCheck: true,
+      text: `Hi ${userName},
 
-You requested to reset your password for your Plannivo account.
+You requested to reset your password for UKC• Duotone Pro Center Urla.
 
-Click the link below to reset your password:
-${resetUrl}
+Reset your password: ${resetUrl}
 
-This link will expire in ${TOKEN_EXPIRY_HOURS} hour(s).
+This link expires in ${TOKEN_EXPIRY_HOURS} hour(s). If you didn't request this, you can safely ignore this email.
 
-If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.
+Request IP: ${ipAddress}
 
-For security, this request was received from IP: ${ipAddress}
-
-Best regards,
-The Plannivo Team
-      `.trim(),
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-    <h1 style="color: #fff; margin: 0; font-size: 24px;">Password Reset Request</h1>
-  </div>
-  
-  <div style="background: #f8fafc; padding: 24px; border-radius: 8px; margin-bottom: 24px;">
-    <p style="margin-top: 0;">Hi <strong>${userName}</strong>,</p>
-    <p>You requested to reset your password for your Plannivo account.</p>
-    <p>Click the button below to reset your password:</p>
-    
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${resetUrl}" style="display: inline-block; background: #0ea5e9; color: #fff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-        Reset Password
-      </a>
-    </div>
-    
-    <p style="color: #64748b; font-size: 14px;">This link will expire in <strong>${TOKEN_EXPIRY_HOURS} hour(s)</strong>.</p>
-    <p style="color: #64748b; font-size: 14px;">If you didn't request this password reset, you can safely ignore this email.</p>
-  </div>
-  
-  <div style="text-align: center; color: #94a3b8; font-size: 12px;">
-    <p>For security, this request was received from IP: ${ipAddress}</p>
-    <p style="margin-bottom: 0;">&copy; ${new Date().getFullYear()} Plannivo. All rights reserved.</p>
-  </div>
-</body>
-</html>
-      `.trim()
+— UKC• Duotone Pro Center Urla`,
+      html: branded
     });
 
     logger.info('Password reset email sent', { userId: user.id, email: user.email.substring(0, 3) + '***' });
@@ -272,52 +252,38 @@ export async function resetPassword(token, email, newPassword, ipAddress) {
       const user = userResult.rows[0];
       const userName = user.first_name || user.name || 'User';
 
+      const { buildBrandedEmail } = await import('./emailTemplates/brandedLayout.js');
+      const branded = buildBrandedEmail({
+        preheader: 'Your UKC• password was just changed',
+        eyebrow: 'Account · Security',
+        title: 'Password updated',
+        greeting: `Hi ${userName},`,
+        bodyParagraphs: [
+          'Your password has been successfully reset.',
+          'If this wasn\'t you, please contact our team immediately so we can secure the account.'
+        ],
+        fineprint: [
+          `Time: ${new Date().toUTCString()}`,
+          `Request IP: ${ipAddress}`
+        ]
+      });
+
       await sendEmail({
         to: user.email,
-        subject: 'Your Plannivo Password Has Been Reset',
-        notificationType: 'password_changed', // Transactional type
-        skipConsentCheck: true, // Security notifications always sent
-        text: `
-Hi ${userName},
+        subject: 'Your UKC• password has been changed',
+        notificationType: 'password_changed',
+        skipConsentCheck: true,
+        text: `Hi ${userName},
 
-Your password has been successfully reset.
+Your UKC• password has been successfully reset.
 
-If you did not make this change, please contact our support team immediately.
+If you did not make this change, please contact our team immediately.
 
-Request details:
-- Time: ${new Date().toISOString()}
-- IP Address: ${ipAddress}
+Time: ${new Date().toISOString()}
+Request IP: ${ipAddress}
 
-Best regards,
-The Plannivo Team
-        `.trim(),
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-    <h1 style="color: #fff; margin: 0; font-size: 24px;">Password Changed</h1>
-  </div>
-  
-  <div style="background: #f0fdf4; border: 1px solid #86efac; padding: 24px; border-radius: 8px; margin-bottom: 24px;">
-    <p style="margin-top: 0;">Hi <strong>${userName}</strong>,</p>
-    <p style="color: #166534;">✓ Your password has been successfully reset.</p>
-    <p>If you did not make this change, please contact our support team immediately.</p>
-    <p style="color: #64748b; font-size: 14px; margin-bottom: 0;">
-      Request IP: ${ipAddress}<br>
-      Time: ${new Date().toLocaleString()}
-    </p>
-  </div>
-  
-  <div style="text-align: center; color: #94a3b8; font-size: 12px;">
-    <p>&copy; ${new Date().getFullYear()} Plannivo. All rights reserved.</p>
-  </div>
-</body>
-</html>
-        `.trim()
+— UKC• Duotone Pro Center Urla`,
+        html: branded
       });
     }
 
