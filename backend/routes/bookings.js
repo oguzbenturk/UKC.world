@@ -15,6 +15,7 @@ import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
+import { buildBrandedEmail } from '../services/emailTemplates/brandedLayout.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import socketService from '../services/socketService.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
@@ -4362,33 +4363,38 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
               const fmtTime = (h) => { if (h == null) return 'TBD'; const hr = Math.floor(Number(h)); const min = Math.round((Number(h) - hr) * 60); return `${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}`; };
 
               try {
+                const scheduleUrl = `${process.env.FRONTEND_URL || process.env.VITE_FRONTEND_URL || 'https://app.plannivo.com'}/student/schedule`;
+                const changeDetails = [
+                  dateChanged ? { label: 'Date', value: `${oldDate} → ${newDate}` } : null,
+                  timeChanged ? { label: 'Time', value: `${fmtTime(currentBooking.start_hour)} → ${fmtTime(updatedBooking.start_hour)}` } : null,
+                  instructorChanged ? { label: 'Instructor', value: `${oldInstructorName || 'TBD'} → ${newInstructorName || 'TBD'}` } : null
+                ].filter(Boolean);
+
+                const brandedHtml = buildBrandedEmail({
+                  preheader: `Your ${serviceName} has been rescheduled`,
+                  eyebrow: 'Booking update',
+                  title: 'Your lesson has been rescheduled',
+                  greeting: `Hi ${student.name || 'there'},`,
+                  bodyParagraphs: [
+                    `Your <strong>${serviceName}</strong> has been updated. Here's what changed:`
+                  ],
+                  details: changeDetails,
+                  ctaLabel: 'View my schedule',
+                  ctaUrl: scheduleUrl,
+                  includeRawLink: false,
+                  fineprint: [
+                    'Please log in to confirm you\'ve seen this change.',
+                    'This is an automated message — please do not reply. For questions, contact us at info@plannivo.com.'
+                  ]
+                });
+
                 await sendEmail({
                   to: student.email,
-                  subject: `Your ${serviceName} has been rescheduled — UKC World`,
+                  subject: `Your ${serviceName} has been rescheduled — UKC.`,
                   userId: studentId,
                   notificationType: 'booking_rescheduled',
-                  html: `
-                    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <div style="background: #0d1511; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
-                        <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Lesson Rescheduled</h1>
-                      </div>
-                      <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-                        <p style="color: #374151; font-size: 16px;">Hi ${student.name || 'there'},</p>
-                        <p style="color: #374151; font-size: 15px;">Your <strong>${serviceName}</strong> has been updated:</p>
-                        <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 16px 0;">
-                          ${dateChanged ? `<p style="margin: 4px 0; color: #374151;">📅 <strong>Date:</strong> ${oldDate} → <strong>${newDate}</strong></p>` : ''}
-                          ${timeChanged ? `<p style="margin: 4px 0; color: #374151;">🕐 <strong>Time:</strong> ${fmtTime(currentBooking.start_hour)} → <strong>${fmtTime(updatedBooking.start_hour)}</strong></p>` : ''}
-                          ${instructorChanged ? `<p style="margin: 4px 0; color: #374151;">👤 <strong>Instructor:</strong> ${oldInstructorName || 'TBD'} → <strong>${newInstructorName || 'TBD'}</strong></p>` : ''}
-                        </div>
-                        <p style="color: #6b7280; font-size: 14px;">Please log in to confirm you've seen this change. If you have any questions, contact us anytime.</p>
-                        <div style="text-align: center; margin-top: 20px;">
-                          <a href="${process.env.FRONTEND_URL || process.env.VITE_FRONTEND_URL || 'https://ukcworld.com'}" style="display: inline-block; background: #059669; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">View My Schedule</a>
-                        </div>
-                      </div>
-                      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 16px;">UKC World — Your Watersport Academy</p>
-                    </div>
-                  `,
-                  text: `Hi ${student.name || 'there'}, your ${serviceName} has been rescheduled. ${changeParts.join('. ')}. Please log in to confirm.`
+                  html: brandedHtml,
+                  text: `Hi ${student.name || 'there'}, your ${serviceName} has been rescheduled. ${changeParts.join('. ')}. Please log in to confirm.\n\n— UKC.`
                 });
 
                 // Mark email as sent — Postgres UPDATE doesn't support ORDER BY + LIMIT

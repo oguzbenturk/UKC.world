@@ -133,6 +133,25 @@ export function buildLessonUnassigned(data = {}) {
   return lines.join('\n');
 }
 
+export function buildLessonCompleted(data = {}) {
+  const { serviceName, date, startHour, duration, studentName } = data;
+  const dateLabel = formatDate(date);
+  const timeLabel = formatTime(startHour);
+  const durationLabel = formatDuration(duration);
+  const lines = [
+    '✅ <b>Lesson completed</b>',
+    ''
+  ];
+  if (serviceName) lines.push(`📚 ${escapeHtml(serviceName)}`);
+  if (dateLabel || timeLabel) {
+    lines.push(`📅 ${escapeHtml(dateLabel || '')}${timeLabel ? ` · ${escapeHtml(timeLabel)}` : ''}${durationLabel ? ` (${durationLabel})` : ''}`);
+  }
+  if (studentName) lines.push(`👤 ${escapeHtml(studentName)}`);
+  lines.push('', '<i>The student has been asked to rate the lesson.</i>');
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
 export function buildLessonCancelled(data = {}) {
   const { serviceName, date, startHour, studentName, reason } = data;
   const dateLabel = formatDate(date);
@@ -261,6 +280,8 @@ export function buildTelegramMessageForType(type, data) {
         return buildLessonUnassigned(data);
       case 'booking_cancelled_instructor':
         return buildLessonCancelled(data);
+      case 'booking_completed_instructor':
+        return buildLessonCompleted(data);
       default:
         return null;
     }

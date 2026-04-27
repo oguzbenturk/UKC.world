@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { sendEmail } from './emailService.js';
+import { buildBrandedEmail } from './emailTemplates/brandedLayout.js';
 
 /**
  * Generate a secure token for quick actions (approve/reject)
@@ -546,60 +547,53 @@ If you have any questions, please don't hesitate to contact us.
  * Send account created email notification
  */
 export async function sendAccountCreatedEmail({ to, customerName, loginDetails }) {
-  const subject = 'Welcome! Your Account Has Been Created';
-  
-  const htmlBody = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1890ff;">Welcome to UKC.world! 🎉</h2>
-      
-      <p>Dear ${customerName},</p>
-      
-      <p>Your account has been successfully created. You can now access your bookings, view your history, and manage your profile.</p>
-      
-      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0;">Your Account Details</h3>
-        <p><strong>Email:</strong> ${loginDetails.email}</p>
-        ${loginDetails.temporaryPassword ? `<p><strong>Temporary Password:</strong> ${loginDetails.temporaryPassword}</p>` : ''}
-      </div>
-      
-      ${loginDetails.temporaryPassword ? `
-      <p style="color: #ff4d4f;"><strong>Important:</strong> Please change your password after your first login.</p>
-      ` : ''}
-      
-      <div style="margin: 30px 0;">
-        <a href="${loginDetails.loginUrl || 'https://ukc.plannivo.com/login'}" 
-           style="background-color: #1890ff; color: white; padding: 12px 24px; 
-                  text-decoration: none; border-radius: 6px; display: inline-block;">
-          Log In to Your Account
-        </a>
-      </div>
-      
-      <p>If you have any questions, please don't hesitate to contact us.</p>
-      
-      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
-      
-      <p style="color: #999; font-size: 12px;">
-        This is an automated welcome email. If you didn't create an account, please ignore this email.
-      </p>
-    </div>
-  `;
+  const subject = 'Welcome to UKC. — your account is ready';
+  const loginUrl = loginDetails.loginUrl || 'https://app.plannivo.com/login';
+
+  const accountDetails = [
+    { label: 'Email', value: loginDetails.email },
+    loginDetails.temporaryPassword ? { label: 'Temp password', value: loginDetails.temporaryPassword } : null
+  ].filter(Boolean);
+
+  const fineprint = [
+    loginDetails.temporaryPassword
+      ? 'For your security, please change your password after your first login.'
+      : null,
+    'If you didn\'t request this account, you can safely ignore this email.'
+  ].filter(Boolean);
+
+  const htmlBody = buildBrandedEmail({
+    preheader: 'Your UKC. account is ready — sign in to get started',
+    eyebrow: 'Welcome aboard',
+    title: 'Your account is ready',
+    greeting: `Hi ${customerName},`,
+    bodyParagraphs: [
+      'We\'ve set up your account at <strong>Duotone Pro Center Urla</strong>. You can now book lessons, track your progress, manage equipment rentals, and stay in touch with your instructors — all in one place.'
+    ],
+    details: accountDetails,
+    ctaLabel: 'Sign in to your account',
+    ctaUrl: loginUrl,
+    fineprint
+  });
 
   const textBody = `
-Welcome to UKC.world!
+Welcome to UKC.!
 
-Dear ${customerName},
+Hi ${customerName},
 
-Your account has been successfully created. You can now access your bookings, view your history, and manage your profile.
+We've set up your account. You can now book lessons, track your progress, and manage rentals from one dashboard.
 
-Your Account Details:
+Your account details:
 - Email: ${loginDetails.email}
-${loginDetails.temporaryPassword ? `- Temporary Password: ${loginDetails.temporaryPassword}` : ''}
+${loginDetails.temporaryPassword ? `- Temporary password: ${loginDetails.temporaryPassword}` : ''}
 
-${loginDetails.temporaryPassword ? 'Important: Please change your password after your first login.' : ''}
+${loginDetails.temporaryPassword ? 'For your security, please change your password after your first login.' : ''}
 
-Log in at: ${loginDetails.loginUrl || 'https://ukc.plannivo.com/login'}
+Sign in: ${loginUrl}
 
-If you have any questions, please don't hesitate to contact us.
+For questions, contact us at info@plannivo.com (please do not reply directly).
+
+— UKC.
   `.trim();
 
   await sendEmail({

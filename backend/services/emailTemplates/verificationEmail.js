@@ -2,31 +2,31 @@ import { buildBrandedEmail } from './brandedLayout.js';
 
 export function buildVerificationEmail({ recipientName, verificationUrl, expiryHours = 24 }) {
   const greetingName = recipientName || 'there';
-  const subject = 'Verify your UKC• account';
+  const subject = 'Verify your UKC. account';
 
   const text = `Hi ${greetingName},
 
-Welcome to UKC• Duotone Pro Center Urla. Please verify your email address to activate your account:
+Welcome to UKC. — please verify your email address to activate your account:
 
 ${verificationUrl}
 
 This link expires in ${expiryHours} hours. If you didn't create an account, you can safely ignore this email.
 
-— UKC• Duotone Pro Center Urla`;
+— UKC.`;
 
   const html = buildBrandedEmail({
-    preheader: 'Confirm your email to activate your UKC• account',
-    eyebrow: 'Welcome',
+    preheader: 'Confirm your email to activate your UKC. account',
+    eyebrow: 'Welcome aboard',
     title: 'Verify your email',
     greeting: `Hi ${greetingName},`,
     bodyParagraphs: [
-      'Welcome to <strong>UKC•</strong> Duotone Pro Center Urla. Tap the button below to confirm your email address — this is the last step before you can sign in.'
+      'Welcome to <strong>UKC.</strong> Tap the button below to confirm your email address — this is the last step before you can sign in and start booking sessions.'
     ],
     ctaLabel: 'Verify email',
     ctaUrl: verificationUrl,
     fineprint: [
       `This link expires in ${expiryHours} hour${expiryHours === 1 ? '' : 's'}.`,
-      'If you didn\'t create a UKC• account, you can safely ignore this email.'
+      'If you didn\'t create an account with us, you can safely ignore this email.'
     ]
   });
 

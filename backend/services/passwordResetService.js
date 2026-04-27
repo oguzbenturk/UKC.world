@@ -96,12 +96,12 @@ export async function requestPasswordReset(email, ipAddress, userAgent) {
     
     const { buildBrandedEmail } = await import('./emailTemplates/brandedLayout.js');
     const branded = buildBrandedEmail({
-      preheader: 'Reset your UKC• password',
+      preheader: 'Reset your UKC. password',
       eyebrow: 'Account · Security',
       title: 'Reset your password',
       greeting: `Hi ${userName},`,
       bodyParagraphs: [
-        'You requested to reset the password on your <strong>UKC•</strong> Duotone Pro Center Urla account.',
+        'You requested to reset the password on your <strong>UKC.</strong> account.',
         'Click the button below to choose a new password.'
       ],
       ctaLabel: 'Reset password',
@@ -115,12 +115,12 @@ export async function requestPasswordReset(email, ipAddress, userAgent) {
 
     await sendEmail({
       to: user.email,
-      subject: 'Reset your UKC• password',
+      subject: 'Reset your UKC. password',
       notificationType: 'password_reset',
       skipConsentCheck: true,
       text: `Hi ${userName},
 
-You requested to reset your password for UKC• Duotone Pro Center Urla.
+You requested to reset your password for UKC.
 
 Reset your password: ${resetUrl}
 
@@ -128,7 +128,7 @@ This link expires in ${TOKEN_EXPIRY_HOURS} hour(s). If you didn't request this, 
 
 Request IP: ${ipAddress}
 
-— UKC• Duotone Pro Center Urla`,
+— UKC.`,
       html: branded
     });
 
@@ -254,7 +254,7 @@ export async function resetPassword(token, email, newPassword, ipAddress) {
 
       const { buildBrandedEmail } = await import('./emailTemplates/brandedLayout.js');
       const branded = buildBrandedEmail({
-        preheader: 'Your UKC• password was just changed',
+        preheader: 'Your UKC. password was just changed',
         eyebrow: 'Account · Security',
         title: 'Password updated',
         greeting: `Hi ${userName},`,
@@ -270,19 +270,19 @@ export async function resetPassword(token, email, newPassword, ipAddress) {
 
       await sendEmail({
         to: user.email,
-        subject: 'Your UKC• password has been changed',
+        subject: 'Your UKC. password has been changed',
         notificationType: 'password_changed',
         skipConsentCheck: true,
         text: `Hi ${userName},
 
-Your UKC• password has been successfully reset.
+Your UKC. password has been successfully reset.
 
 If you did not make this change, please contact our team immediately.
 
 Time: ${new Date().toISOString()}
 Request IP: ${ipAddress}
 
-— UKC• Duotone Pro Center Urla`,
+— UKC.`,
         html: branded
       });
     }

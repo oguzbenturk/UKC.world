@@ -32,7 +32,7 @@ ${detailsText}
 ${scheduleUrl ? `View schedule: ${scheduleUrl}\n\n` : ''}If you need to reschedule or cancel, please let us know as soon as possible.
 
 See you on the water,
-UKC• Duotone Pro Center Urla`;
+— UKC.`;
 
   const html = buildBrandedEmail({
     preheader: `Your ${lessonLabel} is tomorrow at ${timeLabel}`,

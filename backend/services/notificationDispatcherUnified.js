@@ -49,6 +49,7 @@ const NOTIFICATION_TYPES = new Set([
   'booking_rescheduled_instructor',
   'booking_unassigned_instructor',
   'booking_cancelled_instructor',
+  'booking_completed_instructor',
 
   // Rentals
   'rental_customer',
@@ -128,6 +129,7 @@ const PREFERENCE_MAP = {
   booking_rescheduled_instructor: 'booking_updates',
   booking_unassigned_instructor:  'booking_updates',
   booking_cancelled_instructor:   'booking_updates',
+  booking_completed_instructor:   'booking_updates',
 
   // Rentals → new_booking_alerts (same toggle as bookings for staff)
   rental_customer:            'booking_updates',

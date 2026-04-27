@@ -4,7 +4,9 @@ import { canSendCommunication, CHANNEL, recordMarketingCommunication } from './m
 
 let transporterPromise = null;
 const EMAIL_DISABLED = (process.env.EMAIL_TRANSPORT || '').toLowerCase() === 'none';
-const DEFAULT_FROM = process.env.EMAIL_FROM || 'Plannivo <info@plannivo.com>';
+const DEFAULT_FROM = process.env.EMAIL_FROM || 'UKC. <no-reply@plannivo.com>';
+// Replies are routed away from the no-reply sender to a monitored inbox.
+const DEFAULT_REPLY_TO = process.env.EMAIL_REPLY_TO || 'UKC. <info@plannivo.com>';
 
 function buildSmtpTransport() {
   const host = process.env.SMTP_HOST;
@@ -133,11 +135,16 @@ export async function sendEmail({
 
   const mailOptions = {
     from: DEFAULT_FROM,
+    replyTo: DEFAULT_REPLY_TO,
     to,
     subject,
     text,
     html,
-    headers
+    headers: {
+      'Auto-Submitted': 'auto-generated',
+      'X-Auto-Response-Suppress': 'All',
+      ...(headers || {})
+    }
   };
 
   try {

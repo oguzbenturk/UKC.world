@@ -942,6 +942,36 @@ class BookingNotificationService {
           });
       })
     );
+
+    // Notify the assigned instructor too (in-app + Telegram).
+    if (instructor?.id) {
+      const studentNamesDisplay = students.map((s) => s.name).filter(Boolean).join(', ') || 'student';
+      const instructorMessage = `${serviceName} with ${studentNamesDisplay} on ${context.dateLabel} at ${timeLabel} has been checked out.`;
+
+      await dispatchNotification({
+        userId: instructor.id,
+        type: 'booking_completed_instructor',
+        title: `Lesson completed: ${serviceName}`,
+        message: instructorMessage,
+        data: {
+          bookingId: booking.id,
+          role: 'instructor',
+          serviceName,
+          studentName: studentNamesDisplay,
+          date: isoDate,
+          startHour: Number(booking.start_hour),
+          duration: durationHours,
+          cta: {
+            label: 'View in daily program',
+            href: isoDate
+              ? `/bookings/calendar?view=daily&date=${isoDate}&bookingId=${booking.id}`
+              : '/bookings/calendar'
+          }
+        },
+        idempotencyKey: `lesson-completed:${booking.id}:instructor:${instructor.id}`,
+        client
+      }).catch((err) => logger.warn('lesson-completed instructor notify failed', { bookingId: booking.id, error: err.message }));
+    }
   }
 
   async _processInstructorRatedNotification({ ratingId }) {
