@@ -376,6 +376,7 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/auth/login',      // Public unauthenticated — no session cookie to steal
   '/api/agent/',          // Server-to-server from n8n; protected by X-Kai-Agent-Secret header
   '/api/assistant',       // Public AI chat widget — no session cookie to steal
+  '/api/telegram/webhook', // Telegram webhook; protected by X-Telegram-Bot-Api-Secret-Token header
 ];
 
 /**

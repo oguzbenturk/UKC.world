@@ -65,8 +65,11 @@ export async function initialize({ webhookUrl, webhookSecret, attachHandlers } =
     } catch (error) {
       logger.warn('Failed to register Telegram webhook', { webhookUrl, error: error?.message });
     }
-  } else {
-    // No webhook URL → fall back to long polling (dev convenience).
+  } else if (process.env.TELEGRAM_DEV_POLLING === 'true') {
+    // Opt-in long polling for local dev testing. Off by default because
+    // starting polling on a token that has a webhook registered (prod) will
+    // call deleteWebhook and steal updates from production. Enable explicitly
+    // with TELEGRAM_DEV_POLLING=true only when prod isn't using the same bot.
     try {
       await bot.api.deleteWebhook({ drop_pending_updates: false });
     } catch (error) {
@@ -78,6 +81,11 @@ export async function initialize({ webhookUrl, webhookSecret, attachHandlers } =
     }).catch((error) => {
       logger.error('Telegram polling stopped unexpectedly', { error: error?.message });
     });
+  } else {
+    logger.info(
+      'Telegram bot is authenticated but inbound updates are disabled in this env ' +
+      '(no TELEGRAM_WEBHOOK_URL and TELEGRAM_DEV_POLLING != true). Outbound sendMessage still works.'
+    );
   }
 
   _initialized = true;
