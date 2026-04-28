@@ -414,6 +414,12 @@ export async function dispatchToStaff({
           });
           if (result.inserted) {
             notified++;
+            // Telegram fan-out, same as dispatchNotification. Best-effort —
+            // failures never block the in-app insert from counting.
+            deliverTelegram({ executor, userId: staff.id, type, title, message, data })
+              .catch((err) => logger.warn('Telegram staff fan-out failed', {
+                staffId: staff.id, type, error: err?.message
+              }));
           } else {
             skipped++;
           }

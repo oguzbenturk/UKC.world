@@ -242,6 +242,26 @@ export function buildHelp() {
   ].join('\n');
 }
 
+export function buildNewBookingAlert(data = {}) {
+  const { serviceName, date, startTime, studentNames, instructorName, serviceType, status } = data;
+  const dateLabel = formatDate(date);
+  const isRental = serviceType === 'rental';
+  const heading = isRental
+    ? '🛟 <b>New rental request</b>'
+    : '📥 <b>New booking request</b>';
+
+  const lines = [heading, ''];
+  if (serviceName) lines.push(`📚 <b>${escapeHtml(serviceName)}</b>`);
+  if (dateLabel || startTime) {
+    lines.push(`📅 ${escapeHtml(dateLabel || '')}${startTime ? ` · ${escapeHtml(String(startTime))}` : ''}`);
+  }
+  if (studentNames) lines.push(`👤 ${escapeHtml(String(studentNames))}`);
+  if (instructorName && instructorName !== 'TBD') lines.push(`👨‍🏫 ${escapeHtml(String(instructorName))}`);
+  if (status === 'pending') lines.push('\n<i>Awaiting approval.</i>');
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
 // Adapter for the legacy `booking_instructor` payload shape produced by
 // bookingNotificationService._processBookingCreated — converts it into the
 // fields buildLessonAssigned expects.
@@ -282,6 +302,9 @@ export function buildTelegramMessageForType(type, data) {
         return buildLessonCancelled(data);
       case 'booking_completed_instructor':
         return buildLessonCompleted(data);
+      case 'new_booking_alert':
+      case 'new_rental_alert':
+        return buildNewBookingAlert(data);
       default:
         return null;
     }

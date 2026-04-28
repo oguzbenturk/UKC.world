@@ -375,6 +375,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
   const [customerSearching, setCustomerSearching] = useState(false);
+  // Keep Customer section expanded until user moves on (so group/semi-private bookings can add multiple students)
+  const [customerSectionExpanded, setCustomerSectionExpanded] = useState(true);
 
   // Server-side customer search — the context preloads only ~200 customers
   // alphabetically; querying the API on-type finds names past that window.
@@ -674,6 +676,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     updateFormData({ instructorId: instr.id, instructorName: instr.name });
     setInstructorSearch(instr.name);
     setConflictWarning(null);
+    setCustomerSectionExpanded(false);
   }, [updateFormData]);
 
   // ── Duration / Time ─────────────────────────────────────────────
@@ -1167,13 +1170,13 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           <SectionErrorBoundary section="Customer">
           <div className="px-5 py-3">
             {/* Collapsed summary */}
-            {hasCustomer && activeSection !== 'customer' ? (
+            {hasCustomer && !customerSectionExpanded ? (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <CheckCircleFilled className="text-green-500 text-sm shrink-0" />
                   <span className="text-sm text-slate-700 truncate">{(formData.participants || []).map(p => p.userName).join(', ')}</span>
                 </div>
-                <button type="button" onClick={() => { updateFormData({ instructorId: '', instructorName: '', date: '', startTime: '', endTime: '' }); setInstructorSearch(''); }} className="text-[11px] text-blue-500 hover:text-blue-700 font-medium bg-transparent border-0 cursor-pointer">Edit</button>
+                <button type="button" onClick={() => setCustomerSectionExpanded(true)} className="text-[11px] text-blue-500 hover:text-blue-700 font-medium bg-transparent border-0 cursor-pointer">Edit</button>
               </div>
             ) : (
               /* Expanded */

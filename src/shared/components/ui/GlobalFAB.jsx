@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, ShoppingBagIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, ShoppingBagIcon, UserPlusIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 import BookingDrawer from '@/features/bookings/components/components/BookingDrawer';
 import NewRentalDrawer from '@/features/rentals/components/NewRentalDrawer';
 import NewSaleDrawer from '@/features/services/components/NewSaleDrawer';
 import NewMemberDrawer from '@/features/members/components/NewMemberDrawer';
+import NewCustomerDrawer from '@/features/customers/components/NewCustomerDrawer';
 import { useAuth } from '@/shared/hooks/useAuth';
 
 // Paths where the global FAB should not appear
-const HIDDEN_EXACT_PATHS = ['/', '/login', '/register', '/reset-password', '/bookings/calendar'];
+const HIDDEN_EXACT_PATHS = ['/', '/login', '/register', '/reset-password'];
 const HIDDEN_PATH_PREFIXES = ['/f/', '/quick/', '/group-invitation/'];
 
 const NON_STAFF_ROLES = ['outsider', 'student', 'trusted_customer'];
@@ -23,6 +24,7 @@ const GlobalFAB = () => {
   const [rentalDrawerOpen, setRentalDrawerOpen] = useState(false);
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [memberDrawerOpen, setMemberDrawerOpen] = useState(false);
+  const [customerDrawerOpen, setCustomerDrawerOpen] = useState(false);
   const menuRef = useRef(null);
 
   const isHidden =
@@ -58,12 +60,22 @@ const GlobalFAB = () => {
             <button
               onClick={() => {
                 setMenuOpen(false);
+                setCustomerDrawerOpen(true);
+              }}
+              className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
+            >
+              <UserPlusIcon className="h-4 w-4 text-cyan-500 shrink-0" />
+              Add New Customer
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
                 setMemberDrawerOpen(true);
               }}
               className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
             >
-              <UserPlusIcon className="h-4 w-4 text-indigo-500 shrink-0" />
-              New Member
+              <IdentificationIcon className="h-4 w-4 text-indigo-500 shrink-0" />
+              New Membership
             </button>
             <button
               onClick={() => {
@@ -101,7 +113,7 @@ const GlobalFAB = () => {
         {/* FAB button */}
         <button
           onClick={() => setMenuOpen(o => !o)}
-          className="h-14 w-14"
+          className="h-14 w-14 p-0 bg-transparent border-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
           style={{ marginBottom: 'env(keyboard-inset-height, 0px)' }}
           title={menuOpen ? 'Close' : 'Quick Actions'}
           aria-label={menuOpen ? 'Close' : 'Quick Actions'}
@@ -119,6 +131,13 @@ const GlobalFAB = () => {
           </div>
         </button>
       </div>
+
+      {customerDrawerOpen && (
+        <NewCustomerDrawer
+          isOpen={customerDrawerOpen}
+          onClose={() => setCustomerDrawerOpen(false)}
+        />
+      )}
 
       {memberDrawerOpen && (
         <NewMemberDrawer

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusIcon, CalendarDaysIcon, ViewColumnsIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, CalendarDaysIcon, ViewColumnsIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, getISOWeek, getISOWeekYear, startOfISOWeek } from 'date-fns';
 
 // Import calendar views
@@ -478,25 +478,6 @@ const ModernCalendar = () => {
         />
       </ErrorBoundary>
 
-      {/* Quick Action: FAB opens single booking modal directly */}
-
-      {!isInstructor && (
-      <button
-        onClick={() => handleNewBooking()}
-        className="fixed bottom-6 right-6 h-14 w-14 z-50"
-        style={{ marginBottom: 'env(keyboard-inset-height, 0px)' }}
-        title="New Booking"
-        aria-label="New Booking"
-      >
-        <div className={`relative h-full w-full rounded-full shadow-2xl ring-1 transition-transform duration-200 hover:scale-105 active:scale-95 bg-gradient-to-b from-slate-800 to-slate-700 fab-float ring-slate-500/30`}>
-          <div className="absolute inset-0 rounded-full bg-white/5" />
-          <div className="absolute -inset-1 rounded-full blur-md bg-sky-500/25 fab-glow" />
-          <div className="relative flex h-full w-full items-center justify-center text-slate-100">
-            <PlusIcon className="h-6 w-6" />
-          </div>
-        </div>
-      </button>
-      )}
     </div>
   );
 };
