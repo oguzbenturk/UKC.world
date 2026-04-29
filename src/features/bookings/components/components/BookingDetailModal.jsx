@@ -603,9 +603,14 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
       const pricePerHour = (Number.isFinite(totalHours) && totalHours > 0 && Number.isFinite(packagePrice))
         ? packagePrice / totalHours
         : null;
+      // Always derive total from per-hour × duration — booking.final_amount can be stale
+      // (e.g. duration changed after creation but final_amount wasn't recomputed)
+      const bookingDuration = Number(booking.actualDuration) || Number(booking.duration) || 1;
+      const totalPrice = pricePerHour != null ? pricePerHour * bookingDuration : null;
       return {
         subtitle: packageName && packageName !== 'Package Hours' ? `Package: ${packageName}` : 'Paid with Package',
         pricePerHour,
+        totalPrice,
       };
     }
 
@@ -1245,8 +1250,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           <div className="text-right">
                             <p className="text-xl font-bold text-slate-900 mb-0.5">
                               {(() => {
-                                const price = getDisplayPrice();
                                 const packageInfo = getPackageDisplayInfo();
+                                const price = packageInfo && packageInfo.totalPrice != null
+                                  ? packageInfo.totalPrice
+                                  : getDisplayPrice();
                                 return (
                                   <span className={packageInfo ? 'text-green-600' : ''}>
                                     {`${currencySymbol}${price.toFixed(2)}`}

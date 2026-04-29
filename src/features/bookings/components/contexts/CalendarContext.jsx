@@ -141,6 +141,9 @@ const standardizeBookingData = (rawBooking) => {
   // Payment/package indicators
   payment_status: rawBooking.payment_status || rawBooking.paymentStatus,
   customer_package_id: rawBooking.customer_package_id || rawBooking.customerPackageId || null,
+  package_name: rawBooking.package_name || rawBooking.customer_package_name || null,
+  package_total_hours: rawBooking.package_total_hours != null ? Number(rawBooking.package_total_hours) : null,
+  package_price: rawBooking.package_price != null ? Number(rawBooking.package_price) : null,
     instructor_commission: Number(rawBooking.instructor_commission) || 0,
     commission_type: rawBooking.commission_type || null,
     participants: rawBooking.participants || [], // Preserve participants array from backend
