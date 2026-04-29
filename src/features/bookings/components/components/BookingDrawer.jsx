@@ -377,6 +377,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const [customerSearching, setCustomerSearching] = useState(false);
   // Keep Customer section expanded until user moves on (so group/semi-private bookings can add multiple students)
   const [customerSectionExpanded, setCustomerSectionExpanded] = useState(true);
+  // Keep Schedule section expanded until user explicitly continues (so they can add multiple lessons)
+  const [scheduleSectionExpanded, setScheduleSectionExpanded] = useState(true);
 
   // Server-side customer search — the context preloads only ~200 customers
   // alphabetically; querying the API on-type finds names past that window.
@@ -474,6 +476,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       setIsSubmitting(false);
       setServiceSearch('');
       setAvailableSlots([]);
+      setScheduleSectionExpanded(true);
       // Load recent customers from localStorage
       try {
         const stored = JSON.parse(localStorage.getItem('plannivo_recent_customers') || '[]');
@@ -708,6 +711,103 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     }
   }, [selectedDuration, availableSlots, updateFormData]);
 
+  // ── Multi-lesson helpers ────────────────────────────────────────
+  const addExtraLesson = useCallback(() => {
+    const extras = formData.extraLessons || [];
+    const lastDate = extras.length > 0 ? extras[extras.length - 1].date : formData.date;
+    const baseDate = lastDate || dayjs().format('YYYY-MM-DD');
+    const nextDate = dayjs(baseDate).add(1, 'day').format('YYYY-MM-DD');
+    const dur = selectedDuration || 120;
+    updateFormData({
+      extraLessons: [...extras, {
+        date: nextDate,
+        startTime: '',
+        endTime: '',
+        duration: dur
+      }]
+    });
+  }, [formData.date, formData.extraLessons, selectedDuration, updateFormData]);
+
+  const removeExtraLesson = useCallback((idx) => {
+    const next = [...(formData.extraLessons || [])];
+    next.splice(idx, 1);
+    // Reindex per-lesson package overrides (lessonIdx 0 = primary, 1+ = extras)
+    const removedLessonIdx = idx + 1;
+    const oldOverrides = formData.lessonPackageOverrides || {};
+    const newOverrides = {};
+    for (const [k, v] of Object.entries(oldOverrides)) {
+      const ki = Number(k);
+      if (ki < removedLessonIdx) newOverrides[ki] = v;
+      else if (ki > removedLessonIdx) newOverrides[ki - 1] = v;
+    }
+    updateFormData({ extraLessons: next, lessonPackageOverrides: newOverrides });
+  }, [formData.extraLessons, formData.lessonPackageOverrides, updateFormData]);
+
+  const updateExtraLesson = useCallback((idx, patch) => {
+    const next = [...(formData.extraLessons || [])];
+    if (!next[idx]) return;
+    next[idx] = { ...next[idx], ...patch };
+    // If duration or startTime changed, recompute endTime
+    if (patch.duration != null || patch.startTime != null) {
+      const lesson = next[idx];
+      const startMins = timeStringToMinutes(lesson.startTime);
+      if (startMins !== null) {
+        lesson.endTime = minutesToTimeString(startMins + lesson.duration);
+      } else {
+        lesson.endTime = '';
+      }
+    }
+    updateFormData({ extraLessons: next });
+  }, [formData.extraLessons, updateFormData]);
+
+  const totalLessonHours = useMemo(() => {
+    let total = 0;
+    if (formData.startTime && formData.endTime) {
+      const s = timeStringToMinutes(formData.startTime);
+      const e = timeStringToMinutes(formData.endTime);
+      if (s !== null && e !== null && e > s) total += (e - s) / 60;
+    }
+    for (const l of (formData.extraLessons || [])) {
+      const s = timeStringToMinutes(l.startTime);
+      const e = timeStringToMinutes(l.endTime);
+      if (s !== null && e !== null && e > s) total += (e - s) / 60;
+    }
+    return total;
+  }, [formData.startTime, formData.endTime, formData.extraLessons]);
+
+  const allLessons = useMemo(() => {
+    const list = [];
+    if (formData.date && formData.startTime && formData.endTime) {
+      const s = timeStringToMinutes(formData.startTime);
+      const e = timeStringToMinutes(formData.endTime);
+      const dur = (s !== null && e !== null && e > s) ? (e - s) : selectedDuration;
+      list.push({ date: formData.date, startTime: formData.startTime, endTime: formData.endTime, duration: dur });
+    }
+    for (const l of (formData.extraLessons || [])) {
+      if (l.date && l.startTime && l.endTime) list.push(l);
+    }
+    return list;
+  }, [formData.date, formData.startTime, formData.endTime, formData.extraLessons, selectedDuration]);
+
+  // ── Per-lesson package overrides ────────────────────────────────
+  // Resolves the effective package for (lessonIdx, participantId).
+  // Override semantics: undefined → use participant default; null → wallet; <pkgId> → that package.
+  const getLessonParticipantPackage = useCallback((lessonIdx, participantId) => {
+    const overrides = formData.lessonPackageOverrides || {};
+    const lessonOverride = overrides[lessonIdx];
+    if (lessonOverride && Object.prototype.hasOwnProperty.call(lessonOverride, participantId)) {
+      return lessonOverride[participantId]; // null = wallet
+    }
+    const p = (formData.participants || []).find(x => x.userId === participantId);
+    return (p?.usePackage && p?.selectedPackageId) ? p.selectedPackageId : null;
+  }, [formData.lessonPackageOverrides, formData.participants]);
+
+  const setLessonParticipantPackage = useCallback((lessonIdx, participantId, packageId) => {
+    const next = { ...(formData.lessonPackageOverrides || {}) };
+    next[lessonIdx] = { ...(next[lessonIdx] || {}), [participantId]: packageId };
+    updateFormData({ lessonPackageOverrides: next });
+  }, [formData.lessonPackageOverrides, updateFormData]);
+
   // ── Service selection ───────────────────────────────────────────
   const availableServices = useMemo(() => filterServicesByCapacity(services || [], participantCount).filter(isLessonService), [services, participantCount]);
 
@@ -889,123 +989,158 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       const selectedService = (services || []).find(s => s.id === formData.serviceId);
       if (!selectedService) throw new Error('Selected service not found.');
 
-      const bookingTime = formData.startTime;
-      const endTime = formData.endTime;
-      if (!bookingTime || !endTime) throw new Error('Start and end times are required.');
-
-      const bookingDuration = getBookingDuration();
       const hourlyRate = Number(selectedService.price || 0);
       const pCount = Math.max(formData.participants?.length || 1, 1);
 
-      // Compute final price considering per-participant package status
-      const primaryPkg = formData.participants?.[0];
-      // Only consider package hours if participant explicitly chose package AND the selected
-      // package actually exists in the user's packages for the current service
-      const hasValidPackageSelection = primaryPkg?.usePackage && primaryPkg?.selectedPackageId;
-      const selectedPkgData = hasValidPackageSelection
-        ? (userPackages[primaryPkg.userId] || []).find(p => p.id === primaryPkg.selectedPackageId)
-        : null;
-      const pkgHoursAvailable = selectedPkgData ? Number(selectedPkgData.remaining_hours || 0) : 0;
-      const finalPrice = computeBookingPrice({ plannedHours: bookingDuration, hourlyRate, packageHoursAvailable: pkgHoursAvailable, step: 0.25, participants: pCount });
+      // Build the lesson list (primary + extras)
+      const lessons = [
+        { date: formData.date, startTime: formData.startTime, endTime: formData.endTime },
+        ...(formData.extraLessons || [])
+      ].filter(l => l.date && l.startTime && l.endTime);
 
-      let response;
-      if (formData.participants?.length > 1) {
-        // ── Group booking ──
-        const processedParticipants = formData.participants.map(p => ({
-          userId: p.userId,
-          userName: p.userName,
-          userEmail: p.userEmail,
-          userPhone: p.userPhone,
-          isPrimary: p.isPrimary === true,
-          usePackage: p.usePackage === true && !!p.selectedPackageId,
-          customerPackageId: p.selectedPackageId || p.customerPackageId,
-          paymentStatus: (p.usePackage && p.selectedPackageId) ? 'package' : (p.paymentStatus || 'paid'),
-          manualCashPreference: p.manualCashPreference === true,
-          notes: p.notes || ''
-        }));
+      if (lessons.length === 0) throw new Error('At least one lesson is required.');
 
-        const groupData = {
-          date: formData.date,
-          start_hour: parseFloat(bookingTime.split(':')[0]) + parseFloat(bookingTime.split(':')[1]) / 60,
-          duration: bookingDuration,
-          instructor_user_id: formData.instructorId,
-          service_id: formData.serviceId,
-          status: 'pending',
-          notes: formData.notes || '',
-          location: 'TBD',
-          participants: processedParticipants,
-          allowNegativeBalance: formData.allowNegativeBalance === true
-        };
-
-        // Preflight
-        const pf = await preflightCheckGroupSlot({ date: groupData.date, instructorId: groupData.instructor_user_id, startTime: bookingTime, durationHours: bookingDuration });
-        if (!pf.ok) {
-          setConflictWarning({ message: 'The selected time is no longer available.', suggestions: pf.suggestions || [] });
-          setShowReview(false);
-          updateFormData({ startTime: '', endTime: '', slotRefreshKey: Date.now() });
-          return;
+      // Track package remaining hours per (participantId, packageId) so each lesson sees fresh availability
+      const pkgRemaining = {};
+      for (const p of formData.participants || []) {
+        pkgRemaining[p.userId] = {};
+        for (const pkg of (allUserPackages[p.userId] || [])) {
+          pkgRemaining[p.userId][pkg.id] = Number(pkg.remaining_hours || pkg.remainingHours || 0);
         }
-
-        const token = localStorage.getItem('token');
-        const apiResp = await fetch('/api/bookings/group', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(groupData)
-        });
-        if (!apiResp.ok) {
-          let errData = {};
-          try { errData = await apiResp.json(); } catch { /* empty */ }
-          const err = new Error(errData.error || 'Failed to create group booking');
-          err.status = apiResp.status;
-          if (errData.details) err.details = errData.details;
-          throw err;
-        }
-        response = await apiResp.json();
-      } else {
-        // ── Single booking ──
-        const participant = formData.participants?.[0];
-        const usePackage = participant?.usePackage === true && !!participant?.selectedPackageId;
-        const singleData = {
-          date: formData.date,
-          startTime: bookingTime,
-          endTime,
-          duration: bookingDuration,
-          instructorId: formData.instructorId,
-          instructorName: formData.instructorName,
-          serviceId: formData.serviceId,
-          serviceName: selectedService.name,
-          userId: participant?.userId || formData.userId,
-          user: { name: participant?.userName || formData.userName, email: participant?.userEmail || formData.userEmail || '', phone: participant?.userPhone || formData.userPhone || '', notes: formData.notes || '' },
-          price: hourlyRate,
-          totalCost: finalPrice,
-          usePackageHours: usePackage,
-          paymentMethod: usePackage ? 'package' : 'cash',
-          customerPackageId: usePackage ? participant.selectedPackageId : null,
-          isGroupBooking: false,
-          participants: formData.participants || []
-        };
-        response = await createBooking(singleData);
       }
 
+      const responses = [];
+      for (let i = 0; i < lessons.length; i++) {
+        const lesson = lessons[i];
+        const lessonStart = lesson.startTime;
+        const lessonEnd = lesson.endTime;
+        const sMin = timeStringToMinutes(lessonStart);
+        const eMin = timeStringToMinutes(lessonEnd);
+        const lessonDuration = (sMin !== null && eMin !== null && eMin > sMin) ? (eMin - sMin) / 60 : selectedDuration / 60;
+
+        let resp;
+        if (formData.participants?.length > 1) {
+          // ── Group booking (one per lesson) ──
+          const processedParticipants = formData.participants.map(p => {
+            const pkgId = getLessonParticipantPackage(i, p.userId);
+            const pkgs = allUserPackages[p.userId] || [];
+            const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
+            const usePackage = !!pkg;
+            // Deduct (so subsequent lessons see updated remaining)
+            if (usePackage) {
+              const avail = pkgRemaining[p.userId]?.[pkgId] ?? 0;
+              pkgRemaining[p.userId][pkgId] = Math.max(0, avail - lessonDuration);
+            }
+            return {
+              userId: p.userId,
+              userName: p.userName,
+              userEmail: p.userEmail,
+              userPhone: p.userPhone,
+              isPrimary: p.isPrimary === true,
+              usePackage,
+              customerPackageId: usePackage ? pkgId : null,
+              paymentStatus: usePackage ? 'package' : (p.paymentStatus || 'paid'),
+              manualCashPreference: p.manualCashPreference === true,
+              notes: p.notes || ''
+            };
+          });
+
+          const groupData = {
+            date: lesson.date,
+            start_hour: parseFloat(lessonStart.split(':')[0]) + parseFloat(lessonStart.split(':')[1]) / 60,
+            duration: lessonDuration,
+            instructor_user_id: formData.instructorId,
+            service_id: formData.serviceId,
+            status: 'pending',
+            notes: formData.notes || '',
+            location: 'TBD',
+            participants: processedParticipants,
+            allowNegativeBalance: formData.allowNegativeBalance === true
+          };
+
+          // Preflight on first lesson only (others rely on backend conflict detection)
+          if (i === 0) {
+            const pf = await preflightCheckGroupSlot({ date: groupData.date, instructorId: groupData.instructor_user_id, startTime: lessonStart, durationHours: lessonDuration });
+            if (!pf.ok) {
+              setConflictWarning({ message: 'The selected time is no longer available.', suggestions: pf.suggestions || [] });
+              setShowReview(false);
+              updateFormData({ startTime: '', endTime: '', slotRefreshKey: Date.now() });
+              return;
+            }
+          }
+
+          const token = localStorage.getItem('token');
+          const apiResp = await fetch('/api/bookings/group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(groupData)
+          });
+          if (!apiResp.ok) {
+            let errData = {};
+            try { errData = await apiResp.json(); } catch { /* empty */ }
+            const err = new Error(`Lesson ${i + 1} (${lesson.date} ${lessonStart}): ${errData.error || 'Failed to create group booking'}`);
+            err.status = apiResp.status;
+            if (errData.details) err.details = errData.details;
+            throw err;
+          }
+          resp = await apiResp.json();
+        } else {
+          // ── Single booking (one per lesson) ──
+          const participant = formData.participants?.[0];
+          const pkgId = participant ? getLessonParticipantPackage(i, participant.userId) : null;
+          const pkgs = participant ? (allUserPackages[participant.userId] || []) : [];
+          const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
+          const usePackage = !!pkg;
+          const pkgAvailNow = (usePackage && pkgRemaining[participant.userId]?.[pkgId] != null) ? pkgRemaining[participant.userId][pkgId] : 0;
+          const finalPrice = computeBookingPrice({ plannedHours: lessonDuration, hourlyRate, packageHoursAvailable: pkgAvailNow, step: 0.25, participants: pCount });
+          if (usePackage) pkgRemaining[participant.userId][pkgId] = Math.max(0, pkgAvailNow - lessonDuration);
+
+          const singleData = {
+            date: lesson.date,
+            startTime: lessonStart,
+            endTime: lessonEnd,
+            duration: lessonDuration,
+            instructorId: formData.instructorId,
+            instructorName: formData.instructorName,
+            serviceId: formData.serviceId,
+            serviceName: selectedService.name,
+            userId: participant?.userId || formData.userId,
+            user: { name: participant?.userName || formData.userName, email: participant?.userEmail || formData.userEmail || '', phone: participant?.userPhone || formData.userPhone || '', notes: formData.notes || '' },
+            price: hourlyRate,
+            totalCost: finalPrice,
+            usePackageHours: usePackage,
+            paymentMethod: usePackage ? 'package' : 'cash',
+            customerPackageId: usePackage ? pkgId : null,
+            isGroupBooking: false,
+            participants: formData.participants || []
+          };
+          resp = await createBooking(singleData);
+        }
+        responses.push(resp);
+      }
+
+      const response = responses[0];
       if (!response?.id && !response?.bookingId) throw new Error('Booking created but no ID returned.');
 
       // Contextual success message based on service type and role
+      const lessonCount = lessons.length;
+      const lessonSuffix = lessonCount > 1 ? ` (${lessonCount} lessons)` : '';
       if (isInstructorBooker) {
-        showInfo('Booking submitted — pending approval from a manager or admin.');
+        showInfo(`Booking submitted${lessonSuffix} — pending approval from a manager or admin.`);
       } else {
         const selectedSvc = (services || []).find(s => s.id === formData.serviceId);
         const isGroupLessonSvc = selectedSvc ? isGroupService(selectedSvc) : false;
         const pLen = formData.participants?.length || 1;
         if (pLen > 1) {
-          showSuccess(`Group lesson booked with ${pLen} participants!`);
+          showSuccess(`Group lesson booked with ${pLen} participants${lessonSuffix}!`);
         } else {
           const participant = formData.participants?.[0];
           const pName = participant?.userName || formData.userName;
           if (participant?.usePackage && participant?.selectedPackageId) {
-            showSuccess(`Lesson booked for ${pName} using package hours!`);
+            showSuccess(`Lesson booked for ${pName} using package hours${lessonSuffix}!`);
           } else {
             const lessonType = isGroupLessonSvc ? 'Group lesson' : 'Private lesson';
-            showSuccess(`${lessonType} booked for ${pName}!`);
+            showSuccess(`${lessonType} booked for ${pName}${lessonSuffix}!`);
           }
         }
       }
@@ -1034,7 +1169,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, services, userPackages, getBookingDuration, validateStep, createBooking, updateFormData, showSuccess, showError, showInfo, isInstructorBooker, onBookingCreated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [formData, services, allUserPackages, selectedDuration, validateStep, createBooking, updateFormData, showSuccess, showError, showInfo, isInstructorBooker, onBookingCreated, getLessonParticipantPackage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Close handler ───────────────────────────────────────────────
   const handleClose = useCallback((force = false) => {
@@ -1052,34 +1187,90 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     onClose();
   }, [hasUnsavedChanges, resetFormData, onClose]);
 
-  // ── Effective total (accounts for package usage) ────────────────
+  // ── Effective total (accounts for package usage, summed across all lessons) ─
+  const totalBookingHours = useMemo(() => {
+    return totalLessonHours > 0 ? totalLessonHours : getBookingDuration();
+  }, [totalLessonHours, getBookingDuration]);
+
+  // Per-lesson, per-participant breakdown. Simulates package depletion lesson-by-lesson
+  // so a 4h package + 3 × 2h lessons correctly shows 4h covered + 2h on the wallet.
+  const lessonBreakdown = useMemo(() => {
+    const svc = (services || []).find(s => s.id === formData.serviceId);
+    const hourlyRate = svc?.price || 0;
+    const participants = formData.participants || [];
+
+    // Snapshot remaining hours per participant per package
+    const remaining = {};
+    for (const p of participants) {
+      remaining[p.userId] = {};
+      for (const pkg of (allUserPackages[p.userId] || [])) {
+        remaining[p.userId][pkg.id] = Number(pkg.remaining_hours || pkg.remainingHours || 0);
+      }
+    }
+
+    const lessonsBreakdown = [];
+    let grandTotal = 0;
+    const perParticipantWalletCost = {};
+
+    for (let lIdx = 0; lIdx < allLessons.length; lIdx++) {
+      const l = allLessons[lIdx];
+      const sM = timeStringToMinutes(l.startTime);
+      const eM = timeStringToMinutes(l.endTime);
+      const hrs = (sM !== null && eM !== null && eM > sM) ? (eM - sM) / 60 : 0;
+
+      const pBreakdown = [];
+      let lessonWalletCost = 0;
+      let lessonPkgHours = 0;
+
+      for (const p of participants) {
+        const pkgId = getLessonParticipantPackage(lIdx, p.userId);
+        const pkgs = allUserPackages[p.userId] || [];
+        const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
+        let fromPkg = 0;
+        let fromWallet = hrs;
+        if (pkg && remaining[p.userId]) {
+          const avail = remaining[p.userId][pkgId] || 0;
+          fromPkg = Math.min(hrs, avail);
+          fromWallet = hrs - fromPkg;
+          remaining[p.userId][pkgId] = Math.max(0, avail - fromPkg);
+        }
+        const walletCost = fromWallet * hourlyRate;
+        lessonWalletCost += walletCost;
+        lessonPkgHours += fromPkg;
+        grandTotal += walletCost;
+        perParticipantWalletCost[p.userId] = (perParticipantWalletCost[p.userId] || 0) + walletCost;
+        pBreakdown.push({
+          userId: p.userId,
+          userName: p.userName,
+          pkgId,
+          pkgName: pkg?.package_name || pkg?.packageName || null,
+          fromPkg,
+          fromWallet,
+          walletCost,
+        });
+      }
+
+      lessonsBreakdown.push({ lesson: l, lessonHrs: hrs, participants: pBreakdown, lessonWalletCost, lessonPkgHours });
+    }
+
+    return {
+      lessons: lessonsBreakdown,
+      grandTotal: Number(grandTotal.toFixed(2)),
+      perParticipantWalletCost,
+      packageRemainingAfter: remaining, // package hours after all lessons
+    };
+  }, [allLessons, formData.participants, formData.serviceId, services, allUserPackages, getLessonParticipantPackage]);
+
+  // Wallet-side total cost for the whole booking series
+  const effectiveTotal = lessonBreakdown.grandTotal;
+
+  // Per-participant single-lesson cost (used by the "wallet payer" badge in review)
   const perPersonCost = useMemo(() => {
     if (!formData.serviceId || !formData.participants?.length) return 0;
     const svc = (services || []).find(s => s.id === formData.serviceId);
     if (!svc) return 0;
-    return svc.price * getBookingDuration();
-  }, [formData.serviceId, formData.participants, services, getBookingDuration]);
-
-  const effectiveTotal = useMemo(() => {
-    if (!formData.participants?.length) return formData.servicePrice || 0;
-    const svc = (services || []).find(s => s.id === formData.serviceId);
-    const hourlyRate = svc?.price || 0;
-    const dur = getBookingDuration();
-    let total = 0;
-    for (const p of formData.participants) {
-      if (p.usePackage && p.selectedPackageId) {
-        // Partial package: charge wallet for spillover hours
-        const pkgs = allUserPackages[p.userId] || [];
-        const selPkg = pkgs.find(pk => pk.id === p.selectedPackageId);
-        const remaining = Number(selPkg?.remaining_hours || selPkg?.remainingHours || 0);
-        const spillover = Math.max(0, dur - remaining);
-        total += spillover * hourlyRate;
-      } else {
-        total += perPersonCost;
-      }
-    }
-    return Number(total.toFixed(2));
-  }, [formData.participants, formData.serviceId, formData.servicePrice, services, allUserPackages, perPersonCost, getBookingDuration]);
+    return svc.price * totalBookingHours;
+  }, [formData.serviceId, formData.participants, services, totalBookingHours]);
 
   // ── Filtered instructors ────────────────────────────────────────
   const filteredInstructors = useMemo(() => {
@@ -1126,9 +1317,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     if (!hasInstructor) return 'Select an instructor';
     if (!formData.date) return 'Pick a date';
     if (!formData.startTime) return 'Pick a time slot';
+    const incompleteExtra = (formData.extraLessons || []).findIndex(l => !l.date || !l.startTime || !l.endTime);
+    if (incompleteExtra !== -1) return `Complete lesson ${incompleteExtra + 2} (date & time)`;
     if (!hasService) return 'Select a service or package';
     return null;
-  }, [hasCustomer, hasInstructor, hasService, formData.date, formData.startTime]);
+  }, [hasCustomer, hasInstructor, hasService, formData.date, formData.startTime, formData.extraLessons]);
 
   // beforeunload guard
   useEffect(() => {
@@ -1278,18 +1471,27 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             <SectionErrorBoundary section="Schedule">
             <div className="px-5 py-3">
               {/* Collapsed summary */}
-              {hasSchedule && activeSection !== 'schedule' && !slotPreFilled ? (
+              {hasSchedule && !scheduleSectionExpanded && !slotPreFilled ? (
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <CheckCircleFilled className="text-green-500 text-sm shrink-0" />
-                    <span className="text-sm text-slate-700">{dayjs(formData.date).format('ddd, MMM D')} · {formData.startTime}–{formData.endTime} ({getBookingDuration()}h)</span>
+                    {(formData.extraLessons?.length || 0) === 0 ? (
+                      <span className="text-sm text-slate-700">{dayjs(formData.date).format('ddd, MMM D')} · {formData.startTime}–{formData.endTime} ({getBookingDuration()}h)</span>
+                    ) : (
+                      <span className="text-sm text-slate-700 truncate">{1 + formData.extraLessons.length} lessons · {totalLessonHours}h total</span>
+                    )}
                   </div>
-                  <button type="button" onClick={() => { updateFormData({ date: '', startTime: '', endTime: '' }); setConflictWarning(null); }} className="text-[11px] text-blue-500 hover:text-blue-700 font-medium bg-transparent border-0 cursor-pointer">Edit</button>
+                  <button type="button" onClick={() => setScheduleSectionExpanded(true)} className="text-[11px] text-blue-500 hover:text-blue-700 font-medium bg-transparent border-0 cursor-pointer">Edit</button>
                 </div>
               ) : (
                 /* Expanded */
                 <>
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">Duration, Date & Time</div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Duration, Date & Time</div>
+                    {(formData.extraLessons?.length || 0) > 0 && (
+                      <span className="text-[10px] text-slate-400">Lesson 1 of {1 + formData.extraLessons.length}</span>
+                    )}
+                  </div>
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Duration</label>
@@ -1345,6 +1547,58 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                         ) : null}
                         className="text-sm [&_.ant-alert-message]:!mb-0 !rounded-lg"
                       />
+                    )}
+
+                    {/* Extra lessons */}
+                    {(formData.extraLessons || []).map((lesson, idx) => (
+                      <div key={idx} className="pt-3 border-t border-dashed border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Lesson {idx + 2}</span>
+                          <button type="button" onClick={() => removeExtraLesson(idx)} className="text-[11px] text-rose-500 hover:text-rose-700 font-medium bg-transparent border-0 cursor-pointer">Remove</button>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Duration</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {allowedDurations.map(d => (
+                              <button key={d} type="button" onClick={() => updateExtraLesson(idx, { duration: d })} className={`px-3.5 py-1 text-sm rounded-lg border font-medium transition-all ${lesson.duration === d ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>{d / 60}h</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
+                            <input type="date" value={lesson.date || ''} onChange={e => updateExtraLesson(idx, { date: e.target.value })} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Time</label>
+                            <select value={lesson.startTime || ''} onChange={e => updateExtraLesson(idx, { startTime: e.target.value })} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
+                              <option value="">Select time…</option>
+                              {ALL_TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add another lesson */}
+                    <button
+                      type="button"
+                      onClick={addExtraLesson}
+                      className="w-full mt-1 px-3 py-2 text-sm font-medium text-blue-600 border border-dashed border-blue-300 bg-blue-50/50 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors"
+                    >+ Add another lesson</button>
+
+                    {totalLessonHours > 0 && (formData.extraLessons?.length || 0) > 0 && (
+                      <div className="text-[11px] text-slate-500 text-right">Total: {totalLessonHours}h across {1 + formData.extraLessons.length} lessons</div>
+                    )}
+
+                    {hasSchedule && !slotPreFilled && (
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setScheduleSectionExpanded(false)}
+                          className="px-3 py-1 text-[11px] font-medium text-blue-600 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                        >Done — continue ↓</button>
+                      </div>
                     )}
                   </div>
                 </>
@@ -1440,7 +1694,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                               {participant.selectedPackageId && (() => {
                                 const selPkg = pkgs.find(pk => pk.id === participant.selectedPackageId);
                                 const remaining = Number(selPkg?.remaining_hours || selPkg?.remainingHours || 0);
-                                const dur = getBookingDuration();
+                                const dur = totalBookingHours;
                                 const after = Math.max(0, remaining - dur);
                                 return (
                                   <>
@@ -1474,6 +1728,76 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 );
               })()}
 
+              {/* Per-lesson package overrides (only when there's more than 1 lesson and someone has packages) */}
+              {allLessons.length > 1 && formData.participants?.some(p => (allUserPackages[p.userId] || []).length > 0) && (
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Per-lesson packages</div>
+                    <span className="text-[10px] text-slate-400">override defaults</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {lessonBreakdown.lessons.map(({ lesson, lessonHrs, participants: pList }, lIdx) => (
+                      <div key={lIdx} className="rounded-lg border border-slate-200 p-2.5 bg-slate-50/40">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-semibold text-slate-600">Lesson {lIdx + 1}</span>
+                          <span className="text-[11px] text-slate-500">{dayjs(lesson.date).format('MMM D')} · {lesson.startTime}–{lesson.endTime} ({lessonHrs}h)</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {(formData.participants || []).map((p) => {
+                            const pkgs = allUserPackages[p.userId] || [];
+                            if (pkgs.length === 0) return null;
+                            const effectivePkgId = getLessonParticipantPackage(lIdx, p.userId);
+                            const breakdown = pList.find(x => x.userId === p.userId);
+                            return (
+                              <div key={p.userId}>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[11px] text-slate-500 w-20 truncate">{p.userName}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setLessonParticipantPackage(lIdx, p.userId, null)}
+                                    className={`px-2 py-0.5 text-[11px] rounded border transition-colors ${effectivePkgId === null ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}
+                                  >Wallet</button>
+                                  {pkgs.map(pkg => {
+                                    // Compute remaining at this lesson's point
+                                    let rem = Number(pkg.remaining_hours || pkg.remainingHours || 0);
+                                    for (let i = 0; i < lIdx; i++) {
+                                      const otherPkgId = getLessonParticipantPackage(i, p.userId);
+                                      if (otherPkgId === pkg.id) {
+                                        const ol = allLessons[i];
+                                        const sM = timeStringToMinutes(ol.startTime);
+                                        const eM = timeStringToMinutes(ol.endTime);
+                                        if (sM !== null && eM !== null && eM > sM) rem -= (eM - sM) / 60;
+                                      }
+                                    }
+                                    rem = Math.max(0, rem);
+                                    const isSel = effectivePkgId === pkg.id;
+                                    return (
+                                      <button
+                                        key={pkg.id}
+                                        type="button"
+                                        onClick={() => setLessonParticipantPackage(lIdx, p.userId, pkg.id)}
+                                        className={`px-2 py-0.5 text-[11px] rounded border transition-colors ${isSel ? 'bg-green-500 text-white border-green-500' : rem === 0 ? 'bg-rose-50 text-rose-500 border-rose-200' : 'bg-white text-slate-600 border-slate-200 hover:border-green-300'}`}
+                                        title={`${pkg.package_name || pkg.packageName} · ${rem.toFixed(1)}h available`}
+                                      >📦 {pkg.package_name || pkg.packageName} ({rem.toFixed(1)}h)</button>
+                                    );
+                                  })}
+                                </div>
+                                {breakdown && breakdown.fromWallet > 0 && breakdown.fromPkg > 0 && (
+                                  <div className="text-[10px] text-amber-600 ml-[5.25rem] mt-0.5">⚠ Spillover: {breakdown.fromWallet}h from wallet</div>
+                                )}
+                                {breakdown && breakdown.fromWallet > 0 && breakdown.fromPkg === 0 && effectivePkgId !== null && (
+                                  <div className="text-[10px] text-rose-600 ml-[5.25rem] mt-0.5">⚠ Package empty — falls back to wallet</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Service section (only when no package selected) */}
               {!anyPackageSelected && (
                 <>
@@ -1496,7 +1820,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                         <div className="space-y-1">
                           {svcs.map(svc => {
                             const isSelected = formData.serviceId === svc.id;
-                            const dur = getBookingDuration();
+                            const dur = totalBookingHours;
                             const price = computeBookingPrice({ plannedHours: dur, hourlyRate: svc.price, packageHoursAvailable: 0, step: 0.25, participants: isGroupBooking ? formData.participants.length : 1 });
                             const hasMatchingPkg = pkgMatchSet.has(svc.id);
                             return (
@@ -1573,14 +1897,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 <span className="text-slate-400">Customer</span>
                 <span className="font-medium text-slate-700 text-right max-w-[60%] truncate">{(formData.participants || []).map(p => p.userName).join(', ')}</span>
               </div>
-              <div className="py-2.5 flex justify-between">
-                <span className="text-slate-400">Date</span>
-                <span className="font-medium text-slate-700">{formData.date ? dayjs(formData.date).format('ddd, MMM D YYYY') : '—'}</span>
-              </div>
-              <div className="py-2.5 flex justify-between">
-                <span className="text-slate-400">Time</span>
-                <span className="font-medium text-slate-700">{formData.startTime && formData.endTime ? `${formData.startTime}–${formData.endTime} (${getBookingDuration()}h)` : '—'}</span>
-              </div>
+              {allLessons.length > 1 && (
+                <div className="py-2.5 flex justify-between">
+                  <span className="text-slate-400">Schedule</span>
+                  <span className="font-medium text-slate-700">{allLessons.length} lessons · {totalLessonHours}h total</span>
+                </div>
+              )}
               <div className="py-2.5 flex justify-between">
                 <span className="text-slate-400">Instructor</span>
                 <span className="font-medium text-slate-700">{formData.instructorName || '—'}</span>
@@ -1589,42 +1911,35 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 <span className="text-slate-400">Service</span>
                 <span className="font-medium text-slate-700">{formData.serviceName || '—'}</span>
               </div>
-              {(formData.participants || []).map(p => {
-                const usePkg = p.usePackage && p.selectedPackageId;
-                const dur = getBookingDuration();
-                const pkgList = allUserPackages[p.userId] || [];
-                const selPkg = usePkg ? pkgList.find(pk => pk.id === p.selectedPackageId) : null;
-                const pkgRemaining = Number(selPkg?.remaining_hours || selPkg?.remainingHours || 0);
-                const isPartial = usePkg && pkgRemaining > 0 && pkgRemaining < dur;
-                const svc = (services || []).find(s => s.id === formData.serviceId);
-                const spilloverHrs = isPartial ? dur - pkgRemaining : 0;
-                const spilloverCost = spilloverHrs * (svc?.price || 0);
-                return (
-                  <div key={p.userId} className="py-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 truncate flex-1">{p.userName}{p.isPrimary ? ' ★' : ''}</span>
-                      {usePkg && !isPartial && (
-                        <span className="text-xs px-2 py-0.5 rounded-md font-medium bg-green-50 text-green-700">📦 {p.selectedPackageName || 'Package'}</span>
-                      )}
-                      {!usePkg && (
-                        <span className="text-xs px-2 py-0.5 rounded-md font-medium bg-blue-50 text-blue-700">💰 {formatPrice(perPersonCost)}</span>
-                      )}
-                    </div>
-                    {isPartial && (
-                      <div className="mt-1 space-y-0.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-green-600">📦 {p.selectedPackageName || 'Package'} ({pkgRemaining}h)</span>
-                          <span className="text-green-600 font-medium">{formatPrice(0)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-amber-600">💰 Wallet ({spilloverHrs}h remaining)</span>
-                          <span className="text-amber-600 font-medium">{formatPrice(spilloverCost)}</span>
-                        </div>
-                      </div>
-                    )}
+              {/* Per-lesson breakdown */}
+              {lessonBreakdown.lessons.map(({ lesson, lessonHrs, participants: pList, lessonWalletCost }, lIdx) => (
+                <div key={lIdx} className="py-2.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-slate-500 font-medium">{allLessons.length > 1 ? `Lesson ${lIdx + 1}: ` : ''}{dayjs(lesson.date).format('MMM D')} · {lesson.startTime}–{lesson.endTime}</span>
+                    <span className="text-xs text-slate-400">{lessonHrs}h</span>
                   </div>
-                );
-              })}
+                  <div className="pl-3 space-y-0.5">
+                    {pList.map(b => (
+                      <div key={b.userId} className="flex items-center justify-between text-[12px]">
+                        <span className="text-slate-500 truncate flex-1 pr-2">{b.userName}</span>
+                        <span className="text-right">
+                          {b.fromPkg > 0 && (
+                            <span className="text-green-700">📦 {b.fromPkg}h{b.pkgName ? ` · ${b.pkgName}` : ''}</span>
+                          )}
+                          {b.fromPkg > 0 && b.fromWallet > 0 && <span className="text-slate-400 mx-1">+</span>}
+                          {b.fromWallet > 0 && (
+                            <span className={b.fromPkg > 0 ? 'text-amber-600' : 'text-blue-700'}>💰 {b.fromWallet}h ({formatPrice(b.walletCost)})</span>
+                          )}
+                          {b.fromPkg === 0 && b.fromWallet === 0 && <span className="text-slate-400">—</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {pList.length > 1 && lessonWalletCost > 0 && (
+                    <div className="flex justify-end text-[11px] text-slate-500 mt-0.5">Lesson subtotal: {formatPrice(lessonWalletCost)}</div>
+                  )}
+                </div>
+              ))}
               <div className="py-3 flex justify-between items-center bg-slate-50 -mx-5 px-5 rounded-lg mt-2">
                 <span className="text-slate-600 font-semibold">Total (wallet)</span>
                 <span className="text-lg font-bold text-slate-900">{formatPrice(effectiveTotal)}</span>

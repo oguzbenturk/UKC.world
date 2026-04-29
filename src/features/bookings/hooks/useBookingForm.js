@@ -25,6 +25,8 @@ export const useBookingForm = (initialData = {}) => {
     participants: [],
     isGroupBooking: false,
     slotRefreshKey: 0,
+    extraLessons: [],
+    lessonPackageOverrides: {},
     ...initialData
   });
 
@@ -59,6 +61,8 @@ export const useBookingForm = (initialData = {}) => {
       participants: [],
       isGroupBooking: false,
       slotRefreshKey: 0,
+      extraLessons: [],
+      lessonPackageOverrides: {},
       ...initialData
     });
   }, [initialData]);
@@ -69,7 +73,9 @@ export const useBookingForm = (initialData = {}) => {
       case 1: // User Selection
         return formData.participants && formData.participants.length > 0;
       case 2: // Time/Instructor Selection
-        return formData.date && formData.startTime && formData.endTime && formData.instructorId;
+        if (!(formData.date && formData.startTime && formData.endTime && formData.instructorId)) return false;
+        // Each extra lesson must also be fully filled
+        return (formData.extraLessons || []).every(l => l.date && l.startTime && l.endTime);
       case 3: // Service Selection
         const hasService = formData.serviceId;
         if (!hasService) return false;
