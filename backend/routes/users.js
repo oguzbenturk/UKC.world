@@ -172,13 +172,24 @@ router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), cach
     const whereClauses = ["r.name IN ('student', 'outsider')", "u.deleted_at IS NULL"];
 
     if (q && q.trim()) {
-      const pattern = `%${q.trim()}%`;
-      params.push(pattern, pattern, pattern);
-      whereClauses.push(`(
-        (u.first_name || ' ' || u.last_name) ILIKE $${params.length - 2}
-        OR u.email ILIKE $${params.length - 1}
-        OR u.phone ILIKE $${params.length}
-      )`);
+      // Tokenized + whitespace-normalized search. Splits the query on spaces
+      // and requires every token to match somewhere in the user's name/contact
+      // fields, so order doesn't matter ("Sego Pierre" finds "Pierre Sego")
+      // and stray double-spaces in stored names don't break the match.
+      const tokens = q.trim().split(/\s+/).filter(Boolean);
+      const haystack = `regexp_replace(
+        coalesce(u.name, '') || ' ' ||
+        coalesce(u.first_name, '') || ' ' ||
+        coalesce(u.last_name, '') || ' ' ||
+        coalesce(u.email, '') || ' ' ||
+        coalesce(u.phone, ''),
+        '\\s+', ' ', 'g'
+      )`;
+      const tokenClauses = tokens.map((token) => {
+        params.push(`%${token}%`);
+        return `${haystack} ILIKE $${params.length}`;
+      });
+      whereClauses.push(`(${tokenClauses.join(' AND ')})`);
     }
 
     params.push(limit);
@@ -211,23 +222,30 @@ router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), c
     const whereClauses = ["u.deleted_at IS NULL"];
 
     if (q && q.trim()) {
-      const pattern = `%${q.trim()}%`;
-      params.push(pattern, pattern, pattern);
-      whereClauses.push(`(
-        (u.first_name || ' ' || u.last_name) ILIKE $${params.length - 2}
-        OR u.email ILIKE $${params.length - 1}
-        OR u.phone ILIKE $${params.length}
-      )`);
+      const tokens = q.trim().split(/\s+/).filter(Boolean);
+      const haystack = `regexp_replace(
+        coalesce(u.name, '') || ' ' ||
+        coalesce(u.first_name, '') || ' ' ||
+        coalesce(u.last_name, '') || ' ' ||
+        coalesce(u.email, '') || ' ' ||
+        coalesce(u.phone, ''),
+        '\\s+', ' ', 'g'
+      )`;
+      const tokenClauses = tokens.map((token) => {
+        params.push(`%${token}%`);
+        return `${haystack} ILIKE $${params.length}`;
+      });
+      whereClauses.push(`(${tokenClauses.join(' AND ')})`);
     }
 
     params.push(limit);
 
     const query = `
-      SELECT u.id, 
+      SELECT u.id,
              CONCAT(u.first_name, ' ', u.last_name) as name,
-             u.first_name, 
-             u.last_name, 
-             u.email, 
+             u.first_name,
+             u.last_name,
+             u.email,
              u.phone,
              r.name as role_name
       FROM users u

@@ -744,7 +744,7 @@ const MemberOfferings = () => {
         const fmtDual = (amt) => {
           const e = formatCurrency(amt, 'EUR');
           if (!showLocal) return e;
-          return `${e} (~${formatCurrency(convertCurrency(amt, 'EUR', userCurrency), userCurrency)})`;
+          return `${e} / ${formatCurrency(convertCurrency(amt, 'EUR', userCurrency), userCurrency)}`;
         };
         const walletDisplayBalance = convertCurrency ? convertCurrency(walletBalance, walletCurrency, userCurrency) : walletBalance;
         const walletFormatted = formatCurrency(walletDisplayBalance, userCurrency);

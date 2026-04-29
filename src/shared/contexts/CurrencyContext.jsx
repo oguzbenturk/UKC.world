@@ -170,6 +170,20 @@ export const CurrencyProvider = ({ children }) => {
     return `${symbol}${Math.round(numAmount).toLocaleString('en-US')}`;
   };
 
+  // Format an amount stored in `fromCurrency` as a dual-currency string
+  // (e.g. "48€ / 1,560 ₺") when the user's display currency differs from
+  // the stored/source currency. Short-circuits to single-currency when the
+  // source matches the user's currency or the user is unset.
+  const formatDualCurrency = (amount, fromCurrency) => {
+    const source = fromCurrency || businessCurrency || baseCurrency?.currency_code || 'EUR';
+    const value = Number(amount) || 0;
+    if (!userCurrency || source === userCurrency) {
+      return formatCurrency(value, source);
+    }
+    const converted = convertCurrency(value, source, userCurrency);
+    return `${formatCurrency(value, source)} / ${formatCurrency(converted, userCurrency)}`;
+  };
+
   // Get currency symbol
   const getCurrencySymbol = (currencyCode) => {
     const currency = currencies.find(c => c.currency_code === currencyCode);
@@ -246,6 +260,7 @@ export const CurrencyProvider = ({ children }) => {
     exchangeRates,
     convertCurrency,
     formatCurrency,
+    formatDualCurrency,
     getCurrencySymbol,
     changeUserCurrency,
     getCurrency,

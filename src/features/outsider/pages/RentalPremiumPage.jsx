@@ -56,7 +56,7 @@ const PACKAGE_CONFIG = [
 const RentalPremiumPage = () => {
   const { t } = useTranslation(['outsider']);
   const navigate = useNavigate();
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
 
@@ -65,12 +65,7 @@ const RentalPremiumPage = () => {
     description: 'Rent the latest Duotone SLS and D/LAB premium equipment. Experience the best gear in the industry.',
   });
 
-  const formatPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const handleBookRental = () => {
     setBookingInitialData({ serviceCategory: 'rental' });

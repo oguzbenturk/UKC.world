@@ -26,7 +26,7 @@ const { Title, Paragraph, Text } = Typography;
 const StayBookingPage = () => {
   const navigate = useNavigate();
   const { t } = useTranslation(['outsider']);
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
 
@@ -36,12 +36,7 @@ const StayBookingPage = () => {
   });
 
   // Show EUR price with user's local currency equivalent
-  const formatPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const handleBookAccommodation = () => {
     setBookingInitialData({ serviceCategory: 'accommodation' });

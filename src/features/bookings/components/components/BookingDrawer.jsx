@@ -1154,16 +1154,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       width={typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : 520}
       closable={false}
       destroyOnHidden
-      styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
+      styles={{ body: { padding: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }, header: { display: 'none' } }}
     >
       {/* ── Title Bar ── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-white">
+      <div className="sticky top-0 z-20 flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-white">
         <h2 className="text-base font-semibold text-slate-800 m-0">New Booking</h2>
         <button type="button" onClick={() => handleClose(false)} className="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 border-0 cursor-pointer transition-colors text-sm bg-transparent">✕</button>
       </div>
 
-      {/* ── Scrollable Body ── */}
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Body ── */}
+      <div>
         <div className="divide-y divide-slate-100">
 
           {/* ═══ 1. CUSTOMER ═══ */}
@@ -1532,7 +1532,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       </div>
 
       {/* ── Footer ── */}
-      <div className="flex-shrink-0 border-t border-slate-200 bg-white px-5 py-3">
+      <div className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-5 py-3">
         {validationMessage && (
           <p className="text-xs text-amber-600 mb-2 flex items-center gap-1"><ExclamationCircleOutlined className="text-[11px]" /> {validationMessage}</p>
         )}
@@ -1554,10 +1554,10 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         placement="right"
         width={typeof window !== 'undefined' && window.innerWidth < 640 ? '100%' : 520}
         closable={false}
-        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
+        styles={{ body: { padding: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }, header: { display: 'none' } }}
       >
         {/* Review Header */}
-        <div className="flex-shrink-0 border-b border-slate-200 bg-white px-5 py-3">
+        <div className="sticky top-0 z-20 border-b border-slate-200 bg-white px-5 py-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-800 m-0">Confirm Booking</h2>
             <button type="button" onClick={() => setShowReview(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 border-0 cursor-pointer transition-colors text-base">✕</button>
@@ -1565,7 +1565,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         </div>
 
         {/* Review Body */}
-        <div className="flex-1 overflow-y-auto">
+        <div>
           <div className="px-5 py-4 space-y-4">
             {/* Review table */}
             <div className="divide-y divide-slate-100 text-sm">
@@ -1667,7 +1667,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         </div>
 
         {/* Review Footer */}
-        <div className="flex-shrink-0 border-t border-slate-200 bg-white px-5 py-3">
+        <div className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-5 py-3">
           <div className="flex items-center justify-between">
             <button type="button" onClick={() => setShowReview(false)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">← Back</button>
             <button

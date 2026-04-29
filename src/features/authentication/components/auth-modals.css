@@ -1,0 +1,40 @@
+/* Auth modal input styling — fixes mobile browsers (especially iOS Safari)
+   that override input backgrounds to white, leaving white text invisible. */
+
+.forgot-password-input.ant-input-affix-wrapper,
+.forgot-password-input.ant-input-affix-wrapper-focused {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.forgot-password-input.ant-input-affix-wrapper:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.forgot-password-input.ant-input-affix-wrapper-focused {
+  border-color: var(--duotone-blue, #00b8d4) !important;
+  box-shadow: 0 0 0 2px rgba(0, 184, 212, 0.15) !important;
+}
+
+.forgot-password-input .ant-input,
+.forgot-password-input input.ant-input {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+
+.forgot-password-input .ant-input::placeholder,
+.forgot-password-input input::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* iOS Safari / Chrome autofill — by default repaints input white with black text. */
+.forgot-password-input input:-webkit-autofill,
+.forgot-password-input input:-webkit-autofill:hover,
+.forgot-password-input input:-webkit-autofill:focus,
+.forgot-password-input input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px #1a1c1e inset !important;
+  caret-color: #ffffff !important;
+  transition: background-color 9999s ease-in-out 0s;
+}

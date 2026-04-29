@@ -86,7 +86,7 @@ const GroupInvitationPage = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, login, refreshToken } = useAuth();
-  const { userCurrency, convertCurrency, formatCurrency } = useCurrency();
+  const { userCurrency, convertCurrency, formatCurrency, formatDualCurrency } = useCurrency();
 
   const [loading, setLoading] = useState(true);
   const [invitation, setInvitation] = useState(null);
@@ -264,9 +264,8 @@ const GroupInvitationPage = () => {
     if (isAuthenticated && convertCurrency) {
       const isPackage = !!invitation.packageId;
       const base = isPackage ? (invitation.packagePrice || 0) : (invitation.pricePerPerson || 0);
-      const conv = convertCurrency(base, invitation.currency, userCurrency);
       return {
-        formatted: formatCurrency ? formatCurrency(conv, userCurrency) : `${userCurrency} ${conv.toFixed(2)}`,
+        formatted: formatDualCurrency ? formatDualCurrency(base, invitation.currency) : formatCurrency(base, invitation.currency),
         label: isPackage ? 'package price' : 'per person',
       };
     }

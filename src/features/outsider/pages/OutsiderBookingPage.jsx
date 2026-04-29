@@ -60,7 +60,7 @@ const OutsiderBookingPage = () => {
   const { openAuthModal } = useAuthModal();
   const navigate = useNavigate();
   const location = useLocation();
-  const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
+  const { userCurrency, formatCurrency, formatDualCurrency, convertCurrency, businessCurrency } = useCurrency();
   const { notification, message } = App.useApp();
   const queryClient = useQueryClient();
   const [bookingOpen, setBookingOpen] = useState(false);
@@ -614,7 +614,7 @@ const OutsiderBookingPage = () => {
                 <div className="flex items-center gap-2 px-3 py-1 bg-sky-50 rounded-full">
                   <WalletOutlined className="text-sky-600" />
                   <Text strong className="text-sky-600">
-                    {formatCurrency(typeof walletSummary?.available === 'number' ? walletSummary.available : 0, userCurrency)}
+                    {formatDualCurrency(typeof walletSummary?.available === 'number' ? walletSummary.available : 0, storageCurrency)}
                   </Text>
                 </div>
                 <Button size="small" onClick={() => {

@@ -75,7 +75,7 @@ const getFallbackImage = (disciplineKey) => {
  *   disciplineKey  – string for fallback image selection
  */
 const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, onBuy, disciplineKey }) => {
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
 
   const [photoIndex, setPhotoIndex] = useState(0);
   const [itineraryExpanded, setItineraryExpanded] = useState(false);
@@ -123,12 +123,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
     setPreviewIndex(0);
   }, [activePkg?.id]);
 
-  const formatPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const hasGallery = displayImages.length > 1;
 

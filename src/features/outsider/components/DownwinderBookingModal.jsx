@@ -147,7 +147,7 @@ const DownwinderBookingModal = ({
     const localFinal = (disc && disc.originalAmount > 0)
       ? Math.max(0, price * (disc.finalAmount / disc.originalAmount))
       : price;
-    return `${eurFormatted} (~${formatCurrency(localFinal, currency)})`;
+    return `${eurFormatted} / ${formatCurrency(localFinal, currency)}`;
   }, [pkg, userCurrency, convertCurrency, appliedVoucher, formatCurrency]);
 
   const getRawPrice = useCallback(() => {

@@ -199,7 +199,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
     const eurFormatted = formatCurrency(eurAmount, 'EUR');
     if (!showDualCurrency) return eurFormatted;
     const converted = convertCurrency(amount, baseCurrency, userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
+    return `${eurFormatted} / ${formatCurrency(converted, userCurrency)}`;
   };
 
   const total = getCartTotal();

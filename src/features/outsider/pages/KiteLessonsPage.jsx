@@ -93,7 +93,7 @@ const PACKAGE_CONFIG = [
 
 const KiteLessonsPage = () => {
   const { t } = useTranslation(['outsider']);
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('6h');
@@ -241,12 +241,7 @@ const KiteLessonsPage = () => {
     return duration ? duration.price : 0;
   };
 
-  const formatPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const getThemeColor = (pkg) => {
     const colors = {

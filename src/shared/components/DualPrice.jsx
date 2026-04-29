@@ -1,8 +1,8 @@
 /**
- * DualPrice — shows the EUR base price with the user's local currency equivalent.
+ * DualPrice — shows the EUR base price together with the user's local currency.
  *
  * Usage:
- *   <DualPrice eurPrice={650} />                → "€650.00 (~₺33,143.44)"
+ *   <DualPrice eurPrice={650} />                → "650€ / 21,125 ₺"
  *   <DualPrice eurPrice={650} size="lg" />      → larger variant
  *   <DualPrice eurPrice={650} layout="stack" /> → stacked (EUR on top, local below)
  *
@@ -16,7 +16,6 @@ const DualPrice = ({ eurPrice, size = 'md', layout = 'inline', className = '' })
   const amount = Number(eurPrice) || 0;
   const eurFormatted = formatCurrency(amount, 'EUR');
 
-  // If user is already on EUR, just show the EUR price
   if (!userCurrency || userCurrency === 'EUR') {
     return <span className={className}>{eurFormatted}</span>;
   }
@@ -36,16 +35,15 @@ const DualPrice = ({ eurPrice, size = 'md', layout = 'inline', className = '' })
     return (
       <span className={`inline-flex flex-col ${className}`}>
         <span className={s.primary}>{eurFormatted}</span>
-        <span className={`${s.secondary} opacity-60`}>~{localFormatted}</span>
+        <span className={`${s.secondary} opacity-60`}>{localFormatted}</span>
       </span>
     );
   }
 
-  // inline (default)
   return (
     <span className={className}>
       <span className={s.primary}>{eurFormatted}</span>
-      <span className={`${s.secondary} opacity-60 ml-1`}>(~{localFormatted})</span>
+      <span className={`${s.secondary} opacity-60 ml-1`}>/ {localFormatted}</span>
     </span>
   );
 };

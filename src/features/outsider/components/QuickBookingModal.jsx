@@ -295,7 +295,7 @@ const PayStep = ({
     const eurStr = formatCurrency(eurAmt, 'EUR');
     if (!showLocalCurrency || !convertCurrency) return eurStr;
     const local = convertCurrency(eurAmt, 'EUR', userCurrency);
-    return `${eurStr} (~${formatCurrency(local, userCurrency)})`;
+    return `${eurStr} / ${formatCurrency(local, userCurrency)}`;
   };
 
   // Dual-price: show EUR first, then user's local currency equivalent (with discount applied)
@@ -305,7 +305,7 @@ const PayStep = ({
     const localFinal = (voucherDisc && voucherDisc.originalAmount > 0)
       ? Math.max(0, displayPrice * (voucherDisc.finalAmount / voucherDisc.originalAmount))
       : displayPrice;
-    return `${eurFormatted} (~${formatCurrency(localFinal, priceCurrency)})`;
+    return `${eurFormatted} / ${formatCurrency(localFinal, priceCurrency)}`;
   })();
 
   const isDeposit = paymentMethod === 'deposit';
@@ -958,7 +958,7 @@ const DoneStep = ({ packageName, paymentMethod, skipSchedule, purchasedPackage, 
         {isStandalone && displayPrice > 0 && (
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="text-slate-500">{t('outsider:quickBooking.done.price')}</span>
-            <span className="font-semibold text-slate-800">{(() => { const ef = formatCurrency(eurPrice || displayPrice, 'EUR'); if (!userCurrency || userCurrency === 'EUR' || priceCurrency === 'EUR') return ef; return `${ef} (~${formatCurrency(displayPrice, priceCurrency)})`; })()}</span>
+            <span className="font-semibold text-slate-800">{(() => { const ef = formatCurrency(eurPrice || displayPrice, 'EUR'); if (!userCurrency || userCurrency === 'EUR' || priceCurrency === 'EUR') return ef; return `${ef} / ${formatCurrency(displayPrice, priceCurrency)}`; })()}</span>
           </div>
         )}
         {!isExistingPackage && !isStandalone && (
@@ -1429,7 +1429,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
       const eurStr = formatCurrency(eurAmt, 'EUR');
       if (!userCurrency || userCurrency === 'EUR' || !convertCurrency) return eurStr;
       const local = convertCurrency(eurAmt, 'EUR', userCurrency);
-      return `${eurStr} (~${formatCurrency(local, userCurrency)})`;
+      return `${eurStr} / ${formatCurrency(local, userCurrency)}`;
     };
 
     modal.confirm({

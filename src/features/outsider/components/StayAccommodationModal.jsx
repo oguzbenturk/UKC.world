@@ -43,7 +43,7 @@ const toTitle = (v) =>
  *   onClose     – callback
  */
 const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookNow }) => {
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
   const isHotel = (unit?.type || '').toLowerCase() === 'room';
   const [photoIndex, setPhotoIndex] = useState(0);
   const [selectedKey, setSelectedKey] = useState('1night');
@@ -93,12 +93,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
   })();
 
   // ─── Price helpers ────────────────────────────────────────────────────────
-  const formatPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const getCurrentPrice = () => {
     if (selectedKey === 'custom') return pricePerNight * customNights;

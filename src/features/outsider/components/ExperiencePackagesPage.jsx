@@ -251,14 +251,9 @@ const ExperiencePackagesPage = ({
   const queryClient = useQueryClient();
   const { isAuthenticated, isGuest, refreshToken, user } = useAuth();
   const { openAuthModal } = useAuthModal();
-  const { userCurrency, formatCurrency, convertCurrency, businessCurrency } = useCurrency();
+  const { userCurrency, formatCurrency, formatDualCurrency, convertCurrency, businessCurrency } = useCurrency();
 
-  const formatCardPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatCardPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const cardTitleHoverClass = 'group-hover:text-cyan-300';
 

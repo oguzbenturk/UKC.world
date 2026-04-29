@@ -218,7 +218,7 @@ const ExperienceBookPackagePage = () => {
     if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
     const { price, currency } = getPackagePriceInCurrency(pkg, userCurrency, convertCurrency);
     if (currency === 'EUR') return eurFormatted;
-    return `${eurFormatted} (~${formatCurrency(price, currency)})`;
+    return `${eurFormatted} / ${formatCurrency(price, currency)}`;
   };
 
   return (

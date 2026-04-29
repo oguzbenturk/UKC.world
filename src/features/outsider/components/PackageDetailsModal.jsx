@@ -79,7 +79,7 @@ const PackageDetailsModal = ({ depsRef }) => {
   const { t } = useTranslation(['outsider']);
   const location = useLocation();
   const pathnameRef = useRef(location.pathname);
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
   const { user } = useAuth();
   const snap = useSyncExternalStore(subscribe, getPackageDetailsModalSnapshot, getPackageDetailsModalSnapshot);
   const { open, package: selectedPackage, selectedDuration } = snap;
@@ -118,12 +118,7 @@ const PackageDetailsModal = ({ depsRef }) => {
     return selectedPackage.durations?.[idx] ?? null;
   }, [selectedPackage, selectedDuration, customDurRow]);
 
-  const formatPrice = (eurPrice) => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const getCurrentPrice = () => {
     if (!selectedPackage) return 0;

@@ -4,6 +4,7 @@ import { Modal, Input, Alert } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { MailOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
+import './auth-modals.css';
 
 const ForgotPasswordModal = ({ visible, onClose }) => {
   const { t } = useTranslation(['public']);
@@ -84,14 +85,26 @@ const ForgotPasswordModal = ({ visible, onClose }) => {
                 {t('public:forgotPassword.emailLabel')}
               </label>
               <Input
-                prefix={<MailOutlined className="text-gray-600 mr-2" />}
+                prefix={<MailOutlined style={{ color: '#6b7280', marginRight: 8 }} />}
                 type="email"
                 placeholder={t('public:forgotPassword.emailPlaceholder')}
                 size="large"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="bg-white/5 border-white/10 rounded-xl text-white h-12 focus:border-duotone-blue focus:ring-duotone-blue"
+                className="forgot-password-input rounded-xl h-12"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  borderColor: 'rgba(255,255,255,0.12)',
+                  color: '#ffffff'
+                }}
+                styles={{
+                  input: {
+                    backgroundColor: 'transparent',
+                    color: '#ffffff',
+                    caretColor: '#ffffff'
+                  }
+                }}
                 autoFocus
               />
             </div>

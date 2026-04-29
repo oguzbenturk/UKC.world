@@ -78,7 +78,7 @@ function MyOrdersPage() {
   const { t } = useTranslation(['student']);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatCurrency, formatDualCurrency, convertCurrency, userCurrency } = useCurrency();
 
   const STATUS_CONFIG = buildStatusConfig(t);
   const FILTER_OPTIONS = buildFilterOptions(t);
@@ -176,10 +176,7 @@ function MyOrdersPage() {
   const latestOrder = orders[0] || null;
 
   /* ─── Helpers ─── */
-  const formatPrice = (price, currency = 'EUR') => {
-    const converted = convertCurrency(price, currency, userCurrency);
-    return formatCurrency(converted, userCurrency);
-  };
+  const formatPrice = (price, currency = 'EUR') => formatDualCurrency(price, currency);
 
   const getImageUrl = (url) => {
     if (!url) return null;

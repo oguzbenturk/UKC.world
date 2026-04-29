@@ -650,34 +650,48 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
       placement="right"
       closable={false}
       destroyOnHidden
-      styles={{ body: { padding: 0 }, header: { display: 'none' } }}
+      styles={{ body: { padding: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }, header: { display: 'none' } }}
     >
-      {/* Header */}
-      <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-white/15 backdrop-blur-sm p-2.5 rounded-xl">
-              <CalendarDaysIcon className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white m-0">{t('common:bookings.detail.title')}</h2>
-              <p className="text-slate-300 text-xs mt-0.5 m-0">
+      {/* Header — sticky, integrated into the body scroll surface */}
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md">
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-semibold tracking-[0.2em] uppercase mb-2 text-sky-600/80">
+                {t('common:bookings.detail.title')}
+              </div>
+              <h2 className="text-[19px] leading-tight font-semibold text-slate-900 m-0 truncate">
                 {booking?.service_name || booking?.serviceName || t('common:bookings.detail.viewAndManage')}
-              </p>
+              </h2>
+              {(booking?.date || booking?.startTime || booking?.start_hour || booking?.time) && (
+                <p className="mt-1.5 text-[13px] text-slate-500 m-0 flex items-center gap-1.5 flex-wrap">
+                  {booking?.date && <span>{formatDate(booking.date)}</span>}
+                  {booking?.date && (booking?.startTime || booking?.start_hour || booking?.time) && (
+                    <span className="text-slate-300" aria-hidden>·</span>
+                  )}
+                  {(booking?.startTime || booking?.start_hour || booking?.time) && (
+                    <span className="tabular-nums">
+                      {formatTime(booking.startTime || booking.start_hour || booking.time)}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
+            <button
+              onClick={onClose}
+              disabled={isProcessing}
+              aria-label="Close"
+              className="shrink-0 -mt-1 -mr-1 w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-40 bg-transparent border-0 cursor-pointer"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            disabled={isProcessing}
-            className="text-white/70 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-colors"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
         </div>
+        <div className="h-px bg-gradient-to-r from-transparent via-sky-200/70 to-transparent" />
       </div>
 
       {/* Content */}
-      <div className="p-5 overflow-y-auto" style={{ height: 'calc(100vh - 82px)' }}>
+      <div className="p-5">
                 {isDeleting ? (
                   <div className="space-y-3">                    <div className="bg-red-50 border-l-4 border-red-400 rounded-lg p-3">
                       <div className="flex items-center">
@@ -1165,15 +1179,58 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                       <label className="block text-sm font-bold text-gray-800 mb-2">
                         {t('common:bookings.detail.actualDuration')}
                       </label>
-                      <input
-                        type="number"
-                        min="0.5"
-                        step="0.5"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium"
-                        value={checkoutForm.actualDuration}
-                        onChange={(e) => handleCheckoutFormChange('actualDuration', parseFloat(e.target.value))}
-                        disabled={isProcessing}
-                      />
+                      <div className="flex items-stretch gap-2">
+                        <button
+                          type="button"
+                          aria-label="Decrease duration"
+                          className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-md bg-white text-gray-700 text-lg font-bold hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => {
+                            const current = parseFloat(checkoutForm.actualDuration) || 0;
+                            const next = Math.max(0.5, Math.round((current - 0.5) * 2) / 2);
+                            handleCheckoutFormChange('actualDuration', next);
+                          }}
+                          disabled={isProcessing || (parseFloat(checkoutForm.actualDuration) || 0) <= 0.5}
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0.5"
+                          step="0.5"
+                          className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-center"
+                          value={checkoutForm.actualDuration ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              handleCheckoutFormChange('actualDuration', '');
+                              return;
+                            }
+                            const parsed = parseFloat(raw);
+                            handleCheckoutFormChange('actualDuration', Number.isNaN(parsed) ? '' : parsed);
+                          }}
+                          onBlur={(e) => {
+                            const parsed = parseFloat(e.target.value);
+                            if (Number.isNaN(parsed) || parsed <= 0) {
+                              handleCheckoutFormChange('actualDuration', 0.5);
+                            }
+                          }}
+                          disabled={isProcessing}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Increase duration"
+                          className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-md bg-white text-gray-700 text-lg font-bold hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => {
+                            const current = parseFloat(checkoutForm.actualDuration) || 0;
+                            const next = Math.round((current + 0.5) * 2) / 2;
+                            handleCheckoutFormChange('actualDuration', next);
+                          }}
+                          disabled={isProcessing}
+                        >
+                          +
+                        </button>
+                      </div>
                       <p className="text-xs text-gray-600 mt-1">
                         Original duration: {Number(booking.duration) || 1} hour{(Number(booking.duration) || 1) !== 1 ? 's' : ''}
                       </p>

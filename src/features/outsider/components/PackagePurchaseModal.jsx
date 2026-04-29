@@ -54,7 +54,7 @@ const PackagePurchaseModal = ({
   onPurchase,
   isPurchasing = false
 }) => {
-  const { userCurrency, formatCurrency, convertCurrency } = useCurrency();
+  const { userCurrency, formatCurrency, formatDualCurrency, convertCurrency } = useCurrency();
   const { user } = useAuth();
   
   const isTrustedCustomer = user?.role && PAY_AT_CENTER_ALLOWED_ROLES.includes(user.role);
@@ -191,7 +191,7 @@ const PackagePurchaseModal = ({
                   <WalletOutlined />
                   <span>Pay from Wallet</span>
                   <Tag color="blue">
-                    {formatCurrency(walletBalance, userCurrency)}
+                    {formatDualCurrency(walletBalance, 'EUR')}
                   </Tag>
                 </div>
               </Radio>

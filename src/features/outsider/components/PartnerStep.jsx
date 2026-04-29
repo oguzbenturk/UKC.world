@@ -48,7 +48,7 @@ const { RangePicker } = DatePicker;
 const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ownedPackage, partnerInfo, onProceedToSchedule, serviceName, servicePrice }) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState(null); // null | 'friend' | 'find'
-  const { formatCurrency, userCurrency, convertCurrency } = useCurrency();
+  const { formatDualCurrency } = useCurrency();
   const [createdGroupId, setCreatedGroupId] = useState(null);
 
   const isStandalone = !packageData && !!serviceId;
@@ -67,12 +67,7 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
   // ── Shared data ──
   const pricePerPerson = 0;
   const eurPrice = isStandalone ? (servicePrice || 0) : (packageData?.price ? parseFloat(packageData.price) : 0);
-  const dualPrice = (() => {
-    const eurFormatted = formatCurrency(eurPrice, 'EUR');
-    if (!userCurrency || userCurrency === 'EUR') return eurFormatted;
-    const converted = convertCurrency ? convertCurrency(eurPrice, 'EUR', userCurrency) : eurPrice;
-    return `${eurFormatted} (~${formatCurrency(converted, userCurrency)})`;
-  })();
+  const dualPrice = formatDualCurrency(eurPrice, 'EUR');
 
   // Total hours for the selected package (used in both 'friend' and 'find' flows)
   const packageDurationHours = packageData?.totalHours || packageData?.duration_hours ||

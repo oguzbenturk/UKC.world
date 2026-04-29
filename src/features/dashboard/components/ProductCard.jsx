@@ -45,7 +45,7 @@ const ProductCard = memo(({
     const showLocal = userCurrency && userCurrency !== 'EUR';
 
     const formattedPrice = showLocal
-        ? `${eurFormatted} (~${formatCurrency(convertCurrency ? convertCurrency(product.price, productCurrency, userCurrency) : product.price, userCurrency)})`
+        ? `${eurFormatted} / ${formatCurrency(convertCurrency ? convertCurrency(product.price, productCurrency, userCurrency) : product.price, userCurrency)}`
         : eurFormatted;
 
     const formattedOriginal = (product.original_price && product.original_price > product.price)

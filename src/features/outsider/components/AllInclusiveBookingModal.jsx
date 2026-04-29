@@ -969,7 +969,7 @@ const AllInclusiveBookingModal = ({
     if (disc && typeof disc.finalAmount === 'number' && eurBase > 0) {
       localFinal = price * (disc.finalAmount / eurBase);
     }
-    return `${eurFormatted} (~${formatCurrency(localFinal, currency)})`;
+    return `${eurFormatted} / ${formatCurrency(localFinal, currency)}`;
   }, [selectedPackage, userCurrency, convertCurrency, appliedVoucher, formatCurrency]);
 
   // Fetch accommodation unit availability when modal opens

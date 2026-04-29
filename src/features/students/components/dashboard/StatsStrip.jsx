@@ -184,7 +184,7 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
 
 const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons = [], upcomingRentalsList = [], pastRentalsList = [] }) => {
   const { t } = useTranslation(['student']);
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatDualCurrency, convertCurrency, userCurrency } = useCurrency();
   const storageCurrency = businessCurrency || 'EUR';
   const { data: walletSummary } = useWalletSummary({ enabled: true, currency: storageCurrency });
   const { data: myPurchases = [] } = useQuery({
@@ -238,20 +238,21 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
       ? myPurchases.filter(p => p.status !== 'active' || (p.expires_at && new Date(p.expires_at) <= new Date()))
       : [];
 
-    // Wallet Balance
+    // Wallet Balance — kept in storageCurrency so the dashboard pill matches
+    // the StudentWalletModal's dual-currency display.
     const allBalances = walletSummary?.balances;
     let totalBalance = 0;
     if (Array.isArray(allBalances) && allBalances.length > 0) {
       totalBalance = allBalances.reduce((sum, row) => {
         const amt = Number(row.available) || 0;
         if (amt === 0) return sum;
-        if (row.currency === userCurrency || !convertCurrency) return sum + amt;
-        return sum + convertCurrency(amt, row.currency, userCurrency);
+        if (row.currency === storageCurrency || !convertCurrency) return sum + amt;
+        return sum + convertCurrency(amt, row.currency, storageCurrency);
       }, 0);
     } else {
       const singleAmt = Number(walletSummary?.available) || 0;
-      const singleCur = walletSummary?.currency || 'EUR';
-      totalBalance = (singleCur === userCurrency || !convertCurrency) ? singleAmt : convertCurrency(singleAmt, singleCur, userCurrency);
+      const singleCur = walletSummary?.currency || storageCurrency;
+      totalBalance = (singleCur === storageCurrency || !convertCurrency) ? singleAmt : convertCurrency(singleAmt, singleCur, storageCurrency);
     }
 
     return {
@@ -269,7 +270,7 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
           { label: t('student:dashboard.statsStrip.stats.completed'), value: completedRentals, accentKey: 'rentals_completed' },
           { label: t('student:dashboard.statsStrip.stats.upcoming'), value: upcomingRentals, accentKey: 'rentals_upcoming' },
           { label: t('student:dashboard.statsStrip.stats.days'), value: totalRentalDays, accentKey: 'rentals_days' },
-          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatCurrency(totalRentalSpent, userCurrency), accentKey: 'rentals_spent' },
+          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatDualCurrency(totalRentalSpent, storageCurrency), accentKey: 'rentals_spent' },
         ]
       },
       accommodations: {
@@ -278,7 +279,7 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
           { label: t('student:dashboard.statsStrip.stats.completed'), value: completedAccommodations, accentKey: 'accommodations_completed' },
           { label: t('student:dashboard.statsStrip.stats.upcoming'), value: upcomingAccommodations, accentKey: 'accommodations_upcoming' },
           { label: t('student:dashboard.statsStrip.stats.nights'), value: totalAccommodationNights, accentKey: 'accommodations_nights' },
-          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatCurrency(totalAccommodationSpent, userCurrency), accentKey: 'accommodations_spent' },
+          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatDualCurrency(totalAccommodationSpent, storageCurrency), accentKey: 'accommodations_spent' },
         ]
       },
       shop: {
@@ -286,7 +287,7 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
         items: [
           { label: t('student:dashboard.statsStrip.stats.completed'), value: completedOrders, accentKey: 'orders_completed' },
           { label: t('student:dashboard.statsStrip.stats.pending'), value: pendingOrders, accentKey: 'orders_pending' },
-          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatCurrency(totalOrdersSpent, userCurrency), accentKey: 'orders_spent' },
+          { label: t('student:dashboard.statsStrip.stats.spent'), value: formatDualCurrency(totalOrdersSpent, storageCurrency), accentKey: 'orders_spent' },
         ]
       },
       memberships: {
@@ -299,11 +300,11 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
       wallet: {
         label: t('student:dashboard.statsStrip.wallet'),
         items: [
-          { label: t('student:dashboard.statsStrip.stats.balance'), value: formatCurrency(totalBalance, userCurrency), accentKey: 'balance' },
+          { label: t('student:dashboard.statsStrip.stats.balance'), value: formatDualCurrency(totalBalance, storageCurrency), accentKey: 'balance' },
         ]
       }
     };
-  }, [t, stats, walletSummary, myPurchases, formatCurrency, convertCurrency, userCurrency]);
+  }, [t, stats, walletSummary, myPurchases, formatDualCurrency, convertCurrency, storageCurrency, userCurrency]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -331,7 +332,7 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
           {key === 'accommodations' && (
             <AccommodationCards
               bookings={myAccommodations}
-              formatPrice={(price, cur) => formatCurrency(convertCurrency(price || 0, cur || 'EUR', userCurrency), userCurrency)}
+              formatPrice={(price, cur) => formatDualCurrency(price || 0, cur || storageCurrency)}
             />
           )}
           {key === 'memberships' && <MembershipCards purchases={myPurchases} />}

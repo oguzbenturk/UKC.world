@@ -21,6 +21,7 @@ import { getDashboardSummary } from '../services/dashboardSummaryService.js';
 import { getInstructorEarningsData } from '../services/instructorFinanceService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
 import { logAuditEvent } from '../services/auditLogService.js';
+import { listSpots, getSpotReport, getAllSpotReports } from '../services/weather/index.js';
 
 const router = express.Router();
 
@@ -1971,47 +1972,91 @@ router.post(
   },
 );
 
-// ── GET /weather — Wind/weather forecast for a date (Urla, Izmir) ────────────
+// ── GET /wind-spots — List forecasted kite spots (all roles) ─────────────────
+// Use this so Kai can answer "what spots do you cover?" and look up the
+// spotId values for the /weather tool.
+router.get('/wind-spots', (_req, res) => {
+  const spots = listSpots().map((s) => ({
+    spotId: s.id,
+    nameKey: s.nameKey,
+    region: s.region,
+    lat: s.lat,
+    lon: s.lon,
+    timezone: s.timezone,
+  }));
+  res.json({ spots });
+});
+
+// ── GET /weather — Wind forecast from the Wind Report page (Windguru) ────────
+// Source of truth: same Windguru-backed service as the in-app Wind Report.
+// Query params:
+//   spotId  optional — gulbahce | alacati | pirlanta | gokceada (default: all)
+//   date    optional — YYYY-MM-DD; filters hours to that local day (default: today)
+//   weight  optional — rider weight in kg; if provided, adds suggested kite size (m²)
+const KITE_MIN_SQM = 5;
+const KITE_MAX_SQM = 15;
+const calcKiteSize = (weightKg, windKn) => {
+  if (!windKn || windKn < 1 || !weightKg) return null;
+  const base = (Number(weightKg) / Number(windKn)) * 2.5;
+  return Math.max(KITE_MIN_SQM, Math.min(KITE_MAX_SQM, Math.round(base)));
+};
+
+const shapeForecast = (report, { date, weightKg }) => {
+  if (report.error) {
+    return { spotId: report.spot.id, error: report.error };
+  }
+  const { spot, forecast } = report;
+  const hoursForDay = forecast.hours.filter((h) => h.dateLocal === date);
+  const hours = (hoursForDay.length ? hoursForDay : forecast.hours).map((h) => ({
+    date: h.dateLocal,
+    time: h.timeLocal,
+    windKn: h.wspdKn,
+    gustKn: h.gustKn,
+    dirText: h.dirText,
+    dirDeg: h.dirDeg,
+    tempC: h.tempC,
+    precipMm: h.precip1hMm,
+    cloudPct: h.cloudLowPct ?? h.cloudMidPct ?? h.cloudHighPct,
+    suggestedKiteSqm: calcKiteSize(weightKg, h.wspdKn),
+  }));
+  return {
+    spotId: spot.id,
+    nameKey: spot.nameKey,
+    location: forecast.location,
+    lat: forecast.lat,
+    lon: forecast.lon,
+    sstC: forecast.sstC,
+    model: forecast.model,
+    fetchedAt: forecast.fetchedAt,
+    hours,
+  };
+};
+
 router.get('/weather', async (req, res) => {
   try {
-    const { date } = req.query;
-    const targetDate = date || new Date().toISOString().slice(0, 10);
-    const lat = 38.3222;
-    const lon = 26.7636;
+    const { spotId, weight } = req.query;
+    const date = req.query.date && isoDate(req.query.date)
+      ? req.query.date
+      : new Date().toISOString().slice(0, 10);
+    const weightKg = weight != null ? toNum(weight) : null;
 
-    const url =
-      `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${lat}&longitude=${lon}` +
-      `&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,temperature_2m` +
-      `&start_date=${targetDate}&end_date=${targetDate}` +
-      `&timezone=Europe%2FIstanbul&wind_speed_unit=kn`;
+    if (spotId) {
+      try {
+        const report = await getSpotReport(spotId);
+        return res.json({
+          date,
+          spot: shapeForecast(report, { date, weightKg }),
+        });
+      } catch (err) {
+        const msg = err?.message || 'Failed to fetch forecast';
+        if (msg.startsWith('Unknown spot')) return res.status(404).json({ error: msg });
+        throw err;
+      }
+    }
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Weather API unavailable');
-    const data = await response.json();
-
-    const times = data.hourly?.time || [];
-    const dirToCardinal = (deg) => {
-      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-      return dirs[Math.round(deg / 45) % 8];
-    };
-
-    const keyHours = [9, 12, 15, 18];
-    const forecast = keyHours
-      .map((h) => {
-        const idx = times.findIndex((t) => t.includes(`T${String(h).padStart(2, '0')}:00`));
-        if (idx === -1) return null;
-        return {
-          time: `${h}:00`,
-          windKnots: Math.round(data.hourly.wind_speed_10m[idx]),
-          gustsKnots: Math.round(data.hourly.wind_gusts_10m[idx]),
-          windDirection: dirToCardinal(data.hourly.wind_direction_10m[idx]),
-          tempC: Math.round(data.hourly.temperature_2m[idx]),
-        };
-      })
-      .filter(Boolean);
-
-    res.json({ date: targetDate, location: 'Urla, Izmir', forecast });
+    const reports = await getAllSpotReports();
+    const spots = reports.map((r) => shapeForecast(r, { date, weightKg }));
+    res.json({ date, spots });
   } catch (err) {
     logger.error('Agent GET /weather error', err);
     res.status(500).json({ error: 'Failed to fetch weather data' });

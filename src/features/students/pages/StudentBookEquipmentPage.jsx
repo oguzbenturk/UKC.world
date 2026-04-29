@@ -118,7 +118,7 @@ const rentalPackages = [
 
 function StudentBookEquipmentPage() {
   const { t } = useTranslation(['student']);
-  const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
+  const { formatCurrency, formatDualCurrency, convertCurrency, userCurrency } = useCurrency();
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState({});
   const [rentalServices, setRentalServices] = useState([]);
@@ -150,10 +150,7 @@ function StudentBookEquipmentPage() {
     loadRentalServices();
   }, []);
 
-  const formatPrice = (eurPrice) => {
-    const converted = convertCurrency(eurPrice, 'EUR', userCurrency);
-    return formatCurrency(converted, userCurrency);
-  };
+  const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   const handleBookEquipment = (service = null) => {
     if (service && service.id) {
