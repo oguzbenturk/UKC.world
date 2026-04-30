@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars, no-console */
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import { App as AntdApp } from 'antd';
@@ -10,6 +10,7 @@ import { i18nReady } from '@/i18n';
 import AppLocaleProvider from '@/i18n/AppLocaleProvider';
 import ErrorBoundary from '@/shared/components/error/ErrorBoundary';
 import AppErrorFallback from '@/shared/components/error/AppErrorFallback';
+import BootSplash from '@/shared/components/system/BootSplash';
 // Silence console noise by default (opt-in to debug via localStorage.DEBUG_CONSOLE='1')
 // import '@/shared/utils/silenceConsole.js'; // Temporarily disabled for debugging
 
@@ -80,7 +81,9 @@ const mount = () => {
       >
         <AntdApp>
           <QueryClientProvider client={queryClient}>
-            <App />
+            <Suspense fallback={<BootSplash />}>
+              <App />
+            </Suspense>
           </QueryClientProvider>
         </AntdApp>
       </AppLocaleProvider>
@@ -88,6 +91,12 @@ const mount = () => {
   );
 };
 
-// Wait for i18n to finish loading its namespaces before mounting so the UI never
-// flashes raw translation keys. If loading fails, mount anyway so the app still works.
-i18nReady.then(mount, mount);
+// Wait for i18n to finish loading every initial namespace before mounting so the UI
+// never flashes raw translation keys. On network failure, fall back to mounting after
+// a bounded timeout so the app remains usable; the Suspense boundary above will catch
+// any component that still depends on a not-yet-loaded namespace.
+const I18N_FALLBACK_TIMEOUT_MS = 5000;
+Promise.race([
+  i18nReady.catch(() => undefined),
+  new Promise((resolve) => setTimeout(resolve, I18N_FALLBACK_TIMEOUT_MS)),
+]).then(mount);

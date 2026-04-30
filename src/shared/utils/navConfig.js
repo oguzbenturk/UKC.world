@@ -323,7 +323,91 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     ];
   }
 
-  if ([ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER].includes(r)) {
+  // Manager-specific nav: same shape as admin nav, but with a manager-scoped
+  // dashboard target and a "My Finances" submenu instead of the org-wide
+  // Finance breakdown (which only admins/developers should see).
+  if (r === ROLES.MANAGER) {
+    return [
+      item('/manager/dashboard', 'Dashboard', 'HomeIcon', {
+        labelKey: 'common:nav.dashboard',
+        customStyle: { textColor: '#3b82f6' }
+      }),
+      item('/customers', 'Customers', 'UsersIcon', {
+        labelKey: 'common:nav.customers',
+        customStyle: { textColor: '#06b6d4' }
+      }),
+      item('/instructors', 'Instructors', 'AcademicCapIcon', {
+        labelKey: 'common:nav.instructors',
+        customStyle: { textColor: '#eab308' },
+        isDirectLink: true,
+        subItems: [
+          { to: '/instructors/managers', label: 'Managers', labelKey: 'common:nav.managers', noDot: true }
+        ]
+      }),
+      item('/calendars', 'Calendars', 'CalendarDaysIcon', {
+        labelKey: 'common:nav.calendars',
+        customStyle: { textColor: '#14b8a6' },
+        subItems: [
+          { to: '/calendars/shop-orders', label: 'Shop', labelKey: 'common:nav.shop', dotColor: '#ec4899' },
+          { to: '/calendars/lessons', label: 'Academy', labelKey: 'common:nav.academy', dotColor: '#4ade80' },
+          { to: '/calendars/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
+          { to: '/calendars/members', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
+          { to: '/repairs', label: 'Care', labelKey: 'common:nav.care', dotColor: '#14b8a6' },
+          { to: '/calendars/stay', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
+          { to: '/calendars/events', label: 'Community (Events)', labelKey: 'common:nav.communityEvents', dotColor: '#0ea5e9' }
+        ]
+      }),
+      item('/services', 'Services Parameters', 'CogIcon', {
+        labelKey: 'common:nav.servicesParameters',
+        customStyle: { textColor: '#fb923c' },
+        subItems: [
+          { to: '/services/shop', label: 'Shop', labelKey: 'common:nav.shop', dotColor: '#ec4899' },
+          { to: '/services/lessons', label: 'Academy', labelKey: 'common:nav.academy', dotColor: '#4ade80' },
+          { to: '/services/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
+          { to: '/services/memberships', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
+          { to: '/services/accommodation', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
+          { to: '/services/packages', label: 'Experience', labelKey: 'common:nav.experience', dotColor: '#eab308' },
+          { to: '/services/events', label: 'Events', labelKey: 'common:nav.events', dotColor: '#0ea5e9' }
+        ]
+      }),
+      item('/manager/finance', 'My Finances', 'CurrencyDollarIcon', {
+        labelKey: 'common:nav.myFinances',
+        customStyle: { textColor: '#10b981' },
+        subItems: [
+          { to: '/manager/finance', label: 'Overview', labelKey: 'common:nav.financeOverview', icon: 'PresentationChartBarIcon' },
+          { to: '/manager/finance/earnings', label: 'Earnings', labelKey: 'common:nav.financeEarnings', icon: 'CurrencyDollarIcon' },
+          { to: '/manager/finance/upcoming', label: 'Upcoming Income', labelKey: 'common:nav.financeUpcoming', icon: 'WalletIcon' },
+          { to: '/manager/finance/payouts', label: 'Payouts', labelKey: 'common:nav.financePayouts', icon: 'WalletIcon' },
+          { to: '/finance/wallet-deposits', label: 'Wallet Transactions', labelKey: 'common:nav.walletDeposits', icon: 'WalletIcon' },
+          { to: '/manager/finance/settings', label: 'Commission Settings', labelKey: 'common:nav.financeCommissionSettings', icon: 'CogIcon' }
+        ]
+      }),
+      item('/marketing', 'Marketing', 'MegaphoneIcon', {
+        labelKey: 'common:nav.marketing',
+        customStyle: { textColor: '#f43f5e' },
+        subItems: [
+          { to: '/marketing', label: 'Campaign Builder', labelKey: 'common:nav.campaignBuilder', icon: 'RocketLaunchIcon' },
+          { to: '/quick-links', label: 'Links & Forms', labelKey: 'common:nav.linksAndForms', icon: 'LinkIcon' },
+          { to: '/admin/vouchers', label: 'Vouchers', labelKey: 'common:nav.vouchers', icon: 'SparklesIcon' }
+        ]
+      }),
+      item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
+        labelKey: 'common:nav.ratingAnalytics',
+        customStyle: { textColor: '#f59e0b' }
+      }),
+      item('/wind-report', 'Wind Report', 'CloudIcon', {
+        labelKey: 'common:nav.windReport',
+        customStyle: { textColor: '#0ea5e9' }
+      }),
+      item('/shop', 'Shop', 'ShoppingBagIcon', {
+        labelKey: 'common:nav.shop',
+        customStyle: { dotColor: '#2d6a3e', textColor: '#ec4899' },
+        isShopLink: true
+      })
+    ];
+  }
+
+  if ([ROLES.ADMIN, ROLES.DEVELOPER].includes(r)) {
     return [
       item('/dashboard', 'Dashboard', 'HomeIcon', {
         labelKey: 'common:nav.dashboard',

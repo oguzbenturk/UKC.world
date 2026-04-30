@@ -169,6 +169,12 @@
     "linksAndForms": "Links & Formulare",
     "vouchers": "Gutscheine",
     "inventory": "Inventar",
+    "myFinances": "My Finances",
+    "financeOverview": "Overview",
+    "financeEarnings": "Earnings",
+    "financeUpcoming": "Upcoming Income",
+    "financePayouts": "Payouts",
+    "financeCommissionSettings": "Commission Settings",
     "goTo": "Zu {{target}} gehen"
   },
   "shop": {

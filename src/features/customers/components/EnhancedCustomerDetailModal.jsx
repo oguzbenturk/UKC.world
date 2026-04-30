@@ -3,8 +3,9 @@ import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } fro
 import {
   Drawer, Tag, Spin, Avatar, Typography, Empty, Button, Space,
   Form, Input, InputNumber, Select, Modal, Alert, Tooltip,
-  Checkbox, List, Radio, Switch, Divider, App
+  Checkbox, List, Radio, Switch, Divider, App, DatePicker
 } from 'antd';
+import dayjs from 'dayjs';
 import { message } from '@/shared/utils/antdStatic';
 import {
   UserOutlined, MailOutlined, PhoneOutlined,
@@ -352,6 +353,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       // Pass the original amount + currency through to the backend so the Recent
       // Deposits view can show "€X / ₺Y". Backend handles the conversion using
       // the server-side currency_settings rate (source of truth).
+      const transactionDate = values.transactionDate?.toISOString() ?? null;
       const result = await FinancialService.addFunds(
         customerId,
         values.amount,
@@ -360,7 +362,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         values.referenceNumber,
         storageCurrency,
         isConversion ? inputCurrency : null,
-        isConversion ? values.amount : null
+        isConversion ? values.amount : null,
+        transactionDate
       );
       message.success('Funds added successfully');
       setShowAddFundsModal(false);
@@ -1340,7 +1343,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           form={paymentForm}
           layout="vertical"
           onFinish={handleAddFunds}
-          initialValues={{ amount: null, description: '', paymentMethod: 'cash', referenceNumber: '' }}
+          initialValues={{ amount: null, description: '', paymentMethod: 'cash', referenceNumber: '', transactionDate: dayjs() }}
           className="px-6 pt-5 pb-5"
         >
           {/* Amount + Currency Row */}
@@ -1421,6 +1424,16 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
               <Input placeholder="Receipt #, etc." size="large" />
             </Form.Item>
           </div>
+
+          <Form.Item name="transactionDate" label="Payment Date" className="mb-4">
+            <DatePicker
+              size="large"
+              className="w-full"
+              format="DD MMM YYYY"
+              allowClear={false}
+              disabledDate={(current) => current && current.isAfter(dayjs().endOf('day'))}
+            />
+          </Form.Item>
 
           <div className="flex gap-2 justify-end pt-1">
             <Button

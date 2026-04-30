@@ -173,6 +173,12 @@
     "linksAndForms": "Bağlantılar & Formlar",
     "vouchers": "Kuponlar",
     "inventory": "Envanter",
+    "myFinances": "My Finances",
+    "financeOverview": "Overview",
+    "financeEarnings": "Earnings",
+    "financeUpcoming": "Upcoming Income",
+    "financePayouts": "Payouts",
+    "financeCommissionSettings": "Commission Settings",
     "goTo": "{{target}} sayfasına git"
   },
   "shop": {

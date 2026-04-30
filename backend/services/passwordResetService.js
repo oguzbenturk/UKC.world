@@ -33,6 +33,38 @@ function hashToken(token) {
 }
 
 /**
+ * Issue a password reset token for an existing user and return the reset URL.
+ * Use this when you already know the user (e.g. just-registered customers) and want
+ * to embed a "set your password" link in another email — the welcome email — without
+ * going through the email-enumeration-safe public flow.
+ *
+ * @param {Object} opts
+ * @param {string} opts.userId
+ * @param {string} opts.email
+ * @param {string} [opts.ipAddress]
+ * @param {string} [opts.userAgent]
+ * @returns {Promise<{ resetUrl: string, expiresAt: Date, expiryHours: number }>}
+ */
+export async function issuePasswordResetTokenForUser({ userId, email, ipAddress = null, userAgent = null }) {
+  if (!userId || !email) {
+    throw new Error('userId and email are required to issue a password reset token');
+  }
+
+  const token = generateSecureToken();
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+
+  await pool.query(`
+    INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
+    VALUES ($1, $2, $3, $4, $5)
+  `, [userId, tokenHash, expiresAt, ipAddress, userAgent]);
+
+  const resetUrl = `${FRONTEND_URL.replace(/\/$/, '')}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+
+  return { resetUrl, expiresAt, expiryHours: TOKEN_EXPIRY_HOURS };
+}
+
+/**
  * Request a password reset for an email
  * @param {string} email - User's email address
  * @param {string} ipAddress - Request IP address
@@ -57,18 +89,13 @@ export async function requestPasswordReset(email, ipAddress, userAgent) {
 
     const user = userResult.rows[0];
 
-    // Check for recent reset requests (prevent spam)
-    const recentRequest = await client.query(`
-      SELECT id FROM password_reset_tokens 
-      WHERE user_id = $1 
-        AND created_at > NOW() - INTERVAL '5 minutes'
-        AND used_at IS NULL
-    `, [user.id]);
-
-    if (recentRequest.rows.length > 0) {
-      logger.warn('Password reset rate limited - recent request exists', { userId: user.id });
-      return { success: true, message: 'If an account exists with this email, you will receive a password reset link.' };
-    }
+    // Note: anti-abuse is handled by the express-rate-limit middleware
+    // (`passwordResetRateLimit`, keyed per IP+email). We deliberately do NOT
+    // gate here on "any unused token in the last N minutes" — that previously
+    // caused silent failures whenever a token had just been issued by another
+    // flow (e.g. the welcome email minting a setup link for a freshly-created
+    // customer made admin-triggered forgot-password swallow the email for 5
+    // minutes). Always invalidate prior tokens and issue a fresh one.
 
     // Invalidate any existing unused tokens for this user
     await client.query(`
@@ -299,6 +326,7 @@ Request IP: ${ipAddress}
 }
 
 export default {
+  issuePasswordResetTokenForUser,
   requestPasswordReset,
   validateResetToken,
   resetPassword

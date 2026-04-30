@@ -148,7 +148,8 @@ class FinancialService {
     referenceNumber = null,
     currency = null,
     originalCurrency = null,
-    originalAmount = null
+    originalAmount = null,
+    transactionDate = null
   ) {
     try {
       const response = await apiClient.post(`/finances/accounts/${userId}/add-funds`, {
@@ -158,7 +159,8 @@ class FinancialService {
         reference_number: referenceNumber,
         currency,
         original_currency: originalCurrency,
-        original_amount: originalAmount
+        original_amount: originalAmount,
+        transaction_date: transactionDate
       });
 
       return response.data;

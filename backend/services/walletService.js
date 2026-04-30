@@ -1155,7 +1155,10 @@ export async function recordTransaction({
   // Transaction transparency fields (for audit trail)
   originalAmount = null,
   originalCurrency = null,
-  transactionExchangeRate = null
+  transactionExchangeRate = null,
+  // Optional override for the business date of the transaction (e.g. admin
+  // back-dating a cash deposit). Defaults to NOW() in the DB when null.
+  transactionDate = null
 }) {
 
   if (!transactionType) {
@@ -1195,6 +1198,13 @@ export async function recordTransaction({
       return null;
     }
     return Number(parsed.toFixed(6));
+  })();
+  const resolvedTransactionDate = (() => {
+    if (transactionDate === undefined || transactionDate === null || transactionDate === '') {
+      return null;
+    }
+    const parsed = transactionDate instanceof Date ? transactionDate : new Date(transactionDate);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   })();
   const numericAvailableDelta = availableDelta !== undefined ? toNumeric(availableDelta) : numericAmount;
   const numericPendingDelta = toNumeric(pendingDelta);
@@ -1285,12 +1295,14 @@ export async function recordTransaction({
          created_by,
          original_amount,
          original_currency,
-         transaction_exchange_rate
+         transaction_exchange_rate,
+         transaction_date
        )
        VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
          $11, $12, $13, $14, $15, $16, $17, $18,
-         $19, $20, $21::jsonb, $22, $23, $24, $25, $26, $27
+         $19, $20, $21::jsonb, $22, $23, $24, $25, $26, $27,
+         COALESCE($28::timestamptz, NOW())
        )
        RETURNING *`,
       [
@@ -1320,7 +1332,8 @@ export async function recordTransaction({
         createdBy || null,
         originalAmount !== null ? toNumeric(originalAmount) : null,
         originalCurrency ? originalCurrency.toUpperCase() : null,
-        transactionExchangeRate !== null ? toNumeric(transactionExchangeRate) : null
+        transactionExchangeRate !== null ? toNumeric(transactionExchangeRate) : null,
+        resolvedTransactionDate
       ]
     );
 

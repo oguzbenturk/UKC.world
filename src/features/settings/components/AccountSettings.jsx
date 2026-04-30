@@ -11,6 +11,7 @@ import { Card, Input, Button, Typography, Divider, Spin, DatePicker, App } from 
 import { UserOutlined, EditOutlined, LockOutlined, SaveOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
+import { PASSWORD_STRENGTH_REGEX, getPasswordChecks } from '@/shared/utils/passwordPolicy';
 import dayjs from 'dayjs';
 
 const { Text, Paragraph } = Typography;
@@ -120,8 +121,8 @@ export default function AccountSettings() {
       message.warning(t('admin:account.password.toast.enterCurrent'));
       return;
     }
-    if (passwords.newPassword.length < 8) {
-      message.warning(t('admin:account.password.toast.minLength'));
+    if (!PASSWORD_STRENGTH_REGEX.test(passwords.newPassword)) {
+      message.warning(t('admin:account.password.toast.strength'));
       return;
     }
     if (passwords.newPassword !== passwords.confirmPassword) {
@@ -138,7 +139,7 @@ export default function AccountSettings() {
       message.success(t('admin:account.password.toast.changed'));
       setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      const msg = err?.response?.data?.message || t('admin:account.password.toast.changeError');
+      const msg = err?.response?.data?.error || err?.response?.data?.message || t('admin:account.password.toast.changeError');
       message.error(msg);
     } finally {
       setSavingPassword(false);
@@ -338,11 +339,29 @@ export default function AccountSettings() {
               placeholder={t('admin:account.password.newPassword')}
               autoComplete="new-password"
             />
-            {passwords.newPassword && passwords.newPassword.length < 8 && (
-              <Paragraph className="!mb-0 text-xs text-red-500 mt-1">
-                {t('admin:account.password.toast.minLength')}
-              </Paragraph>
-            )}
+            {(() => {
+              const checks = getPasswordChecks(passwords.newPassword);
+              const items = [
+                { ok: checks.length, label: t('admin:account.password.requirements.length') },
+                { ok: checks.lower, label: t('admin:account.password.requirements.lower') },
+                { ok: checks.upper, label: t('admin:account.password.requirements.upper') },
+                { ok: checks.digit, label: t('admin:account.password.requirements.digit') },
+                { ok: checks.special, label: t('admin:account.password.requirements.special') },
+              ];
+              return (
+                <ul className="mt-2 space-y-0.5 text-xs list-none pl-0">
+                  {items.map((item) => (
+                    <li
+                      key={item.label}
+                      className={item.ok ? 'text-emerald-600' : 'text-slate-500'}
+                    >
+                      <span className="mr-1">{item.ok ? '✓' : '○'}</span>
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </div>
 
           <div>

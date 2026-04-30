@@ -173,6 +173,12 @@
     "linksAndForms": "Liens & Formulaires",
     "vouchers": "Bons",
     "inventory": "Inventaire",
+    "myFinances": "My Finances",
+    "financeOverview": "Overview",
+    "financeEarnings": "Earnings",
+    "financeUpcoming": "Upcoming Income",
+    "financePayouts": "Payouts",
+    "financeCommissionSettings": "Commission Settings",
     "goTo": "Aller à {{target}}"
   },
   "shop": {

@@ -127,7 +127,8 @@ export const useDashboardData = () => {
     const totalCustomerDebt = number(balances.total_customer_debt);
     const managerCommission = number(summary?.managerCommission?.total);
     const managerCommissionByService = summary?.managerCommission?.byServiceType || {};
-    const netRevenue = totalRevenue - totalRefunds - managerCommission;
+    const instructorCommission = number(summary?.netRevenue?.instructor_commission);
+    const netRevenue = totalRevenue - totalRefunds - instructorCommission - managerCommission;
 
     return {
       totalRevenue,
@@ -148,8 +149,9 @@ export const useDashboardData = () => {
   }, [summary, ops]);
 
   // Phase 2: operational KPIs from /api/dashboard/summary
-  // /dashboard/summary doesn't include manager commission, so we splice it in from
-  // the /finances/summary response (`summary?.managerCommission?.total`) and recompute net.
+  // /dashboard/summary already returns rev.net with manager commission subtracted
+  // (see backend/services/dashboardSummaryService.js — `net = SUM(amount) - managerCommissionTotal`),
+  // so we use it as-is. We also expose the manager commission total separately for KPI display.
   const operationalKpis = useMemo(() => {
     const ds = dashboardSummary || {};
     const lessons = ds.lessons || {};
@@ -158,9 +160,8 @@ export const useDashboardData = () => {
     const cust = ds.customers || {};
     const rev = ds.revenue || {};
     const svc = ds.services || {};
-    const managerCommission = number(summary?.managerCommission?.total);
-    const dsNet = number(rev.net);
-    const netRevenue = dsNet - managerCommission;
+    const managerCommission = number(rev.managerCommission);
+    const netRevenue = number(rev.net);
 
     return {
       upcomingBookings: number(lessons.upcoming),

@@ -1304,7 +1304,15 @@
         "changeError": "Failed to change password",
         "enterCurrent": "Please enter your current password",
         "minLength": "New password must be at least 8 characters",
+        "strength": "New password must include uppercase, lowercase, a number, and a special character (@$!%*?&)",
         "noMatch": "New passwords do not match"
+      },
+      "requirements": {
+        "length": "At least 8 characters",
+        "lower": "One lowercase letter",
+        "upper": "One uppercase letter",
+        "digit": "One number",
+        "special": "One special character (@$!%*?&)"
       }
     }
   }

@@ -45,8 +45,22 @@ export async function getManagerCommissionSummary(options = {}) {
   if (startDate) params.startDate = startDate;
   if (endDate) params.endDate = endDate;
   if (period) params.period = period;
-  
+
   const response = await apiClient.get('/manager/commissions/summary', { params });
+  return response.data;
+}
+
+/**
+ * Get manager's upcoming projected income (bookings/rentals not yet finalized)
+ */
+export async function getManagerUpcomingIncome(options = {}) {
+  const { sourceType, startDate, endDate } = options;
+  const params = {};
+  if (sourceType) params.sourceType = sourceType;
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+
+  const response = await apiClient.get('/manager/commissions/upcoming', { params });
   return response.data;
 }
 
@@ -147,6 +161,7 @@ export default {
   getManagerDashboard,
   getManagerCommissionHistory,
   getManagerCommissionSummary,
+  getManagerUpcomingIncome,
   getAllManagersWithSettings,
   getManagerSettings,
   updateManagerSettings,

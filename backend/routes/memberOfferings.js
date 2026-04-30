@@ -9,6 +9,7 @@ import { getBalance, getAllBalances, recordTransaction } from '../services/walle
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import CurrencyService from '../services/currencyService.js';
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
+import { recordMembershipCommission, cancelCommission } from '../services/managerCommissionService.js';
 
 const router = Router();
 
@@ -363,12 +364,7 @@ router.post(
 
       // Fire-and-forget manager commission for completed membership purchases
       if (paymentStatus === 'completed') {
-        try {
-          const { recordMembershipCommission } = await import('../services/managerCommissionService.js');
-          recordMembershipCommission(purchase).catch(() => {});
-        } catch {
-          // ignore
-        }
+        recordMembershipCommission(purchase).catch(() => {});
       }
 
       // For credit card payments (full or deposit), initiate Iyzico checkout
@@ -480,6 +476,9 @@ router.post('/purchases/:id/cancel', authenticateJWT, async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'No pending purchase found to cancel' });
     }
+
+    cancelCommission('membership', rows[0].id, 'purchase_cancelled').catch(() => {});
+
     logger.info(`Cancelled abandoned purchase ${id} for user ${userId}`);
     res.json({ message: 'Purchase cancelled', purchase: rows[0] });
   } catch (err) {
@@ -1173,6 +1172,8 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
         `UPDATE member_purchases SET status = 'cancelled', payment_status = 'failed', notes = CONCAT(COALESCE(notes, ''), ' | Payment Rejected'), updated_at = NOW() WHERE id = $1`,
         [receipt.member_purchase_id]
       );
+
+      cancelCommission('membership', receipt.member_purchase_id, 'payment_rejected').catch(() => {});
 
       try {
         await dispatchNotification({

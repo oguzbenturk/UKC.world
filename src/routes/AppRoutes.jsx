@@ -130,9 +130,16 @@ const GroupBookingDetailPage = lazyWithRetry(() => import('../features/bookings/
 const GroupBookingCreatePage = lazyWithRetry(() => import('../features/bookings/pages/GroupBookingCreatePage'));
 const GroupLessonRequestPage = lazyWithRetry(() => import('../features/bookings/pages/GroupLessonRequestPage'));
 const UserSettings = lazyWithRetry(() => import('../features/settings/pages/UserSettings'));
-const ManagerDashboard = lazyWithRetry(() => import('../features/manager/pages/ManagerDashboard'));
 const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
 const ManagerPayroll = lazyWithRetry(() => import('../features/manager/pages/ManagerPayroll'));
+// Manager experience (new) — Home dashboard + dedicated finance hub
+const ManagerHomeDashboard = lazyWithRetry(() => import('@/features/manager/pages/ManagerHomeDashboard'));
+const ManagerFinanceOverview = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerFinanceOverview'));
+const ManagerEarnings = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerEarnings'));
+const ManagerUpcomingIncome = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerUpcomingIncome'));
+const ManagerPayouts = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerPayouts'));
+const ManagerFinanceCommissionSettings = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerCommissionSettings'));
+const ManagerFinanceLayout = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerFinanceLayout'));
 const ChatPage = lazyWithRetry(() => import('../features/chat/pages/ChatPage'));
 
 // Calendar views
@@ -304,8 +311,9 @@ const AppRoutes = () => {
       return featureFlags.studentPortal ? '/student/dashboard' : '/student';
     }
     if (role === ROLES.INSTRUCTOR) return '/instructor/dashboard';
-    // Admin, manager, developer, and ALL custom roles go to admin dashboard
-    // Standard staff roles and any custom role not matching outsider/student
+    if (role === ROLES.MANAGER) return '/manager/dashboard';
+    // Admin, developer, and ALL custom roles go to admin dashboard
+    // Standard staff roles and any custom role not matching outsider/student/manager
     return '/dashboard';
   };
 
@@ -498,7 +506,17 @@ const AppRoutes = () => {
         <Route path="/instructors/managers" element={<ManagerCommissionSettings />} />
         <Route path="/admin/manager-commissions" element={<Navigate to="/instructors/managers" replace />} />
         <Route path="/admin/manager-payroll/:managerId" element={<ManagerPayroll />} />
-        <Route path="/manager/commissions" element={<ManagerDashboard />} />
+        {/* Legacy redirect: /manager/commissions → /manager/finance/earnings */}
+        <Route path="/manager/commissions" element={<Navigate to="/manager/finance/earnings" replace />} />
+        {/* Manager-only: dashboard + dedicated finance hub */}
+        <Route path="/manager/dashboard" element={<ManagerHomeDashboard />} />
+        <Route path="/manager/finance" element={<ManagerFinanceLayout />}>
+          <Route index element={<ManagerFinanceOverview />} />
+          <Route path="earnings" element={<ManagerEarnings />} />
+          <Route path="upcoming" element={<ManagerUpcomingIncome />} />
+          <Route path="payouts" element={<ManagerPayouts />} />
+          <Route path="settings" element={<ManagerFinanceCommissionSettings />} />
+        </Route>
         {/* Services - Package Management (managers and above only) */}
         <Route path="/services/packages" element={<PackageManagement />} />
         {/* Marketing - managers and above */}

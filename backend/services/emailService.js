@@ -72,24 +72,27 @@ async function resolveTransporter() {
 
 /**
  * Send an email with consent checking for marketing communications
- * 
+ *
  * @param {Object} options
  * @param {string} options.to - Recipient email
  * @param {string} options.subject - Email subject
  * @param {string} options.text - Plain text content
  * @param {string} options.html - HTML content
  * @param {Object} options.headers - Custom headers
+ * @param {string} options.from - Override sender (defaults to EMAIL_FROM / no-reply@plannivo.com).
+ *                                Use for personable emails (e.g. welcome) that should come from info@plannivo.com.
  * @param {string} options.userId - User ID (required for consent check)
  * @param {string} options.notificationType - Type of notification (e.g., 'booking_confirmation', 'promotion')
  * @param {boolean} options.skipConsentCheck - Skip consent check (use only for transactional emails without userId)
  * @returns {Promise<Object>} Send result
  */
-export async function sendEmail({ 
-  to, 
-  subject, 
-  text, 
-  html, 
+export async function sendEmail({
+  to,
+  subject,
+  text,
+  html,
   headers,
+  from,
   userId,
   notificationType,
   skipConsentCheck = false
@@ -134,7 +137,7 @@ export async function sendEmail({
   }
 
   const mailOptions = {
-    from: DEFAULT_FROM,
+    from: from || DEFAULT_FROM,
     replyTo: DEFAULT_REPLY_TO,
     to,
     subject,

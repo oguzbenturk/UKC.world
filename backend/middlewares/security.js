@@ -131,7 +131,7 @@ export const twoFactorRateLimit = rateLimit({
 });
 
 const defaultPasswordResetLimit = () => {
-  const fallback = CURRENT_ENV === 'production' ? 3 : 1000;
+  const fallback = CURRENT_ENV === 'production' ? 10 : 1000;
   return parsePositiveInt(process.env.PASSWORD_RESET_RATE_LIMIT_MAX, fallback);
 };
 

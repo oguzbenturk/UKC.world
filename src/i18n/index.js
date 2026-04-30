@@ -30,7 +30,7 @@ export const i18nReady = i18n
     },
     returnEmptyString: false,
     react: {
-      useSuspense: false,
+      useSuspense: true,
     },
   });
 

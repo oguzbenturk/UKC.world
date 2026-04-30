@@ -1,4 +1,60 @@
 {
+  "home": {
+    "title": "Manager Home",
+    "subtitle": "Run your academy and track your earnings.",
+    "earnings": {
+      "title": "My Earnings",
+      "viewDetails": "View earnings details"
+    },
+    "quickLinks": {
+      "title": "Quick Links",
+      "createBooking": "Create Booking",
+      "viewCalendar": "View Calendar",
+      "myEarnings": "My Earnings",
+      "upcomingIncome": "Upcoming Income",
+      "customers": "Customers",
+      "inventory": "Inventory"
+    },
+    "operational": {
+      "title": "Academy at a Glance",
+      "fullDashboard": "Full dashboard"
+    },
+    "kpi": {
+      "totalCustomers": "Total Customers",
+      "newThisMonth": "{{count}} new this month",
+      "students": "Students",
+      "instructors": "Instructors",
+      "shopCustomers": "Shop Customers",
+      "upcomingBookings": "Upcoming Bookings",
+      "activeNow": "{{count}} active now",
+      "completedHours": "Completed Hours",
+      "completedBookings": "{{count}} bookings done",
+      "activeRentals": "Active Rentals",
+      "upcomingRentals": "{{count}} upcoming",
+      "totalRentals": "Total Rentals",
+      "grossLessons": "Gross Lessons",
+      "grossRentals": "Gross Rentals",
+      "netRevenue": "Net Revenue",
+      "afterCommissions": "After commissions",
+      "outstandingDebt": "Outstanding Debt",
+      "customersOwing": "{{count}} customers",
+      "accommodationBookings": "Accommodation",
+      "totalNights": "{{count}} nights",
+      "activeMembers": "Active Members",
+      "totalServices": "Services",
+      "categories": "{{count}} categories",
+      "transactions": "Transactions"
+    },
+    "inventory": {
+      "title": "Inventory Health",
+      "manage": "Manage equipment",
+      "empty": "No equipment tracked",
+      "total": "Total",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "needsService": "Needs Service"
+    }
+  },
   "dashboard": {
     "title": "Мои Доходы",
     "salaryTypes": {
@@ -1972,6 +2028,106 @@
         "onboarding": "Адаптация",
         "marketing": "Маркетинг"
       }
+    }
+  },
+  "finance": {
+    "layout": {
+      "title": "My Finances",
+      "tabs": {
+        "overview": "Overview",
+        "earnings": "Earnings",
+        "upcoming": "Upcoming",
+        "payouts": "Payouts",
+        "settings": "Settings"
+      }
+    },
+    "overview": {
+      "subtitle": "Your personal financial picture",
+      "description": "Earnings, projections, payouts and commission setup",
+      "periods": {
+        "currentMonth": "Current Month",
+        "lastMonth": "Last Month",
+        "currentYear": "Year to Date"
+      },
+      "stats": {
+        "thisMonthEarned": "This Month Earned",
+        "pendingPayout": "Pending Payout",
+        "projectedUpcoming": "Projected Upcoming",
+        "projectedSub": "{{count}} upcoming items",
+        "ytd": "Year to Date",
+        "vsLastMonth": "vs Last Month",
+        "totalPayoutsReceived": "Total Payouts Received",
+        "payoutsSub": "{{count}} commissions paid"
+      },
+      "trend": {
+        "label": "Earnings",
+        "title": "Recent Months",
+        "empty": "No earnings data yet"
+      },
+      "quickLinks": {
+        "title": "Quick Links",
+        "earnings": {
+          "title": "Earnings Details",
+          "description": "Full commission breakdown"
+        },
+        "upcoming": {
+          "title": "Upcoming Income",
+          "description": "Projected from open bookings"
+        },
+        "payouts": {
+          "title": "Payouts Received",
+          "description": "History of paid commissions"
+        },
+        "settings": {
+          "title": "Commission Settings",
+          "description": "View your salary configuration"
+        }
+      }
+    },
+    "upcoming": {
+      "title": "Upcoming Income",
+      "subtitle": "Projected commissions from open bookings and rentals",
+      "totalLabel": "Total Projected",
+      "totalSub": "{{count}} upcoming items",
+      "byCategory": "By Category",
+      "itemsTitle": "Upcoming Items",
+      "columns": {
+        "projected": "Projected"
+      },
+      "empty": "No upcoming income at this time",
+      "footnote": "Projections based on bookings/rentals on the calendar that have not yet been completed or finalized. Final amounts may differ."
+    },
+    "payouts": {
+      "title": "Payouts",
+      "subtitle": "History of paid commissions",
+      "stats": {
+        "ytdTotal": "Total Received YTD",
+        "totalReceived": "Total Received",
+        "payoutCount": "Payouts",
+        "payoutCountSub": "Distinct payment dates"
+      },
+      "historyTitle": "Payout History",
+      "columns": {
+        "date": "Payout Date",
+        "amount": "Amount",
+        "period": "Period Covered",
+        "relatedCount": "Items",
+        "method": "Method",
+        "notes": "Notes"
+      },
+      "itemsCount": "{{count}} items",
+      "includedCommissions": "Included Commissions",
+      "empty": "No payouts received yet"
+    },
+    "settings": {
+      "title": "Commission Settings",
+      "subtitle": "Your salary configuration as set by your administrator",
+      "adminNotice": "Settings managed by your administrator. Contact admin to request changes.",
+      "salaryType": "Salary Type",
+      "perLessonAmount": "Per Lesson Amount",
+      "monthlySalary": "Monthly Salary",
+      "commissionRates": "Commission Rates",
+      "notSet": "Not set"
     }
   }
 }

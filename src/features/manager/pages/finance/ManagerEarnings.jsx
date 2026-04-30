@@ -1,4 +1,4 @@
-// src/features/manager/pages/ManagerDashboard.jsx
+// src/features/manager/pages/finance/ManagerEarnings.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Tag, Table, Select, Empty, Progress, DatePicker } from 'antd';
@@ -8,33 +8,22 @@ import {
   CheckCircleOutlined, ClockCircleOutlined, PercentageOutlined,
   ThunderboltOutlined, BarChartOutlined,
 } from '@ant-design/icons';
-import { getManagerDashboard, getManagerCommissionHistory } from '../services/managerCommissionApi';
+import { getManagerDashboard, getManagerCommissionHistory } from '../../services/managerCommissionApi';
+import StatBox from '../../components/finance/StatBox';
 import { formatCurrency } from '@/shared/utils/formatters';
+import { SOURCE_COLOR, SOURCE_TAG } from '../../constants/commissionSources';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-const SOURCE_COLOR = { booking: '#1890ff', rental: '#52c41a', accommodation: '#722ed1', shop: '#fa8c16', membership: '#13c2c2', package: '#eb2f96' };
-const SOURCE_TAG = { booking: 'blue', rental: 'green', accommodation: 'purple', shop: 'orange', membership: 'cyan', package: 'magenta' };
 const STATUS_CFG = {
   pending: { color: 'gold', icon: <ClockCircleOutlined /> },
   paid: { color: 'green', icon: <CheckCircleOutlined /> },
   cancelled: { color: 'red', icon: null },
 };
 
-// ── Stat Box ────────────────────────────────────────────────────
-function StatBox({ label, value, sub, color = 'text-gray-800', border = 'border-gray-100' }) {
-  return (
-    <div className={`rounded-xl border ${border} bg-white p-4 min-w-0`}>
-      <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{label}</div>
-      <div className={`text-xl font-bold ${color} truncate`}>{value}</div>
-      {sub && <div className="text-[11px] text-gray-400 mt-1 truncate">{sub}</div>}
-    </div>
-  );
-}
-
-function ManagerDashboard() {
+function ManagerEarnings() {
   const { t } = useTranslation(['manager']);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -94,7 +83,6 @@ function ManagerDashboard() {
   const changePercent = parseFloat(comparison?.earningsChangePercent) || 0;
   const isUp = changePercent >= 0;
 
-  // Build active rate summary
   const activeRates = salaryType === 'commission'
     ? [
         { label: t('manager:dashboard.categoryBreakdown.bookings'), rate: settings?.bookingRate },
@@ -106,7 +94,6 @@ function ManagerDashboard() {
       ].filter(r => parseFloat(r.rate) > 0)
     : [];
 
-  // Build category breakdown from current period
   const breakdown = currentPeriod?.breakdown || {};
   const categories = [
     { key: 'bookings', label: t('manager:dashboard.categoryBreakdown.bookings'), color: SOURCE_COLOR.booking },
@@ -119,7 +106,6 @@ function ManagerDashboard() {
    .filter(c => c.amount > 0 || c.count > 0);
   const maxCatAmount = Math.max(...categories.map(c => c.amount), 1);
 
-  // Columns
   const columns = [
     {
       title: t('manager:dashboard.history.columns.date'), key: 'date', width: 100,
@@ -169,7 +155,6 @@ function ManagerDashboard() {
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
-      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-1">
@@ -193,7 +178,6 @@ function ManagerDashboard() {
         </div>
       </div>
 
-      {/* ── Summary Strip ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatBox
           label={t('manager:dashboard.stats.thisMonth')}
@@ -228,7 +212,6 @@ function ManagerDashboard() {
         </div>
       </div>
 
-      {/* ── Category Breakdown (this month) ── */}
       {categories.length > 0 && (
         <div className="rounded-xl border border-gray-100 bg-white p-5">
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-4">
@@ -255,7 +238,6 @@ function ManagerDashboard() {
         </div>
       )}
 
-      {/* ── Payment Progress (YTD) ── */}
       {(yearToDate?.totalEarned || 0) > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-green-100 bg-white p-4 text-center">
@@ -275,7 +257,6 @@ function ManagerDashboard() {
         </div>
       )}
 
-      {/* ── Commission History ── */}
       <div className="rounded-xl border border-gray-100 bg-white p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -336,4 +317,4 @@ function ManagerDashboard() {
   );
 }
 
-export default ManagerDashboard;
+export default ManagerEarnings;

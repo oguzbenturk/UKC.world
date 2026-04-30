@@ -23,7 +23,8 @@ import {
   getManagerCommissions,
   upsertManagerCommissionSettings,
   getAllManagersWithCommissionSettings,
-  getManagerPayrollEarnings
+  getManagerPayrollEarnings,
+  getManagerUpcomingIncome
 } from '../services/managerCommissionService.js';
 
 const router = express.Router();
@@ -163,6 +164,28 @@ router.get('/summary', authenticateJWT, authorizeRoles(['manager']), async (req,
   } catch (error) {
     logger.error('Error fetching manager commission summary:', { error: error.message, userId: req.user?.id });
     res.status(500).json({ success: false, error: 'Failed to fetch commission summary' });
+  }
+});
+
+/**
+ * @route   GET /api/manager/commissions/upcoming
+ * @desc    Get manager's projected/upcoming income from pending commissions
+ *          and from scheduled bookings/rentals/accommodation/shop/membership/packages
+ *          that haven't yet produced a commission row.
+ * @access  Manager only
+ */
+router.get('/upcoming', authenticateJWT, authorizeRoles(['manager']), async (req, res) => {
+  try {
+    const managerId = req.user.id;
+    const data = await getManagerUpcomingIncome(managerId);
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    logger.error('Error fetching manager upcoming income:', { error: error.message, userId: req.user?.id });
+    res.status(500).json({ success: false, error: 'Failed to fetch upcoming income' });
   }
 });
 

@@ -173,6 +173,12 @@
     "linksAndForms": "Ссылки и формы",
     "vouchers": "Ваучеры",
     "inventory": "Инвентарь",
+    "myFinances": "My Finances",
+    "financeOverview": "Overview",
+    "financeEarnings": "Earnings",
+    "financeUpcoming": "Upcoming Income",
+    "financePayouts": "Payouts",
+    "financeCommissionSettings": "Commission Settings",
     "goTo": "Перейти в {{target}}"
   },
   "shop": {

@@ -14,6 +14,40 @@ import { useAuth } from '@/shared/hooks/useAuth';
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
 const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/components/EnhancedInstructorDetailModal'));
 
+function CreatedBySection({ booking }) {
+  const createdByLabel = booking.createdByLabel || booking.created_by_name || booking.createdByName || null;
+  const createdAtRaw = booking.createdAt || booking.created_at || null;
+
+  let createdAtFormatted = booking.createdAtFormatted || null;
+  if (!createdAtFormatted && createdAtRaw) {
+    const d = new Date(createdAtRaw);
+    if (!isNaN(d.getTime())) {
+      try { createdAtFormatted = format(d, 'MMM dd, yyyy HH:mm'); } catch { /* leave null */ }
+    }
+  }
+
+  if (!createdByLabel && !createdAtFormatted) return null;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+        <h4 className="text-sm font-semibold text-slate-700 flex items-center">
+          <UserCircleIcon className="h-4 w-4 text-slate-400 mr-2" />
+          Created by
+        </h4>
+      </div>
+      <div className="p-4">
+        {createdByLabel && (
+          <p className="text-sm font-medium text-slate-800 m-0">{createdByLabel}</p>
+        )}
+        {createdAtFormatted && (
+          <p className="text-xs text-slate-500 mt-0.5 m-0">{createdAtFormatted}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Modal for viewing and editing booking details
  * 
@@ -1507,7 +1541,11 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           )}
                         </div>
                       </div>
-                    </div>                    {/* Notes */}
+                    </div>
+
+                    <CreatedBySection booking={booking} />
+
+                    {/* Notes */}
                     {booking.notes && (
                       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                         <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">

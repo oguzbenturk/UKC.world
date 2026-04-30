@@ -140,7 +140,9 @@ function RevenueAnalyticsDashboard({ dateRange, onDateRangeChange: _onDateRangeC
     const calculatedMissing = Math.max(0, serviceRevenueTotal - collectedRevenue);
     const missingTransactions = outstandingBalances !== 0 ? outstandingBalances : calculatedMissing;
     const managerCommission = toNumber(summary.managerCommission?.total);
-    const netRevenue = collectedRevenue - managerCommission;
+    const instructorCommission = toNumber(summary.netRevenue?.instructor_commission);
+    const totalRefunds = toNumber(revenue.total_refunds);
+    const netRevenue = collectedRevenue - totalRefunds - instructorCommission - managerCommission;
 
     return {
       totalTransactions,

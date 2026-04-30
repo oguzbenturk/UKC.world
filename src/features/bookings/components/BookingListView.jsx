@@ -25,6 +25,7 @@ import {
 } from '../utils/groupBookingUtils';
 
 import CalendarViewSwitcher from '@/shared/components/CalendarViewSwitcher';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 // Enable isBetween plugin for dayjs
 dayjs.extend(isBetween);
@@ -35,6 +36,8 @@ const BookingListView = () => {
   const navigate = useNavigate();
   const { modal, message } = App.useApp();
   const { t } = useTranslation(['common']);
+  const { getCurrencySymbol, businessCurrency } = useCurrency();
+  const currencySymbol = getCurrencySymbol(businessCurrency);
   const [bookings, setBookings] = useState([]);
   const [instructors, setInstructors] = useState([]);
   const [usersWithStudentRole, setUsersWithStudentRole] = useState([]);
@@ -435,6 +438,36 @@ const BookingListView = () => {
     }
   };
   
+  // Compute booking price — for package bookings, derive total from
+  // package_price ÷ package_total_hours × duration so we always show the
+  // service value even when paid with a package.
+  const getBookingPrice = useCallback((booking) => {
+    if (!booking) return null;
+
+    const isPackage = !!booking.customer_package_id && booking.payment_status === 'package';
+    if (isPackage) {
+      const totalHours = parseFloat(booking.package_total_hours);
+      const packagePrice = parseFloat(booking.package_price);
+      const duration = Number(booking.actualDuration) || Number(booking.duration) || 1;
+      if (Number.isFinite(totalHours) && totalHours > 0 && Number.isFinite(packagePrice)) {
+        return (packagePrice / totalHours) * duration;
+      }
+    }
+
+    const final = parseFloat(booking.final_amount);
+    if (Number.isFinite(final) && final > 0) return final;
+    const amount = parseFloat(booking.amount);
+    if (Number.isFinite(amount) && amount > 0) return amount;
+    const price = parseFloat(booking.price);
+    if (Number.isFinite(price) && price > 0) return price;
+    return null;
+  }, []);
+
+  const formatPrice = useCallback((value) => {
+    if (value == null || !Number.isFinite(value)) return '—';
+    return `${currencySymbol}${value.toFixed(2)}`;
+  }, [currencySymbol]);
+
   // Columns definition
   const columns = [
     {
@@ -491,6 +524,32 @@ const BookingListView = () => {
       ),
     },
     {
+      title: 'Price',
+      key: 'price',
+      width: 110,
+      align: 'right',
+      sorter: (a, b) => (getBookingPrice(a) || 0) - (getBookingPrice(b) || 0),
+      render: (record) => {
+        const price = getBookingPrice(record);
+        const isPackage = !!record.customer_package_id && record.payment_status === 'package';
+        const tooltip = isPackage
+          ? `Package value · ${record.duration || 1}h × ${formatPrice(
+              record.package_total_hours > 0 ? parseFloat(record.package_price) / parseFloat(record.package_total_hours) : null
+            )}/h`
+          : undefined;
+        return (
+          <Tooltip title={tooltip}>
+            <div className="text-right">
+              <div className="text-sm font-semibold text-slate-800 whitespace-nowrap">{formatPrice(price)}</div>
+              {isPackage && (
+                <div className="text-[10px] text-indigo-600 font-medium whitespace-nowrap">Package</div>
+              )}
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: t('common:bookings.columns.status'),
       dataIndex: 'status',
       key: 'status',
@@ -518,24 +577,6 @@ const BookingListView = () => {
       ],
       onFilter: (value, record) => (record.status || '').toLowerCase() === value,
       width: 120,
-    },
-    {
-      title: t('common:bookings.columns.createdBy'),
-      key: 'createdBy',
-      render: (_, record) => {
-        const label = record.createdByLabel || 'Unknown';
-        const timestamp = record.createdAtFormatted;
-        return (
-          <Tooltip title={timestamp ? `Created ${timestamp}` : undefined} placement="top">
-            <div>
-              <div className="text-sm text-slate-700 whitespace-nowrap">{label}</div>
-              {timestamp && <div className="text-[11px] text-slate-400 whitespace-nowrap">{timestamp}</div>}
-            </div>
-          </Tooltip>
-        );
-      },
-      sorter: (a, b) => (a.createdByLabel || '').localeCompare(b.createdByLabel || ''),
-      width: 155,
     },
     {
       title: '',
@@ -767,9 +808,20 @@ const BookingListView = () => {
                         <span>{booking.duration || 1}h</span>
                       </div>
 
-                      {/* Service */}
-                      <div className="text-xs text-slate-500 truncate mb-2">
-                        {booking.service_name || 'Lesson'}
+                      {/* Service + Price */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs text-slate-500 truncate">{booking.service_name || 'Lesson'}</span>
+                        {(() => {
+                          const price = getBookingPrice(booking);
+                          const isPackage = !!booking.customer_package_id && booking.payment_status === 'package';
+                          if (price == null) return null;
+                          return (
+                            <span className="text-xs font-semibold text-slate-800 whitespace-nowrap shrink-0">
+                              {formatPrice(price)}
+                              {isPackage && <span className="ml-1 text-[10px] text-indigo-600 font-medium">pkg</span>}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Actions (show on hover) */}

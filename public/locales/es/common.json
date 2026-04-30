@@ -173,6 +173,12 @@
     "linksAndForms": "Enlaces y Formularios",
     "vouchers": "Vales",
     "inventory": "Inventario",
+    "myFinances": "My Finances",
+    "financeOverview": "Overview",
+    "financeEarnings": "Earnings",
+    "financeUpcoming": "Upcoming Income",
+    "financePayouts": "Payouts",
+    "financeCommissionSettings": "Commission Settings",
     "goTo": "Ir a {{target}}"
   },
   "shop": {

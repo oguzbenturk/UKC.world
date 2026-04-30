@@ -18,6 +18,25 @@ import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from './currencyService.js';
 import { deriveLessonAmount, toNumber } from '../utils/instructorEarnings.js';
 
+// Filters manager_commissions rows to those whose source booking/rental is still
+// alive (not soft-deleted / cancelled). Without this, orphan commission rows for
+// deleted bookings or cancelled rentals inflate dashboard totals. Embed in a
+// WHERE clause; expects `mc` as the manager_commissions alias.
+export const MANAGER_COMMISSION_LIVE_GUARD_SQL = `(
+  mc.source_type NOT IN ('booking','rental')
+  OR (mc.source_type = 'booking' AND EXISTS (
+    SELECT 1 FROM bookings b
+    WHERE b.id = mc.source_id::uuid
+      AND b.deleted_at IS NULL
+      AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
+  ))
+  OR (mc.source_type = 'rental' AND EXISTS (
+    SELECT 1 FROM rentals r
+    WHERE r.id = mc.source_id::uuid
+      AND LOWER(TRIM(COALESCE(r.status, ''))) NOT IN ('cancelled', 'canceled')
+  ))
+)`;
+
 // Default commission rate (10%)
 const DEFAULT_MANAGER_COMMISSION_RATE = 10.0;
 
@@ -1420,6 +1439,498 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
   }
 }
 
+/**
+ * Get a manager's projected/upcoming income from:
+ *  1) already-existing pending commission rows (manager_commissions.status = 'pending')
+ *  2) projections for upcoming bookings/rentals/accommodation/shop/membership/packages
+ *     that are on the schedule but have not produced a commission row yet
+ *
+ * NOTE on scoping: bookings/rentals/accommodation/shop/membership/packages tables
+ * do not carry a manager_id column — the system is single-manager (see
+ * getDefaultManager()). All upcoming center activity is therefore projected for
+ * the requesting manager.
+ *
+ * @param {string} managerUserId - The manager user ID (from req.user.id)
+ * @returns {Promise<Object>} Upcoming income summary
+ */
+export async function getManagerUpcomingIncome(managerUserId) {
+  const ITEM_CAP = 200;
+
+  try {
+    // Manager settings drive the rate and salary type.
+    const settings = await getManagerCommissionSettings(managerUserId);
+    const salaryType = settings?.salary_type || 'commission';
+    const perLessonAmount = parseFloat(settings?.per_lesson_amount) || 0;
+    const isCommissionType = salaryType === 'commission';
+    const isPerLesson = salaryType === 'fixed_per_lesson';
+    const isMonthlySalary = salaryType === 'monthly_salary';
+
+    // Helper: project commission for a single source row given its EUR amount.
+    const projectFor = (sourceType, amountEur) => {
+      if (isMonthlySalary) return { rate: null, amount: 0 };
+      if (isPerLesson) {
+        // Per-lesson only applies to bookings; other categories yield nothing
+        // since the per-lesson model is per booked lesson.
+        if (sourceType === 'booking') return { rate: null, amount: perLessonAmount };
+        return { rate: null, amount: 0 };
+      }
+      const rate = getCommissionRate(settings, sourceType);
+      const amt = (parseFloat(amountEur) || 0) * (rate / 100);
+      return { rate, amount: amt };
+    };
+
+    // -------------------------------------------------
+    // 1) Existing pending commission rows for this manager
+    // -------------------------------------------------
+    const pendingRowsRes = await pool.query(
+      `SELECT
+         mc.id,
+         mc.source_type,
+         mc.source_id,
+         mc.source_amount,
+         mc.source_currency,
+         mc.commission_rate,
+         mc.commission_amount,
+         mc.source_date,
+         mc.status,
+         mc.metadata
+       FROM manager_commissions mc
+       WHERE mc.manager_user_id = $1
+         AND mc.status = 'pending'
+       ORDER BY mc.source_date ASC, mc.created_at ASC`,
+      [managerUserId]
+    );
+
+    // Track source_ids per type that already have a commission row, so the
+    // projection step below skips them (avoids double-counting).
+    const haveCommission = {
+      booking: new Set(),
+      rental: new Set(),
+      accommodation: new Set(),
+      shop: new Set(),
+      membership: new Set(),
+      package: new Set()
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const items = [];
+
+    for (const row of pendingRowsRes.rows) {
+      if (haveCommission[row.source_type]) {
+        haveCommission[row.source_type].add(String(row.source_id));
+      }
+      const md = row.metadata || {};
+      items.push({
+        id: row.id,
+        sourceType: row.source_type,
+        sourceId: row.source_id,
+        date: row.source_date instanceof Date
+          ? row.source_date.toISOString().slice(0, 10)
+          : (row.source_date ? String(row.source_date).slice(0, 10) : null),
+        sourceAmount: parseFloat(row.source_amount) || 0,
+        sourceCurrency: row.source_currency || 'EUR',
+        projectedCommission: parseFloat(row.commission_amount) || 0,
+        commissionRate: row.commission_rate != null ? parseFloat(row.commission_rate) : null,
+        status: 'pending_commission',
+        sourceDetails: {
+          studentName: md.studentName || md.customerName || md.guestName || null,
+          instructorName: md.instructorName || null,
+          serviceName: md.serviceName || md.equipmentName || md.offeringName || md.packageName || null
+        }
+      });
+    }
+
+    // ID lists for NOT-IN filters (UUIDs and integers handled per-type)
+    const bookingIdList = [...haveCommission.booking];
+    const rentalIdList = [...haveCommission.rental];
+    const accomIdList = [...haveCommission.accommodation];
+    const shopIdList = [...haveCommission.shop];
+    const memberIdList = [...haveCommission.membership];
+    const packageIdList = [...haveCommission.package];
+
+    // FX rates cached up-front so per-row currency conversion stays in-memory
+    // (avoids ~2 SELECTs per item × 1,200 items in the worst case).
+    const ratesRes = await pool.query(
+      `SELECT currency_code, exchange_rate FROM currency_settings WHERE is_active = true`
+    );
+    const fxRates = new Map(
+      ratesRes.rows.map(r => [r.currency_code, parseFloat(r.exchange_rate) || 1])
+    );
+    const toEur = (amount, currency) => {
+      const numeric = parseFloat(amount) || 0;
+      if (numeric <= 0) return 0;
+      if (!currency || currency === 'EUR') return numeric;
+      const fromRate = fxRates.get(currency);
+      const toRate = fxRates.get('EUR');
+      if (!fromRate || !toRate) return numeric;
+      return Math.round((numeric / fromRate) * toRate * 100) / 100;
+    };
+
+    // -------------------------------------------------
+    // 2) Projections from the calendar / scheduled items
+    //    (six independent SELECTs run in parallel)
+    // -------------------------------------------------
+    const shopIdNums = shopIdList.map(v => Number(v)).filter(Number.isFinite);
+    const memberIdNums = memberIdList.map(v => Number(v)).filter(Number.isFinite);
+
+    const [bookingsRes, rentalsRes, accomRes, shopRes, memberRes, packagesRes] = await Promise.all([
+      pool.query(
+        `SELECT
+           b.id,
+           b.date,
+           b.duration,
+           b.status,
+           b.payment_status,
+           b.final_amount,
+           b.amount,
+           b.currency,
+           s.name AS student_name,
+           i.name AS instructor_name,
+           srv.name AS service_name
+         FROM bookings b
+         LEFT JOIN users s ON s.id = b.student_user_id
+         LEFT JOIN users i ON i.id = b.instructor_user_id
+         LEFT JOIN services srv ON srv.id = b.service_id
+         WHERE b.deleted_at IS NULL
+           AND b.date >= CURRENT_DATE
+           AND LOWER(TRIM(COALESCE(b.status, ''))) NOT IN ('cancelled', 'no_show', 'pending_payment', 'completed', 'done', 'checked_out', 'checked-out')
+           AND ($1::uuid[] IS NULL OR b.id <> ALL($1::uuid[]))
+         ORDER BY b.date ASC, b.start_hour ASC NULLS LAST
+         LIMIT $2`,
+        [bookingIdList.length ? bookingIdList : null, ITEM_CAP]
+      ),
+      pool.query(
+        `SELECT
+           r.id,
+           r.start_date,
+           r.end_date,
+           r.status,
+           r.total_price,
+           u.name AS customer_name,
+           (
+             SELECT string_agg(s2.name, ', ')
+             FROM rental_equipment re2
+             LEFT JOIN services s2 ON s2.id = re2.equipment_id
+             WHERE re2.rental_id = r.id
+           ) AS equipment_name
+         FROM rentals r
+         LEFT JOIN users u ON u.id = r.user_id
+         WHERE LOWER(TRIM(COALESCE(r.status, ''))) IN ('active', 'upcoming', 'pending', 'overdue')
+           AND r.end_date >= CURRENT_DATE
+           AND ($1::uuid[] IS NULL OR r.id <> ALL($1::uuid[]))
+         ORDER BY r.start_date ASC
+         LIMIT $2`,
+        [rentalIdList.length ? rentalIdList : null, ITEM_CAP]
+      ),
+      pool.query(
+        `SELECT
+           ab.id,
+           ab.check_in_date,
+           ab.check_out_date,
+           ab.status,
+           ab.total_price,
+           u.name AS guest_name,
+           au.name AS unit_name
+         FROM accommodation_bookings ab
+         LEFT JOIN users u ON u.id = ab.guest_id
+         LEFT JOIN accommodation_units au ON au.id = ab.unit_id
+         WHERE ab.check_out_date >= CURRENT_DATE
+           AND LOWER(TRIM(COALESCE(ab.status, ''))) NOT IN ('cancelled', 'completed')
+           AND ($1::uuid[] IS NULL OR ab.id <> ALL($1::uuid[]))
+         ORDER BY ab.check_in_date ASC
+         LIMIT $2`,
+        [accomIdList.length ? accomIdList : null, ITEM_CAP]
+      ),
+      pool.query(
+        `SELECT
+           o.id,
+           o.created_at,
+           o.confirmed_at,
+           o.status,
+           o.total_amount,
+           o.currency,
+           o.order_number,
+           u.name AS customer_name
+         FROM shop_orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE LOWER(TRIM(COALESCE(o.status, ''))) IN ('pending', 'confirmed', 'processing', 'shipped')
+           AND ($1::int[] IS NULL OR o.id <> ALL($1::int[]))
+         ORDER BY COALESCE(o.confirmed_at, o.created_at) ASC
+         LIMIT $2`,
+        [shopIdNums.length ? shopIdNums : null, ITEM_CAP]
+      ),
+      pool.query(
+        `SELECT
+           mp.id,
+           mp.purchased_at,
+           mp.expires_at,
+           mp.status,
+           mp.payment_status,
+           mp.offering_price,
+           mp.offering_currency,
+           mp.offering_name,
+           u.name AS user_name
+         FROM member_purchases mp
+         LEFT JOIN users u ON u.id = mp.user_id
+         WHERE LOWER(TRIM(COALESCE(mp.status, ''))) IN ('pending', 'pending_payment', 'active')
+           AND (mp.expires_at IS NULL OR mp.expires_at >= NOW())
+           AND ($1::int[] IS NULL OR mp.id <> ALL($1::int[]))
+         ORDER BY mp.purchased_at ASC
+         LIMIT $2`,
+        [memberIdNums.length ? memberIdNums : null, ITEM_CAP]
+      ),
+      pool.query(
+        `SELECT
+           cp.id,
+           cp.purchase_date,
+           cp.purchase_price,
+           cp.currency,
+           cp.package_name,
+           cp.status,
+           u.name AS customer_name,
+           sp.name AS sp_name
+         FROM customer_packages cp
+         LEFT JOIN users u ON u.id = cp.customer_id
+         LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+         WHERE LOWER(TRIM(COALESCE(cp.status, ''))) = 'active'
+           AND ($1::uuid[] IS NULL OR cp.id <> ALL($1::uuid[]))
+         ORDER BY cp.purchase_date ASC
+         LIMIT $2`,
+        [packageIdList.length ? packageIdList : null, ITEM_CAP]
+      )
+    ]);
+
+    for (const r of bookingsRes.rows) {
+      const sourceCurrency = r.currency || 'EUR';
+      const sourceAmount = parseFloat(r.final_amount) || parseFloat(r.amount) || 0;
+      const amountEur = toEur(sourceAmount, sourceCurrency);
+      const { rate, amount } = projectFor('booking', amountEur);
+      const dateStr = r.date instanceof Date
+        ? r.date.toISOString().slice(0, 10)
+        : (r.date ? String(r.date).slice(0, 10) : null);
+      const lowered = String(r.status || '').toLowerCase();
+      const statusLabel = ['checked-in', 'checked_in'].includes(lowered) ? 'in_progress' : 'scheduled';
+      items.push({
+        id: r.id,
+        sourceType: 'booking',
+        sourceId: r.id,
+        date: dateStr,
+        sourceAmount,
+        sourceCurrency,
+        projectedCommission: amount,
+        commissionRate: rate,
+        status: statusLabel,
+        sourceDetails: {
+          studentName: r.student_name || null,
+          instructorName: r.instructor_name || null,
+          serviceName: r.service_name || null
+        }
+      });
+    }
+
+    for (const r of rentalsRes.rows) {
+      const sourceAmount = parseFloat(r.total_price) || 0;
+      const sourceCurrency = 'EUR'; // rentals table has no currency column
+      const amountEur = toEur(sourceAmount, sourceCurrency);
+      const { rate, amount } = projectFor('rental', amountEur);
+      const dateStr = r.start_date instanceof Date
+        ? r.start_date.toISOString().slice(0, 10)
+        : (r.start_date ? String(r.start_date).slice(0, 10) : null);
+      const statusLabel = ['active', 'overdue'].includes(String(r.status || '').toLowerCase())
+        ? 'in_progress'
+        : 'scheduled';
+      items.push({
+        id: r.id,
+        sourceType: 'rental',
+        sourceId: r.id,
+        date: dateStr,
+        sourceAmount,
+        sourceCurrency,
+        projectedCommission: amount,
+        commissionRate: rate,
+        status: statusLabel,
+        sourceDetails: {
+          studentName: r.customer_name || null,
+          instructorName: null,
+          serviceName: r.equipment_name || null
+        }
+      });
+    }
+
+    for (const r of accomRes.rows) {
+      const sourceAmount = parseFloat(r.total_price) || 0;
+      const sourceCurrency = 'EUR';
+      const amountEur = toEur(sourceAmount, sourceCurrency);
+      const { rate, amount } = projectFor('accommodation', amountEur);
+      const dateStr = r.check_in_date instanceof Date
+        ? r.check_in_date.toISOString().slice(0, 10)
+        : (r.check_in_date ? String(r.check_in_date).slice(0, 10) : null);
+      const checkIn = r.check_in_date ? new Date(r.check_in_date) : null;
+      checkIn?.setHours(0, 0, 0, 0);
+      const statusLabel = checkIn && checkIn <= today ? 'in_progress' : 'scheduled';
+      items.push({
+        id: r.id,
+        sourceType: 'accommodation',
+        sourceId: r.id,
+        date: dateStr,
+        sourceAmount,
+        sourceCurrency,
+        projectedCommission: amount,
+        commissionRate: rate,
+        status: statusLabel,
+        sourceDetails: {
+          studentName: r.guest_name || null,
+          instructorName: null,
+          serviceName: r.unit_name || null
+        }
+      });
+    }
+
+    for (const r of shopRes.rows) {
+      const sourceAmount = parseFloat(r.total_amount) || 0;
+      const sourceCurrency = r.currency || 'EUR';
+      const amountEur = toEur(sourceAmount, sourceCurrency);
+      const { rate, amount } = projectFor('shop', amountEur);
+      const refDate = r.confirmed_at || r.created_at;
+      const dateStr = refDate instanceof Date
+        ? refDate.toISOString().slice(0, 10)
+        : (refDate ? String(refDate).slice(0, 10) : null);
+      items.push({
+        id: r.id,
+        sourceType: 'shop',
+        sourceId: r.id,
+        date: dateStr,
+        sourceAmount,
+        sourceCurrency,
+        projectedCommission: amount,
+        commissionRate: rate,
+        status: 'in_progress',
+        sourceDetails: {
+          studentName: r.customer_name || null,
+          instructorName: null,
+          serviceName: r.order_number || null
+        }
+      });
+    }
+
+    for (const r of memberRes.rows) {
+      const sourceAmount = parseFloat(r.offering_price) || 0;
+      const sourceCurrency = r.offering_currency || 'EUR';
+      const amountEur = toEur(sourceAmount, sourceCurrency);
+      const { rate, amount } = projectFor('membership', amountEur);
+      const refDate = r.purchased_at;
+      const dateStr = refDate instanceof Date
+        ? refDate.toISOString().slice(0, 10)
+        : (refDate ? String(refDate).slice(0, 10) : null);
+      items.push({
+        id: r.id,
+        sourceType: 'membership',
+        sourceId: r.id,
+        date: dateStr,
+        sourceAmount,
+        sourceCurrency,
+        projectedCommission: amount,
+        commissionRate: rate,
+        status: 'in_progress',
+        sourceDetails: {
+          studentName: r.user_name || null,
+          instructorName: null,
+          serviceName: r.offering_name || null
+        }
+      });
+    }
+
+    for (const r of packagesRes.rows) {
+      const sourceAmount = parseFloat(r.purchase_price) || 0;
+      const sourceCurrency = r.currency || 'EUR';
+      const amountEur = toEur(sourceAmount, sourceCurrency);
+      const { rate, amount } = projectFor('package', amountEur);
+      const refDate = r.purchase_date;
+      const dateStr = refDate instanceof Date
+        ? refDate.toISOString().slice(0, 10)
+        : (refDate ? String(refDate).slice(0, 10) : null);
+      items.push({
+        id: r.id,
+        sourceType: 'package',
+        sourceId: r.id,
+        date: dateStr,
+        sourceAmount,
+        sourceCurrency,
+        projectedCommission: amount,
+        commissionRate: rate,
+        status: 'in_progress',
+        sourceDetails: {
+          studentName: r.customer_name || null,
+          instructorName: null,
+          serviceName: r.package_name || r.sp_name || null
+        }
+      });
+    }
+
+    // -------------------------------------------------
+    // Aggregate
+    // -------------------------------------------------
+    const byCategory = {
+      bookings:      { count: 0, amount: 0 },
+      rentals:       { count: 0, amount: 0 },
+      accommodation: { count: 0, amount: 0 },
+      shop:          { count: 0, amount: 0 },
+      membership:    { count: 0, amount: 0 },
+      packages:      { count: 0, amount: 0 }
+    };
+
+    const typeToCategory = {
+      booking: 'bookings',
+      rental: 'rentals',
+      accommodation: 'accommodation',
+      shop: 'shop',
+      membership: 'membership',
+      package: 'packages'
+    };
+
+    let totalProjected = 0;
+    for (const it of items) {
+      const cat = typeToCategory[it.sourceType];
+      if (!cat) continue;
+      byCategory[cat].count += 1;
+      byCategory[cat].amount += parseFloat(it.projectedCommission) || 0;
+      totalProjected += parseFloat(it.projectedCommission) || 0;
+    }
+
+    // Round monetary amounts to 2 decimals
+    const round2 = (n) => Math.round((parseFloat(n) || 0) * 100) / 100;
+    for (const cat of Object.keys(byCategory)) {
+      byCategory[cat].amount = round2(byCategory[cat].amount);
+    }
+    totalProjected = round2(totalProjected);
+
+    // Sort items by date ASC (nulls last) and cap to ITEM_CAP
+    items.sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return a.date.localeCompare(b.date);
+    });
+
+    const cappedItems = items.slice(0, ITEM_CAP).map(it => ({
+      ...it,
+      sourceAmount: round2(it.sourceAmount),
+      projectedCommission: round2(it.projectedCommission)
+    }));
+
+    return {
+      totalProjected,
+      byCategory,
+      items: cappedItems
+    };
+  } catch (error) {
+    logger.error('Error fetching manager upcoming income:', { error: error.message, managerUserId, stack: error.stack });
+    throw error;
+  }
+}
+
 export default {
   getManagerCommissionSettings,
   getDefaultManager,
@@ -1430,5 +1941,6 @@ export default {
   getManagerCommissions,
   upsertManagerCommissionSettings,
   getAllManagersWithCommissionSettings,
-  getManagerPayrollEarnings
+  getManagerPayrollEarnings,
+  getManagerUpcomingIncome
 };

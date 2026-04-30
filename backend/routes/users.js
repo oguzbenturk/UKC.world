@@ -9,6 +9,7 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 
 // Any user create/update must bust the /students and /for-booking caches so
 // freshly-added customers show up in booking/rental search immediately.
@@ -116,9 +117,16 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInv
       RETURNING *`;
 
     const { rows } = await pool.query(query, values);
+    const createdUser = rows[0];
+
+    sendWelcomeEmailWithResetLink({
+      user: createdUser,
+      req,
+      context: 'welcome email after admin user creation'
+    });
 
     // Don't return the password_hash in the response
-    const { password_hash, ...userWithoutPassword } = rows[0];
+    const { password_hash, ...userWithoutPassword } = createdUser;
     res.status(201).json(userWithoutPassword);
   } catch (err) {
     logger.error('User creation failed', err);

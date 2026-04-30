@@ -9,6 +9,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from '../services/currencyService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+import { recordAccommodationCommission, cancelCommission } from '../services/managerCommissionService.js';
 
 /**
  * Extract extended pricing metadata stored inside the amenities JSONB array.
@@ -482,13 +483,7 @@ router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin',
 			// ignore
 		}
 
-		// Fire-and-forget manager commission calculation
-		try {
-			const { recordAccommodationCommission } = await import('../services/managerCommissionService.js');
-			recordAccommodationCommission(row).catch(() => {});
-		} catch {
-			// ignore
-		}
+		recordAccommodationCommission(row).catch(() => {});
 
 		res.json(row);
 	} catch (err) {
@@ -560,6 +555,9 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 		}
 		
 		await client.query('COMMIT');
+
+		cancelCommission('accommodation', booking.id, 'booking_cancelled').catch(() => {});
+
 		res.json(booking);
 	} catch (err) {
 		await client.query('ROLLBACK');
@@ -945,11 +943,7 @@ router.patch('/bookings/:id/confirm', authenticateJWT, authorizeRoles(['admin', 
 		);
 		if (rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
 
-		// Fire-and-forget manager commission (duplicate guard prevents double-recording if also completed later)
-		try {
-			const { recordAccommodationCommission } = await import('../services/managerCommissionService.js');
-			recordAccommodationCommission(rows[0]).catch(() => {});
-		} catch { /* ignore */ }
+		recordAccommodationCommission(rows[0]).catch(() => {});
 
 		res.json(rows[0]);
 	} catch (err) {
@@ -1019,6 +1013,9 @@ router.delete('/bookings/:id', authenticateJWT, cacheInvalidationMiddleware(acco
 		if (rows.length === 0) {
 			return res.status(404).json({ error: 'Booking not found or not authorized to delete' });
 		}
+
+		cancelCommission('accommodation', rows[0].id, 'booking_deleted').catch(() => {});
+
 		res.json({ success: true, deleted: rows[0] });
 	} catch (err) {
 		logger.error('[ACCOMMODATION DELETE] error', err);

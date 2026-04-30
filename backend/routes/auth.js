@@ -9,12 +9,17 @@ import permissionService from '../services/permissionService.js';
 import { authRateLimit, passwordResetRateLimit, setCsrfCookie } from '../middlewares/security.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getConsentStatus, LATEST_TERMS_VERSION } from '../services/userConsentService.js';
-import { requestPasswordReset, validateResetToken, resetPassword } from '../services/passwordResetService.js';
+import {
+  requestPasswordReset,
+  validateResetToken,
+  resetPassword
+} from '../services/passwordResetService.js';
 import {
   sendVerificationEmail,
   verifyEmailToken,
   resendVerification
 } from '../services/emailVerificationService.js';
+import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { ERROR_CODES } from '../shared/errorCodes.js';
@@ -757,6 +762,12 @@ router.post('/register', authRateLimit, async (req, res) => {
         error: emailErr.message
       });
     }
+
+    sendWelcomeEmailWithResetLink({
+      user: newUser,
+      req,
+      context: 'welcome email after registration'
+    });
 
     res.status(201).json({
       message: 'Registration successful. Please check your email to verify your account before logging in.',

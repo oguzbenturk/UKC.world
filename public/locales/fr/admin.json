@@ -1304,7 +1304,15 @@
         "changeError": "Impossible de changer le mot de passe",
         "enterCurrent": "Veuillez entrer votre mot de passe actuel",
         "minLength": "Le nouveau mot de passe doit comporter au moins 8 caractères",
+        "strength": "Le nouveau mot de passe doit inclure une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&)",
         "noMatch": "Les nouveaux mots de passe ne correspondent pas"
+      },
+      "requirements": {
+        "length": "Au moins 8 caractères",
+        "lower": "Une lettre minuscule",
+        "upper": "Une lettre majuscule",
+        "digit": "Un chiffre",
+        "special": "Un caractère spécial (@$!%*?&)"
       }
     }
   }

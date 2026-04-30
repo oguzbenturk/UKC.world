@@ -1,6 +1,7 @@
 import { pool } from '../db.js';
 import { cacheService } from './cacheService.js';
 import { deriveLessonAmount, deriveTotalEarnings, toNumber as toNum } from '../utils/instructorEarnings.js';
+import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from './managerCommissionService.js';
 
 const UPCOMING_LESSON_STATUSES = ['pending', 'scheduled', 'confirmed', 'in_progress'];
 const ACTIVE_LESSON_STATUSES = ['in_progress', 'active'];
@@ -94,15 +95,18 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     ${bookingConditions.length ? `WHERE ${bookingConditions.join(' AND ')}` : ''}
   `;
 
+  // Rentals are "in" a date window when they overlap it — start_date <= rangeEnd
+  // AND end_date >= rangeStart. The previous implementation required the rental to
+  // fit fully inside the window, which dropped multi-month rentals from totals.
   const rentalParams = [];
   const rentalConditions = [];
-  if (startTimestamp) {
-    rentalParams.push(startTimestamp);
-    rentalConditions.push(`start_date >= $${rentalParams.length}::timestamptz`);
-  }
   if (endTimestamp) {
     rentalParams.push(endTimestamp);
-    rentalConditions.push(`end_date <= $${rentalParams.length}::timestamptz`);
+    rentalConditions.push(`start_date <= $${rentalParams.length}::timestamptz`);
+  }
+  if (startTimestamp) {
+    rentalParams.push(startTimestamp);
+    rentalConditions.push(`end_date >= $${rentalParams.length}::timestamptz`);
   }
 
   const rentalsQuery = `
@@ -141,20 +145,20 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     WHERE ${revenueConditions.join(' AND ')}
   `;
 
-  // Manager commission (already calculated and stored at booking/rental completion).
   const managerCommissionParams = [];
-  const managerCommissionConditions = [`status <> 'cancelled'`];
+  const managerCommissionConditions = [`mc.status <> 'cancelled'`];
   if (startDateOnly) {
     managerCommissionParams.push(startDateOnly);
-    managerCommissionConditions.push(`source_date >= $${managerCommissionParams.length}::date`);
+    managerCommissionConditions.push(`mc.source_date >= $${managerCommissionParams.length}::date`);
   }
   if (endDateOnly) {
     managerCommissionParams.push(endDateOnly);
-    managerCommissionConditions.push(`source_date <= $${managerCommissionParams.length}::date`);
+    managerCommissionConditions.push(`mc.source_date <= $${managerCommissionParams.length}::date`);
   }
+  managerCommissionConditions.push(MANAGER_COMMISSION_LIVE_GUARD_SQL);
   const managerCommissionQuery = `
-    SELECT COALESCE(SUM(commission_amount), 0)::numeric AS total
-    FROM manager_commissions
+    SELECT COALESCE(SUM(mc.commission_amount), 0)::numeric AS total
+    FROM manager_commissions mc
     WHERE ${managerCommissionConditions.join(' AND ')}
   `;
 

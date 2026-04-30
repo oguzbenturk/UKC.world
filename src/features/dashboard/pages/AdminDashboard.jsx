@@ -398,7 +398,7 @@ const InsightsRow = memo(({
     <Row gutter={[24, 24]}>
       {showTopInstructors && (
         <Col xs={24}>
-          <ChartCard title="Top Instructors by Revenue" isLoading={loading}>
+          <ChartCard title="Top Staff by Commission Earned" isLoading={loading}>
             {instructorData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-400">No data available</div>
             ) : (
@@ -408,7 +408,7 @@ const InsightsRow = memo(({
                   <XAxis type="number" tickFormatter={(v) => `${currencySymbol}${v}`} stroke="#6b7280" />
                   <YAxis type="category" dataKey="name" width={120} stroke="#6b7280" />
                   <RechartsTooltip formatter={(v) => formatCurrency(v)} />
-                  <Bar dataKey="revenue" fill="#10b981" name="Revenue" />
+                  <Bar dataKey="revenue" fill="#10b981" name="Commission" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -438,7 +438,9 @@ const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, 
 
   const gross = operationalKpis.grossLessonRevenue || 0;
   const commissions = operationalKpis.instructorCommissions || 0;
-  const managerCommission = operationalKpis.managerCommission || 0;
+  // Lessons-only manager commission (was: full cross-source-type total, which made
+  // shop/rental/etc. commissions deflate the lesson Net Revenue KPI).
+  const managerCommission = Number(kpis?.managerCommissionByService?.booking) || 0;
   const net = gross - commissions - managerCommission;
 
   return (
@@ -467,23 +469,23 @@ const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, 
       </Col>
       <Col xs={24} sm={6}>
         <KpiCard
-          title="Manager Commission"
+          title="Manager Comm. · Lessons"
           value={managerCommission}
           prefix={currencySymbol}
           precision={2}
           color="#e11d48"
-          note="Configured rate · paid to manager"
+          note="Lessons-only — rentals shown separately"
           isLoading={loading}
         />
       </Col>
       <Col xs={24} sm={6}>
         <KpiCard
-          title="Net Revenue"
+          title="Net Lesson Revenue"
           value={net}
           prefix={currencySymbol}
           precision={2}
           color={net >= 0 ? '#3b82f6' : '#ef4444'}
-          note="After instructor + manager commission"
+          note="Gross − instructor − manager (lessons)"
           isLoading={loading}
         />
       </Col>
@@ -492,10 +494,12 @@ const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, 
 });
 OperationalStatusRow.displayName = 'OperationalStatusRow';
 
-const RentalRevenueRow = memo(({ isVisible, operationalKpis, loading, currencySymbol }) => {
+const RentalRevenueRow = memo(({ isVisible, operationalKpis, kpis, loading, currencySymbol }) => {
   if (!isVisible) return null;
 
   const grossRental = operationalKpis.grossRentalRevenue || 0;
+  const managerRentalCommission = Number(kpis?.managerCommissionByService?.rental) || 0;
+  const netRental = grossRental - managerRentalCommission;
 
   return (
     <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
@@ -507,6 +511,28 @@ const RentalRevenueRow = memo(({ isVisible, operationalKpis, loading, currencySy
           precision={2}
           color="#8b5cf6"
           note="Total rental services sold"
+          isLoading={loading}
+        />
+      </Col>
+      <Col xs={24} sm={8}>
+        <KpiCard
+          title="Manager Comm. · Rentals"
+          value={managerRentalCommission}
+          prefix={currencySymbol}
+          precision={2}
+          color="#e11d48"
+          note="Manager share of rental revenue"
+          isLoading={loading}
+        />
+      </Col>
+      <Col xs={24} sm={8}>
+        <KpiCard
+          title="Net Rental Revenue"
+          value={netRental}
+          prefix={currencySymbol}
+          precision={2}
+          color={netRental >= 0 ? '#3b82f6' : '#ef4444'}
+          note="Gross rentals − manager (rentals)"
           isLoading={loading}
         />
       </Col>
@@ -614,6 +640,7 @@ const DashboardBody = memo(({
         <RentalRevenueRow
           isVisible={visibleWidgets.operationalStatus}
           operationalKpis={operationalKpis}
+          kpis={kpis}
           loading={loading}
           currencySymbol={currencySymbol}
         />

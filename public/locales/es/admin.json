@@ -1304,7 +1304,15 @@
         "changeError": "Error al cambiar la contraseña",
         "enterCurrent": "Introduce tu contraseña actual",
         "minLength": "La nueva contraseña debe tener al menos 8 caracteres",
+        "strength": "La nueva contraseña debe incluir mayúsculas, minúsculas, un número y un carácter especial (@$!%*?&)",
         "noMatch": "Las nuevas contraseñas no coinciden"
+      },
+      "requirements": {
+        "length": "Al menos 8 caracteres",
+        "lower": "Una letra minúscula",
+        "upper": "Una letra mayúscula",
+        "digit": "Un número",
+        "special": "Un carácter especial (@$!%*?&)"
       }
     }
   }

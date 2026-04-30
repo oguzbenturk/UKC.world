@@ -23,6 +23,7 @@ import {
   LEDGER_NEGATIVE_STATUSES
 } from '../services/serviceRevenueLedger.js';
 import { initiateDeposit, verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
+import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from '../services/managerCommissionService.js';
 
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
@@ -1219,12 +1220,17 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
       reference_number,
       currency,
       original_currency,
-      original_amount
+      original_amount,
+      transaction_date
     } = req.body;
 
     const numericAmount = Number.parseFloat(amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ message: 'Amount must be greater than 0' });
+    }
+
+    if (transaction_date && Number.isNaN(new Date(transaction_date).getTime())) {
+      return res.status(400).json({ message: 'Invalid transaction_date' });
     }
 
     // Use the currency specified by admin, or fall back to user's preferred currency
@@ -1308,7 +1314,8 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
       // wallet is currently negative (legacy debt, admin overdraft, etc.)
       // so admins can credit a customer without first manually zeroing.
       allowNegative: true,
-      createdBy: actorId || null
+      createdBy: actorId || null,
+      transactionDate: transaction_date || null
     });
 
     const { walletSummary } = await calculateUserBalance(id, targetCurrency);
@@ -2278,8 +2285,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
             ) AS revenue_amount
           FROM bookings b
           LEFT JOIN users inst ON inst.id = b.instructor_user_id
-          WHERE b.created_at >= $1::date
-            AND b.created_at < ($2::date + interval '1 day')
+          WHERE b.date >= $1::date
+            AND b.date <= $2::date
             AND b.deleted_at IS NULL
         )
         SELECT
@@ -2292,19 +2299,21 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         FROM normalized
       `, [dateStart, dateEnd, LEDGER_NEGATIVE_STATUSES, LEDGER_COMPLETED_BOOKING_STATUSES, ['cancelled', 'canceled']]),
 
-      // 6. Instructor commission
+      // 6. Instructor commission. When no commission row is configured the result is 0
+      // (previously this defaulted to a hard-coded 50/h or 50% — wildly inflating payouts
+      // for any instructor with missing config).
       pool.query(`
         SELECT
           COALESCE(SUM(
             CASE
               WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
+                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) * b.duration
               WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
                 ((cp.purchase_price / cp.total_hours) * b.duration) *
-                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
               WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
                 (cp.purchase_price / sp.sessions_count) *
-                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
               WHEN bcc.commission_type = 'fixed' THEN
                 COALESCE(bcc.commission_value, 0) * b.duration
               WHEN isc.commission_type = 'fixed' THEN
@@ -2312,13 +2321,12 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
               WHEN idc.commission_type = 'fixed' THEN
                 COALESCE(idc.commission_value, 0) * b.duration
               WHEN bcc.commission_type = 'percentage' THEN
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
+                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 0) / 100
               WHEN isc.commission_type = 'percentage' THEN
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
+                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 0) / 100
               WHEN idc.commission_type = 'percentage' THEN
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
-              ELSE
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
+                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 0) / 100
+              ELSE 0
             END
           ), 0) AS total_commission
         FROM bookings b
@@ -2327,7 +2335,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
         LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
         LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-        WHERE b.created_at >= $1::date AND b.created_at < ($2::date + interval '1 day')
+        WHERE b.date >= $1::date AND b.date <= $2::date
           AND b.deleted_at IS NULL
           AND regexp_replace(lower(trim(b.status)), '[^a-z0-9]+', '_', 'g') = ANY($3::text[])
       `, [dateStart, dateEnd, LEDGER_COMPLETED_BOOKING_STATUSES]),
@@ -2376,30 +2384,30 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           )
       `, [dateStart, dateEnd]),
 
-      // 11. Manager commission (already calculated and stored at booking/rental completion).
-      // commission_amount is in EUR. We read stored values rather than re-computing the rate
-      // so that whatever per_category / flat / tiered config was active at calculation time
-      // is faithfully reflected.
+      // commission_amount is stored in EUR at calculation time, so read stored values
+      // rather than re-computing — preserves whatever rate config was active back then.
       pool.query(`
         SELECT
-          COALESCE(SUM(commission_amount), 0) AS manager_commission_total,
-          COUNT(*)                            AS manager_commission_count
-        FROM manager_commissions
-        WHERE source_date >= $1::date AND source_date <= $2::date
-          AND status <> 'cancelled'
-          ${managerCommissionFilter}
+          COALESCE(SUM(mc.commission_amount), 0) AS manager_commission_total,
+          COUNT(*)                               AS manager_commission_count
+        FROM manager_commissions mc
+        WHERE mc.source_date >= $1::date AND mc.source_date <= $2::date
+          AND mc.status <> 'cancelled'
+          AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
+          ${managerCommissionFilter.replace('source_type', 'mc.source_type')}
       `, managerCommissionParams),
 
-      // 12. Manager commission grouped by source_type (always unscoped — the all-services
-      // dashboard wants the full breakdown even when the page is filtered).
+      // Always unscoped — the all-services dashboard wants the full breakdown even
+      // when the page itself is filtered to a single category.
       pool.query(`
         SELECT
-          source_type,
-          COALESCE(SUM(commission_amount), 0) AS total
-        FROM manager_commissions
-        WHERE source_date >= $1::date AND source_date <= $2::date
-          AND status <> 'cancelled'
-        GROUP BY source_type
+          mc.source_type,
+          COALESCE(SUM(mc.commission_amount), 0) AS total
+        FROM manager_commissions mc
+        WHERE mc.source_date >= $1::date AND mc.source_date <= $2::date
+          AND mc.status <> 'cancelled'
+          AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
+        GROUP BY mc.source_type
       `, [dateStart, dateEnd]),
     ]);
 
@@ -3710,18 +3718,19 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
     
     const bookingMetricsResult = await pool.query(bookingMetricsQuery, bookingParams);
     
-    // Equipment rental analysis (if rentals table exists)
+    // Equipment rental analysis (if rentals table exists). "In" the window means the
+    // rental period overlaps with the queried range, not that it was created in it.
     const rentalMetricsQuery = `
-      SELECT 
+      SELECT
         'rental_analysis' as metric_type,
         COUNT(*) as total_rentals,
         COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_rentals,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_rentals,
         COALESCE(SUM(total_price), 0) as total_rental_revenue,
         COALESCE(AVG(total_price), 0) as average_rental_value
-      FROM rentals 
-      WHERE created_at >= $1::timestamp
-        AND created_at <= $2::timestamp
+      FROM rentals
+      WHERE start_date <= $2::timestamp
+        AND end_date >= $1::timestamp
         AND status NOT IN ('cancelled', 'canceled')
     `;
     
@@ -3750,61 +3759,59 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
         COUNT(b.id) as total_lessons,
         COUNT(CASE WHEN b.status = 'completed' THEN 1 END) as completed_lessons,
         COALESCE(SUM(
-          CASE 
+          CASE
             WHEN b.status = 'completed' THEN
-              CASE 
+              CASE
                 WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) * b.duration
                 WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
-                  ((cp.purchase_price / cp.total_hours) * b.duration) * 
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                  ((cp.purchase_price / cp.total_hours) * b.duration) *
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
                 WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
-                  (cp.purchase_price / sp.sessions_count) * 
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
-                WHEN bcc.commission_type = 'fixed' THEN 
+                  (cp.purchase_price / sp.sessions_count) *
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
+                WHEN bcc.commission_type = 'fixed' THEN
                   COALESCE(bcc.commission_value, 0) * b.duration
-                WHEN isc.commission_type = 'fixed' THEN 
+                WHEN isc.commission_type = 'fixed' THEN
                   COALESCE(isc.commission_value, 0) * b.duration
-                WHEN idc.commission_type = 'fixed' THEN 
+                WHEN idc.commission_type = 'fixed' THEN
                   COALESCE(idc.commission_value, 0) * b.duration
-                WHEN bcc.commission_type = 'percentage' THEN 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
-                WHEN isc.commission_type = 'percentage' THEN 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
-                WHEN idc.commission_type = 'percentage' THEN 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
-                ELSE 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
+                WHEN bcc.commission_type = 'percentage' THEN
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 0) / 100
+                WHEN isc.commission_type = 'percentage' THEN
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 0) / 100
+                WHEN idc.commission_type = 'percentage' THEN
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 0) / 100
+                ELSE 0
               END
             ELSE 0
           END
         ), 0) as total_revenue,
         COALESCE(AVG(
-          CASE 
+          CASE
             WHEN b.status = 'completed' THEN
-              CASE 
+              CASE
                 WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) * b.duration
                 WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
-                  ((cp.purchase_price / cp.total_hours) * b.duration) * 
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
+                  ((cp.purchase_price / cp.total_hours) * b.duration) *
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
                 WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
-                  (cp.purchase_price / sp.sessions_count) * 
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
-                WHEN bcc.commission_type = 'fixed' THEN 
+                  (cp.purchase_price / sp.sessions_count) *
+                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
+                WHEN bcc.commission_type = 'fixed' THEN
                   COALESCE(bcc.commission_value, 0) * b.duration
-                WHEN isc.commission_type = 'fixed' THEN 
+                WHEN isc.commission_type = 'fixed' THEN
                   COALESCE(isc.commission_value, 0) * b.duration
-                WHEN idc.commission_type = 'fixed' THEN 
+                WHEN idc.commission_type = 'fixed' THEN
                   COALESCE(idc.commission_value, 0) * b.duration
-                WHEN bcc.commission_type = 'percentage' THEN 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
-                WHEN isc.commission_type = 'percentage' THEN 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
-                WHEN idc.commission_type = 'percentage' THEN 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
-                ELSE 
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
+                WHEN bcc.commission_type = 'percentage' THEN
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 0) / 100
+                WHEN isc.commission_type = 'percentage' THEN
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 0) / 100
+                WHEN idc.commission_type = 'percentage' THEN
+                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 0) / 100
+                ELSE 0
               END
           END
         ), 0) as average_lesson_value

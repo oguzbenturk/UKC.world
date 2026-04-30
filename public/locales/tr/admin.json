@@ -1304,7 +1304,15 @@
         "changeError": "Şifre değiştirilemedi",
         "enterCurrent": "Lütfen mevcut şifrenizi girin",
         "minLength": "Yeni şifre en az 8 karakter olmalıdır",
+        "strength": "Yeni şifre büyük harf, küçük harf, rakam ve özel karakter (@$!%*?&) içermelidir",
         "noMatch": "Yeni şifreler eşleşmiyor"
+      },
+      "requirements": {
+        "length": "En az 8 karakter",
+        "lower": "Bir küçük harf",
+        "upper": "Bir büyük harf",
+        "digit": "Bir rakam",
+        "special": "Bir özel karakter (@$!%*?&)"
       }
     }
   }
