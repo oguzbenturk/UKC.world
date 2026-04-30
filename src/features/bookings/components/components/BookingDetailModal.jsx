@@ -14,6 +14,21 @@ import { useAuth } from '@/shared/hooks/useAuth';
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
 const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/components/EnhancedInstructorDetailModal'));
 
+function EditField({ icon: Icon, label, hint, children }) {
+  return (
+    <label className="block">
+      <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase text-slate-500 mb-1.5">
+        {Icon ? <Icon className="h-3 w-3 text-sky-500" /> : null}
+        {label}
+      </span>
+      {children}
+      {hint ? (
+        <span className="block mt-1 text-[11px] text-slate-400">{hint}</span>
+      ) : null}
+    </label>
+  );
+}
+
 function CreatedBySection({ booking }) {
   const createdByLabel = booking.createdByLabel || booking.created_by_name || booking.createdByName || null;
   const createdAtRaw = booking.createdAt || booking.created_at || null;
@@ -173,7 +188,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   
   useEffect(() => {
     if (booking) {
-      
+
       setCheckInStatus(booking.checkInStatus || booking.status || 'pending');
       setEditForm({
         notes: booking.notes || '',
@@ -182,6 +197,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
         date: formatDateForInput(booking.date) || '',
         price: booking.final_amount || booking.amount || booking.price || 0, // Use final_amount as priority
         instructor_commission: booking.instructor_commission || 0,
+        instructor_commission_type: booking.commission_type || 'fixed',
         service_id: booking.service_id || null,
         instructor_id: booking.instructor_user_id || booking.instructorId || null
       });
@@ -428,70 +444,66 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   // Handle booking update
   const handleUpdateBooking = async () => {
     if (!booking || isProcessing) return;
-    
+
     setIsProcessing(true);
-    
+
     try {
-      const { serviceName: _serviceName, instructor_id, ...payload } = editForm;
-      
+      const { serviceName: _serviceName, instructor_id, price, ...rest } = editForm;
+      const numericAmount = parseFloat(price) || 0;
+
+      // Backend reads `amount` (not `price`); also clear stale `final_amount`
+      // so the display recomputes from the new amount.
       const finalPayload = {
-        ...payload,
+        ...rest,
+        amount: numericAmount,
+        final_amount: numericAmount,
         instructor_user_id: instructor_id
       };
 
       await updateBooking(booking.id, finalPayload);
-      
+
       showSuccess(t('common:bookings.detail.updateSuccess'));
-      
-      // Update the booking object with the new values for immediate display
-      Object.assign(booking, finalPayload);
-      
-      // Re-initialize the form with updated booking data
+
+      Object.assign(booking, finalPayload, {
+        commission_type: finalPayload.instructor_commission_type
+      });
+
       setEditForm(prev => ({
         ...prev,
-        ...finalPayload,
-        instructor_id: instructor_id
+        ...rest,
+        price: numericAmount,
+        instructor_id
       }));
-      
-      // Dispatch event to notify other components about the booking update
+
       window.dispatchEvent(new CustomEvent('booking-updated', {
-        detail: { bookingId: booking.id, updatedBooking: { ...booking, ...finalPayload } }
+        detail: { bookingId: booking.id, updatedBooking: { ...booking } }
       }));
-      
-      // Call service update callback if provided
+
       if (onServiceUpdate) {
         await onServiceUpdate();
       }
-      
+      if (refreshData) {
+        refreshData().catch(() => {});
+      }
+
       setTimeout(() => {
         setIsProcessing(false);
         setIsEditing(false);
       }, 1000);
     } catch (error) {
       setIsProcessing(false);
-      
-      // Show specific error messages
-      let errorMessage = 'Booking update failed';
-      let errorCode = 'UNKNOWN';
-      
-      if (error.response?.status === 429) {
-        errorMessage = 'Booking update failed - Too many requests';
-        errorCode = 'RATE_LIMIT';
-      } else if (error.response?.status === 400) {
-        errorMessage = 'Booking update failed - Invalid data';
-        errorCode = 'BAD_REQUEST';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Booking update failed - Booking not found';
-        errorCode = 'NOT_FOUND';
-      } else if (error.response?.status >= 500) {
-        errorMessage = 'Booking update failed - Server error';
-        errorCode = 'SERVER_ERROR';
-      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-        errorMessage = 'Booking update failed - Network error';
-        errorCode = 'NETWORK_ERROR';
-      }
-      
-      showError(`${errorMessage} (Error code: ${errorCode})`);
+
+      const status = error.response?.status;
+      const serverMsg = error.response?.data?.error || error.response?.data?.message || error.message;
+      let prefix = 'Booking update failed';
+      if (status === 429) prefix = 'Booking update failed — too many requests';
+      else if (status === 400) prefix = 'Booking update failed — invalid data';
+      else if (status === 404) prefix = 'Booking update failed — booking not found';
+      else if (status >= 500) prefix = 'Booking update failed — server error';
+      else if (error.code === 'NETWORK_ERROR' || !error.response) prefix = 'Booking update failed — network error';
+
+      logger.error('Booking update failed', { status, serverMsg, error });
+      showError(serverMsg ? `${prefix}: ${serverMsg}` : prefix);
     }
   };
     // Handle booking deletion
@@ -852,302 +864,308 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         <p className="text-gray-600 font-medium text-sm">{t('common:bookings.detail.loadingForm')}</p>
                       </div>
                     </div>
-                  ) : (                    <div className="space-y-4">
-                      {/* Compact Edit Form Header */}
-                      <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-16 h-16 bg-gray-100/50 rounded-full -mr-8 -mt-8" />
-                        <div className="relative">
-                          <h4 className="text-base font-bold text-gray-900 flex items-center mb-1">
-                            <div className="bg-gray-100 p-1.5 rounded-md shadow-sm border border-gray-200 mr-2">
-                              <PencilSquareIcon className="h-3 w-3 text-gray-700" />
-                            </div>
-                            {t('common:bookings.detail.editTitle')}
-                          </h4>
-                          <p className="text-gray-600 ml-8 text-xs">{t('common:bookings.detail.editSubtitle')}</p>
-                        </div>
-                      </div>                      {/* Compact Form Fields */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        {/* Service Selection */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-gray-800 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-sm mr-1">
-                              <InformationCircleIcon className="h-3 w-3 text-gray-700" />
-                            </div>
-                            {t('common:bookings.detail.service')}
-                          </label>
-                          <select
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-xs"
-                            value={editForm.service_id || ''}
-                            onChange={(e) => handleEditFormChange('service_id', e.target.value)}
-                            disabled={isProcessing}
-                          >
-                            <option value="" disabled>{t('common:bookings.detail.selectService')}</option>
-                            {services.map(service => (
-                              <option key={service.id} value={service.id}>{service.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                  ) : (() => {
+                      const selectedInstructor = instructors.find(i => i.id === editForm.instructor_id);
+                      const commissionType = editForm.instructor_commission_type
+                        || selectedInstructor?.commission_type
+                        || 'fixed';
+                      const isPercentage = commissionType === 'percent' || commissionType === 'percentage';
+                      const groupSize = Math.max(Number(booking.group_size) || 1, 1);
+                      const numericPrice = parseFloat(editForm.price) || 0;
+                      const perPersonPrice = groupSize > 1 ? numericPrice / groupSize : null;
+                      const fmt2 = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                        {/* Instructor Selection */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-gray-800 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-sm mr-1">
-                              <UserCircleIcon className="h-3 w-3 text-gray-700" />
+                      return (
+                        <div className="space-y-5">
+                          {/* Eyebrow header */}
+                          <div>
+                            <div className="text-[10px] font-semibold tracking-[0.2em] uppercase text-sky-600/80 flex items-center gap-1.5">
+                              <PencilSquareIcon className="h-3 w-3" />
+                              {t('common:bookings.detail.editTitle')}
                             </div>
-                            {t('common:bookings.columns.instructor')}
-                          </label>
-                          <select
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-xs"
-                            value={editForm.instructor_id || ''}
-                            onChange={(e) => handleEditFormChange('instructor_id', e.target.value)}
-                            disabled={isProcessing}
-                          >
-                            <option value="" disabled>{t('common:bookings.detail.selectInstructor')}</option>
-                            {instructors.map(instructor => (
-                              <option key={instructor.id} value={instructor.id}>{instructor.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Date */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-gray-800 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-sm mr-1">
-                              <CalendarDaysIcon className="h-3 w-3 text-gray-700" />
-                            </div>
-                            {t('common:bookings.detail.dateLabel')}
-                          </label>
-                          <input
-                            type="date"
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-xs bg-white"
-                            value={editForm.date}
-                            onChange={(e) => handleEditFormChange('date', e.target.value)}
-                            disabled={isProcessing}
-                          />
-                        </div>                        {/* Duration */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-gray-800 flex items-center">
-                            <div className="bg-gray-100 p-1 rounded-sm mr-1">
-                              <ClockIcon className="h-3 w-3 text-gray-700" />
-                            </div>
-                            {t('common:bookings.detail.durationHours')}
-                          </label>
-                          <input
-                            type="number"
-                            min="0.5"
-                            step="0.5"
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 text-gray-900 font-medium text-xs"
-                            value={editForm.duration === 0 ? '' : editForm.duration}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value === '') {
-                                handleEditFormChange('duration', '');
-                              } else {
-                                const numValue = parseFloat(value);
-                                if (!isNaN(numValue) && numValue >= 0.5) {
-                                  handleEditFormChange('duration', numValue);
-                                }
-                              }
-                            }}
-                            onBlur={(e) => {
-                              const value = e.target.value;
-                              if (value === '' || parseFloat(value) < 0.5) {
-                                handleEditFormChange('duration', 1);
-                              }
-                            }}
-                            disabled={isProcessing}
-                            placeholder="1"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Compact Notes */}
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-800 flex items-center">
-                          <div className="bg-gray-100 p-1 rounded-sm mr-1">
-                            <svg className="h-3 w-3 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </div>
-                          {t('common:bookings.detail.notes')}
-                        </label>
-                        <textarea
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-300 text-gray-900 resize-none text-xs"
-                          rows="2"
-                          placeholder={t('common:bookings.detail.addNotesPlaceholder')}
-                          value={editForm.notes}
-                          onChange={(e) => handleEditFormChange('notes', e.target.value)}
-                          disabled={isProcessing}
-                        />
-                      </div>                      {/* Compact Price and Commission Section */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                        {/* Price Card */}
-                        <div className="bg-white border border-gray-200 rounded-md p-2 shadow-sm relative overflow-hidden">
-                          <label className="block text-xs font-bold text-gray-800 mb-1 flex items-center">
-                            <div className="bg-gray-100 p-0.5 rounded-sm shadow-sm border border-gray-200 mr-1">
-                              <CurrencyDollarIcon className="h-3 w-3 text-green-600" />
-                            </div>
-                            {t('common:bookings.detail.bookingPrice')}
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-1.5 flex items-center pointer-events-none">
-                              <span className="text-gray-500 text-xs font-bold">{currencySymbol}</span>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="w-full pl-5 pr-2 py-1.5 border border-gray-200 bg-white rounded-md shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 text-xs font-bold text-gray-900"
-                              value={editForm.price === 0 ? '' : editForm.price}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '') {
-                                  handleEditFormChange('price', '');
-                                } else {
-                                  const numValue = parseFloat(value);
-                                  if (!isNaN(numValue) && numValue >= 0) {
-                                    handleEditFormChange('price', numValue);
-                                  }
-                                }
-                              }}
-                              onBlur={(e) => {
-                                const value = e.target.value;
-                                if (value === '') {
-                                  handleEditFormChange('price', 0);
-                                }
-                              }}
-                              disabled={isProcessing}
-                              placeholder="0.00"
-                            />
-                          </div>
-                          <div className="flex items-center mt-1 text-blue-700">
-                            <svg className="h-2 w-2 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            <p className="text-xs font-semibold">{t('common:bookings.detail.individualBookingPrice')}</p>
-                          </div>
-                        </div>
-
-                        {/* Commission Card */}
-                        <div className="bg-white border border-gray-200 rounded-md p-2 shadow-sm relative overflow-hidden">
-                          <label className="block text-xs font-bold text-gray-800 mb-1 flex items-center">
-                            <div className="bg-gray-100 p-0.5 rounded-sm shadow-sm border border-gray-200 mr-1">
-                              <UserCircleIcon className="h-3 w-3 text-blue-600" />
-                            </div>
-                            {t('common:bookings.detail.instructorCommission')}
-                          </label>
-                          <div className="space-y-1">
-                            <div className="flex space-x-1">
-                              {(() => {
-                                const selectedInstructor = instructors.find(i => i.id === editForm.instructor_id);
-                                const commissionType = selectedInstructor?.commission_type || 'percent';
-                                const isPercentage = commissionType === 'percent';
-                                
-                                return (
-                                  <>
-                                    <div className="relative flex-1">
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        max={isPercentage ? "100" : undefined}
-                                        step={isPercentage ? "1" : "0.01"}
-                                        className="w-full px-2 py-1.5 border border-gray-200 bg-white rounded-md shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-xs font-bold text-gray-900"
-                                        value={editForm.instructor_commission === 0 ? '' : editForm.instructor_commission}
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          if (value === '') {
-                                            handleEditFormChange('instructor_commission', '');
-                                          } else {
-                                            const numValue = parseFloat(value);
-                                            if (!isNaN(numValue)) {
-                                              handleEditFormChange('instructor_commission', numValue);
-                                            }
-                                          }
-                                        }}
-                                        onBlur={(e) => {
-                                          const value = e.target.value;
-                                          if (value === '') {
-                                            handleEditFormChange('instructor_commission', 0);
-                                          }
-                                        }}
-                                        disabled={isProcessing}
-                                        placeholder="0"
-                                      />
-                                      <div className="absolute inset-y-0 right-0 pr-1.5 flex items-center pointer-events-none">
-                                        <span className="text-gray-500 text-xs font-bold">
-                                          {isPercentage ? '%' : currencySymbol}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="px-2 py-1.5 bg-gray-100 border border-gray-200 rounded-md text-xs font-bold text-blue-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center space-x-0.5 shadow-sm"
-                                      onClick={() => {
-                                        if (selectedInstructor) {
-                                          handleEditFormChange('instructor_commission', selectedInstructor.commission_rate || 0);
-                                        }
-                                      }}
-                                      disabled={isProcessing || !editForm.instructor_id}
-                                      title={t('common:bookings.detail.resetToDefault')}
-                                    >
-                                      <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                      </svg>
-                                      <span>{t('common:bookings.detail.reset')}</span>
-                                    </button>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                            <p className="text-xs text-blue-700 font-semibold flex items-center">
-                              <svg className="h-2.5 w-2.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              {(() => {
-                                const selectedInstructor = instructors.find(i => i.id === editForm.instructor_id);
-                                const commissionType = selectedInstructor?.commission_type || 'percent';
-                                return commissionType === 'percent' ? t('common:bookings.detail.percentageCommission') : t('common:bookings.detail.fixedCommission');
-                              })()}
+                            <p className="text-[13px] text-slate-500 mt-1.5 m-0">
+                              {t('common:bookings.detail.editSubtitle')}
                             </p>
                           </div>
-                        </div>
-                      </div>                      {/* Compact Action Buttons */}
-                      <div className="flex justify-end space-x-2 pt-2 border-t border-gray-200">
-                        <button
-                          type="button"
-                          className="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-xs font-bold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all duration-200 hover:border-gray-400"
-                          onClick={() => setIsEditing(false)}
-                          disabled={isProcessing}
-                        >
-                          {t('common:bookings.detail.cancel')}
-                        </button>
-                        <button
-                          type="button"
-                          className={`px-4 py-1.5 border border-transparent rounded-md shadow-sm text-xs font-bold text-white transition-all duration-200 ${
-                            isProcessing || isDataLoading
-                              ? 'bg-gray-400 cursor-not-allowed border-gray-400'
-                              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 '
-                          }`}
-                          onClick={handleUpdateBooking}
-                          disabled={isProcessing || isDataLoading}
-                        >
-                          {isProcessing ? (
-                            <div className="flex items-center">
-                              <svg className="animate-spin -ml-1 mr-1 h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                              </svg>
-                              {t('common:bookings.detail.savingLabel')}
+
+                          {/* Core fields — 2-column grid */}
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
+                            <EditField icon={InformationCircleIcon} label={t('common:bookings.detail.service')}>
+                              <select
+                                className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                                value={editForm.service_id || ''}
+                                onChange={(e) => handleEditFormChange('service_id', e.target.value)}
+                                disabled={isProcessing}
+                              >
+                                <option value="" disabled>{t('common:bookings.detail.selectService')}</option>
+                                {services.map(service => (
+                                  <option key={service.id} value={service.id}>{service.name}</option>
+                                ))}
+                              </select>
+                            </EditField>
+
+                            <EditField icon={UserCircleIcon} label={t('common:bookings.columns.instructor')}>
+                              <select
+                                className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                                value={editForm.instructor_id || ''}
+                                onChange={(e) => handleEditFormChange('instructor_id', e.target.value)}
+                                disabled={isProcessing}
+                              >
+                                <option value="" disabled>{t('common:bookings.detail.selectInstructor')}</option>
+                                {instructors.map(instructor => (
+                                  <option key={instructor.id} value={instructor.id}>{instructor.name}</option>
+                                ))}
+                              </select>
+                            </EditField>
+
+                            <EditField icon={CalendarDaysIcon} label={t('common:bookings.detail.dateLabel')}>
+                              <input
+                                type="date"
+                                className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-800 tabular-nums focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                                value={editForm.date}
+                                onChange={(e) => handleEditFormChange('date', e.target.value)}
+                                disabled={isProcessing}
+                              />
+                            </EditField>
+
+                            <EditField icon={ClockIcon} label={t('common:bookings.detail.durationHours')}>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0.5"
+                                  step="0.5"
+                                  className="w-full h-10 pl-3 pr-12 rounded-lg border border-slate-200 bg-white text-[13px] font-medium text-slate-800 tabular-nums focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                                  value={editForm.duration === 0 ? '' : editForm.duration}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '') {
+                                      handleEditFormChange('duration', '');
+                                    } else {
+                                      const numValue = parseFloat(value);
+                                      if (!isNaN(numValue) && numValue >= 0) {
+                                        handleEditFormChange('duration', numValue);
+                                      }
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '' || parseFloat(value) < 0.5) {
+                                      handleEditFormChange('duration', 1);
+                                    }
+                                  }}
+                                  disabled={isProcessing}
+                                  placeholder="1"
+                                />
+                                <span className="absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-wider text-slate-400 pointer-events-none">
+                                  hrs
+                                </span>
+                              </div>
+                            </EditField>
+                          </div>
+
+                          {/* Notes */}
+                          <EditField label={t('common:bookings.detail.notes')}>
+                            <textarea
+                              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-800 placeholder:text-slate-400 resize-none focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                              rows="3"
+                              placeholder={t('common:bookings.detail.addNotesPlaceholder')}
+                              value={editForm.notes}
+                              onChange={(e) => handleEditFormChange('notes', e.target.value)}
+                              disabled={isProcessing}
+                            />
+                          </EditField>
+
+                          {/* Money panel — price + commission, the visual anchor */}
+                          <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/60 to-white p-4 space-y-4">
+                            {/* Price row */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-semibold tracking-[0.14em] uppercase text-slate-500 flex items-center gap-1.5">
+                                  <CurrencyDollarIcon className="h-3 w-3 text-sky-500" />
+                                  {t('common:bookings.detail.bookingPrice')}
+                                </span>
+                                {groupSize > 1 ? (
+                                  <span className="text-[10px] font-semibold tracking-[0.1em] uppercase text-sky-700 bg-sky-100/70 px-2 py-0.5 rounded-full">
+                                    {groupSize} × participants
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="relative">
+                                <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-400 text-base font-semibold pointer-events-none">
+                                  {currencySymbol}
+                                </span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  className="w-full h-12 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-lg font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                                  value={editForm.price === 0 ? '' : editForm.price}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '') {
+                                      handleEditFormChange('price', '');
+                                    } else {
+                                      const numValue = parseFloat(value);
+                                      if (!isNaN(numValue) && numValue >= 0) {
+                                        handleEditFormChange('price', numValue);
+                                      }
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '') {
+                                      handleEditFormChange('price', 0);
+                                    }
+                                  }}
+                                  disabled={isProcessing}
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <p className="mt-1.5 text-[11px] text-slate-500 tabular-nums">
+                                {groupSize > 1 ? (
+                                  <>
+                                    <span className="text-slate-700 font-medium">
+                                      {currencySymbol}{fmt2(perPersonPrice)}
+                                    </span>
+                                    <span className="text-slate-400"> / participant — splits across {groupSize}</span>
+                                  </>
+                                ) : (
+                                  t('common:bookings.detail.individualBookingPrice')
+                                )}
+                              </p>
                             </div>
-                          ) : (
-                            <>
-                              <CheckIcon className="h-3 w-3 mr-1 inline" />
-                              {t('common:bookings.detail.save')}
-                            </>
-                          )}
-                        </button>
-                      </div>                    </div>
-                  )
+
+                            <div className="border-t border-sky-100/70" />
+
+                            {/* Commission row */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-semibold tracking-[0.14em] uppercase text-slate-500 flex items-center gap-1.5">
+                                  <UserCircleIcon className="h-3 w-3 text-sky-500" />
+                                  {t('common:bookings.detail.instructorCommission')}
+                                </span>
+                                {/* % / fixed segmented toggle */}
+                                <div className="inline-flex items-center rounded-full bg-white border border-slate-200 p-0.5 text-[11px] font-semibold">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditFormChange('instructor_commission_type', 'percentage')}
+                                    disabled={isProcessing}
+                                    className={`px-2.5 py-0.5 rounded-full transition-colors ${
+                                      isPercentage
+                                        ? 'bg-slate-900 text-white'
+                                        : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                  >
+                                    %
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditFormChange('instructor_commission_type', 'fixed')}
+                                    disabled={isProcessing}
+                                    className={`px-2.5 py-0.5 rounded-full transition-colors ${
+                                      !isPercentage
+                                        ? 'bg-slate-900 text-white'
+                                        : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                  >
+                                    {currencySymbol}
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex items-stretch gap-2">
+                                <div className="relative flex-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={isPercentage ? "100" : undefined}
+                                    step={isPercentage ? "1" : "0.01"}
+                                    className="w-full h-10 pl-3 pr-10 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                                    value={editForm.instructor_commission === 0 ? '' : editForm.instructor_commission}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '') {
+                                        handleEditFormChange('instructor_commission', '');
+                                      } else {
+                                        const numValue = parseFloat(value);
+                                        if (!isNaN(numValue)) {
+                                          handleEditFormChange('instructor_commission', numValue);
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '') {
+                                        handleEditFormChange('instructor_commission', 0);
+                                      }
+                                    }}
+                                    disabled={isProcessing}
+                                    placeholder="0"
+                                  />
+                                  <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-sm font-semibold pointer-events-none">
+                                    {isPercentage ? '%' : currencySymbol}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold uppercase tracking-wider text-slate-600 hover:text-sky-600 hover:border-sky-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  onClick={() => {
+                                    if (selectedInstructor) {
+                                      handleEditFormChange('instructor_commission', selectedInstructor.commission_rate || 0);
+                                    }
+                                  }}
+                                  disabled={isProcessing || !editForm.instructor_id}
+                                  title={t('common:bookings.detail.resetToDefault')}
+                                >
+                                  {t('common:bookings.detail.reset')}
+                                </button>
+                              </div>
+                              <p className="mt-1.5 text-[11px] text-slate-500">
+                                {isPercentage
+                                  ? t('common:bookings.detail.percentageCommission')
+                                  : t('common:bookings.detail.fixedCommission')}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Action bar */}
+                          <div className="flex justify-end gap-2 pt-3 mt-1 border-t border-slate-100">
+                            <button
+                              type="button"
+                              className="h-10 px-4 rounded-lg text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+                              onClick={() => setIsEditing(false)}
+                              disabled={isProcessing}
+                            >
+                              {t('common:bookings.detail.cancel')}
+                            </button>
+                            <button
+                              type="button"
+                              className={`h-10 px-5 rounded-lg text-[13px] font-semibold text-white inline-flex items-center gap-1.5 transition-colors ${
+                                isProcessing || isDataLoading
+                                  ? 'bg-slate-300 cursor-not-allowed'
+                                  : 'bg-sky-600 hover:bg-sky-700 shadow-[0_1px_2px_rgba(2,132,199,0.25)]'
+                              }`}
+                              onClick={handleUpdateBooking}
+                              disabled={isProcessing || isDataLoading}
+                            >
+                              {isProcessing ? (
+                                <>
+                                  <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                  </svg>
+                                  {t('common:bookings.detail.savingLabel')}
+                                </>
+                              ) : (
+                                <>
+                                  <CheckIcon className="h-3.5 w-3.5" />
+                                  {t('common:bookings.detail.save')}
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()
                 ) : isCheckingOut ? (
                   <div className="space-y-4">
                     {/* Checkout Form Header */}

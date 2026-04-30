@@ -3962,16 +3962,24 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     const currentBooking = currentBookingResult.rows[0];
     
     const {
-      date, start_hour, duration, student_user_id, instructor_user_id, 
-      status, payment_status, amount, notes, location, equipment_ids,
+      date, start_hour, duration, student_user_id, instructor_user_id,
+      status, payment_status, amount, final_amount, notes, location, equipment_ids,
       instructor_commission, instructor_commission_type,
       checkout_status, checkout_time, checkout_notes,
       checkin_status, checkin_time, checkin_notes
     } = req.body;
-      // Update booking
+
+    // Keep `final_amount` in sync with `amount` whenever the caller updates the
+    // price. The display layer reads `final_amount` first, so leaving it stale
+    // makes a successful price edit look like nothing changed.
+    const finalAmountToWrite =
+      final_amount !== undefined ? final_amount
+      : amount !== undefined ? amount
+      : null;
+
     const updateBookingQuery = `
       UPDATE bookings
-      SET 
+      SET
         date = COALESCE($1, date),
         start_hour = COALESCE($2, start_hour),
         duration = COALESCE($3, duration),
@@ -3980,22 +3988,23 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         status = COALESCE($6, status),
         payment_status = COALESCE($7, payment_status),
         amount = COALESCE($8, amount),
-        notes = COALESCE($9, notes),
-        location = COALESCE($10, location),
-        checkout_status = COALESCE($11, checkout_status),
-        checkout_time = COALESCE($12, checkout_time),
-        checkout_notes = COALESCE($13, checkout_notes),
-        checkin_status = COALESCE($14, checkin_status),
-        checkin_time = COALESCE($15, checkin_time),
-        checkin_notes = COALESCE($16, checkin_notes),
+        final_amount = COALESCE($9, final_amount),
+        notes = COALESCE($10, notes),
+        location = COALESCE($11, location),
+        checkout_status = COALESCE($12, checkout_status),
+        checkout_time = COALESCE($13, checkout_time),
+        checkout_notes = COALESCE($14, checkout_notes),
+        checkin_status = COALESCE($15, checkin_status),
+        checkin_time = COALESCE($16, checkin_time),
+        checkin_notes = COALESCE($17, checkin_notes),
         updated_at = NOW()
-      WHERE id = $17
+      WHERE id = $18
       RETURNING *
     `;
-    
+
     const bookingResult = await client.query(updateBookingQuery, [
       date, start_hour, duration, student_user_id, instructor_user_id,
-      status, payment_status, amount, notes, location,
+      status, payment_status, amount, finalAmountToWrite, notes, location,
       checkout_status, checkout_time, checkout_notes,
       checkin_status, checkin_time, checkin_notes,
       req.params.id
@@ -4007,7 +4016,101 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     }
     
     const booking = bookingResult.rows[0];
-    
+
+    // Fan out price change to siblings on group / semi-private bookings.
+    // Updates every participant's per-head share so the booking total and the
+    // sum of participant amounts stay in sync. For already-paid participants,
+    // also issues a wallet charge or refund for the difference between the old
+    // and new share, so a price edit settles the difference instead of leaving
+    // a silent gap. Package and refunded rows are skipped (no money moves).
+    if (amount !== undefined && amount !== null) {
+      const newTotal = parseFloat(amount) || 0;
+
+      // ── Model A: single booking row with N booking_participants ──────────
+      const partsRes = await client.query(
+        `SELECT id, user_id, payment_status, payment_amount
+           FROM booking_participants
+          WHERE booking_id = $1`,
+        [booking.id]
+      );
+      const participants = partsRes.rows;
+      if (participants.length > 1) {
+        const perParticipant = Math.round((newTotal / participants.length) * 100) / 100;
+
+        for (const p of participants) {
+          if (p.payment_status === 'package' || p.payment_status === 'refunded') continue;
+
+          const oldShare = parseFloat(p.payment_amount) || 0;
+          const diff = perParticipant - oldShare;
+
+          if (p.payment_status === 'paid' && diff !== 0 && p.user_id) {
+            try {
+              await recordLegacyTransaction({
+                userId: p.user_id,
+                amount: -diff,
+                transactionType: diff > 0 ? 'booking_charge' : 'booking_cancelled_refund',
+                status: 'completed',
+                direction: diff > 0 ? 'debit' : 'credit',
+                description: diff > 0
+                  ? 'Price increase reconciliation for shared booking'
+                  : 'Price decrease reconciliation for shared booking',
+                metadata: {
+                  bookingId: booking.id,
+                  reason: 'price_edit_reconciliation',
+                  oldShare,
+                  newShare: perParticipant
+                },
+                entityType: 'booking',
+                relatedEntityType: 'booking',
+                relatedEntityId: booking.id,
+                bookingId: booking.id,
+                createdBy: req.user?.id || null,
+                allowNegative: true,
+                client
+              });
+            } catch (walletErr) {
+              logger.warn('Wallet reconciliation failed for participant on price edit (non-blocking)', {
+                bookingId: booking.id,
+                participantId: p.id,
+                error: walletErr.message
+              });
+            }
+          }
+
+          await client.query(
+            `UPDATE booking_participants
+                SET payment_amount = $1, updated_at = NOW()
+              WHERE id = $2`,
+            [perParticipant, p.id]
+          );
+        }
+      }
+
+      // ── Model B: group_bookings master + group_booking_participants ──────
+      const groupRes = await client.query(
+        `SELECT id, max_participants FROM group_bookings WHERE booking_id = $1 LIMIT 1`,
+        [booking.id]
+      );
+      if (groupRes.rows.length > 0) {
+        const groupId = groupRes.rows[0].id;
+        const max = parseInt(groupRes.rows[0].max_participants, 10) || 1;
+        const pricePerPerson = Math.round((newTotal / max) * 100) / 100;
+        await client.query(
+          `UPDATE group_bookings
+              SET total_amount = $1, price_per_person = $2, updated_at = NOW()
+            WHERE id = $3`,
+          [newTotal, pricePerPerson, groupId]
+        );
+        await client.query(
+          `UPDATE group_booking_participants
+              SET amount_due = $1, updated_at = NOW()
+            WHERE group_booking_id = $2
+              AND payment_status NOT IN ('paid', 'refunded')`,
+          [pricePerPerson, groupId]
+        );
+      }
+    }
+
     // Handle custom commission rate if provided
     if (instructor_commission !== undefined && instructor_user_id) {
       // First, delete any existing custom commission for this booking
