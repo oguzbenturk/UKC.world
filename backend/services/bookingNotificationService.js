@@ -434,7 +434,7 @@ class BookingNotificationService {
     this._enqueueJob({
       type: 'reschedule-request',
       meta: { type: 'reschedule-request', bookingId, studentId },
-      idempotencyKey: `reschedule-request:${bookingId}:${Date.now()}`,
+      idempotencyKey: `reschedule-request:${bookingId}`,
       tenantKey: `booking:${bookingId}`,
       execute: () => this._processRescheduleRequest({ bookingId, studentId, newDate, newTime, reason, originalDate, originalTime })
     });
@@ -532,7 +532,7 @@ class BookingNotificationService {
             message,
             type: 'reschedule_request',
             data: notificationData,
-            idempotencyKey: `reschedule-request:${bookingId}:manager:${manager.id}:${Date.now()}`,
+            idempotencyKey: `reschedule-request:${bookingId}:manager:${manager.id}`,
             checkPreference: false
           })
         )
@@ -548,7 +548,7 @@ class BookingNotificationService {
           message: instructorMessage,
           type: 'booking_rescheduled',
           data: notificationData,
-          idempotencyKey: `reschedule-request:${bookingId}:instructor:${booking.instructor_id}:${Date.now()}`,
+          idempotencyKey: `reschedule-request:${bookingId}:instructor:${booking.instructor_id}`,
           checkPreference: false
         });
       }
@@ -1219,7 +1219,7 @@ class BookingNotificationService {
             href: ctx.isoDate ? `/bookings/calendar?view=daily&date=${ctx.isoDate}&bookingId=${ctx.booking.id}` : '/bookings/calendar'
           }
         },
-        idempotencyKey: `instructor-rescheduled:${bookingId}:${instructorUserId}:${Date.now()}`
+        idempotencyKey: `instructor-rescheduled:${bookingId}:${instructorUserId}`
       });
     } catch (error) {
       logger.warn('notifyInstructorRescheduled failed (non-blocking)', { bookingId, instructorUserId, error: error.message });

@@ -242,6 +242,82 @@ export function buildHelp() {
   ].join('\n');
 }
 
+export function buildBookingStudent(data = {}) {
+  const { serviceName, date, startTime, durationHours, instructor, packageName } = data;
+  const dateLabel = formatDate(date);
+  const durationLabel = formatDuration(durationHours);
+  const instructorName = instructor?.name;
+
+  const lines = ['🎉 <b>Lesson booked</b>', ''];
+  if (serviceName) lines.push(`📚 <b>${escapeHtml(serviceName)}</b>`);
+  if (dateLabel || startTime) {
+    lines.push(`📅 ${escapeHtml(dateLabel || '')}${startTime ? ` · ${escapeHtml(String(startTime))}` : ''}${durationLabel ? ` (${durationLabel})` : ''}`);
+  }
+  if (instructorName) lines.push(`👨‍🏫 ${escapeHtml(instructorName)}`);
+  if (packageName) lines.push(`🎟 ${escapeHtml(packageName)}`);
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
+export function buildBookingCheckedInStudent(data = {}) {
+  const { serviceName, date, startTime, durationHours, instructor } = data;
+  const dateLabel = formatDate(date);
+  const durationLabel = formatDuration(durationHours);
+  const instructorName = instructor?.name;
+
+  const lines = ['🟢 <b>You\'re checked in</b>', ''];
+  if (serviceName) lines.push(`📚 ${escapeHtml(serviceName)}`);
+  if (dateLabel || startTime) {
+    lines.push(`📅 ${escapeHtml(dateLabel || '')}${startTime ? ` · ${escapeHtml(String(startTime))}` : ''}${durationLabel ? ` (${durationLabel})` : ''}`);
+  }
+  if (instructorName) lines.push(`👨‍🏫 ${escapeHtml(instructorName)}`);
+  lines.push('', '<i>Have a great lesson!</i>');
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
+export function buildBookingCompletedStudent(data = {}) {
+  const { serviceName, instructor } = data;
+  const instructorName = instructor?.name;
+
+  const lines = ['🎓 <b>Lesson complete</b>', ''];
+  if (serviceName) lines.push(`📚 ${escapeHtml(serviceName)}`);
+  if (instructorName) lines.push(`👨‍🏫 ${escapeHtml(instructorName)}`);
+  lines.push('', '<i>How was your lesson? Tap below to rate.</i>');
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
+export function buildLessonRatingInstructor(data = {}) {
+  const { serviceName, studentName, rating } = data;
+  const stars = Number.isFinite(Number(rating))
+    ? '⭐'.repeat(Math.max(0, Math.min(5, Math.round(Number(rating)))))
+    : null;
+
+  const lines = ['⭐ <b>New lesson rating</b>', ''];
+  if (serviceName) lines.push(`📚 ${escapeHtml(serviceName)}`);
+  if (studentName) lines.push(`👤 ${escapeHtml(studentName)}`);
+  if (stars) lines.push(`Rating: ${stars}`);
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
+export function buildRentalCustomer(data = {}) {
+  const { equipmentNames, date, totalPrice, paymentStatus } = data;
+  const dateLabel = formatDate(date);
+  const equipmentLabel = Array.isArray(equipmentNames)
+    ? equipmentNames.join(', ')
+    : (equipmentNames || null);
+
+  const lines = ['🛟 <b>Rental confirmed</b>', ''];
+  if (equipmentLabel) lines.push(`🎒 ${escapeHtml(equipmentLabel)}`);
+  if (dateLabel) lines.push(`📅 ${escapeHtml(dateLabel)}`);
+  if (totalPrice != null) lines.push(`💰 ${escapeHtml(String(totalPrice))}`);
+  if (paymentStatus) lines.push(`💳 ${escapeHtml(String(paymentStatus))}`);
+  lines.push('', dashboardLink(data));
+  return lines.join('\n');
+}
+
 export function buildNewBookingAlert(data = {}) {
   const { serviceName, date, startTime, studentNames, instructorName, serviceType, status } = data;
   const dateLabel = formatDate(date);
@@ -305,6 +381,16 @@ export function buildTelegramMessageForType(type, data) {
       case 'new_booking_alert':
       case 'new_rental_alert':
         return buildNewBookingAlert(data);
+      case 'booking_student':
+        return buildBookingStudent(data);
+      case 'booking_checkin_student':
+        return buildBookingCheckedInStudent(data);
+      case 'booking_completed_student':
+        return buildBookingCompletedStudent(data);
+      case 'lesson_rating_instructor':
+        return buildLessonRatingInstructor(data);
+      case 'rental_customer':
+        return buildRentalCustomer(data);
       default:
         return null;
     }

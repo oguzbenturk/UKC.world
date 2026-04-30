@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import cron from 'node-cron';
 import { createServer } from 'http';
 import Decimal from 'decimal.js';
 import { pool } from './db.js';
@@ -96,7 +97,7 @@ import MessageCleanupService from './services/messageCleanupService.js';
 import { startLessonReminderJob } from './jobs/lessonReminderJob.js';
 import './services/alerts/notificationAlertService.js';
 import telegramRouter from './routes/telegram.js';
-import { initialize as initializeTelegramBot } from './services/telegramService.js';
+import { initialize as initializeTelegramBot, pruneStaleLinkCodes } from './services/telegramService.js';
 import { attachTelegramHandlers } from './services/telegramBotHandlers.js';
 import {
   securityHeaders,
@@ -1654,6 +1655,19 @@ if (shouldStartServer) {
         error: error?.message
       });
     });
+
+    // Daily prune of stale telegram_link_codes rows (consumed >30d ago,
+    // expired >7d ago) so the table doesn't grow unbounded.
+    try {
+      cron.schedule('15 4 * * *', () => {
+        pruneStaleLinkCodes().catch((error) => {
+          logger.warn('pruneStaleLinkCodes cron failed', { error: error.message });
+        });
+      }, { scheduled: true, timezone: 'Europe/Istanbul' });
+      logger.info('✅ Telegram link-code prune cron scheduled');
+    } catch (error) {
+      logger.error('❌ Failed to schedule telegram prune cron:', error);
+    }
 
     // Auto-cancel stale pending_payment member purchases (abandoned Iyzico flows)
     const STALE_PURCHASE_INTERVAL = 15 * 60 * 1000; // every 15 min

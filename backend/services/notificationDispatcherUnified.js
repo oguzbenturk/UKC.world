@@ -289,7 +289,7 @@ export async function dispatchNotification({
     }
 
     // Telegram fan-out — best effort, never blocks the in-app insert.
-    deliverTelegram({ executor, userId, type, title, message, data }).catch((err) => {
+    deliverTelegram({ userId, type, data, idempotencyKey }).catch((err) => {
       logger.warn('Telegram fan-out failed', { userId, type, error: err?.message });
     });
 
@@ -309,35 +309,42 @@ export async function dispatchNotification({
  * surfaced to the caller — the dispatch already succeeded once the in-app
  * notification was written.
  */
-async function deliverTelegram({ executor, userId, type, title, message, data }) {
+async function deliverTelegram({ userId, type, data, idempotencyKey }) {
   if (!isTelegramEnabled()) return;
 
   const telegramText = buildTelegramMessageForType(type, data || {});
-  if (!telegramText) return;
+  if (!telegramText) {
+    // Some notification types are intentionally in-app only (e.g. marketing,
+    // friend requests). The mapping in telegramTemplates/index.js is the
+    // source of truth. Surface to debug logs only — not a real failure.
+    logger.debug('No Telegram template for notification type — skipping', { userId, type });
+    return;
+  }
 
   // Preference check — gated on notification_settings.telegram_notifications.
-  let prefAllowed = true;
+  // Uses the pool directly because Telegram delivery is fired without await
+  // from dispatchNotification, so any transactional client would be released
+  // by the time we get here. Fail-OPEN: a transient DB blip should not cause
+  // us to silently drop a notification the user opted in to.
   try {
-    const result = await executor.query(
+    const result = await pool.query(
       `SELECT COALESCE(ns.telegram_notifications, true) AS telegram_notifications
        FROM users u
        LEFT JOIN notification_settings ns ON ns.user_id = u.id
        WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [userId]
     );
-    if (result.rows[0]?.telegram_notifications === false) prefAllowed = false;
+    if (result.rows[0]?.telegram_notifications === false) return;
   } catch (err) {
-    logger.warn('Failed to load Telegram preference', { userId, type, error: err.message });
-    return;
+    logger.error('Telegram preference check failed; defaulting to allow', {
+      userId, type, error: err.message
+    });
+    // fall through — deliver the message
   }
-  if (!prefAllowed) return;
 
-  void title;
-  void message;
-
-  // sendToUser fans out to every linked chat for this user. Failures per-chat
-  // are logged inside the service and never bubble up to the caller.
-  await sendTelegramToUser(userId, telegramText);
+  // sendToUser fans out to every active linked chat for this user. Failures
+  // per-chat are recorded in telegram_delivery_log and never bubble up.
+  await sendTelegramToUser(userId, telegramText, { type, idempotencyKey });
 }
 
 /**

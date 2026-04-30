@@ -8,7 +8,8 @@ import {
   generateLinkCode,
   unlinkChat,
   unlinkAllForUser,
-  getStatusForUser
+  getStatusForUser,
+  sendTestMessage
 } from '../services/telegramService.js';
 
 const router = express.Router();
@@ -21,7 +22,15 @@ router.post('/webhook', (req, res, next) => {
   }
 
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (expectedSecret) {
+  // In production a missing secret means anyone can POST forged Telegram
+  // updates to us — refuse to serve the endpoint until ops configures it.
+  if (!expectedSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('Telegram webhook rejected: TELEGRAM_WEBHOOK_SECRET is required in production');
+      return res.status(503).json({ error: 'Telegram webhook is not configured securely' });
+    }
+    logger.warn('Telegram webhook running without secret token (dev only)');
+  } else {
     const provided = req.get(SECRET_HEADER);
     if (provided !== expectedSecret) {
       logger.warn('Telegram webhook rejected: bad secret token', { ip: req.ip });
@@ -78,6 +87,30 @@ router.post('/unlink', async (req, res) => {
   } catch (error) {
     logger.error('Telegram unlink-all failed', { userId: req.user?.id, error: error.message });
     res.status(500).json({ error: 'Failed to unlink Telegram' });
+  }
+});
+
+// Send a one-off test message to every active chat for the current user.
+// Used by the "Send test message" button in Settings → Telegram so users can
+// verify their connection without waiting for a real booking event.
+router.post('/test', async (req, res) => {
+  if (!isTelegramEnabled()) {
+    return res.status(503).json({ error: 'Telegram bot is not configured' });
+  }
+  try {
+    const result = await sendTestMessage(req.user.id);
+    if (result.sent > 0) {
+      return res.json({ ok: true, sent: result.sent, failed: result.failed });
+    }
+    return res.status(400).json({
+      ok: false,
+      sent: 0,
+      failed: result.failed || 0,
+      reason: result.reason || 'no-active-chats'
+    });
+  } catch (error) {
+    logger.error('Telegram test message failed', { userId: req.user?.id, error: error.message });
+    res.status(500).json({ error: 'Failed to send test message' });
   }
 });
 

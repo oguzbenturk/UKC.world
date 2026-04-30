@@ -7,7 +7,9 @@ import {
   CheckCircleFilled,
   DisconnectOutlined,
   CopyOutlined,
-  PlusOutlined
+  PlusOutlined,
+  ExclamationCircleFilled,
+  SendOutlined
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 import { message } from '@/shared/utils/antdStatic';
@@ -31,6 +33,7 @@ export default function TelegramConnectCard() {
   const [pendingCode, setPendingCode] = useState(null);
   const [pendingDeepLink, setPendingDeepLink] = useState(null);
   const [pendingExpiresAt, setPendingExpiresAt] = useState(null);
+  const [sendingTest, setSendingTest] = useState(false);
 
   // Used by the post-connect poll to know when to stop.
   const prevChatCountRef = useRef(0);
@@ -105,12 +108,41 @@ export default function TelegramConnectCard() {
     try {
       await apiClient.delete(`/telegram/chats/${chatId}`);
       message.success(t('instructor:telegram.unlinked'));
+      // Clear any in-progress link UI — the user might be unlinking the
+      // chat they were just trying to connect.
+      setPendingCode(null);
+      setPendingDeepLink(null);
+      setPendingExpiresAt(null);
       await loadStatus();
     } catch (err) {
       logger.error('Failed to unlink chat', { error: String(err) });
       message.error(t('instructor:telegram.unlinkFailed'));
     } finally {
       setUnlinkingChatId(null);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    try {
+      const { data } = await apiClient.post('/telegram/test');
+      if (data?.ok) {
+        message.success(
+          t('instructor:telegram.testSent', { count: data.sent, defaultValue: 'Test message sent — check your Telegram.' })
+        );
+      } else {
+        message.warning(
+          t('instructor:telegram.testNoActiveChats', { defaultValue: 'No active Telegram chats to send to.' })
+        );
+      }
+    } catch (err) {
+      const reason = err?.response?.data?.reason;
+      logger.error('Telegram test send failed', { error: String(err), reason });
+      message.error(
+        t('instructor:telegram.testFailed', { defaultValue: 'Failed to send test message.' })
+      );
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -173,57 +205,83 @@ export default function TelegramConnectCard() {
             <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
               {t('instructor:telegram.connectedChats', { count: chats.length })}
             </div>
-            {chats.map((chat) => (
-              <div
-                key={chat.chatId}
-                className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <CheckCircleFilled className="text-emerald-500 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-emerald-800 dark:text-emerald-200 truncate">
-                      {chat.username
-                        ? t('instructor:telegram.linkedAs', { username: chat.username })
-                        : t('instructor:telegram.linkedNoUsername')}
-                    </div>
-                    <div className="text-[11px] text-emerald-700/70 dark:text-emerald-400/70">
-                      {t('instructor:telegram.linkedOn', { date: formatDate(chat.linkedAt) })}
-                      {' · '}
-                      <span className="font-mono">{chat.chatId}</span>
+            {chats.map((chat) => {
+              const isInactive = chat.active === false;
+              const containerClass = isInactive
+                ? 'flex items-center justify-between gap-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5'
+                : 'flex items-center justify-between gap-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2.5';
+              const labelColor = isInactive
+                ? 'text-amber-800 dark:text-amber-200'
+                : 'text-emerald-800 dark:text-emerald-200';
+              const subColor = isInactive
+                ? 'text-amber-700/80 dark:text-amber-400/80'
+                : 'text-emerald-700/70 dark:text-emerald-400/70';
+              return (
+                <div key={chat.chatId} className={containerClass}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isInactive
+                      ? <ExclamationCircleFilled className="text-amber-500 flex-shrink-0" />
+                      : <CheckCircleFilled className="text-emerald-500 flex-shrink-0" />}
+                    <div className="min-w-0">
+                      <div className={`text-sm font-medium ${labelColor} truncate`}>
+                        {chat.username
+                          ? t('instructor:telegram.linkedAs', { username: chat.username })
+                          : t('instructor:telegram.linkedNoUsername')}
+                        {isInactive && (
+                          <span className="ml-2 inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-amber-200/70 text-amber-900 dark:bg-amber-800/60 dark:text-amber-100">
+                            {t('instructor:telegram.inactive', { defaultValue: 'Reconnect needed' })}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`text-[11px] ${subColor}`}>
+                        {t('instructor:telegram.linkedOn', { date: formatDate(chat.linkedAt) })}
+                        {' · '}
+                        <span className="font-mono">{chat.chatId}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <Popconfirm
-                  title={t('instructor:telegram.confirmUnlink')}
-                  okText={t('instructor:telegram.unlink')}
-                  cancelText={t('instructor:telegram.cancel')}
-                  onConfirm={() => handleUnlinkChat(chat.chatId)}
-                >
-                  <Button
-                    size="small"
-                    icon={<DisconnectOutlined />}
-                    loading={unlinkingChatId === chat.chatId}
+                  <Popconfirm
+                    title={t('instructor:telegram.confirmUnlink')}
+                    okText={t('instructor:telegram.unlink')}
+                    cancelText={t('instructor:telegram.cancel')}
+                    onConfirm={() => handleUnlinkChat(chat.chatId)}
                   >
-                    {t('instructor:telegram.unlink')}
-                  </Button>
-                </Popconfirm>
-              </div>
-            ))}
+                    <Button
+                      size="small"
+                      icon={<DisconnectOutlined />}
+                      loading={unlinkingChatId === chat.chatId}
+                    >
+                      {t('instructor:telegram.unlink')}
+                    </Button>
+                  </Popconfirm>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <Button
-          type={linked ? 'default' : 'primary'}
-          icon={linked ? <PlusOutlined /> : <MailOutlined />}
-          loading={busy}
-          disabled={!botConfigured}
-          onClick={handleConnect}
-          className="w-full sm:w-auto"
-        >
-          {linked
-            ? t('instructor:telegram.addAnother')
-            : t('instructor:telegram.connect')}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type={linked ? 'default' : 'primary'}
+            icon={linked ? <PlusOutlined /> : <MailOutlined />}
+            loading={busy}
+            disabled={!botConfigured}
+            onClick={handleConnect}
+          >
+            {linked
+              ? t('instructor:telegram.addAnother')
+              : t('instructor:telegram.connect')}
+          </Button>
+          {linked && chats.some((c) => c.active !== false) && (
+            <Button
+              icon={<SendOutlined />}
+              loading={sendingTest}
+              onClick={handleSendTest}
+            >
+              {t('instructor:telegram.sendTest', { defaultValue: 'Send test message' })}
+            </Button>
+          )}
+        </div>
 
         {pendingCode && (
           <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-sky-900/20 p-3 space-y-2">

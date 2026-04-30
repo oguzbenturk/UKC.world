@@ -4,7 +4,22 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 
 const TELEGRAM_DISABLED = !process.env.TELEGRAM_BOT_TOKEN;
-const LINK_CODE_TTL_MS = 15 * 60 * 1000;
+
+// Link-code TTL is configurable so we can shorten it in production (5 min is
+// the industry standard for sensitive single-use tokens) without redeploying.
+const LINK_CODE_TTL_MS = (() => {
+  const raw = Number(process.env.TELEGRAM_LINK_CODE_TTL_MS);
+  if (Number.isFinite(raw) && raw >= 60_000 && raw <= 60 * 60_000) return raw;
+  return 5 * 60 * 1000;
+})();
+
+// Telegram quotas: 30 msg/sec global, 1 msg/sec per chat. On 429 the API tells
+// us how long to wait via parameters.retry_after. We honour it once (capped)
+// and otherwise back off exponentially for transient 5xx.
+const RATE_LIMIT_MAX_WAIT_MS = 60_000;
+const TRANSIENT_RETRY_DELAYS_MS = [250, 1000, 4000];
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let _bot = null;
 let _initialized = false;
@@ -92,52 +107,164 @@ export async function initialize({ webhookUrl, webhookSecret, attachHandlers } =
   return true;
 }
 
+// Internal: write one row to the delivery audit log. Best-effort — we never
+// want a logging failure to mask the actual send result, so all errors here
+// are swallowed with a warn.
+async function recordDelivery({ userId, chatId, type, idempotencyKey, status, errorCode, errorReason, messageId, attempts }) {
+  try {
+    await pool.query(
+      `INSERT INTO telegram_delivery_log
+         (user_id, chat_id, type, idempotency_key, status, error_code, error_reason, message_id, attempts)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        userId || null,
+        chatId,
+        type || null,
+        idempotencyKey || null,
+        status,
+        errorCode || null,
+        errorReason || null,
+        messageId || null,
+        attempts || 1
+      ]
+    );
+  } catch (err) {
+    logger.warn('telegram_delivery_log insert failed', { chatId, error: err.message });
+  }
+}
+
+// Internal: handle a 403/400 "chat unreachable" by soft-disabling the row
+// rather than deleting it. Preserves history so ops can see broken links.
+async function softDisableChat(chatId, reason) {
+  try {
+    await pool.query(
+      `UPDATE user_telegram_chats
+          SET active = false,
+              last_error_at = NOW(),
+              last_error_reason = $2
+        WHERE chat_id = $1`,
+      [chatId, reason || null]
+    );
+    logger.info('Soft-disabled user_telegram_chats row after permanent failure', { chatId, reason });
+  } catch (clearErr) {
+    logger.warn('Failed to soft-disable chat', { chatId, error: clearErr.message });
+  }
+}
+
+const isPermanentFailure = (errorCode, message) => {
+  if (errorCode === 403) return true;
+  if (errorCode === 400 && /chat not found|user is deactivated|bot was kicked/i.test(String(message || ''))) return true;
+  return false;
+};
+
+const isRateLimit = (errorCode) => errorCode === 429;
+const isTransient = (errorCode) => Number.isInteger(errorCode) && errorCode >= 500 && errorCode < 600;
+
+/**
+ * Low-level send to a single chat with retry handling for 429/5xx and
+ * soft-disable on permanent failures. Always records a delivery_log row.
+ *
+ * Caller can pass { userId, type, idempotencyKey } so the audit log knows
+ * which Plannivo notification this attempt belonged to.
+ */
 export async function sendToChat(chatId, text, options = {}) {
-  if (!isTelegramEnabled()) return { sent: false, reason: 'telegram-disabled' };
+  const { userId, type, idempotencyKey, ...telegramOpts } = options || {};
+
+  if (!isTelegramEnabled()) {
+    return { sent: false, reason: 'telegram-disabled' };
+  }
   if (!chatId) return { sent: false, reason: 'missing-chat-id' };
 
-  try {
-    const result = await getBot().api.sendMessage(chatId, text, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...options
-    });
-    return { sent: true, messageId: result.message_id };
-  } catch (error) {
-    logger.warn('Telegram sendMessage failed', {
-      chatId,
-      error: error?.message,
-      code: error?.error_code
-    });
+  let attempts = 0;
+  let lastErrorCode = null;
+  let lastErrorMessage = null;
 
-    // 403 = the user blocked the bot or removed it. Detach this chat so we
-    // stop trying to deliver to it.
-    if (error?.error_code === 403) {
-      try {
-        await pool.query(
-          `DELETE FROM user_telegram_chats WHERE chat_id = $1`,
-          [chatId]
-        );
-        logger.info('Removed user_telegram_chats row after 403 from Telegram', { chatId });
-      } catch (clearErr) {
-        logger.warn('Failed to clear chat after 403', { chatId, error: clearErr.message });
+  for (;;) {
+    attempts += 1;
+    try {
+      const result = await getBot().api.sendMessage(chatId, text, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        ...telegramOpts
+      });
+      await recordDelivery({
+        userId, chatId, type, idempotencyKey,
+        status: 'sent',
+        messageId: result.message_id,
+        attempts
+      });
+      return { sent: true, messageId: result.message_id, attempts };
+    } catch (error) {
+      lastErrorCode = error?.error_code ?? null;
+      lastErrorMessage = error?.message || 'send-failed';
+
+      // Rate-limited: honour Telegram's retry_after hint, retry once.
+      if (isRateLimit(lastErrorCode) && attempts === 1) {
+        const retryAfterSec = Number(error?.parameters?.retry_after) || 1;
+        const waitMs = Math.min(retryAfterSec * 1000, RATE_LIMIT_MAX_WAIT_MS);
+        logger.info('Telegram 429 — backing off', { chatId, waitMs });
+        await sleep(waitMs);
+        continue;
       }
-    }
 
-    return { sent: false, reason: error?.message || 'send-failed' };
+      // Transient server error: exponential backoff up to 3 retries.
+      if (isTransient(lastErrorCode) && attempts <= TRANSIENT_RETRY_DELAYS_MS.length) {
+        const waitMs = TRANSIENT_RETRY_DELAYS_MS[attempts - 1];
+        logger.info('Telegram 5xx — retrying', { chatId, code: lastErrorCode, waitMs });
+        await sleep(waitMs);
+        continue;
+      }
+
+      logger.warn('Telegram sendMessage failed', {
+        chatId,
+        error: lastErrorMessage,
+        code: lastErrorCode,
+        attempts
+      });
+
+      const permanent = isPermanentFailure(lastErrorCode, lastErrorMessage);
+      if (permanent) {
+        await softDisableChat(chatId, lastErrorMessage);
+      }
+
+      const status = isRateLimit(lastErrorCode)
+        ? 'rate-limited'
+        : permanent ? 'blocked' : 'failed';
+
+      await recordDelivery({
+        userId, chatId, type, idempotencyKey,
+        status,
+        errorCode: lastErrorCode,
+        errorReason: lastErrorMessage,
+        attempts
+      });
+
+      return {
+        sent: false,
+        reason: lastErrorMessage,
+        errorCode: lastErrorCode,
+        attempts,
+        permanent
+      };
+    }
   }
 }
 
 /**
- * Send a Telegram message to every chat the given user has linked.
+ * Send a Telegram message to every active chat the given user has linked.
  * Used by the dispatcher; returns aggregate stats per call.
+ *
+ * Pass { type, idempotencyKey } so each underlying sendToChat call records
+ * the Plannivo notification context in telegram_delivery_log.
  */
 export async function sendToUser(userId, text, options = {}) {
   if (!userId) return { sent: 0, failed: 0, reason: 'missing-user-id' };
   if (!isTelegramEnabled()) return { sent: 0, failed: 0, reason: 'telegram-disabled' };
 
   const { rows } = await pool.query(
-    `SELECT chat_id FROM user_telegram_chats WHERE user_id = $1`,
+    `SELECT chat_id
+       FROM user_telegram_chats
+      WHERE user_id = $1 AND active = true`,
     [userId]
   );
   if (!rows.length) return { sent: 0, failed: 0, reason: 'not-linked' };
@@ -146,7 +273,7 @@ export async function sendToUser(userId, text, options = {}) {
   let failed = 0;
   await Promise.all(
     rows.map(async ({ chat_id }) => {
-      const result = await sendToChat(chat_id, text, options);
+      const result = await sendToChat(chat_id, text, { ...options, userId });
       if (result.sent) sent++;
       else failed++;
     })
@@ -217,12 +344,17 @@ export async function consumeLinkCode({ code, chatId, username }) {
     );
 
     // Upsert the link for the target user — if they already linked this same
-    // chat, just refresh the username/linked_at.
+    // chat, refresh the username/linked_at and re-activate it (a previous 403
+    // may have soft-disabled the row).
     const upsertResult = await client.query(
-      `INSERT INTO user_telegram_chats (user_id, chat_id, username, linked_at)
-       VALUES ($1, $2, $3, NOW())
+      `INSERT INTO user_telegram_chats (user_id, chat_id, username, linked_at, active, last_error_at, last_error_reason)
+       VALUES ($1, $2, $3, NOW(), true, NULL, NULL)
        ON CONFLICT (user_id, chat_id)
-       DO UPDATE SET username = EXCLUDED.username, linked_at = NOW()
+       DO UPDATE SET username = EXCLUDED.username,
+                     linked_at = NOW(),
+                     active = true,
+                     last_error_at = NULL,
+                     last_error_reason = NULL
        RETURNING (xmax = 0) AS inserted`,
       [row.user_id, chatId, username || null]
     );
@@ -288,7 +420,7 @@ export async function unlinkAllForUser(userId) {
 export async function listChatsForUser(userId) {
   if (!userId) return [];
   const { rows } = await pool.query(
-    `SELECT chat_id, username, linked_at
+    `SELECT chat_id, username, linked_at, active, last_error_at, last_error_reason
        FROM user_telegram_chats
       WHERE user_id = $1
       ORDER BY linked_at DESC`,
@@ -297,17 +429,63 @@ export async function listChatsForUser(userId) {
   return rows.map((r) => ({
     chatId: String(r.chat_id),
     username: r.username,
-    linkedAt: r.linked_at
+    linkedAt: r.linked_at,
+    active: r.active,
+    lastErrorAt: r.last_error_at,
+    lastErrorReason: r.last_error_reason
   }));
 }
 
 export async function getStatusForUser(userId) {
   const chats = await listChatsForUser(userId);
+  const activeChats = chats.filter((c) => c.active !== false);
   return {
-    linked: chats.length > 0,
+    linked: activeChats.length > 0,
+    hasInactiveChats: chats.some((c) => c.active === false),
     chats,
     botUsername: _botUsername || process.env.TELEGRAM_BOT_USERNAME || null
   };
+}
+
+/**
+ * Send a "your Telegram is wired up" smoke test to the requesting user. Used
+ * by the Settings → Telegram "Send test message" button. Returns the same
+ * shape as sendToUser plus a friendly reason on the no-op cases.
+ */
+export async function sendTestMessage(userId) {
+  if (!userId) return { sent: 0, failed: 0, reason: 'missing-user-id' };
+  if (!isTelegramEnabled()) return { sent: 0, failed: 0, reason: 'telegram-disabled' };
+
+  const text = [
+    '✅ <b>Plannivo test message</b>',
+    '',
+    'If you can read this, your Telegram link is working.',
+    'You will receive booking and lesson notifications here.'
+  ].join('\n');
+
+  return sendToUser(userId, text, { type: 'telegram_test' });
+}
+
+/**
+ * Periodic housekeeping: drop link codes that have been consumed for >30 days
+ * or that expired >7 days ago. Keeps the telegram_link_codes table from
+ * growing forever. Wired into a cron in server.js.
+ */
+export async function pruneStaleLinkCodes() {
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM telegram_link_codes
+        WHERE (consumed_at IS NOT NULL AND consumed_at < NOW() - INTERVAL '30 days')
+           OR (consumed_at IS NULL AND expires_at < NOW() - INTERVAL '7 days')`
+    );
+    if (rowCount > 0) {
+      logger.info('Pruned stale telegram_link_codes', { rowCount });
+    }
+    return { pruned: rowCount };
+  } catch (error) {
+    logger.warn('pruneStaleLinkCodes failed', { error: error.message });
+    return { pruned: 0, error: error.message };
+  }
 }
 
 export default {
@@ -317,10 +495,12 @@ export default {
   getBotUsername,
   sendToChat,
   sendToUser,
+  sendTestMessage,
   generateLinkCode,
   consumeLinkCode,
   unlinkChat,
   unlinkAllForUser,
   listChatsForUser,
-  getStatusForUser
+  getStatusForUser,
+  pruneStaleLinkCodes
 };
