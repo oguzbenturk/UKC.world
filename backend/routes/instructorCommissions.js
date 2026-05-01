@@ -303,7 +303,7 @@ router.put('/instructors/:instructorId/category-rates', authenticateJWT, authori
     return res.status(400).json({ error: 'rates must be an array' });
   }
 
-  const VALID_CATEGORIES = ['private', 'semi-private', 'group', 'supervision'];
+  const VALID_CATEGORIES = ['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision'];
   const VALID_TYPES = ['fixed', 'percentage'];
 
   for (const r of rates) {

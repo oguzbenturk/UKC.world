@@ -105,7 +105,7 @@ const InstructorSkillsManager = forwardRef(({ instructorId, onSave = () => {} },
         ...prev,
         {
           discipline_tag: disciplineKey,
-          lesson_categories: ['private', 'semi-private', 'group', 'supervision'],
+          lesson_categories: ['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision'],
           max_level: 'advanced',
         },
       ]);

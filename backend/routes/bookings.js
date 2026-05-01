@@ -490,7 +490,13 @@ router.get('/',
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+        CASE
+          WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+            THEN 'semi-private-supervision'
+          ELSE srv.lesson_category_tag
+        END
+      )
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
   LEFT JOIN wallet_transactions t ON t.booking_id = b.id AND t.transaction_type IN ('charge', 'booking_charge')
       LEFT JOIN booking_participants bp ON bp.booking_id = b.id
@@ -761,7 +767,13 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+        CASE
+          WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+            THEN 'semi-private-supervision'
+          ELSE srv.lesson_category_tag
+        END
+      )
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       LEFT JOIN booking_participants bp ON bp.booking_id = b.id
       LEFT JOIN users pu ON bp.user_id = pu.id
@@ -1320,7 +1332,13 @@ router.get('/:id', authenticateJWT, async (req, res) => {
       LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+        CASE
+          WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+            THEN 'semi-private-supervision'
+          ELSE srv.lesson_category_tag
+        END
+      )
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       WHERE b.id = $1 AND b.deleted_at IS NULL
     `, [req.params.id]);

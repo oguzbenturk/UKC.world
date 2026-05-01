@@ -417,7 +417,7 @@ router.post('/packages', authorize(['admin', 'manager']), cacheInvalidationMiddl
     // Start transaction
     await client.query('BEGIN');
 
-    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision'];
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision', 'semi-private-supervision'];
     let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
     let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
     let resolvedLevelTag = levelTag || null;
@@ -2046,7 +2046,7 @@ router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMi
     
     await client.query('BEGIN');
 
-    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision'];
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision', 'semi-private-supervision'];
     let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
     let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
     let resolvedLevelTag = levelTag || null;

@@ -125,7 +125,7 @@ const isLessonService = (service) => {
   // Exclude rental/shop by category
   if (RENTAL_CATEGORIES.some(k => cat.includes(k))) return false;
   // Include if it has a lesson-oriented service_type
-  if (['private', 'semi-private', 'group', 'supervision', 'lesson'].includes(type)) return true;
+  if (['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision', 'lesson'].includes(type)) return true;
   // Include if it has a lessonCategoryTag set
   if (service?.lesson_category_tag || service?.lessonCategoryTag) return true;
   // Fallback: include if category is lesson-oriented

@@ -123,7 +123,11 @@ export async function getInstructorEarningsData(
         ) as participant_names,
         srv.price as service_price,
         srv.duration as service_duration,
-        srv.lesson_category_tag as lesson_category,
+        CASE
+          WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+            THEN 'semi-private-supervision'
+          ELSE srv.lesson_category_tag
+        END as lesson_category,
         cp.package_name,
         CASE
           WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
@@ -161,7 +165,13 @@ export async function getInstructorEarningsData(
       LEFT JOIN service_packages gb_sp ON gb_sp.id = gb.package_id
       LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
       LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+      LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+        CASE
+          WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+            THEN 'semi-private-supervision'
+          ELSE srv.lesson_category_tag
+        END
+      )
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
       WHERE b.instructor_user_id = $1
         AND b.deleted_at IS NULL
@@ -326,7 +336,13 @@ export async function getAllInstructorBalances() {
     LEFT JOIN service_packages gb_sp ON gb_sp.id = gb.package_id
     LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
     LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-    LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+    LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+      CASE
+        WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+          THEN 'semi-private-supervision'
+        ELSE srv.lesson_category_tag
+      END
+    )
     LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
     WHERE b.deleted_at IS NULL AND b.status = 'completed'
       AND u.deleted_at IS NULL

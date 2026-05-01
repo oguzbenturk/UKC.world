@@ -325,7 +325,13 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
     LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
     LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-    LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = srv.lesson_category_tag
+    LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+      CASE
+        WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+          THEN 'semi-private-supervision'
+        ELSE srv.lesson_category_tag
+      END
+    )
     LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
     WHERE b.instructor_user_id IS NOT NULL AND ${instructorCommConditions.join(' AND ')}
   `;

@@ -52,7 +52,7 @@ router.put(
 
       // Validate input
       const validDisciplines = new Set(['kite', 'wing', 'kite_foil', 'efoil', 'premium']);
-      const validCategories = new Set(['private', 'semi-private', 'group', 'supervision']);
+      const validCategories = new Set(['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision']);
       const validLevels = new Set(['beginner', 'intermediate', 'advanced']);
 
       for (const skill of skills) {

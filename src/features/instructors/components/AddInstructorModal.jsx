@@ -135,7 +135,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
     setSkills(prev =>
       prev.some(s => s.discipline_tag === key)
         ? prev.filter(s => s.discipline_tag !== key)
-        : [...prev, { discipline_tag: key, lesson_categories: ['private', 'semi-private', 'group', 'supervision'], max_level: 'advanced' }]
+        : [...prev, { discipline_tag: key, lesson_categories: ['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision'], max_level: 'advanced' }]
     );
   };
 

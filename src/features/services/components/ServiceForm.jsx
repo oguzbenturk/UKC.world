@@ -353,6 +353,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
                 <Option value="semi-private">👥 Semi-private</Option>
                 <Option value="group">👨‍👩‍👧 Group</Option>
                 <Option value="supervision">🎓 Supervision</Option>
+                <Option value="semi-private-supervision">🎓👥 Semi-Private Supervision</Option>
               </Select>
             </Form.Item>
           )}

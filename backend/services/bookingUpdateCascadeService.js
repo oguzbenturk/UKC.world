@@ -377,12 +377,19 @@ class BookingUpdateCascadeService {
         // 3. Check for lesson-category-level rate
         let foundCategoryRate = false;
         if (booking.service_id) {
+          const groupSize = Math.max(1, Number(booking.group_size) || 1);
           const categoryRate = await client.query(
             `SELECT icr.rate_type, icr.rate_value
              FROM instructor_category_rates icr
-             JOIN services s ON s.lesson_category_tag = icr.lesson_category
+             JOIN services s ON icr.lesson_category = (
+               CASE
+                 WHEN s.lesson_category_tag = 'supervision' AND $3::int > 1
+                   THEN 'semi-private-supervision'
+                 ELSE s.lesson_category_tag
+               END
+             )
              WHERE icr.instructor_id = $1 AND s.id = $2`,
-            [booking.instructor_user_id, booking.service_id]
+            [booking.instructor_user_id, booking.service_id, groupSize]
           );
           if (categoryRate.rows.length > 0) {
             commissionType = categoryRate.rows[0].rate_type;

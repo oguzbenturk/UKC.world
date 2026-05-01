@@ -44,6 +44,7 @@ const CATEGORY_MAP = {
   'semi-private': { label: 'Semi-Private', color: 'orange' },
   group: { label: 'Group', color: 'blue' },
   supervision: { label: 'Supervision', color: 'red' },
+  'semi-private-supervision': { label: 'Semi-Private Supervision', color: 'gold' },
 };
 
 function LessonServices() {
@@ -89,7 +90,7 @@ function LessonServices() {
           lessonCategoryNames.includes(category) ||
           category === 'lesson' || category === 'lessons' ||
           category === 'kitesurfing' || category === 'wingfoil';
-        const matchesType = ['lesson', 'private', 'group', 'semi-private', 'supervision'].includes(serviceType);
+        const matchesType = ['lesson', 'private', 'group', 'semi-private', 'supervision', 'semi-private-supervision'].includes(serviceType);
         const isRental = category === 'rental' || category === 'rentals' || serviceType === 'rental';
         return (matchesLesson || matchesType) && !isRental;
       });

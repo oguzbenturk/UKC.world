@@ -18,8 +18,8 @@ import { formatCurrency } from '@/shared/utils/formatters';
 const { Text } = Typography;
 const { Option } = Select;
 
-const LESSON_CATEGORIES = ['private', 'semi-private', 'group', 'supervision'];
-const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple' };
+const LESSON_CATEGORIES = ['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision'];
+const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple', 'semi-private-supervision': 'gold' };
 
 const InstructorServiceCommission = forwardRef(({
   instructorId,

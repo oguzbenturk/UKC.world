@@ -20,6 +20,7 @@ const LESSON_CATEGORY_OPTIONS = [
   { value: 'semi-private', label: 'Semi-Private' },
   { value: 'group', label: 'Group' },
   { value: 'supervision', label: 'Supervision' },
+  { value: 'semi-private-supervision', label: 'Semi-Private Supervision' },
 ];
 
 // Drawer form for creating AND editing Lesson services (single page)
@@ -58,8 +59,12 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
     const price = values.price != null ? parseFloat(values.price) : undefined;
     const maxParticipants = values.maxParticipants != null ? parseInt(values.maxParticipants, 10) : undefined;
     const autoCategory = maxParticipants === 1 ? 'private' : maxParticipants <= 3 ? 'semi-private' : 'group';
-    const lessonCategoryTag = values.lessonCategoryTag || autoCategory;
-    const serviceType = lessonCategoryTag === 'supervision' ? 'supervision' : autoCategory;
+    let lessonCategoryTag = values.lessonCategoryTag || autoCategory;
+    // Auto-promote supervision → semi-private-supervision when capacity > 1
+    if (lessonCategoryTag === 'supervision' && maxParticipants > 1) {
+      lessonCategoryTag = 'semi-private-supervision';
+    }
+    const serviceType = (lessonCategoryTag === 'supervision' || lessonCategoryTag === 'semi-private-supervision') ? 'supervision' : autoCategory;
 
     return {
       name: (values.name || '').trim(),
