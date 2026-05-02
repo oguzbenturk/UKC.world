@@ -77,6 +77,7 @@ import { processParticipantPayment, processOrganizerPayment } from './services/g
 import groupLessonRequestsRouter from './routes/groupLessonRequests.js';
 import rescheduleNotificationsRouter from './routes/rescheduleNotifications.js';
 import vouchersRouter from './routes/vouchers.js';
+import discountsRouter from './routes/discounts.js';
 import managerCommissionsRouter from './routes/managerCommissions.js';
 import memberOfferingsRouter from './routes/memberOfferings.js';
 import repairRequestsRouter from './routes/repairRequests.js';
@@ -1436,6 +1437,7 @@ app.use('/api/admin', authenticateJWT, adminRouter);
 app.use('/api/assistant', assistantRouter);
 app.use('/api/agent', authenticateAgentRequest, agentRouter);
 app.use('/api/vouchers', authenticateJWT, vouchersRouter);
+app.use('/api/discounts', authenticateJWT, discountsRouter);
 app.use('/api/manager/commissions', authenticateJWT, managerCommissionsRouter);
 // Public weather route (no auth) - provides hourly wind data for calendars
 app.use('/api/weather', weatherRouter);

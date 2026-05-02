@@ -1,0 +1,55 @@
+/* Print rules for the Customer Bill modal.
+   Strategy: hide everything outside the bill root and pull the bill into the
+   page flow at the top-left of the printed page. */
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .ukc-bill-printable,
+  .ukc-bill-printable * {
+    visibility: visible;
+  }
+
+  .ukc-bill-printable {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    padding: 12mm 14mm;
+    background: #fff !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .ukc-bill-no-print {
+    display: none !important;
+  }
+
+  .ukc-bill-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ant Design modal chrome adds a backdrop & wrapper that we want gone. */
+  .ant-modal-mask,
+  .ant-modal-wrap {
+    background: transparent !important;
+  }
+
+  .ant-modal {
+    box-shadow: none !important;
+    max-width: 100% !important;
+    top: 0 !important;
+  }
+
+  .ant-modal-content {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}

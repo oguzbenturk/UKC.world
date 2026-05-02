@@ -1600,6 +1600,28 @@
     margin: 1px 0;
   }
 
+  /* Smaller status pill on mobile to save vertical room */
+  .booking-status-pill {
+    gap: 3px;
+    padding: 1px 5px;
+    font-size: 8.5px;
+  }
+  .booking-status-dot-small {
+    width: 5px;
+    height: 5px;
+  }
+
+  /* Smaller time label on mobile */
+  .booking-card-time-label {
+    font-size: 9px;
+  }
+
+  /* Smaller participant name on mobile */
+  .booking-card-name {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
   /* Month row compact tweaks */
   .month-day .text-\[11px\] {
     font-size: 10.5px !important;

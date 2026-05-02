@@ -27,7 +27,6 @@ import {
   TeamOutlined,
   EditOutlined
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
@@ -263,7 +262,6 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
               >
                 <RangePicker
                   className="w-full"
-                  disabledDate={(current) => current && current < dayjs().startOf('day')}
                   onChange={() => {
                     form.setFieldsValue({});
                     setPriceOverride(null);

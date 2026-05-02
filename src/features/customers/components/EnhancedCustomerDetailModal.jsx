@@ -15,7 +15,7 @@ import {
   HomeOutlined, BookOutlined, CloseOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
   FieldTimeOutlined, DashboardOutlined, CrownOutlined,
-  LineChartOutlined
+  LineChartOutlined, FileTextOutlined
 } from '@ant-design/icons';
 import DataService from '@/shared/services/dataService';
 import FinancialService from '../../finances/services/financialService';
@@ -30,6 +30,8 @@ import {
   RentalMobileCard,
 } from '@/components/ui/MobileCardRenderers';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
+import { fetchCustomerDiscounts } from './customerBill/discountApi';
+import { indexDiscounts } from './customerBill/billAggregator';
 
 const CustomerPackageManager = lazy(() => import('./CustomerPackageManager'));
 const BookingDrawer = lazy(() => import('../../bookings/components/components/BookingDrawer'));
@@ -38,6 +40,9 @@ const RentalDetailModal = lazy(() => import('./RentalDetailModal'));
 const TransactionDetailModal = lazy(() => import('./TransactionDetailModal'));
 const MemberPurchasesSection = lazy(() => import('../../members/components/MemberPurchasesSection'));
 const CustomerShopHistory = lazy(() => import('./CustomerShopHistory'));
+const CustomerBillModal = lazy(() => import('./CustomerBillModal'));
+const CustomerDiscountsTab = lazy(() => import('./CustomerDiscountsTab'));
+const ApplyDiscountModal = lazy(() => import('./ApplyDiscountModal'));
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -104,6 +109,7 @@ const NAV_ITEMS = [
   { key: 'accommodation', icon: <HomeOutlined />, label: 'Accommodation' },
   { key: 'shop', icon: <ShoppingOutlined />, label: 'Shop' },
   { key: 'memberships', icon: <CrownOutlined />, label: 'Memberships' },
+  { key: 'discounts', icon: <FieldTimeOutlined />, label: 'Discounts' },
   { key: 'financial', icon: <DollarOutlined />, label: 'Financial' },
 ];
 
@@ -116,6 +122,7 @@ const SECTION_DESCRIPTIONS = {
   financial: 'Transactions, balance, and wallet management',
   shop: 'Shop order history',
   memberships: 'Membership purchases',
+  discounts: 'Per-line discounts — bulk-apply % off any selection',
 };
 
 const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, onUpdate = () => {}, readOnly = false }) => {
@@ -134,6 +141,10 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const [transactions, setTransactions] = useState([]);
   const [customerPackages, setCustomerPackages] = useState([]);
   const [accommodationBookings, setAccommodationBookings] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  // Per-row Apply Discount modal state — set when staff clicks "Discount" on
+  // a booking / rental / accommodation / package / membership row.
+  const [discountTarget, setDiscountTarget] = useState(null); // { entityType, entityId, originalPrice, currency, description }
   const hasFetchedRef = useRef(false);
 
   // Modal states
@@ -153,6 +164,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedRental, setSelectedRental] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [billModalVisible, setBillModalVisible] = useState(false);
 
   // Dependency delete state
   const [transactionDependencyInfo, setTransactionDependencyInfo] = useState(null);
@@ -208,7 +220,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     setLoading(true);
     try {
       const headers = buildAuthHeaders();
-      const [customerResult, lessonsResult, rentalsResult, instructorsResult, balanceResult, transactionsResult, packagesResult, accommodationResult] =
+      const [customerResult, lessonsResult, rentalsResult, instructorsResult, balanceResult, transactionsResult, packagesResult, accommodationResult, discountsResult] =
         await Promise.allSettled([
           requestThrottle.execute(() => DataService.getUserById(customerId)),
           DataService.getLessonsByUserId(customerId),
@@ -218,6 +230,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           FinancialService.getUserTransactions(customerId),
           fetch(`/api/services/customer-packages/${customerId}`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
           fetch(`/api/accommodation/bookings?guestId=${customerId}&limit=200`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
+          fetchCustomerDiscounts(customerId),
         ]);
 
       if (customerResult.status === 'fulfilled') setCustomer(customerResult.value);
@@ -239,6 +252,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       } else setCustomerPackages([]);
 
       setAccommodationBookings(accommodationResult.status === 'fulfilled' && Array.isArray(accommodationResult.value) ? accommodationResult.value : []);
+      setDiscounts(discountsResult.status === 'fulfilled' && Array.isArray(discountsResult.value) ? discountsResult.value : []);
     } catch (err) {
       console.error('Error loading customer data', err);
     } finally {
@@ -249,13 +263,14 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const refreshAllData = useCallback(async () => {
     if (!customerId) return;
     const headers = buildAuthHeaders();
-    const [balanceResult, transactionsResult, packagesResult, lessonsResult, rentalsResult, accommodationRefreshResult] = await Promise.allSettled([
+    const [balanceResult, transactionsResult, packagesResult, lessonsResult, rentalsResult, accommodationRefreshResult, discountsResult] = await Promise.allSettled([
       FinancialService.getUserBalance(customerId, true),
       FinancialService.getUserTransactions(customerId),
       fetch(`/api/services/customer-packages/${customerId}`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
       DataService.getLessonsByUserId(customerId),
       DataService.getRentalsByUserId(customerId),
       fetch(`/api/accommodation/bookings?guestId=${customerId}&limit=200`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
+      fetchCustomerDiscounts(customerId),
     ]);
     if (balanceResult.status === 'fulfilled') setUserAccount(balanceResult.value);
     if (transactionsResult.status === 'fulfilled') setTransactions(transactionsResult.value || []);
@@ -271,7 +286,26 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     if (accommodationRefreshResult.status === 'fulfilled' && Array.isArray(accommodationRefreshResult.value)) {
       setAccommodationBookings(accommodationRefreshResult.value);
     }
+    if (discountsResult.status === 'fulfilled' && Array.isArray(discountsResult.value)) {
+      setDiscounts(discountsResult.value);
+    }
   }, [customerId, buildAuthHeaders]);
+
+  // Lightweight refresh: only re-fetch the discount list. Used after
+  // ApplyDiscountModal saves so we don't bounce every other dataset.
+  const refreshDiscounts = useCallback(async () => {
+    if (!customerId) return;
+    try {
+      const list = await fetchCustomerDiscounts(customerId);
+      setDiscounts(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error('Failed to refresh discounts', err);
+    }
+  }, [customerId]);
+
+  // Map<`${entity_type}:${entity_id}`, discountRow> — passed to bill aggregator
+  // and used by per-tab "Apply Discount" buttons to show existing values.
+  const discountsByEntity = useMemo(() => indexDiscounts(discounts), [discounts]);
 
   // Fetch once on open
   useEffect(() => {
@@ -708,12 +742,41 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     return <Tag color={color}>{label}</Tag>;
   };
 
+  // ─── Discount helpers ─────────────────────────────────────────
+  // Renders an inline price + discount chip when this entity has a discount
+  // row attached. `originalPrice` is the price BEFORE the manual discount.
+  const renderDiscountedPrice = useCallback((entityType, entityId, originalPrice, currency) => {
+    const cur = currency || storageCurrency;
+    const orig = Number(originalPrice) || 0;
+    const d = entityId != null ? discountsByEntity.get(`${entityType}:${entityId}`) : null;
+    if (!d) return <span className="tabular-nums">{fmtCurrency(orig, cur)}</span>;
+    const dAmt = Number(d.amount) || 0;
+    const final = Math.max(0, orig - dAmt);
+    return (
+      <Space size={4} wrap>
+        <span className="tabular-nums line-through text-slate-400 text-xs">{fmtCurrency(orig, cur)}</span>
+        <span className="tabular-nums font-semibold text-emerald-600">{fmtCurrency(final, cur)}</span>
+        <Tag color="orange" className="!m-0">−{Number(d.percent)}%</Tag>
+      </Space>
+    );
+  }, [discountsByEntity, fmtCurrency, storageCurrency]);
+
+  // Opens the ApplyDiscountModal targeted at one entity row.
+  const openDiscountForEntity = useCallback(({ entityType, entityId, originalPrice, currency, description }) => {
+    setDiscountTarget({ entityType, entityId, originalPrice, currency, description });
+  }, []);
+
   // ─── Column definitions ───────────────────────────────────────
   const bookingColumns = useMemo(() => [
     { title: 'Date & Time', key: 'datetime', render: (_, r) => { if (r.date && r.startTime) return `${new Date(r.date).toLocaleDateString()} ${r.startTime}`; return formatDate(r.start_time || r.date); } },
     { title: 'Duration', dataIndex: 'duration', key: 'duration', render: d => d ? `${parseFloat(d)} hour${parseFloat(d) !== 1 ? 's' : ''}` : 'N/A' },
     { title: 'Type', dataIndex: 'booking_type', key: 'type', render: t => t?.charAt(0).toUpperCase() + t?.slice(1) || 'Standard' },
     { title: 'Instructor', key: 'instructor', render: (_, r) => { if (r.instructor_name) return r.instructor_name; const iid = r.instructor_id || r.instructor_user_id; const inst = instructors.find(i => i.id === iid); return inst ? (inst.name || `${inst.first_name} ${inst.last_name}`) : 'N/A'; } },
+    { title: 'Price', key: 'price', render: (_, r) => {
+      const orig = Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
+      if (orig <= 0 && r.payment_status === 'package') return <span className="text-slate-400 text-xs italic">included</span>;
+      return renderDiscountedPrice('booking', r.id, orig, r.currency);
+    }},
     { title: 'Status', dataIndex: 'status', key: 'status', render: s => getStatusTag(s) },
     { title: 'Payment', key: 'payment', render: (_, r) => {
       if (r.payment_method_display && r.payment_method_display !== 'Package Hours' && r.payment_method_display !== 'Individual Payment' && r.payment_method_display !== 'Paid')
@@ -727,10 +790,27 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space size="small">
         <Button type="link" size="small" onClick={() => handleViewBooking(r)}>View</Button>
+        {!readOnly && (
+          <Button
+            type="link"
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              const orig = Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
+              openDiscountForEntity({
+                entityType: 'booking',
+                entityId: r.id,
+                originalPrice: orig,
+                currency: r.currency,
+                description: `${r.service_name || r.serviceName || 'Lesson'} · ${formatDate(r.start_time || r.date)}`,
+              });
+            }}
+          >Discount</Button>
+        )}
         {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteBooking(r)}>Delete</Button>}
       </Space>
     )}
-  ], [instructors, handleDeleteBooking, readOnly]);
+  ], [instructors, handleDeleteBooking, readOnly, renderDiscountedPrice, openDiscountForEntity]);
 
   const rentalColumns = useMemo(() => [
     { title: 'Equipment', key: 'equipment', render: (_, r) => {
@@ -741,8 +821,12 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Price', key: 'price', render: (_, r) => {
       const tp = parseFloat(r.total_price);
       const isPackage = !!r.customer_package_id || r.payment_status === 'package';
-      if (tp > 0) return <span>{fmtCurrency(tp, storageCurrency)}{isPackage ? ' 📦' : ''}</span>;
-      // Prefer package daily rate, then equipment daily rate
+      if (tp > 0) return (
+        <Space size={4}>
+          {renderDiscountedPrice('rental', r.id, tp, r.currency || storageCurrency)}
+          {isPackage && <span>📦</span>}
+        </Space>
+      );
       const pkgRate = parseFloat(r.package_daily_rate);
       if (pkgRate > 0) return <span className="text-slate-500">{fmtCurrency(pkgRate, storageCurrency)}/h 📦</span>;
       const eq = r.equipment;
@@ -756,10 +840,26 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Actions', key: 'actions', render: (_, r) => (
       <Space size="small">
         <Button type="link" size="small" onClick={() => handleViewRental(r)}>View</Button>
+        {!readOnly && parseFloat(r.total_price) > 0 && !r.customer_package_id && r.payment_status !== 'package' && (
+          <Button
+            type="link"
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              openDiscountForEntity({
+                entityType: 'rental',
+                entityId: r.id,
+                originalPrice: parseFloat(r.total_price) || 0,
+                currency: r.currency || storageCurrency,
+                description: `Rental · ${formatDate(r.rental_date || r.start_date)}`,
+              });
+            }}
+          >Discount</Button>
+        )}
         {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteRental(r)}>Delete</Button>}
       </Space>
     )}
-  ], [fmtCurrency, storageCurrency, handleDeleteRental, readOnly]);
+  ], [fmtCurrency, storageCurrency, handleDeleteRental, readOnly, renderDiscountedPrice, openDiscountForEntity]);
 
   const transactionColumns = useMemo(() => [
     { title: 'Date', dataIndex: 'createdAt', key: 'date', render: d => formatDate(d), sorter: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
@@ -882,6 +982,24 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         ))}
       </div>
 
+      {/* Create Bill */}
+      <button
+        type="button"
+        onClick={() => setBillModalVisible(true)}
+        className="w-full rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-sky-50/40 hover:from-cyan-100 hover:to-sky-100/60 transition-colors px-4 py-3 flex items-center justify-between gap-3 cursor-pointer"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#00a8c4' }}>
+            <FileTextOutlined className="text-white text-base" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-semibold text-gray-800 leading-tight">Create Bill</div>
+            <div className="text-[11px] text-gray-500 leading-tight mt-0.5">Duotone Pro Center Urla statement — accommodation, lessons, rentals, shop &amp; more</div>
+          </div>
+        </div>
+        <span className="text-xs font-medium" style={{ color: '#00a8c4' }}>Open →</span>
+      </button>
+
       {/* Upcoming Lessons */}
       {stats.upcomingLessons > 0 && (
         <div className="rounded-xl border border-gray-100 bg-white p-5">
@@ -948,6 +1066,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             showStats={false}
             disableActions={readOnly}
             onPackageAssigned={async () => { await refreshAllData(); message.success('Package assigned'); }}
+            discountsByEntity={discountsByEntity}
+            onApplyDiscount={openDiscountForEntity}
           />
         )}
       </Suspense>
@@ -1074,7 +1194,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         key: 'price',
         render: (p, r) => r._source === 'package'
           ? <Tooltip title="Price included in package"><span className="text-gray-400 text-xs">Incl. in package</span></Tooltip>
-          : fmtCurrency(Number(p) || 0, storageCurrency),
+          : renderDiscountedPrice('accommodation_booking', r.id, Number(p) || 0, r.currency || storageCurrency),
       },
       {
         title: 'Source',
@@ -1088,6 +1208,28 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         dataIndex: 'status',
         key: 'status',
         render: s => getStatusTag(s),
+      },
+      {
+        title: 'Actions',
+        key: 'actions',
+        render: (_, r) => {
+          if (r._source !== 'booking' || readOnly) return null;
+          const orig = Number(r.total_price) || 0;
+          if (orig <= 0) return null;
+          return (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => openDiscountForEntity({
+                entityType: 'accommodation_booking',
+                entityId: r.id,
+                originalPrice: orig,
+                currency: r.currency || storageCurrency,
+                description: `${r.unit_name || 'Accommodation'} · ${formatDateOnly(r.check_in_date)}`,
+              })}
+            >Discount</Button>
+          );
+        },
       },
     ];
 
@@ -1121,6 +1263,22 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       case 'financial': return renderFinancial();
       case 'shop': return <Suspense fallback={<Spin />}><CustomerShopHistory userId={customerId} /></Suspense>;
       case 'memberships': return <Suspense fallback={<Spin />}><MemberPurchasesSection userId={customerId} isAdminView={!readOnly} /></Suspense>;
+      case 'discounts': return (
+        <Suspense fallback={<Spin />}>
+          <CustomerDiscountsTab
+            customer={customer}
+            bookings={bookings}
+            rentals={rentals}
+            accommodationBookings={accommodationBookings}
+            packages={customerPackages}
+            instructors={instructors}
+            transactions={transactions}
+            discounts={discounts}
+            onChanged={refreshDiscounts}
+            readOnly={readOnly}
+          />
+        </Suspense>
+      );
       default: return null;
     }
   };
@@ -1495,6 +1653,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             customer={customer}
             startAssignFlow={startAssignFlow}
             onPackageAssigned={async () => { await refreshAllData(); message.success(`Package assigned to ${customerFullName}`); }}
+            discountsByEntity={discountsByEntity}
+            onApplyDiscount={openDiscountForEntity}
           />
         )}
       </Suspense>
@@ -1528,6 +1688,46 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       {selectedTransaction && (
         <Suspense fallback={<Spin size="small" />}>
           <TransactionDetailModal visible={transactionDetailModalVisible} onClose={async () => { setTransactionDetailModalVisible(false); setSelectedTransaction(null); await refreshAllData(); }} transaction={selectedTransaction} onTransactionUpdated={async () => { await refreshAllData(); message.success('Transaction updated'); }} onTransactionDeleted={async () => { await refreshAllData(); message.success('Transaction deleted'); }} onRequestDelete={handleDeleteTransaction} />
+        </Suspense>
+      )}
+
+      {/* Customer Bill */}
+      {billModalVisible && customer && (
+        <Suspense fallback={<Spin size="small" />}>
+          <CustomerBillModal
+            open={billModalVisible}
+            onClose={() => setBillModalVisible(false)}
+            customer={customer}
+            bookings={bookings}
+            rentals={rentals}
+            packages={customerPackages}
+            accommodationBookings={accommodationBookings}
+            transactions={transactions}
+            instructors={instructors}
+            discountsByEntity={discountsByEntity}
+          />
+        </Suspense>
+      )}
+
+      {/* Apply Discount modal — opened by per-tab "Discount" buttons */}
+      {discountTarget && customer?.id && (
+        <Suspense fallback={null}>
+          <ApplyDiscountModal
+            open={!!discountTarget}
+            onClose={() => setDiscountTarget(null)}
+            onSaved={async () => {
+              setDiscountTarget(null);
+              await refreshDiscounts();
+              message.success('Discount saved');
+            }}
+            customerId={customer.id}
+            entityType={discountTarget.entityType}
+            entityId={discountTarget.entityId}
+            originalPrice={discountTarget.originalPrice}
+            currency={discountTarget.currency}
+            description={discountTarget.description}
+            existingDiscount={discountsByEntity.get(`${discountTarget.entityType}:${discountTarget.entityId}`) || null}
+          />
         </Suspense>
       )}
 

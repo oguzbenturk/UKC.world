@@ -361,11 +361,11 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     return () => clearInterval(id);
   }, []);
 
-  // Increase slot height slightly to make space for wind badge
+  // Slot height
   const [slotHeight, setSlotHeight] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 56 : 72));
   useEffect(() => {
     const onResize = () => {
-      const h = window.innerWidth < 640 ? 52 : 68;
+      const h = window.innerWidth < 640 ? 56 : 72;
       setSlotHeight((prev) => (prev === h ? prev : h));
     };
     window.addEventListener('resize', onResize);
@@ -1197,14 +1197,13 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                 {renderedInstructors.map((instructor) => {
                   const instructorBookings = getBookingsForInstructor(instructor.id);
 
-                  // Responsive width calculation
+                  // Responsive width — wide enough on mobile to show full card content; user swipes horizontally
                   const getInstructorColumnWidth = () => {
                     const instructorCount = renderedInstructors.length;
-                    // Mobile-first: ensure at least 2 columns fit beside the time column (~56px)
-                    if (instructorCount <= 2) return 'min-w-[136px] max-w-[164px] sm:min-w-[260px] sm:max-w-[360px]';
-                    if (instructorCount <= 4) return 'min-w-[128px] max-w-[156px] sm:min-w-[220px] sm:max-w-[320px]';
-                    if (instructorCount <= 8) return 'min-w-[120px] max-w-[148px] sm:min-w-[200px] sm:max-w-[280px]';
-                    return 'min-w-[112px] max-w-[140px] sm:min-w-[180px] sm:max-w-[220px]';
+                    if (instructorCount <= 2) return 'min-w-[200px] max-w-[240px] sm:min-w-[260px] sm:max-w-[360px]';
+                    if (instructorCount <= 4) return 'min-w-[190px] max-w-[220px] sm:min-w-[220px] sm:max-w-[320px]';
+                    if (instructorCount <= 8) return 'min-w-[180px] max-w-[210px] sm:min-w-[200px] sm:max-w-[280px]';
+                    return 'min-w-[170px] max-w-[200px] sm:min-w-[180px] sm:max-w-[220px]';
                   };
 
                   const dateStr = format(effectiveDate, 'yyyy-MM-dd');
@@ -1311,7 +1310,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                             : booking.status === 'confirmed' ? 'Confirmed'
                             : booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
                             : 'Pending';
-                          const isCompact = height < 56;
+                          const isCompact = height < slotHeight - 8;
 
                           return (
                             <DraggableBooking
@@ -1348,7 +1347,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                                 )}
 
                                 {/* Row 3: service (only if enough height) */}
-                                {height >= 80 && (
+                                {height >= 50 && (
                                   <div className="booking-card-service-label">
                                     {serviceName}
                                   </div>

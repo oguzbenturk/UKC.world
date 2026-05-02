@@ -1,5 +1,6 @@
 /* Import product image styles must be at top */
 @import './styles/product-images.css';
+@import './styles/mobile-keyboard-fix.css';
 
 /* ── Duotone Brand Fonts ───────────────────────────────────────── */
 /*

@@ -21,6 +21,7 @@ const LESSON_CATEGORIES = [
   { key: 'semi-private', label: 'Semi-Private', color: 'purple' },
   { key: 'group', label: 'Group', color: 'green' },
   { key: 'supervision', label: 'Supervision', color: 'orange' },
+  { key: 'semi-private-supervision', label: 'Semi-Private Supervision', color: 'gold' },
 ];
 
 const LEVELS = [

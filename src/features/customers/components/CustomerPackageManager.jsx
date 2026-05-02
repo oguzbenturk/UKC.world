@@ -38,7 +38,7 @@ import UnifiedTable from '@/shared/components/tables/UnifiedTable';
 // Select.Option not used in the new wizard UI
 
 // eslint-disable-next-line complexity
-function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned, embedded = false, restrictParticipants = null, startAssignFlow = false, showHeader = true, showStats = true, showToolbar = true, forceViewMode = null, disableActions = false }) {
+function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned, embedded = false, restrictParticipants = null, startAssignFlow = false, showHeader = true, showStats = true, showToolbar = true, forceViewMode = null, disableActions = false, discountsByEntity = null, onApplyDiscount = null }) {
   const { formatCurrency, businessCurrency, getCurrencySymbol } = useCurrency();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -644,10 +644,15 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
 
   const columns = [
     {
-      title: 'Package Type',
-      key: 'packageType',
+      title: 'Package',
+      key: 'package',
       render: (_, record) => {
-        // Derive type from actual data rather than relying on a packageType field that may be absent
+        // Show the actual stored package name (e.g. "Premium Pro Pack") as the
+        // primary label. The combo type ("Lessons + Rental + Accommodation")
+        // becomes the small subtitle so staff can still see what's bundled.
+        const name = record.packageName || record.package_name || record.name
+          || record.lessonServiceName || record.lesson_service_name
+          || record.lessonType || 'Package';
         const hasLessons = (record.totalHours || record.total_hours || 0) > 0;
         const hasRental = (record.rentalDaysTotal || record.rental_days_total || 0) > 0;
         const hasAccommodation = (record.accommodationNightsTotal || record.accommodation_nights_total || 0) > 0;
@@ -655,11 +660,12 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
         if (hasLessons) typeParts.push('Lessons');
         if (hasRental) typeParts.push('Rental');
         if (hasAccommodation) typeParts.push('Accommodation');
-        const typeLabel = typeParts.length > 0 ? typeParts.join(' + ') : (record.name || record.packageName || 'Lesson Package');
+        const typeLabel = typeParts.length > 0 ? typeParts.join(' + ') : null;
         return (
           <div>
-            <div className="font-medium">{typeLabel}</div>
-            {record.lessonType && (
+            <div className="font-medium">{name}</div>
+            {typeLabel && <div className="text-xs text-slate-500">{typeLabel}</div>}
+            {record.lessonType && record.lessonType !== name && (
               <div className="text-xs text-blue-500">
                 <ClockCircleOutlined /> {record.lessonType}
               </div>
@@ -735,7 +741,20 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       title: 'Price',
       dataIndex: 'price',
       key: 'price',
-      render: (price, record) => formatCurrency(price || 0, record.currency || businessCurrency || 'EUR')
+      render: (price, record) => {
+        const cur = record.currency || businessCurrency || 'EUR';
+        const orig = Number(price) || 0;
+        const d = discountsByEntity?.get(`customer_package:${record.id}`);
+        if (!d) return <span className="tabular-nums">{formatCurrency(orig, cur)}</span>;
+        const final = Math.max(0, orig - (Number(d.amount) || 0));
+        return (
+          <Space size={4} wrap>
+            <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(orig, cur)}</span>
+            <span className="tabular-nums font-semibold text-emerald-600">{formatCurrency(final, cur)}</span>
+            <Tag color="orange" className="!m-0">−{Number(d.percent)}%</Tag>
+          </Space>
+        );
+      }
     },
     {
       title: 'Status',
@@ -751,16 +770,27 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       key: 'actions',
       render: (_, record) => (
         <Space>
-          {/* Use Hours UI intentionally hidden across the app per requirements */}
-          
+          {!disableActions && onApplyDiscount && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => onApplyDiscount({
+                entityType: 'customer_package',
+                entityId: record.id,
+                originalPrice: Number(record.price) || 0,
+                currency: record.currency || businessCurrency || 'EUR',
+                description: record.packageName || record.package_name || record.name || 'Package',
+              })}
+            >Discount</Button>
+          )}
           <Popconfirm
             title="Are you sure you want to delete this package?"
             onConfirm={() => handleDeletePackage(record.id)}
             okText="Yes"
             cancelText="No"
           >
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               danger
               icon={<DeleteOutlined />}
               size="small"

@@ -17,6 +17,9 @@ import BootSplash from '@/shared/components/system/BootSplash';
 // Initialize error recovery system
 import './shared/utils/errorRecoveryManager.js';
 
+// Global mobile keyboard scroll handler (focus-into-view above keyboard)
+import './shared/utils/mobileKeyboardScroll.js';
+
 // Prevent service worker registration errors in development
 if (import.meta.env.DEV && 'serviceWorker' in navigator) {
   // Clean up any existing service workers

@@ -25,10 +25,11 @@ const DISCIPLINES = [
   { key: 'premium',   label: 'Premium',     emoji: '⭐', color: '#EF4444', description: 'Premium / VIP sessions' },
 ];
 const LESSON_CATS = [
-  { key: 'private',      label: 'Private',      color: 'blue' },
-  { key: 'semi-private', label: 'Semi-Private',  color: 'purple' },
-  { key: 'group',        label: 'Group',         color: 'green' },
-  { key: 'supervision',  label: 'Supervision',   color: 'orange' },
+  { key: 'private',                  label: 'Private',                  color: 'blue' },
+  { key: 'semi-private',             label: 'Semi-Private',             color: 'purple' },
+  { key: 'group',                    label: 'Group',                    color: 'green' },
+  { key: 'supervision',              label: 'Supervision',              color: 'orange' },
+  { key: 'semi-private-supervision', label: 'Semi-Private Supervision', color: 'gold' },
 ];
 const LEVELS = [
   { key: 'beginner',     label: 'Beginner',     icon: '🟢' },

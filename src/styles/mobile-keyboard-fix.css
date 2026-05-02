@@ -1,0 +1,79 @@
+/* Mobile virtual keyboard fix for Ant Design Drawers and Modals.
+   When the on-screen keyboard opens, it covers the bottom of the viewport.
+   Without these rules, inputs near the bottom of a drawer/modal sit behind
+   the keyboard and the user cannot see what they are typing.
+
+   Strategy:
+   - 100dvh: dynamic viewport height shrinks when the keyboard opens, so the
+     drawer/modal resizes itself instead of staying at full screen height.
+   - overflow-y on body: lets the user scroll inside the drawer/modal so any
+     input can be brought above the keyboard.
+   - scroll-margin-bottom: when the browser auto-scrolls a focused input into
+     view (or scrollIntoView is called), it leaves clearance below the input
+     so the keyboard does not overlap it.
+   - 16px font-size: prevents iOS Safari from auto-zooming on focus. */
+
+@media (max-width: 768px) {
+  /* Cap drawer to dynamic viewport so it shrinks with the keyboard */
+  .ant-drawer-content-wrapper {
+    max-height: 100dvh;
+  }
+
+  .ant-drawer-content {
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ant-drawer-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Same treatment for modals */
+  .ant-modal {
+    padding-bottom: 0 !important;
+  }
+
+  .ant-modal-content {
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ant-modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Ensure focused fields can scroll above the keyboard.
+     scroll-margin works with the browser's built-in focus auto-scroll
+     and with our explicit scrollIntoView call in mobileKeyboardScroll.js */
+  .ant-drawer input,
+  .ant-drawer textarea,
+  .ant-drawer .ant-select-selector,
+  .ant-drawer .ant-picker-input > input,
+  .ant-drawer [contenteditable="true"],
+  .ant-modal input,
+  .ant-modal textarea,
+  .ant-modal .ant-select-selector,
+  .ant-modal .ant-picker-input > input,
+  .ant-modal [contenteditable="true"] {
+    scroll-margin-bottom: 140px;
+    scroll-margin-top: 80px;
+  }
+
+  /* iOS Safari zooms on focus when font-size < 16px. Bump it. */
+  .ant-drawer input,
+  .ant-drawer textarea,
+  .ant-drawer select,
+  .ant-modal input,
+  .ant-modal textarea,
+  .ant-modal select {
+    font-size: 16px;
+  }
+}

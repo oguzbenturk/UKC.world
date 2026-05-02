@@ -165,6 +165,108 @@ const resolveServiceType = (serviceRow) => {
     };
   }
 
+  // Helper: consume additional hours from a package. Mirrors restoreHoursToPackage
+  // for the inverse operation — used when a booking's duration is edited UPWARD
+  // and the linked package needs to absorb the delta. Caps at total_hours so a
+  // package can't go negative-remaining unless the caller explicitly allows it.
+  async function consumeHoursFromPackage(client, pkgId, consumeHours, { allowNegative = false } = {}) {
+    if (!pkgId || !consumeHours || consumeHours <= 0) return null;
+    const { rows: pkgRows } = await client.query(
+      `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
+       FROM customer_packages WHERE id = $1`,
+      [pkgId]
+    );
+    if (pkgRows.length === 0) return null;
+    const pkg = pkgRows[0];
+    const totalHours = parseFloat(pkg.total_hours) || 0;
+    const currentUsed = parseFloat(pkg.used_hours) || 0;
+    const currentRemaining = parseFloat(pkg.remaining_hours);
+    const liveRemaining = Number.isFinite(currentRemaining) ? currentRemaining : (totalHours - currentUsed);
+    const delta = parseFloat(consumeHours);
+
+    if (!allowNegative && delta > liveRemaining + 0.0001) {
+      return { error: 'insufficient_hours', packageId: pkgId, requested: delta, available: Math.max(0, liveRemaining) };
+    }
+
+    const newUsed = currentUsed + delta;
+    const newRemaining = Math.max(allowNegative ? Number.NEGATIVE_INFINITY : 0, liveRemaining - delta);
+    const newStatus = newRemaining > 0 ? 'active' : pkg.status === 'active' ? 'completed' : pkg.status;
+    const { rows: upd } = await client.query(
+      `UPDATE customer_packages
+       SET used_hours = $1, remaining_hours = $2, status = $3, updated_at = NOW()
+       WHERE id = $4
+       RETURNING package_name, used_hours, remaining_hours, status`,
+      [newUsed, newRemaining, newStatus, pkgId]
+    );
+    if (upd.length === 0) return null;
+    const up = upd[0];
+    return {
+      packageId: pkgId,
+      packageName: up.package_name,
+      hoursConsumed: delta,
+      newUsedHours: up.used_hours,
+      newRemainingHours: up.remaining_hours,
+      newStatus: up.status,
+    };
+  }
+
+  // Helper: reconcile a single booking's duration change with the linked
+  // customer_package(s). Called from PUT /:id whenever `duration` is edited so
+  // packages stay in sync with the booking ledger — same invariant the delete
+  // and cancel paths already maintain via restoreHoursToPackage.
+  async function reconcilePackageHoursOnDurationChange(client, booking, oldDuration, newDuration) {
+    const oldD = parseFloat(oldDuration) || 0;
+    const newD = parseFloat(newDuration) || 0;
+    const delta = newD - oldD;
+    if (Math.abs(delta) < 0.0001) return [];
+
+    // Find the package(s) this booking actually consumes hours from. Prefer
+    // the participant-level link when present (multi-user bookings); fall back
+    // to the booking row's customer_package_id.
+    const participantsRes = await client.query(
+      `SELECT id, customer_package_id, payment_status, package_hours_used
+         FROM booking_participants
+        WHERE booking_id = $1 AND customer_package_id IS NOT NULL AND payment_status = 'package'`,
+      [booking.id]
+    );
+
+    const adjustments = [];
+
+    if (participantsRes.rows.length > 0) {
+      // Spread delta evenly across participants paying by package — same
+      // convention used elsewhere when the booking total is split.
+      const perParticipantDelta = delta / participantsRes.rows.length;
+      for (const p of participantsRes.rows) {
+        if (delta > 0) {
+          const r = await consumeHoursFromPackage(client, p.customer_package_id, perParticipantDelta, { allowNegative: true });
+          if (r && !r.error) adjustments.push({ ...r, participantId: p.id });
+        } else {
+          const r = await restoreHoursToPackage(client, p.customer_package_id, Math.abs(perParticipantDelta));
+          if (r) adjustments.push({ ...r, participantId: p.id });
+        }
+        // Keep package_hours_used on the participant in sync so a later delete
+        // restores the right amount.
+        const currentTracked = parseFloat(p.package_hours_used) || oldD;
+        await client.query(
+          `UPDATE booking_participants
+              SET package_hours_used = $1, updated_at = NOW()
+            WHERE id = $2`,
+          [currentTracked + perParticipantDelta, p.id]
+        );
+      }
+    } else if (booking.customer_package_id && booking.payment_status === 'package') {
+      if (delta > 0) {
+        const r = await consumeHoursFromPackage(client, booking.customer_package_id, delta, { allowNegative: true });
+        if (r && !r.error) adjustments.push(r);
+      } else {
+        const r = await restoreHoursToPackage(client, booking.customer_package_id, Math.abs(delta));
+        if (r) adjustments.push(r);
+      }
+    }
+
+    return adjustments;
+  }
+
 // Get available booking slots for a date range
 router.get('/available-slots', authenticateJWT, async (req, res) => {
   try {
@@ -4027,13 +4129,51 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       checkin_status, checkin_time, checkin_notes,
       req.params.id
     ]);
-    
+
     if (bookingResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
     }
-    
+
     const booking = bookingResult.rows[0];
+
+    // Reconcile linked package hours when the booking's duration changes.
+    // Without this, editing a 4h package-paid lesson down to 3.5h would leave
+    // customer_packages.used_hours at 4 — the package would appear "fully used"
+    // even though only 3.5h were consumed (root cause of issue #1, May 2026).
+    let packageHourAdjustments = [];
+    if (duration !== undefined && duration !== null) {
+      const oldDuration = parseFloat(currentBooking.duration) || 0;
+      const newDuration = parseFloat(duration) || 0;
+      if (Math.abs(newDuration - oldDuration) > 0.0001) {
+        try {
+          packageHourAdjustments = await reconcilePackageHoursOnDurationChange(
+            client, booking, oldDuration, newDuration
+          );
+          if (packageHourAdjustments.length > 0) {
+            logger.info('Reconciled customer_packages.used_hours after duration edit', {
+              bookingId: booking.id,
+              oldDuration,
+              newDuration,
+              adjustments: packageHourAdjustments.map(a => ({
+                packageId: a.packageId,
+                hoursConsumed: a.hoursConsumed,
+                hoursRestored: a.hoursRestored,
+                newUsedHours: a.newUsedHours,
+                newRemainingHours: a.newRemainingHours,
+              })),
+            });
+          }
+        } catch (reconcileErr) {
+          logger.error('Failed to reconcile package hours on duration edit', {
+            bookingId: booking.id, oldDuration, newDuration, error: reconcileErr.message,
+          });
+          // Fail the whole update — leaving the package out of sync is exactly
+          // the bug we're trying to prevent.
+          throw reconcileErr;
+        }
+      }
+    }
 
     // Fan out price change to siblings on group / semi-private bookings.
     // Updates every participant's per-head share so the booking total and the
