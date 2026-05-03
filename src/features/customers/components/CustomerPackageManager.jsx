@@ -38,7 +38,7 @@ import UnifiedTable from '@/shared/components/tables/UnifiedTable';
 // Select.Option not used in the new wizard UI
 
 // eslint-disable-next-line complexity
-function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned, embedded = false, restrictParticipants = null, startAssignFlow = false, showHeader = true, showStats = true, showToolbar = true, forceViewMode = null, disableActions = false, discountsByEntity = null, onApplyDiscount = null }) {
+function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned, embedded = false, restrictParticipants = null, startAssignFlow = false, showHeader = true, showStats = true, showToolbar = true, forceViewMode = null, disableActions = false, discountsByEntity = null, onApplyDiscount = null, onEditPrice = null }) {
   const { formatCurrency, businessCurrency, getCurrencySymbol } = useCurrency();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -743,15 +743,36 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
       key: 'price',
       render: (price, record) => {
         const cur = record.currency || businessCurrency || 'EUR';
-        const orig = Number(price) || 0;
+        const current = Number(price) || 0;
+        const rawOrig = record.originalPrice ?? record.original_price;
+        const originalPrice = rawOrig !== null && rawOrig !== undefined ? Number(rawOrig) : null;
+        const wasEdited = originalPrice !== null && Math.abs(originalPrice - current) >= 0.005;
         const d = discountsByEntity?.get(`customer_package:${record.id}`);
-        if (!d) return <span className="tabular-nums">{formatCurrency(orig, cur)}</span>;
-        const final = Math.max(0, orig - (Number(d.amount) || 0));
+
+        // No edit, no discount: just the current price.
+        if (!wasEdited && !d) {
+          return <span className="tabular-nums">{formatCurrency(current, cur)}</span>;
+        }
+
+        // Compose the chain: [original (struck)] -> [current (struck if discounted)] -> [final]
+        const final = d ? Math.max(0, current - (Number(d.amount) || 0)) : current;
         return (
           <Space size={4} wrap>
-            <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(orig, cur)}</span>
-            <span className="tabular-nums font-semibold text-emerald-600">{formatCurrency(final, cur)}</span>
-            <Tag color="orange" className="!m-0">−{Number(d.percent)}%</Tag>
+            {wasEdited && (
+              <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(originalPrice, cur)}</span>
+            )}
+            {d ? (
+              <>
+                <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(current, cur)}</span>
+                <span className="tabular-nums font-semibold text-emerald-600">{formatCurrency(final, cur)}</span>
+                <Tag color="orange" className="!m-0">−{Number(d.percent)}%</Tag>
+              </>
+            ) : (
+              <span className="tabular-nums font-semibold text-slate-700">{formatCurrency(current, cur)}</span>
+            )}
+            {wasEdited && !d && (
+              <Tag color="blue" className="!m-0">edited</Tag>
+            )}
           </Space>
         );
       }
@@ -782,6 +803,19 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
                 description: record.packageName || record.package_name || record.name || 'Package',
               })}
             >Discount</Button>
+          )}
+          {!disableActions && onEditPrice && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => onEditPrice({
+                packageId: record.id,
+                currentPrice: Number(record.price) || 0,
+                originalPrice: record.originalPrice ?? record.original_price ?? null,
+                currency: record.currency || businessCurrency || 'EUR',
+                description: record.packageName || record.package_name || record.name || 'Package',
+              })}
+            >Edit Price</Button>
           )}
           <Popconfirm
             title="Are you sure you want to delete this package?"

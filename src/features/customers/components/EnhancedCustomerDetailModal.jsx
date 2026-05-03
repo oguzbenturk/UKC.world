@@ -43,6 +43,7 @@ const CustomerShopHistory = lazy(() => import('./CustomerShopHistory'));
 const CustomerBillModal = lazy(() => import('./CustomerBillModal'));
 const CustomerDiscountsTab = lazy(() => import('./CustomerDiscountsTab'));
 const ApplyDiscountModal = lazy(() => import('./ApplyDiscountModal'));
+const EditPackagePriceModal = lazy(() => import('./EditPackagePriceModal'));
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -145,6 +146,9 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   // Per-row Apply Discount modal state — set when staff clicks "Discount" on
   // a booking / rental / accommodation / package / membership row.
   const [discountTarget, setDiscountTarget] = useState(null); // { entityType, entityId, originalPrice, currency, description }
+  // Per-row Edit Package Price modal state — set when staff clicks "Edit Price"
+  // on a customer package row in the Packages tab.
+  const [editPriceTarget, setEditPriceTarget] = useState(null); // { packageId, currentPrice, originalPrice, currency, description }
   const hasFetchedRef = useRef(false);
 
   // Modal states
@@ -766,6 +770,11 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     setDiscountTarget({ entityType, entityId, originalPrice, currency, description });
   }, []);
 
+  // Opens the EditPackagePriceModal for a customer package row.
+  const openEditPriceForPackage = useCallback(({ packageId, currentPrice, originalPrice, currency, description }) => {
+    setEditPriceTarget({ packageId, currentPrice, originalPrice, currency, description });
+  }, []);
+
   // ─── Column definitions ───────────────────────────────────────
   const bookingColumns = useMemo(() => [
     { title: 'Date & Time', key: 'datetime', render: (_, r) => { if (r.date && r.startTime) return `${new Date(r.date).toLocaleDateString()} ${r.startTime}`; return formatDate(r.start_time || r.date); } },
@@ -1068,6 +1077,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             onPackageAssigned={async () => { await refreshAllData(); message.success('Package assigned'); }}
             discountsByEntity={discountsByEntity}
             onApplyDiscount={openDiscountForEntity}
+            onEditPrice={openEditPriceForPackage}
           />
         )}
       </Suspense>
@@ -1655,6 +1665,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             onPackageAssigned={async () => { await refreshAllData(); message.success(`Package assigned to ${customerFullName}`); }}
             discountsByEntity={discountsByEntity}
             onApplyDiscount={openDiscountForEntity}
+            onEditPrice={openEditPriceForPackage}
           />
         )}
       </Suspense>
@@ -1727,6 +1738,26 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             currency={discountTarget.currency}
             description={discountTarget.description}
             existingDiscount={discountsByEntity.get(`${discountTarget.entityType}:${discountTarget.entityId}`) || null}
+          />
+        </Suspense>
+      )}
+
+      {/* Edit Package Price modal — opened by "Edit Price" on a package row */}
+      {editPriceTarget && customer?.id && (
+        <Suspense fallback={null}>
+          <EditPackagePriceModal
+            open={!!editPriceTarget}
+            onClose={() => setEditPriceTarget(null)}
+            onSaved={async () => {
+              setEditPriceTarget(null);
+              await Promise.all([refreshAllData(), refreshDiscounts()]);
+              message.success('Package price updated');
+            }}
+            packageId={editPriceTarget.packageId}
+            currentPrice={editPriceTarget.currentPrice}
+            originalPrice={editPriceTarget.originalPrice}
+            currency={editPriceTarget.currency}
+            description={editPriceTarget.description}
           />
         </Suspense>
       )}

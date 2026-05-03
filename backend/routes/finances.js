@@ -12,7 +12,8 @@ import {
   recordTransaction as recordWalletTransaction,
   recordLegacyTransaction,
   fetchTransactions as fetchWalletTransactions,
-  getTransactionById as getWalletTransactionById
+  getTransactionById as getWalletTransactionById,
+  resolveStoredAvailableDelta
 } from '../services/walletService.js';
 import { fetchCustomerPackagesByIds, forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
 import { fetchRentalsByIds, forceDeleteRental } from '../services/rentalCleanupService.js';
@@ -1881,6 +1882,9 @@ router.post('/instructor-payments',
       description,
       paymentMethod: payment_method || null,
       referenceNumber,
+      // Salary/commission payouts must not affect the staff member's wallet
+      // balance — the wallet is for customer-style credit, not payroll.
+      availableDelta: 0,
       metadata: {
         source: 'finances:instructor-payments:create',
         requestedType: type || null,
@@ -1954,7 +1958,7 @@ router.put('/instructor-payments/:id',
     await client.query('BEGIN');
 
     const originalAmount = Number.parseFloat(transaction.amount) || 0;
-    const availableDelta = Number.parseFloat(transaction.available_delta) || originalAmount;
+    const availableDelta = resolveStoredAvailableDelta(transaction);
     const pendingDelta = Number.parseFloat(transaction.pending_delta) || 0;
     const nonWithdrawableDelta = Number.parseFloat(transaction.non_withdrawable_delta) || 0;
 
@@ -2006,6 +2010,7 @@ router.put('/instructor-payments/:id',
       description,
       paymentMethod: payment_method || null,
       referenceNumber: transaction.reference_number || `INST_${Date.now()}`,
+      availableDelta: 0,
       metadata: {
         source: 'finances:instructor-payments:update',
         replacesTransactionId: transaction.id,
@@ -2072,7 +2077,7 @@ router.delete('/instructor-payments/:id',
 
     const actorId = resolveActorId(req) || null;
     const originalAmount = Number.parseFloat(transaction.amount) || 0;
-    const availableDelta = Number.parseFloat(transaction.available_delta) || originalAmount;
+    const availableDelta = resolveStoredAvailableDelta(transaction);
     const pendingDelta = Number.parseFloat(transaction.pending_delta) || 0;
     const nonWithdrawableDelta = Number.parseFloat(transaction.non_withdrawable_delta) || 0;
 

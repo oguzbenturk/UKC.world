@@ -238,8 +238,14 @@ const resolveServiceType = (serviceRow) => {
       const perParticipantDelta = delta / participantsRes.rows.length;
       for (const p of participantsRes.rows) {
         if (delta > 0) {
-          const r = await consumeHoursFromPackage(client, p.customer_package_id, perParticipantDelta, { allowNegative: true });
-          if (r && !r.error) adjustments.push({ ...r, participantId: p.id });
+          const r = await consumeHoursFromPackage(client, p.customer_package_id, perParticipantDelta, { allowNegative: false });
+          if (r?.error === 'insufficient_hours') {
+            const err = new Error(`Package has only ${r.available}h remaining; cannot extend booking by ${perParticipantDelta}h.`);
+            err.status = 400;
+            err.code = 'package_insufficient_hours';
+            throw err;
+          }
+          if (r) adjustments.push({ ...r, participantId: p.id });
         } else {
           const r = await restoreHoursToPackage(client, p.customer_package_id, Math.abs(perParticipantDelta));
           if (r) adjustments.push({ ...r, participantId: p.id });
@@ -256,8 +262,14 @@ const resolveServiceType = (serviceRow) => {
       }
     } else if (booking.customer_package_id && booking.payment_status === 'package') {
       if (delta > 0) {
-        const r = await consumeHoursFromPackage(client, booking.customer_package_id, delta, { allowNegative: true });
-        if (r && !r.error) adjustments.push(r);
+        const r = await consumeHoursFromPackage(client, booking.customer_package_id, delta, { allowNegative: false });
+        if (r?.error === 'insufficient_hours') {
+          const err = new Error(`Package has only ${r.available}h remaining; cannot extend booking by ${delta}h.`);
+          err.status = 400;
+          err.code = 'package_insufficient_hours';
+          throw err;
+        }
+        if (r) adjustments.push(r);
       } else {
         const r = await restoreHoursToPackage(client, booking.customer_package_id, Math.abs(delta));
         if (r) adjustments.push(r);
@@ -2928,8 +2940,9 @@ router.post('/group',
         let packageCheck;
         if (participant.customerPackageId) {
           // User explicitly selected this package — trust the choice, only verify
-          // ownership, active status, and expiry. Skip lesson_service_name matching
-          // because the frontend already filtered packages for the selected service.
+          // ownership, active status, expiry, and that it still has hours. Skip
+          // lesson_service_name matching because the frontend already filtered
+          // packages for the selected service.
           const params = [participant.customerPackageId, participant.userId, date];
           const sql = `
             SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
@@ -2938,6 +2951,7 @@ router.post('/group',
             WHERE cp.id = $1 AND cp.customer_id = $2
               AND cp.status = 'active'
               AND (cp.expiry_date IS NULL OR cp.expiry_date >= $3)
+              AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
             LIMIT 1
           `;
           packageCheck = await client.query(sql, params);
@@ -2948,9 +2962,10 @@ router.post('/group',
             SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
             FROM customer_packages cp
             LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-            WHERE cp.customer_id = $1 
-              AND cp.status = 'active' 
+            WHERE cp.customer_id = $1
+              AND cp.status = 'active'
               AND (cp.expiry_date IS NULL OR cp.expiry_date >= $2)
+              AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
           `;
           if (serviceName) {
             // Flexible matching: check both customer_packages AND service_packages lesson_service_name
@@ -4795,6 +4810,12 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
 
   } catch (error) {
     await client.query('ROLLBACK');
+    if (error?.code === 'package_insufficient_hours') {
+      return res.status(400).json({
+        error: 'Package insufficient hours',
+        message: error.message,
+      });
+    }
     logger.error('Failed to update booking', error);
     res.status(500).json({ message: 'Server error' });
   } finally {

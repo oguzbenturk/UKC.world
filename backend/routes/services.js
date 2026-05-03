@@ -8,7 +8,7 @@ import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
 import CurrencyService from '../services/currencyService.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
-import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
+import { forceDeleteCustomerPackage, mapWalletTransactionForResponse, updateCustomerPackagePrice } from '../services/customerPackageService.js';
 import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
 import { setPackagePrices, getPackagePrices, getPackagePricesBatch, setServicePrices, getServicePrices, getServicePricesBatch, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
@@ -2258,6 +2258,49 @@ router.post('/customer-packages/:id/cancel', authenticateJWT, async (req, res) =
   }
 });
 
+// See updateCustomerPackagePrice for the cascade (wallet, discount, commissions).
+router.patch('/customer-packages/:id/price', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
+  const { id } = req.params;
+  const { new_price, reason, settle_wallet } = req.body || {};
+  const actorId = resolveActorId(req);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await updateCustomerPackagePrice({
+      client,
+      packageId: id,
+      newPrice: Number(new_price),
+      reason,
+      settleWallet: settle_wallet !== false,
+      actorId
+    });
+    await client.query('COMMIT');
+
+    return res.json({
+      success: true,
+      package: result.package,
+      oldPrice: result.oldPrice,
+      newPrice: result.newPrice,
+      delta: result.delta,
+      walletAdjustment: mapWalletTransactionForResponse(result.walletAdjustment),
+      discount: result.discount,
+      commissions: result.commissions
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    const status = error.statusCode || 500;
+    if (status >= 500) {
+      logger.error('Failed to edit customer package price', {
+        packageId: id, error: error.message, stack: error.stack
+      });
+    }
+    return res.status(status).json({ error: error.message || 'Failed to edit package price' });
+  } finally {
+    client.release();
+  }
+});
+
 // Delete package
 router.delete('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
   try {
@@ -3050,6 +3093,13 @@ router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin'
       package_name: row.package_name,
       lesson_service_name: row.lesson_service_name || row.package_name,
       price: parseFloat(row.purchase_price),
+      // NULL = price has never been edited; UI uses presence to render strikethrough.
+      originalPrice: row.original_price !== null && row.original_price !== undefined
+        ? parseFloat(row.original_price)
+        : null,
+      original_price: row.original_price !== null && row.original_price !== undefined
+        ? parseFloat(row.original_price)
+        : null,
       // structured tags from service_packages (if any)
       disciplineTag: row.sp_discipline_tag || null,
       lessonCategoryTag: row.sp_lesson_category_tag || null,

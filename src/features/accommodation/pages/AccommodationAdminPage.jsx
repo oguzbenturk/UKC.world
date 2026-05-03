@@ -7,7 +7,7 @@ import {
 import {
   CheckCircleOutlined, CloseCircleOutlined, SearchOutlined,
   SyncOutlined, DeleteOutlined, LeftOutlined, RightOutlined,
-  PlusOutlined,
+  PlusOutlined, EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -41,7 +41,7 @@ function getInitials(name) {
 }
 
 // ─── BookingBar ───────────────────────────────────────────────────────────────
-function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onDelete, isDeleting, left, width }) {
+function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onEdit, onDelete, isDeleting, left, width }) {
   const { t } = useTranslation(['manager']);
   const cfg = STATUS_CFG[booking.status] || STATUS_CFG.pending;
   const nights = dayjs(booking.check_out_date).diff(dayjs(booking.check_in_date), 'day');
@@ -82,6 +82,9 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
         )}
         {(booking.status === 'pending' || booking.status === 'confirmed') && (
           <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => onCancel(booking.id)}>{t('manager:accommodation.admin.actions.cancel')}</Button>
+        )}
+        {booking.booking_source !== 'package' && (booking.status === 'pending' || booking.status === 'confirmed') && (
+          <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(booking)}>{t('manager:accommodation.admin.actions.edit', { defaultValue: 'Edit' })}</Button>
         )}
         <Button size="small" danger icon={<DeleteOutlined />} loading={isDeleting} onClick={() => onDelete(booking.id)}>{t('manager:accommodation.admin.actions.delete')}</Button>
       </div>
@@ -143,7 +146,7 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
 }
 
 // ─── TimelineView ─────────────────────────────────────────────────────────────
-function TimelineView({ filteredBookings, allBookings, units, windowStart, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onDelete, deletingIds }) {
+function TimelineView({ filteredBookings, allBookings, units, windowStart, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onEdit, onDelete, deletingIds }) {
   const { t } = useTranslation(['manager']);
   const today = dayjs().startOf('day');
   const todayColOffset = today.diff(windowStart, 'day');
@@ -289,7 +292,7 @@ function TimelineView({ filteredBookings, allBookings, units, windowStart, getUn
                       <BookingBar key={booking.id} booking={booking}
                         getUnitName={getUnitName} formatCurrency={formatCurrency}
                         onConfirm={onConfirm} onComplete={onComplete}
-                        onCancel={onCancel} onDelete={onDelete}
+                        onCancel={onCancel} onEdit={onEdit} onDelete={onDelete}
                         isDeleting={deletingIds.has(booking.id)}
                         left={bp.left} width={bp.width}
                       />
@@ -334,6 +337,7 @@ function AccommodationAdminPage() {
   const [windowStart, setWindowStart] = useState(() => dayjs().subtract(7, 'day').startOf('day'));
   const [deletingIds, setDeletingIds] = useState(new Set());
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState(null);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -407,6 +411,9 @@ function AccommodationAdminPage() {
   const handleCancelBooking = async (id) => {
     try { await accommodationApi.cancelBooking(id); message.success(t('manager:accommodation.admin.messages.cancelled')); loadBookings(); }
     catch { message.error(t('manager:accommodation.admin.messages.cancelError')); }
+  };
+  const handleEditBooking = (booking) => {
+    setEditingBooking(booking);
   };
   const handleDeleteBooking = (id) => {
     Modal.confirm({
@@ -508,6 +515,7 @@ function AccommodationAdminPage() {
           {r.status === 'pending' && <Tooltip title={t('manager:accommodation.admin.actions.confirm')}><Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => handleConfirmBooking(r.id)} /></Tooltip>}
           {r.status === 'confirmed' && <Tooltip title={t('manager:accommodation.admin.actions.complete')}><Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleCompleteBooking(r.id)} /></Tooltip>}
           {(r.status === 'pending' || r.status === 'confirmed') && <Tooltip title={t('manager:accommodation.admin.actions.cancel')}><Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleCancelBooking(r.id)} /></Tooltip>}
+          {r.booking_source !== 'package' && (r.status === 'pending' || r.status === 'confirmed') && <Tooltip title={t('manager:accommodation.admin.actions.edit', { defaultValue: 'Edit' })}><Button size="small" icon={<EditOutlined />} onClick={() => handleEditBooking(r)} /></Tooltip>}
           <Tooltip title={t('manager:accommodation.admin.actions.delete')}><Button size="small" danger loading={deletingIds.has(r.id)} disabled={deletingIds.has(r.id)} icon={<DeleteOutlined />} onClick={() => handleDeleteBooking(r.id)} /></Tooltip>
         </div>
       ),
@@ -625,6 +633,7 @@ function AccommodationAdminPage() {
           onConfirm={handleConfirmBooking}
           onComplete={handleCompleteBooking}
           onCancel={handleCancelBooking}
+          onEdit={handleEditBooking}
           onDelete={handleDeleteBooking}
           deletingIds={deletingIds}
         />
@@ -648,6 +657,18 @@ function AccommodationAdminPage() {
           onClose={() => setNewBookingOpen(false)}
           onSuccess={() => {
             setNewBookingOpen(false);
+            loadBookings();
+          }}
+        />
+      )}
+
+      {editingBooking && (
+        <QuickAccommodationModal
+          open={!!editingBooking}
+          editBooking={editingBooking}
+          onClose={() => setEditingBooking(null)}
+          onSuccess={() => {
+            setEditingBooking(null);
             loadBookings();
           }}
         />

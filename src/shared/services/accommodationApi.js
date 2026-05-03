@@ -150,6 +150,14 @@ export const cancelBooking = async (id) => {
   return response.data;
 };
 
+/**
+ * Update an existing booking (admin/manager) — unit, dates, guests, notes, price
+ */
+export const updateBooking = async (id, bookingData) => {
+  const response = await apiClient.patch(`/accommodation/bookings/${id}`, bookingData);
+  return response.data;
+};
+
 // Export all functions
 export const accommodationApi = {
   // Units
@@ -168,6 +176,7 @@ export const accommodationApi = {
   confirmBooking,
   completeBooking,
   cancelBooking,
+  updateBooking,
   deleteBooking,
 };
 

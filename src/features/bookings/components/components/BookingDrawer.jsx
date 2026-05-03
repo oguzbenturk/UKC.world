@@ -119,6 +119,19 @@ const ALL_TIME_SLOTS = generateTimeSlots();
 // ── Service matching helpers ──────────────────────────────────────────
 const RENTAL_CATEGORIES = ['rental', 'shop', 'repair', 'storage'];
 
+// True for active packages with hours left to book against. Excludes
+// depleted/overdrawn packages whose `status` may have been left at 'active'
+// despite having no remaining capacity.
+const isPackageBookable = (pkg) => {
+  if (pkg.status !== 'active') return false;
+  const remaining = Number(pkg.remaining_hours ?? pkg.remainingHours ?? 0);
+  const used = Number(pkg.used_hours ?? pkg.usedHours ?? 0);
+  const total = Number(pkg.total_hours ?? pkg.totalHours ?? 0);
+  if (remaining <= 0) return false;
+  if (total > 0 && used >= total) return false;
+  return true;
+};
+
 const isLessonService = (service) => {
   const cat = (service?.category || '').toLowerCase();
   const type = (service?.service_type || service?.serviceType || '').toLowerCase();
@@ -541,7 +554,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         if (!p.userId || allUserPackages[p.userId]) continue;
         try {
           const response = await apiClient.get(`/users/${p.userId}/packages`);
-          let active = (response.data || []).filter(pkg => pkg.status === 'active' && (pkg.remaining_hours > 0 || pkg.remainingHours > 0));
+          let active = (response.data || []).filter(isPackageBookable);
           // Filter packages by participant count — exclude group/semi-private for single participant
           if (participantCount === 1) {
             active = active.filter(pkg => {
@@ -576,7 +589,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           if (formData.serviceCategory) params.append('serviceCategory', formData.serviceCategory);
           const url = `/users/${p.userId}/packages${params.toString() ? `?${params}` : ''}`;
           const response = await apiClient.get(url);
-          let active = (response.data || []).filter(pkg => pkg.status === 'active' && (pkg.remaining_hours > 0 || pkg.remainingHours > 0));
+          let active = (response.data || []).filter(isPackageBookable);
           // Client-side filter: exclude packages whose lesson_category_tag doesn't match the selected service type
           const selectedType = (formData.serviceType || '').toLowerCase();
           if (selectedType && ['private', 'group', 'semi-private'].includes(selectedType)) {

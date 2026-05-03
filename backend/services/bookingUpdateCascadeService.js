@@ -60,8 +60,22 @@ class BookingUpdateCascadeService {
         servicePackage = serviceResult.rows[0] || null;
       }
 
+      // Treat any active per-package discount as effectively reducing the
+      // purchase price for downstream commission math. Mirrors the behaviour
+      // of an admin price edit so both paths affect commission identically.
+      let basePrice = new Decimal(pkg.purchase_price || 0);
+      const { rows: discountRows } = await client.query(
+        `SELECT amount FROM discounts
+          WHERE entity_type = 'customer_package' AND entity_id = $1`,
+        [String(booking.customer_package_id)]
+      );
+      if (discountRows.length) {
+        const discountAmount = new Decimal(discountRows[0].amount || 0);
+        basePrice = Decimal.max(new Decimal(0), basePrice.sub(discountAmount));
+      }
+
       // Derive lesson-only portion of the package price
-      let effectivePackagePrice = new Decimal(pkg.purchase_price || 0);
+      let effectivePackagePrice = basePrice;
       if (servicePackage) {
         const storedHourlyRate = new Decimal(servicePackage.package_hourly_rate || 0);
         const pkgTotalHours = new Decimal(pkg.total_hours || servicePackage.total_hours || 0);
@@ -92,7 +106,14 @@ class BookingUpdateCascadeService {
           }
           const deductions = rentalCost.add(accomCost);
           if (deductions.gt(0)) {
-            effectivePackagePrice = Decimal.max(new Decimal(0), effectivePackagePrice.sub(deductions));
+            // Subtract proportionally so the discount-adjusted basePrice keeps
+            // its share. Without scaling we'd subtract the full undiscounted
+            // rental/accom cost from a discounted total, drifting the lesson
+            // portion below the intended split.
+            const fullPrice = new Decimal(pkg.purchase_price || 0);
+            const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(0);
+            const scaledDeductions = deductions.mul(ratio);
+            effectivePackagePrice = Decimal.max(new Decimal(0), effectivePackagePrice.sub(scaledDeductions));
           }
         }
       }
@@ -416,6 +437,45 @@ class BookingUpdateCascadeService {
     return { commissionType, commissionValue };
   }
   
+  /**
+   * Recompute instructor_earnings snapshot rows for every completed booking
+   * tied to a customer package. Called after the package's purchase_price is
+   * edited or its discount changes so per-lesson lesson_amount + total_earnings
+   * track the new per-hour value.
+   *
+   * Fixed-rate (and fixed_per_lesson) instructors are unaffected because
+   * computeInstructorEarnings keys their earnings off duration, not lesson
+   * amount — so even though we re-run, total_earnings stays the same for them.
+   *
+   * Returns { updated: number, skipped: number }.
+   */
+  static async recomputeEarningsForPackageBookings(client, packageId) {
+    const summary = { updated: 0, skipped: 0 };
+    const { rows: bookings } = await client.query(
+      `SELECT b.*
+         FROM bookings b
+        WHERE b.customer_package_id = $1
+          AND b.deleted_at IS NULL
+          AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
+          AND b.instructor_user_id IS NOT NULL`,
+      [packageId]
+    );
+
+    for (const booking of bookings) {
+      try {
+        await this.updateInstructorEarnings(client, booking);
+        summary.updated += 1;
+      } catch (err) {
+        summary.skipped += 1;
+        logger.warn('Failed to recompute earnings for package booking', {
+          packageId, bookingId: booking.id, error: err.message
+        });
+      }
+    }
+
+    return summary;
+  }
+
   /**
    * Update revenue snapshots
    */

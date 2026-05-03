@@ -28,12 +28,15 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
+import accommodationApi from '@/shared/services/accommodationApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-function QuickAccommodationModal({ open, onClose, onSuccess }) {
+function QuickAccommodationModal({ open, onClose, onSuccess, editBooking = null }) {
+  const isEditMode = !!editBooking;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -55,14 +58,38 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
         ]);
 
         const users = Array.isArray(usersRes.data) ? usersRes.data : [];
+        const editGuestId = editBooking?.guest_id;
         setCustomers(users.filter(
-          (u) => !u.user_role || u.user_role === 'student' || u.user_role === 'customer' || u.user_role === 'outsider'
+          (u) =>
+            !u.user_role ||
+            u.user_role === 'student' ||
+            u.user_role === 'customer' ||
+            u.user_role === 'outsider' ||
+            (editGuestId && u.id === editGuestId)
         ));
 
         const accommodationsList = Array.isArray(accommodationsRes.data)
           ? accommodationsRes.data
           : accommodationsRes.data?.units || [];
-        setAccommodations(accommodationsList.filter(a => a.status === 'Available'));
+        // In edit mode, also keep the booking's current unit (even if not Available)
+        const editUnitId = editBooking?.unit_id;
+        const filtered = accommodationsList.filter(
+          (a) => a.status === 'Available' || (editUnitId && a.id === editUnitId)
+        );
+        setAccommodations(filtered);
+
+        if (isEditMode && editBooking) {
+          const unit = filtered.find(a => a.id === editBooking.unit_id);
+          if (unit) {
+            const raw = unit.amenities;
+            unit.amenities = Array.isArray(raw)
+              ? raw
+              : typeof raw === 'string' && raw.trim()
+                ? raw.startsWith('[') ? JSON.parse(raw) : raw.split(',').map(s => s.trim()).filter(Boolean)
+                : [];
+            setSelectedAccommodation(unit);
+          }
+        }
       } catch {
         message.error('Failed to load data');
       } finally {
@@ -71,7 +98,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
     };
 
     loadData();
-  }, [open]);
+  }, [open, isEditMode, editBooking, form]);
 
   useEffect(() => {
     if (!open) {
@@ -80,6 +107,18 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
       setPriceOverride(null);
     }
   }, [open, form]);
+
+  // Apply edit-mode field values once the form is mounted (after loading completes)
+  useEffect(() => {
+    if (!open || loading || !isEditMode || !editBooking) return;
+    form.setFieldsValue({
+      customer_id: editBooking.guest_id,
+      accommodation_id: editBooking.unit_id,
+      date_range: [dayjs(editBooking.check_in_date), dayjs(editBooking.check_out_date)],
+      guests_count: editBooking.guests_count || 1,
+      notes: editBooking.notes || '',
+    });
+  }, [open, loading, isEditMode, editBooking, form]);
 
   const handleAccommodationChange = (accommodationId) => {
     const selected = accommodations.find(a => a.id === accommodationId);
@@ -108,23 +147,29 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
     try {
       const payload = {
         unit_id: values.accommodation_id,
-        guest_id: values.customer_id,
         check_in_date: values.date_range[0].format('YYYY-MM-DD'),
         check_out_date: values.date_range[1].format('YYYY-MM-DD'),
         guests_count: values.guests_count || 1,
         notes: values.notes,
-        payment_method: 'pay_later',
       };
-
       if (priceOverride !== null && priceOverride !== '') {
         payload.custom_price = parseFloat(priceOverride);
       }
-
-      await apiClient.post('/accommodation/bookings', payload);
-      onSuccess?.();
-      message.success('Accommodation booked successfully!');
+      if (isEditMode) {
+        await accommodationApi.updateBooking(editBooking.id, payload);
+        onSuccess?.();
+        message.success('Booking updated successfully!');
+      } else {
+        await apiClient.post('/accommodation/bookings', {
+          ...payload,
+          guest_id: values.customer_id,
+          payment_method: 'pay_later',
+        });
+        onSuccess?.();
+        message.success('Accommodation booked successfully!');
+      }
     } catch (err) {
-      message.error(err.response?.data?.error || 'Failed to create booking');
+      message.error(err.response?.data?.error || (isEditMode ? 'Failed to update booking' : 'Failed to create booking'));
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +180,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
       title={
         <Space>
           <HomeOutlined style={{ color: '#7c3aed' }} />
-          <span>Quick Accommodation Booking</span>
+          <span>{isEditMode ? 'Edit Accommodation Booking' : 'Quick Accommodation Booking'}</span>
         </Space>
       }
       open={open}
@@ -151,7 +196,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
             onClick={() => form.submit()}
             style={{ background: '#7c3aed', borderColor: '#7c3aed' }}
           >
-            Book Accommodation
+            {isEditMode ? 'Save Changes' : 'Book Accommodation'}
           </Button>
         </div>
       }
@@ -174,6 +219,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
           >
             <Select
               showSearch
+              disabled={isEditMode}
               placeholder="Search and select guest"
               optionFilterProp="children"
               filterOption={(input, option) =>

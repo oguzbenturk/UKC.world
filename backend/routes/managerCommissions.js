@@ -15,7 +15,8 @@ import { resolveActorId } from '../utils/auditUtils.js';
 import {
   recordTransaction as recordWalletTransaction,
   recordLegacyTransaction,
-  getTransactionById as getWalletTransactionById
+  getTransactionById as getWalletTransactionById,
+  resolveStoredAvailableDelta
 } from '../services/walletService.js';
 import {
   getManagerCommissionSettings,
@@ -514,6 +515,9 @@ router.post('/admin/managers/:managerId/payments', authenticateJWT, authorizeRol
       description,
       paymentMethod: payment_method || null,
       referenceNumber,
+      // Salary/commission payouts must not affect the staff member's wallet
+      // balance — the wallet is for customer-style credit, not payroll.
+      availableDelta: 0,
       metadata: {
         source: 'manager-commissions:payments:create',
         paymentDate: paymentDate.toISOString(),
@@ -570,7 +574,7 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
     await client.query('BEGIN');
 
     const originalAmount = parseFloat(transaction.amount) || 0;
-    const availableDelta = parseFloat(transaction.available_delta) || originalAmount;
+    const availableDelta = resolveStoredAvailableDelta(transaction);
     const pendingDelta = parseFloat(transaction.pending_delta) || 0;
     const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
 
@@ -603,7 +607,7 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
       });
     }
 
-    // New replacement transaction
+    // New replacement transaction — keep wallet balance untouched (see POST handler).
     const updated = await recordLegacyTransaction({
       userId: transaction.user_id,
       amount: newAmount,
@@ -613,6 +617,7 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
       description,
       paymentMethod: payment_method || null,
       referenceNumber: transaction.reference_number || `MGR_${Date.now()}`,
+      availableDelta: 0,
       metadata: {
         source: 'manager-commissions:payments:update',
         replacesTransactionId: transaction.id,
@@ -663,7 +668,7 @@ router.delete('/admin/managers/:managerId/payments/:paymentId', authenticateJWT,
 
     const actorId = resolveActorId(req) || null;
     const originalAmount = parseFloat(transaction.amount) || 0;
-    const availableDelta = parseFloat(transaction.available_delta) || originalAmount;
+    const availableDelta = resolveStoredAvailableDelta(transaction);
     const pendingDelta = parseFloat(transaction.pending_delta) || 0;
     const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
 

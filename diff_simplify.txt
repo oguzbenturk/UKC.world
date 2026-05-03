@@ -1,0 +1,3026 @@
+diff --git a/backend/routes/accommodation.js b/backend/routes/accommodation.js
+index 773c12c..6e90880 100644
+--- a/backend/routes/accommodation.js
++++ b/backend/routes/accommodation.js
+@@ -995,6 +995,203 @@ router.get('/bookings/:id', authenticateJWT, async (req, res) => {
+ 	}
+ });
+ 
++// Edit a booking by ID (admin, manager) — update unit, dates, guests, notes, total price
++router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
++	const client = await pool.connect();
++	try {
++		await client.query('BEGIN');
++		const { id } = req.params;
++		const {
++			unit_id,
++			check_in_date,
++			check_out_date,
++			guests_count,
++			notes,
++			custom_price,
++		} = req.body;
++
++		const existing = await client.query(
++			`SELECT * FROM accommodation_bookings WHERE id = $1`,
++			[id]
++		);
++		if (existing.rows.length === 0) {
++			await client.query('ROLLBACK');
++			return res.status(404).json({ error: 'Accommodation booking not found' });
++		}
++		const current = existing.rows[0];
++
++		if (current.status === 'cancelled' || current.status === 'completed') {
++			await client.query('ROLLBACK');
++			return res.status(400).json({ error: `Cannot edit a ${current.status} booking` });
++		}
++
++		const newUnitId = unit_id || current.unit_id;
++		const newCheckIn = check_in_date || current.check_in_date;
++		const newCheckOut = check_out_date || current.check_out_date;
++		const newGuests = guests_count != null ? parseInt(guests_count, 10) : current.guests_count;
++		const newNotes = notes !== undefined ? notes : current.notes;
++
++		const checkIn = new Date(newCheckIn);
++		const checkOut = new Date(newCheckOut);
++		if (checkOut <= checkIn) {
++			await client.query('ROLLBACK');
++			return res.status(400).json({ error: 'check_out_date must be after check_in_date' });
++		}
++
++		const unit = await client.query(
++			`SELECT * FROM accommodation_units WHERE id = $1`,
++			[newUnitId]
++		);
++		if (unit.rows.length === 0) {
++			await client.query('ROLLBACK');
++			return res.status(404).json({ error: 'Accommodation unit not found' });
++		}
++		const unitData = unit.rows[0];
++
++		if (newGuests > unitData.capacity) {
++			await client.query('ROLLBACK');
++			return res.status(400).json({ error: `Unit capacity is ${unitData.capacity} guests` });
++		}
++
++		// Overlap check, excluding this booking
++		const overlap = await client.query(
++			`SELECT id FROM accommodation_bookings
++			 WHERE unit_id = $1
++			 AND id != $2
++			 AND status NOT IN ('cancelled')
++			 AND COALESCE(payment_status, '') != 'failed'
++			 AND NOT (payment_method = 'credit_card' AND COALESCE(payment_status, '') = 'pending_payment')
++			 AND (check_in_date, check_out_date) OVERLAPS ($3::date, $4::date)`,
++			[newUnitId, id, newCheckIn, newCheckOut]
++		);
++		if (overlap.rows.length > 0) {
++			await client.query('ROLLBACK');
++			return res.status(400).json({ error: 'Unit is not available for the selected dates' });
++		}
++
++		// Recompute price unless staff explicitly overrides
++		let newTotal;
++		if (custom_price != null && custom_price !== '' && !isNaN(parseFloat(custom_price))) {
++			newTotal = parseFloat(custom_price);
++		} else {
++			const meta = extractUnitMeta(unitData);
++			const basePrice = parseFloat(unitData.price_per_night);
++			newTotal = calculateTotalPrice(checkIn, checkOut, basePrice, meta).total;
++		}
++
++		const { rows } = await client.query(
++			`UPDATE accommodation_bookings
++			 SET unit_id = $1,
++			     check_in_date = $2,
++			     check_out_date = $3,
++			     guests_count = $4,
++			     notes = $5,
++			     total_price = $6,
++			     updated_by = $7,
++			     updated_at = NOW()
++			 WHERE id = $8
++			 RETURNING *`,
++			[newUnitId, newCheckIn, newCheckOut, newGuests, newNotes, newTotal, req.user.id, id]
++		);
++
++		// Rebase any active discount on this booking against the new base price.
++		// The discount service reverses the prior credit and posts a fresh one
++		// reflecting the new amount, keeping the wallet ledger consistent.
++		try {
++			const { recomputeDiscountForAccommodationBooking } = await import('../services/discountService.js');
++			await recomputeDiscountForAccommodationBooking(client, {
++				bookingId: id,
++				newBasePrice: newTotal,
++				currency: 'EUR',
++				createdBy: req.user.id,
++			});
++		} catch (discErr) {
++			await client.query('ROLLBACK');
++			logger.error('[ACCOMMODATION PATCH] discount recompute failed:', discErr);
++			return res.status(500).json({ error: 'Failed to rebase booking discount', details: discErr.message });
++		}
++
++		// Adjust the customer's wallet when the price changes.
++		// pay_later bookings have an `accommodation_charge` debit on creation; we
++		// record a delta transaction here so the customer's balance stays in sync.
++		// wallet-paid bookings have funds locked equal to the original total; we
++		// release or lock the difference.
++		const oldTotal = parseFloat(current.total_price) || 0;
++		const delta = parseFloat((newTotal - oldTotal).toFixed(2));
++
++		if (delta !== 0 && current.guest_id) {
++			const unitLabel = unitData.name || 'Unit';
++			try {
++				if (current.payment_method === 'pay_later') {
++					await recordLegacyTransaction({
++						client,
++						userId: current.guest_id,
++						amount: -delta, // delta>0 → extra debit; delta<0 → credit refund
++						transactionType: 'accommodation_charge_adjustment',
++						status: 'completed',
++						direction: delta > 0 ? 'debit' : 'credit',
++						currency: 'EUR',
++						description: `Accommodation price ${delta > 0 ? 'increase' : 'decrease'}: ${unitLabel} (${formatCurrencyDisplay(oldTotal)} → ${formatCurrencyDisplay(newTotal)})`,
++						metadata: {
++							accommodationBookingId: id,
++							previousTotal: oldTotal,
++							newTotal,
++							source: 'accommodation:edit:pay_later',
++						},
++						entityType: 'accommodation_booking',
++						relatedEntityType: 'accommodation_booking',
++						relatedEntityId: id,
++						createdBy: req.user.id,
++						allowNegative: true,
++					});
++				} else if (current.payment_method === 'wallet' && current.payment_status === 'paid') {
++					if (delta > 0) {
++						await lockFundsForBooking({
++							userId: current.guest_id,
++							amount: delta,
++							bookingId: id,
++							currency: 'EUR',
++							client,
++							description: `Accommodation price increase: ${unitLabel}`,
++						});
++					} else {
++						await releaseLockedFunds({
++							userId: current.guest_id,
++							amount: Math.abs(delta),
++							bookingId: id,
++							currency: 'EUR',
++							client,
++							reason: 'release',
++						});
++					}
++					await client.query(
++						`UPDATE accommodation_bookings SET payment_amount = $1 WHERE id = $2`,
++						[newTotal, id]
++					);
++				}
++			} catch (adjErr) {
++				await client.query('ROLLBACK');
++				logger.error('[ACCOMMODATION PATCH] wallet adjustment failed:', adjErr);
++				return res.status(500).json({ error: 'Failed to adjust customer balance', details: adjErr.message });
++			}
++		}
++
++		await client.query('COMMIT');
++		res.json(rows[0]);
++	} catch (err) {
++		await client.query('ROLLBACK');
++		logger.error('[ACCOMMODATION PATCH] error', err);
++		res.status(500).json({ error: 'Failed to update accommodation booking' });
++	} finally {
++		client.release();
++	}
++});
++
++function formatCurrencyDisplay(n) {
++	const num = Number(n) || 0;
++	return `€${num.toFixed(2)}`;
++}
++
+ // Delete a booking by ID (admin, manager, front_desk)
+ router.delete('/bookings/:id', authenticateJWT, cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
+ 	try {
+diff --git a/backend/routes/bookings.js b/backend/routes/bookings.js
+index d287e48..c4845f8 100644
+--- a/backend/routes/bookings.js
++++ b/backend/routes/bookings.js
+@@ -238,8 +238,14 @@ const resolveServiceType = (serviceRow) => {
+       const perParticipantDelta = delta / participantsRes.rows.length;
+       for (const p of participantsRes.rows) {
+         if (delta > 0) {
+-          const r = await consumeHoursFromPackage(client, p.customer_package_id, perParticipantDelta, { allowNegative: true });
+-          if (r && !r.error) adjustments.push({ ...r, participantId: p.id });
++          const r = await consumeHoursFromPackage(client, p.customer_package_id, perParticipantDelta, { allowNegative: false });
++          if (r?.error === 'insufficient_hours') {
++            const err = new Error(`Package has only ${r.available}h remaining; cannot extend booking by ${perParticipantDelta}h.`);
++            err.status = 400;
++            err.code = 'package_insufficient_hours';
++            throw err;
++          }
++          if (r) adjustments.push({ ...r, participantId: p.id });
+         } else {
+           const r = await restoreHoursToPackage(client, p.customer_package_id, Math.abs(perParticipantDelta));
+           if (r) adjustments.push({ ...r, participantId: p.id });
+@@ -256,8 +262,14 @@ const resolveServiceType = (serviceRow) => {
+       }
+     } else if (booking.customer_package_id && booking.payment_status === 'package') {
+       if (delta > 0) {
+-        const r = await consumeHoursFromPackage(client, booking.customer_package_id, delta, { allowNegative: true });
+-        if (r && !r.error) adjustments.push(r);
++        const r = await consumeHoursFromPackage(client, booking.customer_package_id, delta, { allowNegative: false });
++        if (r?.error === 'insufficient_hours') {
++          const err = new Error(`Package has only ${r.available}h remaining; cannot extend booking by ${delta}h.`);
++          err.status = 400;
++          err.code = 'package_insufficient_hours';
++          throw err;
++        }
++        if (r) adjustments.push(r);
+       } else {
+         const r = await restoreHoursToPackage(client, booking.customer_package_id, Math.abs(delta));
+         if (r) adjustments.push(r);
+@@ -2928,8 +2940,9 @@ router.post('/group',
+         let packageCheck;
+         if (participant.customerPackageId) {
+           // User explicitly selected this package — trust the choice, only verify
+-          // ownership, active status, and expiry. Skip lesson_service_name matching
+-          // because the frontend already filtered packages for the selected service.
++          // ownership, active status, expiry, and that it still has hours. Skip
++          // lesson_service_name matching because the frontend already filtered
++          // packages for the selected service.
+           const params = [participant.customerPackageId, participant.userId, date];
+           const sql = `
+             SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
+@@ -2938,6 +2951,7 @@ router.post('/group',
+             WHERE cp.id = $1 AND cp.customer_id = $2
+               AND cp.status = 'active'
+               AND (cp.expiry_date IS NULL OR cp.expiry_date >= $3)
++              AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
+             LIMIT 1
+           `;
+           packageCheck = await client.query(sql, params);
+@@ -2948,9 +2962,10 @@ router.post('/group',
+             SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
+             FROM customer_packages cp
+             LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+-            WHERE cp.customer_id = $1 
+-              AND cp.status = 'active' 
++            WHERE cp.customer_id = $1
++              AND cp.status = 'active'
+               AND (cp.expiry_date IS NULL OR cp.expiry_date >= $2)
++              AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
+           `;
+           if (serviceName) {
+             // Flexible matching: check both customer_packages AND service_packages lesson_service_name
+@@ -4795,6 +4810,12 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
+ 
+   } catch (error) {
+     await client.query('ROLLBACK');
++    if (error?.code === 'package_insufficient_hours') {
++      return res.status(400).json({
++        error: 'Package insufficient hours',
++        message: error.message,
++      });
++    }
+     logger.error('Failed to update booking', error);
+     res.status(500).json({ message: 'Server error' });
+   } finally {
+diff --git a/backend/routes/finances.js b/backend/routes/finances.js
+index 75fcd0a..26292e1 100644
+--- a/backend/routes/finances.js
++++ b/backend/routes/finances.js
+@@ -1881,6 +1881,9 @@ router.post('/instructor-payments',
+       description,
+       paymentMethod: payment_method || null,
+       referenceNumber,
++      // Salary/commission payouts must not affect the staff member's wallet
++      // balance — the wallet is for customer-style credit, not payroll.
++      availableDelta: 0,
+       metadata: {
+         source: 'finances:instructor-payments:create',
+         requestedType: type || null,
+@@ -1954,7 +1957,12 @@ router.put('/instructor-payments/:id',
+     await client.query('BEGIN');
+ 
+     const originalAmount = Number.parseFloat(transaction.amount) || 0;
+-    const availableDelta = Number.parseFloat(transaction.available_delta) || originalAmount;
++    // Preserve a stored 0 — `|| originalAmount` would treat 0 as missing and
++    // re-introduce the salary-into-wallet bug for transactions written after
++    // migration 257.
++    const availableDelta = transaction.available_delta == null
++      ? originalAmount
++      : Number.parseFloat(transaction.available_delta);
+     const pendingDelta = Number.parseFloat(transaction.pending_delta) || 0;
+     const nonWithdrawableDelta = Number.parseFloat(transaction.non_withdrawable_delta) || 0;
+ 
+@@ -2006,6 +2014,7 @@ router.put('/instructor-payments/:id',
+       description,
+       paymentMethod: payment_method || null,
+       referenceNumber: transaction.reference_number || `INST_${Date.now()}`,
++      availableDelta: 0,
+       metadata: {
+         source: 'finances:instructor-payments:update',
+         replacesTransactionId: transaction.id,
+@@ -2072,7 +2081,9 @@ router.delete('/instructor-payments/:id',
+ 
+     const actorId = resolveActorId(req) || null;
+     const originalAmount = Number.parseFloat(transaction.amount) || 0;
+-    const availableDelta = Number.parseFloat(transaction.available_delta) || originalAmount;
++    const availableDelta = transaction.available_delta == null
++      ? originalAmount
++      : Number.parseFloat(transaction.available_delta);
+     const pendingDelta = Number.parseFloat(transaction.pending_delta) || 0;
+     const nonWithdrawableDelta = Number.parseFloat(transaction.non_withdrawable_delta) || 0;
+ 
+diff --git a/backend/routes/managerCommissions.js b/backend/routes/managerCommissions.js
+index 86163d4..e9d9edb 100644
+--- a/backend/routes/managerCommissions.js
++++ b/backend/routes/managerCommissions.js
+@@ -514,6 +514,9 @@ router.post('/admin/managers/:managerId/payments', authenticateJWT, authorizeRol
+       description,
+       paymentMethod: payment_method || null,
+       referenceNumber,
++      // Salary/commission payouts must not affect the staff member's wallet
++      // balance — the wallet is for customer-style credit, not payroll.
++      availableDelta: 0,
+       metadata: {
+         source: 'manager-commissions:payments:create',
+         paymentDate: paymentDate.toISOString(),
+@@ -570,7 +573,12 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
+     await client.query('BEGIN');
+ 
+     const originalAmount = parseFloat(transaction.amount) || 0;
+-    const availableDelta = parseFloat(transaction.available_delta) || originalAmount;
++    // Preserve a stored 0 — `|| originalAmount` would treat 0 as missing and
++    // re-introduce the salary-into-wallet bug for transactions written after
++    // migration 257.
++    const availableDelta = transaction.available_delta == null
++      ? originalAmount
++      : parseFloat(transaction.available_delta);
+     const pendingDelta = parseFloat(transaction.pending_delta) || 0;
+     const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
+ 
+@@ -603,7 +611,7 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
+       });
+     }
+ 
+-    // New replacement transaction
++    // New replacement transaction — keep wallet balance untouched (see POST handler).
+     const updated = await recordLegacyTransaction({
+       userId: transaction.user_id,
+       amount: newAmount,
+@@ -613,6 +621,7 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
+       description,
+       paymentMethod: payment_method || null,
+       referenceNumber: transaction.reference_number || `MGR_${Date.now()}`,
++      availableDelta: 0,
+       metadata: {
+         source: 'manager-commissions:payments:update',
+         replacesTransactionId: transaction.id,
+@@ -663,7 +672,9 @@ router.delete('/admin/managers/:managerId/payments/:paymentId', authenticateJWT,
+ 
+     const actorId = resolveActorId(req) || null;
+     const originalAmount = parseFloat(transaction.amount) || 0;
+-    const availableDelta = parseFloat(transaction.available_delta) || originalAmount;
++    const availableDelta = transaction.available_delta == null
++      ? originalAmount
++      : parseFloat(transaction.available_delta);
+     const pendingDelta = parseFloat(transaction.pending_delta) || 0;
+     const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
+ 
+diff --git a/backend/routes/services.js b/backend/routes/services.js
+index cb0305c..864f68e 100644
+--- a/backend/routes/services.js
++++ b/backend/routes/services.js
+@@ -8,7 +8,7 @@ import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
+ import CurrencyService from '../services/currencyService.js';
+ import { logger } from '../middlewares/errorHandler.js';
+ import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
+-import { forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
++import { forceDeleteCustomerPackage, mapWalletTransactionForResponse, updateCustomerPackagePrice } from '../services/customerPackageService.js';
+ import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
+ import { setPackagePrices, getPackagePrices, getPackagePricesBatch, setServicePrices, getServicePrices, getServicePricesBatch, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
+ import voucherService from '../services/voucherService.js';
+@@ -2258,6 +2258,56 @@ router.post('/customer-packages/:id/cancel', authenticateJWT, async (req, res) =
+   }
+ });
+ 
++// Edit a customer package's price after the fact. Cascades to:
++//   * wallet credit/debit for the delta if the package was actually paid
++//     (auto-settle, can be disabled per-call via settle_wallet=false)
++//   * any layered % discount on the package (rebased against new price)
++//   * pending manager_commissions for bookings consuming the package
++//     (paid-out commissions are immutable history and skipped)
++// Instructor earnings recompute live from purchase_price, so no cascade
++// needed for them.
++router.patch('/customer-packages/:id/price', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
++  const { id } = req.params;
++  const { new_price, reason, settle_wallet } = req.body || {};
++  const actorId = resolveActorId(req);
++
++  const client = await pool.connect();
++  try {
++    await client.query('BEGIN');
++    const result = await updateCustomerPackagePrice({
++      client,
++      packageId: id,
++      newPrice: Number(new_price),
++      reason,
++      settleWallet: settle_wallet !== false,
++      actorId
++    });
++    await client.query('COMMIT');
++
++    return res.json({
++      success: true,
++      package: result.package,
++      oldPrice: result.oldPrice,
++      newPrice: result.newPrice,
++      delta: result.delta,
++      walletAdjustment: mapWalletTransactionForResponse(result.walletAdjustment),
++      discount: result.discount,
++      commissions: result.commissions
++    });
++  } catch (error) {
++    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
++    const status = error.statusCode || 500;
++    if (status >= 500) {
++      logger.error('Failed to edit customer package price', {
++        packageId: id, error: error.message, stack: error.stack
++      });
++    }
++    return res.status(status).json({ error: error.message || 'Failed to edit package price' });
++  } finally {
++    client.release();
++  }
++});
++
+ // Delete package
+ router.delete('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(cacheInvalidationPatterns.services), async (req, res) => {
+   try {
+@@ -3050,6 +3100,13 @@ router.get('/customer-packages/:customerId', authenticateJWT, authorize(['admin'
+       package_name: row.package_name,
+       lesson_service_name: row.lesson_service_name || row.package_name,
+       price: parseFloat(row.purchase_price),
++      // NULL = price has never been edited; UI uses presence to render strikethrough.
++      originalPrice: row.original_price !== null && row.original_price !== undefined
++        ? parseFloat(row.original_price)
++        : null,
++      original_price: row.original_price !== null && row.original_price !== undefined
++        ? parseFloat(row.original_price)
++        : null,
+       // structured tags from service_packages (if any)
+       disciplineTag: row.sp_discipline_tag || null,
+       lessonCategoryTag: row.sp_lesson_category_tag || null,
+diff --git a/backend/services/bookingUpdateCascadeService.js b/backend/services/bookingUpdateCascadeService.js
+index 0559bcd..8615b7b 100644
+--- a/backend/services/bookingUpdateCascadeService.js
++++ b/backend/services/bookingUpdateCascadeService.js
+@@ -60,8 +60,22 @@ class BookingUpdateCascadeService {
+         servicePackage = serviceResult.rows[0] || null;
+       }
+ 
++      // Treat any active per-package discount as effectively reducing the
++      // purchase price for downstream commission math. Mirrors the behaviour
++      // of an admin price edit so both paths affect commission identically.
++      let basePrice = new Decimal(pkg.purchase_price || 0);
++      const { rows: discountRows } = await client.query(
++        `SELECT amount FROM discounts
++          WHERE entity_type = 'customer_package' AND entity_id = $1`,
++        [String(booking.customer_package_id)]
++      );
++      if (discountRows.length) {
++        const discountAmount = new Decimal(discountRows[0].amount || 0);
++        basePrice = Decimal.max(new Decimal(0), basePrice.sub(discountAmount));
++      }
++
+       // Derive lesson-only portion of the package price
+-      let effectivePackagePrice = new Decimal(pkg.purchase_price || 0);
++      let effectivePackagePrice = basePrice;
+       if (servicePackage) {
+         const storedHourlyRate = new Decimal(servicePackage.package_hourly_rate || 0);
+         const pkgTotalHours = new Decimal(pkg.total_hours || servicePackage.total_hours || 0);
+@@ -92,7 +106,14 @@ class BookingUpdateCascadeService {
+           }
+           const deductions = rentalCost.add(accomCost);
+           if (deductions.gt(0)) {
+-            effectivePackagePrice = Decimal.max(new Decimal(0), effectivePackagePrice.sub(deductions));
++            // Subtract proportionally so the discount-adjusted basePrice keeps
++            // its share. Without scaling we'd subtract the full undiscounted
++            // rental/accom cost from a discounted total, drifting the lesson
++            // portion below the intended split.
++            const fullPrice = new Decimal(pkg.purchase_price || 0);
++            const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(0);
++            const scaledDeductions = deductions.mul(ratio);
++            effectivePackagePrice = Decimal.max(new Decimal(0), effectivePackagePrice.sub(scaledDeductions));
+           }
+         }
+       }
+@@ -416,6 +437,45 @@ class BookingUpdateCascadeService {
+     return { commissionType, commissionValue };
+   }
+   
++  /**
++   * Recompute instructor_earnings snapshot rows for every completed booking
++   * tied to a customer package. Called after the package's purchase_price is
++   * edited or its discount changes so per-lesson lesson_amount + total_earnings
++   * track the new per-hour value.
++   *
++   * Fixed-rate (and fixed_per_lesson) instructors are unaffected because
++   * computeInstructorEarnings keys their earnings off duration, not lesson
++   * amount — so even though we re-run, total_earnings stays the same for them.
++   *
++   * Returns { updated: number, skipped: number }.
++   */
++  static async recomputeEarningsForPackageBookings(client, packageId) {
++    const summary = { updated: 0, skipped: 0 };
++    const { rows: bookings } = await client.query(
++      `SELECT b.*
++         FROM bookings b
++        WHERE b.customer_package_id = $1
++          AND b.deleted_at IS NULL
++          AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
++          AND b.instructor_user_id IS NOT NULL`,
++      [packageId]
++    );
++
++    for (const booking of bookings) {
++      try {
++        await this.updateInstructorEarnings(client, booking);
++        summary.updated += 1;
++      } catch (err) {
++        summary.skipped += 1;
++        logger.warn('Failed to recompute earnings for package booking', {
++          packageId, bookingId: booking.id, error: err.message
++        });
++      }
++    }
++
++    return summary;
++  }
++
+   /**
+    * Update revenue snapshots
+    */
+diff --git a/backend/services/customerPackageService.js b/backend/services/customerPackageService.js
+index 80734dc..86a8c90 100644
+--- a/backend/services/customerPackageService.js
++++ b/backend/services/customerPackageService.js
+@@ -5,6 +5,9 @@ import {
+   getWalletAccountSummary
+ } from './walletService.js';
+ import { logger } from '../middlewares/errorHandler.js';
++import { recomputeDiscountForCustomerPackage } from './discountService.js';
++import { recomputeManagerCommissionsForPackage } from './managerCommissionService.js';
++import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
+ 
+ function normalizePackageRow(row) {
+   if (!row) {
+@@ -27,6 +30,11 @@ function normalizePackageRow(row) {
+   const usedHours = toNumber(row.used_hours) || 0;
+   const remainingHours = toNumber(row.remaining_hours) || 0;
+   const purchasePrice = toNumber(row.purchase_price) || 0;
++  // NULL means the price has never been edited; keep null so callers can
++  // distinguish "never edited" from "edited back to original".
++  const originalPrice = row.original_price !== undefined && row.original_price !== null
++    ? toNumber(row.original_price)
++    : null;
+   const pricePerHour = totalHours > 0 ? purchasePrice / totalHours : 0;
+   const usageSummary = {
+     totalHours,
+@@ -48,6 +56,7 @@ function normalizePackageRow(row) {
+     usedHours,
+     remainingHours,
+     purchasePrice,
++    originalPrice,
+     currency: row.currency || 'EUR',
+     purchaseDate: row.purchase_date,
+     expiryDate: row.expiry_date,
+@@ -67,7 +76,7 @@ export async function fetchCustomerPackagesByIds(client, packageIds = []) {
+   }
+ 
+   const { rows } = await client.query(
+-    `SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at FROM customer_packages WHERE id = ANY($1)`,
++    `SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, original_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at FROM customer_packages WHERE id = ANY($1)`,
+     [packageIds]
+   );
+ 
+@@ -89,7 +98,7 @@ export async function forceDeleteCustomerPackage({
+   }
+ 
+   const packageResult = await client.query(
+-    'SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at, check_in_date, check_out_date FROM customer_packages WHERE id = $1 FOR UPDATE',
++    'SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, original_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at, check_in_date, check_out_date FROM customer_packages WHERE id = $1 FOR UPDATE',
+     [packageId]
+   );
+ 
+@@ -385,6 +394,184 @@ export async function forceDeleteCustomerPackage({
+   };
+ }
+ 
++// Edits a customer package's purchase_price after the fact (admin-only flow).
++//
++// Cascade:
++//   1) UPDATE customer_packages.purchase_price (preserving original_price on
++//      the very first edit).
++//   2) If the package was actually paid (completed wallet package_purchase
++//      transaction exists) and settleWallet=true, post a wallet credit
++//      (price decreased) or debit (price increased) for the delta.
++//   3) Recompute any layered % discount on this package against the new base.
++//   4) Recompute pending manager commissions for the package's bookings;
++//      already-paid-out commissions are left untouched.
++//
++// Instructor earnings recompute live on each query from purchase_price, so
++// no cascade is needed for them. The caller is responsible for transaction
++// boundaries (BEGIN/COMMIT) — we operate inside `client`.
++export async function updateCustomerPackagePrice({
++  client,
++  packageId,
++  newPrice,
++  reason,
++  settleWallet = true,
++  actorId = null
++}) {
++  if (!client) throw new Error('Database client is required');
++  if (!Number.isFinite(newPrice) || newPrice < 0) {
++    const err = new Error('new_price must be a non-negative number');
++    err.statusCode = 400;
++    throw err;
++  }
++  const trimmedReason = (reason || '').trim();
++  if (!trimmedReason) {
++    const err = new Error('reason is required');
++    err.statusCode = 400;
++    throw err;
++  }
++  if (trimmedReason.length > 500) {
++    const err = new Error('reason exceeds 500 characters');
++    err.statusCode = 400;
++    throw err;
++  }
++
++  const pkgRes = await client.query(
++    `SELECT id, customer_id, purchase_price, original_price, currency, status, package_name
++       FROM customer_packages
++      WHERE id = $1
++      FOR UPDATE`,
++    [packageId]
++  );
++  if (!pkgRes.rows.length) {
++    const err = new Error('Customer package not found');
++    err.statusCode = 404;
++    throw err;
++  }
++  const pkg = pkgRes.rows[0];
++  if (pkg.status === 'cancelled') {
++    const err = new Error('Cannot edit price of a cancelled package');
++    err.statusCode = 400;
++    throw err;
++  }
++
++  const oldPrice = Number(pkg.purchase_price) || 0;
++  const newPriceRounded = Number(new Decimal(newPrice).toDecimalPlaces(2).toString());
++  const delta = Number(new Decimal(newPriceRounded).sub(oldPrice).toDecimalPlaces(2).toString());
++  const currency = pkg.currency || 'EUR';
++
++  // Preserve the very first agreed price on the first edit. Subsequent
++  // edits leave original_price untouched.
++  const newOriginalPrice = pkg.original_price !== null && pkg.original_price !== undefined
++    ? pkg.original_price
++    : oldPrice;
++
++  const updated = await client.query(
++    `UPDATE customer_packages
++        SET purchase_price = $1,
++            original_price = $2,
++            updated_at = NOW()
++      WHERE id = $3
++  RETURNING *`,
++    [newPriceRounded, newOriginalPrice, packageId]
++  );
++
++  // Wallet settlement — only if delta is non-zero AND the package was
++  // actually paid. Use the same paid-check pattern as forceDeleteCustomerPackage.
++  let walletAdjustment = null;
++  if (settleWallet && Math.abs(delta) >= 0.005) {
++    const paymentCheck = await client.query(
++      `SELECT id FROM wallet_transactions
++        WHERE related_entity_id = $1
++          AND related_entity_type = 'customer_package'
++          AND transaction_type = 'package_purchase'
++          AND status = 'completed'
++          AND amount < 0
++        LIMIT 1`,
++      [packageId]
++    );
++    const wasActuallyPaid = paymentCheck.rows.length > 0;
++
++    if (wasActuallyPaid) {
++      const isCredit = delta < 0; // price went down -> refund the customer
++      const absAmount = Math.abs(delta);
++      walletAdjustment = await recordWalletTransaction({
++        client,
++        userId: pkg.customer_id,
++        amount: isCredit ? absAmount : -absAmount,
++        availableDelta: isCredit ? absAmount : -absAmount,
++        transactionType: 'package_price_adjustment',
++        status: 'completed',
++        direction: isCredit ? 'credit' : 'debit',
++        currency,
++        description: isCredit
++          ? `Package price reduced (${pkg.package_name}): ${trimmedReason}`
++          : `Package price increased (${pkg.package_name}): ${trimmedReason}`,
++        paymentMethod: 'package_price_adjustment',
++        referenceNumber: packageId,
++        metadata: {
++          packageId,
++          packageName: pkg.package_name,
++          oldPrice,
++          newPrice: newPriceRounded,
++          delta,
++          reason: trimmedReason,
++          actorId
++        },
++        entityType: 'customer_package',
++        relatedEntityType: 'customer_package',
++        relatedEntityId: packageId,
++        createdBy: actorId,
++        // Refunds must always be allowed even if the wallet is already
++        // negative; debits also bypass the negative-balance guard because
++        // this is an admin reconciliation, not a user purchase.
++        allowNegative: true
++      });
++    } else {
++      logger.info('Package was not paid — skipping wallet adjustment for price edit', { packageId });
++    }
++  }
++
++  // Rebase any layered % discount against the new base price.
++  const discountResult = await recomputeDiscountForCustomerPackage(client, {
++    packageId,
++    newBasePrice: newPriceRounded,
++    currency,
++    createdBy: actorId
++  });
++
++  // Recompute pending manager commissions tied to bookings that consumed this package.
++  const commissionResult = await recomputeManagerCommissionsForPackage(client, packageId);
++
++  // Refresh the per-lesson instructor_earnings snapshot for every completed
++  // booking from this package. Percentage-rate instructors see updated
++  // total_earnings; fixed-rate instructors are recomputed too but their
++  // earnings stay the same since they're driven by duration not lesson amount.
++  const earningsResult = await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, packageId);
++
++  logger.info('Customer package price edited', {
++    packageId,
++    oldPrice,
++    newPrice: newPriceRounded,
++    delta,
++    discountAdjusted: discountResult.adjusted,
++    commissionsUpdated: commissionResult.updated,
++    commissionsSkippedPaidOut: commissionResult.skippedPaidOut,
++    instructorEarningsUpdated: earningsResult.updated,
++    actorId
++  });
++
++  return {
++    package: normalizePackageRow(updated.rows[0]),
++    oldPrice,
++    newPrice: newPriceRounded,
++    delta,
++    walletAdjustment,
++    discount: discountResult,
++    commissions: commissionResult,
++    instructorEarnings: earningsResult
++  };
++}
++
+ export function mapWalletTransactionForResponse(walletTransaction) {
+   if (!walletTransaction) {
+     return null;
+diff --git a/backend/services/discountService.js b/backend/services/discountService.js
+index e65d2c8..43c794d 100644
+--- a/backend/services/discountService.js
++++ b/backend/services/discountService.js
+@@ -7,6 +7,11 @@
+ import Decimal from 'decimal.js';
+ import { logger } from '../middlewares/errorHandler.js';
+ import { recordTransaction } from './walletService.js';
++import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
++import {
++  recomputeManagerCommissionsForPackage,
++  recomputeManagerCommissionForEntity,
++} from './managerCommissionService.js';
+ 
+ // Maps each supported entity to:
+ //   table     - the SQL table to read the original price from
+@@ -31,7 +36,7 @@ const ENTITY_CONFIG = {
+     table: 'rentals',
+     priceCol: 'total_price',
+     customerCol: 'user_id',
+-    currencyCol: 'currency',
++    currencyCol: null,
+     idType: 'uuid',
+     paidStatusExpr: `payment_status IN ('paid', 'completed')`,
+   },
+@@ -39,9 +44,12 @@ const ENTITY_CONFIG = {
+     table: 'accommodation_bookings',
+     priceCol: 'total_price',
+     customerCol: 'guest_id',
+-    currencyCol: 'currency',
++    currencyCol: null,
+     idType: 'uuid',
+-    paidStatusExpr: `payment_status IN ('paid', 'completed')`,
++    // pay_later bookings record a wallet charge at creation, so they behave
++    // like a paid item for discount purposes — the discount must refund the
++    // charged amount even though payment_status is still 'pending'.
++    paidStatusExpr: `(payment_status IN ('paid', 'completed') OR payment_method = 'pay_later')`,
+   },
+   customer_package: {
+     table: 'customer_packages',
+@@ -117,7 +125,11 @@ export async function getEntitySnapshot(client, entityType, entityId) {
+ }
+ 
+ // Find the live (non-reversed) discount-adjustment credit for a given discount.
+-// Returns the row if a matching credit exists with no later reversal; null otherwise.
++// We match reversals by the explicit `metadata.reversal_of` pointer rather
++// than by timestamp ordering: when an apply both reverses a stale credit and
++// posts a fresh credit in the same DB transaction, both rows share the same
++// `created_at` (NOW() is fixed within a transaction), so timestamp comparison
++// would incorrectly mark the fresh credit as already-reversed.
+ async function findOpenDiscountAdjustment(client, discountId) {
+   const { rows } = await client.query(
+     `
+@@ -131,9 +143,9 @@ async function findOpenDiscountAdjustment(client, discountId) {
+         SELECT 1 FROM wallet_transactions r
+         WHERE r.discount_id = t.discount_id
+           AND r.transaction_type = $3
+-          AND r.created_at >= t.created_at
++          AND r.metadata->>'reversal_of' = t.id::text
+       )
+-    ORDER BY t.created_at DESC
++    ORDER BY t.created_at DESC, t.id DESC
+     LIMIT 1
+     `,
+     [discountId, DISCOUNT_TX_TYPE, DISCOUNT_REVERSAL_TX_TYPE]
+@@ -258,6 +270,12 @@ export async function applyDiscount(client, {
+       `DELETE FROM discounts WHERE entity_type = $1 AND entity_id = $2 RETURNING id`,
+       [entityType, String(entityId)]
+     );
++    if (entityType === 'customer_package') {
++      await recomputeManagerCommissionsForPackage(client, entityId);
++      await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, entityId);
++    } else {
++      await recomputeManagerCommissionForEntity(client, entityType, entityId);
++    }
+     return { deleted: del.rowCount > 0, snapshot };
+   }
+ 
+@@ -321,6 +339,18 @@ export async function applyDiscount(client, {
+     });
+   }
+ 
++  // For customer_package discounts, refresh per-lesson instructor earnings
++  // and the manager commission rows tied to package bookings so applying a
++  // discount affects staff payout the same way an admin price edit does.
++  // For non-package entities, recompute the single matching commission row
++  // (booking / rental / accommodation / membership / shop).
++  if (entityType === 'customer_package') {
++    await recomputeManagerCommissionsForPackage(client, entityId);
++    await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, entityId);
++  } else {
++    await recomputeManagerCommissionForEntity(client, entityType, entityId);
++  }
++
+   return { discount, snapshot, adjustment };
+ }
+ 
+@@ -341,6 +371,13 @@ export async function listDiscountsForCustomer(client, customerId) {
+ }
+ 
+ export async function deleteDiscount(client, id, { createdBy } = {}) {
++  // Need entity_type / entity_id BEFORE the DELETE so we can fire the
++  // package-earnings cascade afterwards.
++  const { rows: target } = await client.query(
++    `SELECT entity_type, entity_id FROM discounts WHERE id = $1`,
++    [id]
++  );
++
+   // Reverse any outstanding wallet credit for this discount before deleting.
+   // Once the discount row is gone, `discount_id` on past credits goes NULL
+   // (ON DELETE SET NULL) so it must be reversed first.
+@@ -352,6 +389,15 @@ export async function deleteDiscount(client, id, { createdBy } = {}) {
+     });
+   }
+   const { rowCount } = await client.query(`DELETE FROM discounts WHERE id = $1`, [id]);
++  if (rowCount > 0 && target.length) {
++    const { entity_type: et, entity_id: eid } = target[0];
++    if (et === 'customer_package') {
++      await recomputeManagerCommissionsForPackage(client, eid);
++      await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, eid);
++    } else {
++      await recomputeManagerCommissionForEntity(client, et, eid);
++    }
++  }
+   return rowCount > 0;
+ }
+ 
+@@ -359,3 +405,148 @@ export async function deleteDiscount(client, id, { createdBy } = {}) {
+ export function logDiscountApply(action, payload) {
+   logger.info(`Discount ${action}`, payload);
+ }
++
++// Re-derives an accommodation_booking's discount amount after its total_price
++// was edited. Mirrors recomputeDiscountForCustomerPackage but for stays.
++export async function recomputeDiscountForAccommodationBooking(client, {
++  bookingId,
++  newBasePrice,
++  currency = 'EUR',
++  createdBy,
++}) {
++  const { rows } = await client.query(
++    `SELECT id, customer_id, percent, amount, currency, reason
++       FROM discounts
++      WHERE entity_type = 'accommodation_booking' AND entity_id = $1`,
++    [String(bookingId)]
++  );
++  if (!rows.length) {
++    return { adjusted: false, discount: null, oldAmount: 0, newAmount: 0, adjustment: null };
++  }
++
++  const discount = rows[0];
++  const oldAmount = Number(discount.amount) || 0;
++  const newAmount = computeDiscountAmount(newBasePrice, discount.percent);
++  const finalCurrency = currency || discount.currency || 'EUR';
++
++  if (newAmount === oldAmount) {
++    return { adjusted: false, discount, oldAmount, newAmount, adjustment: null };
++  }
++
++  const openCredit = await findOpenDiscountAdjustment(client, discount.id);
++  if (openCredit) {
++    await reverseDiscountAdjustment(client, openCredit, {
++      reason: 'Discount amount changed (booking price edit)',
++      createdBy,
++    });
++  }
++
++  const updated = await client.query(
++    `UPDATE discounts
++        SET amount = $1, currency = $2, updated_at = NOW()
++      WHERE id = $3
++  RETURNING *`,
++    [newAmount, finalCurrency, discount.id]
++  );
++
++  let adjustment = null;
++  if (newAmount > 0) {
++    adjustment = await postDiscountAdjustment(client, {
++      customerId: discount.customer_id,
++      amount: newAmount,
++      currency: finalCurrency,
++      discountId: discount.id,
++      entityType: 'accommodation_booking',
++      entityId: bookingId,
++      reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
++      createdBy,
++    });
++  }
++
++  // Keep the manager's commission row in sync with the rebased discount.
++  await recomputeManagerCommissionForEntity(client, 'accommodation_booking', bookingId);
++
++  return {
++    adjusted: true,
++    discount: updated.rows[0],
++    oldAmount,
++    newAmount,
++    adjustment,
++  };
++}
++
++// Re-derives a customer_package's discount amount after its purchase_price was
++// edited. The stored percent is preserved; only the absolute amount and any
++// outstanding wallet credit are reconciled to match the new base price.
++//
++// Mirrors the apply path: reverse the open credit if its amount no longer
++// matches the new amount, UPDATE the discounts row, then post a fresh credit.
++//
++// Returns { adjusted: boolean, discount, oldAmount, newAmount, adjustment }.
++export async function recomputeDiscountForCustomerPackage(client, {
++  packageId,
++  newBasePrice,
++  currency,
++  createdBy,
++}) {
++  const { rows } = await client.query(
++    `SELECT id, customer_id, percent, amount, currency, reason
++       FROM discounts
++      WHERE entity_type = 'customer_package' AND entity_id = $1`,
++    [String(packageId)]
++  );
++  if (!rows.length) {
++    return { adjusted: false, discount: null, oldAmount: 0, newAmount: 0, adjustment: null };
++  }
++
++  const discount = rows[0];
++  const oldAmount = Number(discount.amount) || 0;
++  const newAmount = computeDiscountAmount(newBasePrice, discount.percent);
++  const finalCurrency = currency || discount.currency || 'EUR';
++
++  if (newAmount === oldAmount) {
++    return { adjusted: false, discount, oldAmount, newAmount, adjustment: null };
++  }
++
++  // Reverse any outstanding credit so the new credit reflects the new amount.
++  const openCredit = await findOpenDiscountAdjustment(client, discount.id);
++  if (openCredit) {
++    await reverseDiscountAdjustment(client, openCredit, {
++      reason: 'Discount amount changed (package price edit)',
++      createdBy,
++    });
++  }
++
++  const updated = await client.query(
++    `UPDATE discounts
++        SET amount = $1, currency = $2, updated_at = NOW()
++      WHERE id = $3
++  RETURNING *`,
++    [newAmount, finalCurrency, discount.id]
++  );
++
++  // Treat a customer_package discount as always applicable to a paid item
++  // (matches ENTITY_CONFIG.customer_package.paidStatusExpr = TRUE). Post a
++  // fresh credit if the new discount amount is positive.
++  let adjustment = null;
++  if (newAmount > 0) {
++    adjustment = await postDiscountAdjustment(client, {
++      customerId: discount.customer_id,
++      amount: newAmount,
++      currency: finalCurrency,
++      discountId: discount.id,
++      entityType: 'customer_package',
++      entityId: packageId,
++      reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
++      createdBy,
++    });
++  }
++
++  return {
++    adjusted: true,
++    discount: updated.rows[0],
++    oldAmount,
++    newAmount,
++    adjustment,
++  };
++}
+diff --git a/backend/services/managerCommissionService.js b/backend/services/managerCommissionService.js
+index f57a138..3457336 100644
+--- a/backend/services/managerCommissionService.js
++++ b/backend/services/managerCommissionService.js
+@@ -279,16 +279,27 @@ export async function recordBookingCommission(booking, options = {}) {
+       return null;
+     }
+ 
++    // Subtract any active manual discount on this booking so the commission is
++    // computed against the realized price (matches the package-discount path).
++    const isPackagePaid = booking.customer_package_id &&
++      (booking.payment_status === 'package' || booking.payment_status === 'partial');
++    if (!isPackagePaid) {
++      const bookingDiscount = await getActiveDiscountAmount(client, 'booking', booking.id);
++      if (bookingDiscount > 0) {
++        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - bookingDiscount).toFixed(2));
++      }
++    }
++
+     // Convert to EUR for commission calculation
+     let amountInEur = sourceAmount;
+     if (sourceCurrency !== 'EUR') {
+       try {
+         amountInEur = await CurrencyService.convertCurrency(sourceAmount, sourceCurrency, 'EUR');
+       } catch (convError) {
+-        logger.warn('Currency conversion failed, using original amount', { 
+-          error: convError.message, 
+-          sourceAmount, 
+-          sourceCurrency 
++        logger.warn('Currency conversion failed, using original amount', {
++          error: convError.message,
++          sourceAmount,
++          sourceCurrency
+         });
+         amountInEur = sourceAmount;
+       }
+@@ -475,16 +486,25 @@ export async function recordRentalCommission(rental, options = {}) {
+       return null;
+     }
+ 
++    // Subtract any active manual discount on this rental (skip package-paid
++    // rentals — those follow the package's own discount path).
++    if (rental.payment_status !== 'package') {
++      const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
++      if (rentalDiscount > 0) {
++        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - rentalDiscount).toFixed(2));
++      }
++    }
++
+     // Convert to EUR for commission calculation
+     let amountInEur = sourceAmount;
+     if (sourceCurrency !== 'EUR') {
+       try {
+         amountInEur = await CurrencyService.convertCurrency(sourceAmount, sourceCurrency, 'EUR');
+       } catch (convError) {
+-        logger.warn('Currency conversion failed, using original amount', { 
+-          error: convError.message, 
+-          sourceAmount, 
+-          sourceCurrency 
++        logger.warn('Currency conversion failed, using original amount', {
++          error: convError.message,
++          sourceAmount,
++          sourceCurrency
+         });
+         amountInEur = sourceAmount;
+       }
+@@ -562,6 +582,344 @@ export async function recordRentalCommission(rental, options = {}) {
+   }
+ }
+ 
++// Recompute pending manager_commissions for every booking that consumed the
++// given customer package. Called after the package's purchase_price has been
++// edited so future payouts reflect the new lesson value.
++//
++// Skips rows where payout_id IS NOT NULL: once a commission has been paid
++// out we treat it as immutable history. Cancelled rows are also skipped.
++//
++// Runs inside the caller's transaction (no own pool.connect / BEGIN).
++//
++// Mirrors the source-amount derivation used by recordBookingCommission so
++// values stay consistent: stored package_hourly_rate first, otherwise
++// subtract rental + accommodation costs from purchase_price.
++export async function recomputeManagerCommissionsForPackage(client, packageId) {
++  const summary = { updated: 0, skippedPaidOut: 0, skippedNoChange: 0 };
++
++  // Pull the package + its service_packages metadata once. Same query shape
++  // as recordBookingCommission so the math matches.
++  const pkgRes = await client.query(
++    `SELECT cp.id AS pkg_id, cp.purchase_price, cp.total_hours, cp.remaining_hours,
++            cp.used_hours, cp.currency,
++            sp.package_hourly_rate, sp.rental_service_id, sp.accommodation_unit_id,
++            sp.rental_days, sp.accommodation_nights,
++            sp.sessions_count, sp.total_hours AS sp_total_hours,
++            cs.exchange_rate
++       FROM customer_packages cp
++  LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
++  LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
++      WHERE cp.id = $1`,
++    [packageId]
++  );
++  if (!pkgRes.rows.length) return summary;
++  const pkg = pkgRes.rows[0];
++
++  // Convert package price to EUR if stored in another currency.
++  let pkgPriceEur = toNumber(pkg.purchase_price);
++  if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
++    pkgPriceEur = Math.round((pkgPriceEur / toNumber(pkg.exchange_rate)) * 100) / 100;
++  }
++
++  // Subtract any active per-package discount so manager commission tracks
++  // actual realized revenue, not the headline pre-discount price.
++  const { rows: discRows } = await client.query(
++    `SELECT amount FROM discounts WHERE entity_type='customer_package' AND entity_id=$1`,
++    [String(packageId)]
++  );
++  if (discRows.length) {
++    const discountAmount = toNumber(discRows[0].amount);
++    pkgPriceEur = Math.max(0, pkgPriceEur - discountAmount);
++  }
++
++  // Derive the lesson-only portion of the package.
++  const storedHourlyRate = toNumber(pkg.package_hourly_rate);
++  const pkgTotalHours = toNumber(pkg.total_hours) || toNumber(pkg.sp_total_hours);
++  let effectiveLessonPrice = pkgPriceEur;
++  if (storedHourlyRate > 0 && pkgTotalHours > 0) {
++    effectiveLessonPrice = storedHourlyRate * pkgTotalHours;
++  } else {
++    let rentalCost = 0;
++    let accomCost = 0;
++    const rentalDays = parseInt(pkg.rental_days, 10) || 0;
++    const accomNights = parseInt(pkg.accommodation_nights, 10) || 0;
++    if (rentalDays > 0 && pkg.rental_service_id) {
++      try {
++        const { rows } = await client.query('SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]);
++        rentalCost = rentalDays * (toNumber(rows[0]?.price) || 0);
++      } catch { /* ignore */ }
++    }
++    if (accomNights > 0 && pkg.accommodation_unit_id) {
++      try {
++        const { rows } = await client.query('SELECT price_per_night FROM accommodation_units WHERE id = $1', [pkg.accommodation_unit_id]);
++        accomCost = accomNights * (toNumber(rows[0]?.price_per_night) || 0);
++      } catch { /* ignore */ }
++    }
++    if (rentalCost + accomCost > 0) {
++      effectiveLessonPrice = Math.max(0, pkgPriceEur - rentalCost - accomCost);
++    }
++  }
++
++  // Pull every editable commission row tied to this package's bookings.
++  const cmsRes = await client.query(
++    `SELECT mc.id, mc.commission_rate, mc.source_amount, mc.commission_amount,
++            mc.payout_id, mc.status,
++            b.id AS booking_id, b.duration, b.payment_status, b.group_size,
++            b.final_amount, b.amount, b.currency AS booking_currency,
++            b.customer_package_id
++       FROM manager_commissions mc
++       JOIN bookings b ON b.id = mc.source_id::uuid
++      WHERE mc.source_type = 'booking'
++        AND b.customer_package_id = $1
++        AND b.deleted_at IS NULL
++        AND mc.status != 'cancelled'`,
++    [packageId]
++  );
++
++  for (const row of cmsRes.rows) {
++    if (row.payout_id) {
++      summary.skippedPaidOut += 1;
++      continue;
++    }
++
++    let newSourceAmount;
++    const isPackagePayment = row.payment_status === 'package' || row.payment_status === 'partial';
++    if (isPackagePayment) {
++      const perPersonAmount = deriveLessonAmount({
++        paymentStatus: 'package',
++        duration: toNumber(row.duration),
++        baseAmount: 0,
++        packagePrice: effectiveLessonPrice,
++        packageTotalHours: pkgTotalHours,
++        packageRemainingHours: toNumber(pkg.remaining_hours),
++        packageUsedHours: toNumber(pkg.used_hours),
++        packageSessionsCount: toNumber(pkg.sessions_count),
++        fallbackSessionDuration: toNumber(row.duration),
++      });
++      const groupSize = Math.max(1, parseInt(row.group_size, 10) || 1);
++      if (row.payment_status === 'partial') {
++        const cashAmount = parseFloat(row.final_amount) || parseFloat(row.amount) || 0;
++        newSourceAmount = Number.parseFloat((perPersonAmount + cashAmount).toFixed(2));
++      } else {
++        newSourceAmount = Number.parseFloat((perPersonAmount * (groupSize > 1 ? groupSize : 1)).toFixed(2));
++      }
++    } else {
++      // Non-package payment: source_amount tracks the booking's own price,
++      // which the package edit doesn't affect — leave it alone.
++      summary.skippedNoChange += 1;
++      continue;
++    }
++
++    // Convert to EUR if booking currency differs.
++    let amountInEur = newSourceAmount;
++    const bookingCurrency = row.booking_currency || 'EUR';
++    if (bookingCurrency !== 'EUR') {
++      try {
++        amountInEur = await CurrencyService.convertCurrency(newSourceAmount, bookingCurrency, 'EUR');
++      } catch {
++        amountInEur = newSourceAmount;
++      }
++    }
++
++    const rate = toNumber(row.commission_rate);
++    const newCommissionAmount = Number.parseFloat(((amountInEur * rate) / 100).toFixed(2));
++
++    const oldSourceAmount = toNumber(row.source_amount);
++    const oldCommissionAmount = toNumber(row.commission_amount);
++    if (Math.abs(oldSourceAmount - newSourceAmount) < 0.005 &&
++        Math.abs(oldCommissionAmount - newCommissionAmount) < 0.005) {
++      summary.skippedNoChange += 1;
++      continue;
++    }
++
++    await client.query(
++      `UPDATE manager_commissions
++          SET source_amount = $1,
++              commission_amount = $2,
++              notes = COALESCE(notes || ' | ', '') || $3,
++              updated_at = NOW()
++        WHERE id = $4`,
++      [
++        newSourceAmount,
++        newCommissionAmount,
++        `Recomputed after package price edit (${oldSourceAmount.toFixed(2)} -> ${newSourceAmount.toFixed(2)})`,
++        row.id,
++      ]
++    );
++    summary.updated += 1;
++  }
++
++  return summary;
++}
++
++// Maps a discount entity_type to the matching manager_commissions source_type
++// + the source-row metadata needed to re-derive the post-discount price.
++//
++// Package-paid bookings/rentals are deliberately skipped here: their commission
++// follows the package's own price, so the package-level discount path
++// (recomputeManagerCommissionsForPackage) already handles them.
++const ENTITY_COMMISSION_MAP = {
++  booking: {
++    sourceType: 'booking',
++    table: 'bookings',
++    priceCol: 'COALESCE(NULLIF(final_amount, 0), amount)',
++    currencyCol: 'currency',
++    idType: 'uuid',
++    skipExpr: `payment_status IN ('package', 'partial')`,
++  },
++  rental: {
++    sourceType: 'rental',
++    table: 'rentals',
++    priceCol: 'total_price',
++    currencyCol: null,
++    idType: 'uuid',
++    skipExpr: `payment_status = 'package'`,
++  },
++  accommodation_booking: {
++    sourceType: 'accommodation',
++    table: 'accommodation_bookings',
++    priceCol: 'total_price',
++    currencyCol: null,
++    idType: 'uuid',
++    skipExpr: null,
++  },
++  member_purchase: {
++    sourceType: 'membership',
++    table: 'member_purchases',
++    priceCol: 'offering_price',
++    currencyCol: null,
++    idType: 'int',
++    skipExpr: null,
++  },
++  shop_order: {
++    sourceType: 'shop',
++    table: 'shop_orders',
++    priceCol: 'total_amount',
++    currencyCol: 'currency',
++    idType: 'int',
++    skipExpr: null,
++  },
++};
++
++// Reads any active per-entity manual discount amount. Returns 0 when no row
++// exists. Safe to call from any service that has the discount entity type/id.
++export async function getActiveDiscountAmount(client, entityType, entityId) {
++  if (entityType == null || entityId == null) return 0;
++  const { rows } = await client.query(
++    `SELECT amount FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
++    [entityType, String(entityId)]
++  );
++  return rows.length ? toNumber(rows[0].amount) : 0;
++}
++
++// Re-derives source_amount + commission_amount for the active commission row
++// tied to a single non-package source entity, after its manual discount has
++// been applied / changed / removed. Mirrors the recordX paths so the math
++// stays consistent: read the entity's base price, subtract any active
++// discount, convert to EUR, multiply by the row's stored commission_rate.
++//
++// No-ops when:
++//   - the entity_type isn't in ENTITY_COMMISSION_MAP
++//   - the row is fully package-paid (handled by the package recompute path)
++//   - the commission row has been paid out (immutable history)
++//   - amounts haven't actually changed
++//
++// Runs inside the caller's transaction.
++export async function recomputeManagerCommissionForEntity(client, entityType, entityId) {
++  const cfg = ENTITY_COMMISSION_MAP[entityType];
++  if (!cfg) return { skipped: 'unsupported_entity_type' };
++
++  const idCast = cfg.idType === 'int' ? '::integer' : '::uuid';
++  const currencyExpr = cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`;
++  const skipExpr = cfg.skipExpr ? `, (${cfg.skipExpr}) AS skip_pkg` : `, FALSE AS skip_pkg`;
++
++  const { rows: entityRows } = await client.query(
++    `SELECT ${cfg.priceCol} AS base_price,
++            ${currencyExpr} AS currency
++            ${skipExpr}
++       FROM ${cfg.table}
++      WHERE id = $1${idCast}
++      LIMIT 1`,
++    [String(entityId)]
++  );
++  if (!entityRows.length) return { skipped: 'entity_not_found' };
++  const entity = entityRows[0];
++  if (entity.skip_pkg) return { skipped: 'package_paid' };
++
++  const basePrice = toNumber(entity.base_price);
++  const discountAmount = await getActiveDiscountAmount(client, entityType, entityId);
++  const newSourceAmount = Number.parseFloat(Math.max(0, basePrice - discountAmount).toFixed(2));
++
++  const { rows: cmsRows } = await client.query(
++    `SELECT id, commission_rate, source_amount, commission_amount, payout_id, source_currency
++       FROM manager_commissions
++      WHERE source_type = $1
++        AND source_id = $2
++        AND status != 'cancelled'
++      ORDER BY created_at DESC
++      LIMIT 1`,
++    [cfg.sourceType, String(entityId)]
++  );
++  if (!cmsRows.length) return { skipped: 'no_commission' };
++  const cms = cmsRows[0];
++  if (cms.payout_id) return { skipped: 'paid_out' };
++
++  const sourceCurrency = entity.currency || cms.source_currency || 'EUR';
++  let amountInEur = newSourceAmount;
++  if (sourceCurrency !== 'EUR') {
++    try {
++      amountInEur = await CurrencyService.convertCurrency(newSourceAmount, sourceCurrency, 'EUR');
++    } catch {
++      amountInEur = newSourceAmount;
++    }
++  }
++
++  const rate = toNumber(cms.commission_rate);
++  const newCommissionAmount = Number.parseFloat(((amountInEur * rate) / 100).toFixed(2));
++
++  const oldSourceAmount = toNumber(cms.source_amount);
++  const oldCommissionAmount = toNumber(cms.commission_amount);
++  if (Math.abs(oldSourceAmount - newSourceAmount) < 0.005 &&
++      Math.abs(oldCommissionAmount - newCommissionAmount) < 0.005) {
++    return { skipped: 'no_change' };
++  }
++
++  await client.query(
++    `UPDATE manager_commissions
++        SET source_amount = $1,
++            commission_amount = $2,
++            notes = COALESCE(notes || ' | ', '') || $3,
++            updated_at = NOW()
++      WHERE id = $4`,
++    [
++      newSourceAmount,
++      newCommissionAmount,
++      `Recomputed after discount change (${oldSourceAmount.toFixed(2)} -> ${newSourceAmount.toFixed(2)})`,
++      cms.id,
++    ]
++  );
++
++  logger.info('Manager commission recomputed after discount change', {
++    entityType,
++    entityId: String(entityId),
++    sourceType: cfg.sourceType,
++    commissionId: cms.id,
++    oldSourceAmount,
++    newSourceAmount,
++    oldCommissionAmount,
++    newCommissionAmount,
++  });
++
++  return {
++    updated: true,
++    commissionId: cms.id,
++    oldSourceAmount,
++    newSourceAmount,
++    oldCommissionAmount,
++    newCommissionAmount,
++  };
++}
++
+ /**
+  * Cancel a commission (e.g., when booking/rental is cancelled or refunded)
+  * @param {string} sourceType - 'booking' or 'rental'
+@@ -602,8 +960,13 @@ export async function cancelCommission(sourceType, sourceId, reason = 'cancelled
+  * Generic helper – record a manager commission for any source type.
+  * Follows the same pattern as recordBookingCommission / recordRentalCommission
+  * but is parameterised so we don't duplicate 80 lines per category.
++ *
++ * `discountEntityType` (optional) — the discounts table entity_type used for
++ * this source. When provided, any active manual discount is subtracted from
++ * the source amount before computing commission, mirroring the booking/rental
++ * paths so a pre-existing discount doesn't get ignored at record time.
+  */
+-async function recordGenericCommission(sourceType, { id, amount, currency, date, metadata }) {
++async function recordGenericCommission(sourceType, { id, amount, currency, date, metadata, discountEntityType }) {
+   const sourceId = String(id);
+   const client = await pool.connect();
+   try {
+@@ -632,12 +995,19 @@ async function recordGenericCommission(sourceType, { id, amount, currency, date,
+       return null;
+     }
+ 
+-    const sourceAmount = parseFloat(amount) || 0;
++    let sourceAmount = parseFloat(amount) || 0;
+     if (sourceAmount <= 0) {
+       await client.query('ROLLBACK');
+       return null;
+     }
+ 
++    if (discountEntityType) {
++      const disc = await getActiveDiscountAmount(client, discountEntityType, id);
++      if (disc > 0) {
++        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - disc).toFixed(2));
++      }
++    }
++
+     const sourceCurrency = currency || 'EUR';
+     let amountInEur = sourceAmount;
+     if (sourceCurrency !== 'EUR') {
+@@ -694,6 +1064,7 @@ export async function recordAccommodationCommission(booking) {
+     amount: booking.total_price,
+     currency: booking.currency || 'EUR',
+     date: booking.check_in_date || booking.created_at,
++    discountEntityType: 'accommodation_booking',
+     metadata: {
+       guestId: booking.guest_id || null,
+       unitId: booking.unit_id || null,
+@@ -713,6 +1084,7 @@ export async function recordShopCommission(order) {
+     amount: order.total_amount,
+     currency: order.currency || 'EUR',
+     date: order.confirmed_at || order.created_at,
++    discountEntityType: 'shop_order',
+     metadata: {
+       orderNumber: order.order_number || null,
+       customerName: order.customer_name || null,
+@@ -730,6 +1102,7 @@ export async function recordMembershipCommission(purchase) {
+     amount: purchase.offering_price || purchase.price,
+     currency: purchase.currency || 'EUR',
+     date: purchase.purchased_at || purchase.created_at,
++    discountEntityType: 'member_purchase',
+     metadata: {
+       offeringName: purchase.offering_name || null,
+       userId: purchase.user_id || null,
+diff --git a/public/locales/de/common.json b/public/locales/de/common.json
+index d634bdf..4b39e59 100644
+--- a/public/locales/de/common.json
++++ b/public/locales/de/common.json
+@@ -319,6 +319,8 @@
+     "country": "Land",
+     "role": "Rolle",
+     "password": "Passwort",
++    "newPassword": "Neues Passwort",
++    "leaveEmptyToKeepPassword": "Leer lassen, um aktuelles Passwort zu behalten",
+     "confirmPassword": "Passwort bestätigen",
+     "changeAvatar": "Avatar ändern",
+     "saveChanges": "Änderungen speichern",
+diff --git a/public/locales/en/common.json b/public/locales/en/common.json
+index a9d771f..e97cc1d 100644
+--- a/public/locales/en/common.json
++++ b/public/locales/en/common.json
+@@ -319,6 +319,8 @@
+     "country": "Country",
+     "role": "Role",
+     "password": "Password",
++    "newPassword": "New Password",
++    "leaveEmptyToKeepPassword": "Leave empty to keep current password",
+     "confirmPassword": "Confirm Password",
+     "changeAvatar": "Change Avatar",
+     "saveChanges": "Save Changes",
+diff --git a/public/locales/es/common.json b/public/locales/es/common.json
+index 7e98a07..389cb59 100644
+--- a/public/locales/es/common.json
++++ b/public/locales/es/common.json
+@@ -323,6 +323,8 @@
+     "country": "País",
+     "role": "Rol",
+     "password": "Contraseña",
++    "newPassword": "Nueva contraseña",
++    "leaveEmptyToKeepPassword": "Dejar vacío para mantener la contraseña actual",
+     "confirmPassword": "Confirmar contraseña",
+     "changeAvatar": "Cambiar avatar",
+     "saveChanges": "Guardar cambios",
+diff --git a/public/locales/fr/common.json b/public/locales/fr/common.json
+index 5754b89..d43a7f1 100644
+--- a/public/locales/fr/common.json
++++ b/public/locales/fr/common.json
+@@ -323,6 +323,8 @@
+     "country": "Pays",
+     "role": "Rôle",
+     "password": "Mot de passe",
++    "newPassword": "Nouveau mot de passe",
++    "leaveEmptyToKeepPassword": "Laisser vide pour conserver le mot de passe actuel",
+     "confirmPassword": "Confirmer le mot de passe",
+     "changeAvatar": "Changer l'avatar",
+     "saveChanges": "Enregistrer les modifications",
+diff --git a/public/locales/ru/common.json b/public/locales/ru/common.json
+index 0107ed0..76df86a 100644
+--- a/public/locales/ru/common.json
++++ b/public/locales/ru/common.json
+@@ -323,6 +323,8 @@
+     "country": "Страна",
+     "role": "Роль",
+     "password": "Пароль",
++    "newPassword": "Новый пароль",
++    "leaveEmptyToKeepPassword": "Оставьте пустым, чтобы сохранить текущий пароль",
+     "confirmPassword": "Подтвердите пароль",
+     "changeAvatar": "Изменить аватар",
+     "saveChanges": "Сохранить изменения",
+diff --git a/public/locales/tr/common.json b/public/locales/tr/common.json
+index cbcc0bc..c293b0f 100644
+--- a/public/locales/tr/common.json
++++ b/public/locales/tr/common.json
+@@ -323,6 +323,8 @@
+     "country": "Ülke",
+     "role": "Rol",
+     "password": "Şifre",
++    "newPassword": "Yeni Şifre",
++    "leaveEmptyToKeepPassword": "Mevcut şifreyi korumak için boş bırakın",
+     "confirmPassword": "Şifreyi Onayla",
+     "changeAvatar": "Avatarı Değiştir",
+     "saveChanges": "Değişiklikleri Kaydet",
+diff --git a/src/features/accommodation/pages/AccommodationAdminPage.jsx b/src/features/accommodation/pages/AccommodationAdminPage.jsx
+index bdb4591..aa696c0 100644
+--- a/src/features/accommodation/pages/AccommodationAdminPage.jsx
++++ b/src/features/accommodation/pages/AccommodationAdminPage.jsx
+@@ -7,7 +7,7 @@ import {
+ import {
+   CheckCircleOutlined, CloseCircleOutlined, SearchOutlined,
+   SyncOutlined, DeleteOutlined, LeftOutlined, RightOutlined,
+-  PlusOutlined,
++  PlusOutlined, EditOutlined,
+ } from '@ant-design/icons';
+ import dayjs from 'dayjs';
+ import isBetween from 'dayjs/plugin/isBetween';
+@@ -41,7 +41,7 @@ function getInitials(name) {
+ }
+ 
+ // ─── BookingBar ───────────────────────────────────────────────────────────────
+-function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onDelete, isDeleting, left, width }) {
++function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onEdit, onDelete, isDeleting, left, width }) {
+   const { t } = useTranslation(['manager']);
+   const cfg = STATUS_CFG[booking.status] || STATUS_CFG.pending;
+   const nights = dayjs(booking.check_out_date).diff(dayjs(booking.check_in_date), 'day');
+@@ -83,6 +83,9 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
+         {(booking.status === 'pending' || booking.status === 'confirmed') && (
+           <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => onCancel(booking.id)}>{t('manager:accommodation.admin.actions.cancel')}</Button>
+         )}
++        {booking.booking_source !== 'package' && (booking.status === 'pending' || booking.status === 'confirmed') && (
++          <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(booking)}>{t('manager:accommodation.admin.actions.edit', { defaultValue: 'Edit' })}</Button>
++        )}
+         <Button size="small" danger icon={<DeleteOutlined />} loading={isDeleting} onClick={() => onDelete(booking.id)}>{t('manager:accommodation.admin.actions.delete')}</Button>
+       </div>
+     </div>
+@@ -143,7 +146,7 @@ function BookingBar({ booking, getUnitName, formatCurrency, onConfirm, onComplet
+ }
+ 
+ // ─── TimelineView ─────────────────────────────────────────────────────────────
+-function TimelineView({ filteredBookings, allBookings, units, windowStart, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onDelete, deletingIds }) {
++function TimelineView({ filteredBookings, allBookings, units, windowStart, getUnitName, formatCurrency, onConfirm, onComplete, onCancel, onEdit, onDelete, deletingIds }) {
+   const { t } = useTranslation(['manager']);
+   const today = dayjs().startOf('day');
+   const todayColOffset = today.diff(windowStart, 'day');
+@@ -289,7 +292,7 @@ function TimelineView({ filteredBookings, allBookings, units, windowStart, getUn
+                       <BookingBar key={booking.id} booking={booking}
+                         getUnitName={getUnitName} formatCurrency={formatCurrency}
+                         onConfirm={onConfirm} onComplete={onComplete}
+-                        onCancel={onCancel} onDelete={onDelete}
++                        onCancel={onCancel} onEdit={onEdit} onDelete={onDelete}
+                         isDeleting={deletingIds.has(booking.id)}
+                         left={bp.left} width={bp.width}
+                       />
+@@ -334,6 +337,7 @@ function AccommodationAdminPage() {
+   const [windowStart, setWindowStart] = useState(() => dayjs().subtract(7, 'day').startOf('day'));
+   const [deletingIds, setDeletingIds] = useState(new Set());
+   const [newBookingOpen, setNewBookingOpen] = useState(false);
++  const [editingBooking, setEditingBooking] = useState(null);
+ 
+   useEffect(() => {
+     const link = document.createElement('link');
+@@ -408,6 +412,9 @@ function AccommodationAdminPage() {
+     try { await accommodationApi.cancelBooking(id); message.success(t('manager:accommodation.admin.messages.cancelled')); loadBookings(); }
+     catch { message.error(t('manager:accommodation.admin.messages.cancelError')); }
+   };
++  const handleEditBooking = (booking) => {
++    setEditingBooking(booking);
++  };
+   const handleDeleteBooking = (id) => {
+     Modal.confirm({
+       title: t('manager:accommodation.admin.deleteConfirm.title'),
+@@ -508,6 +515,7 @@ function AccommodationAdminPage() {
+           {r.status === 'pending' && <Tooltip title={t('manager:accommodation.admin.actions.confirm')}><Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => handleConfirmBooking(r.id)} /></Tooltip>}
+           {r.status === 'confirmed' && <Tooltip title={t('manager:accommodation.admin.actions.complete')}><Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleCompleteBooking(r.id)} /></Tooltip>}
+           {(r.status === 'pending' || r.status === 'confirmed') && <Tooltip title={t('manager:accommodation.admin.actions.cancel')}><Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleCancelBooking(r.id)} /></Tooltip>}
++          {r.booking_source !== 'package' && (r.status === 'pending' || r.status === 'confirmed') && <Tooltip title={t('manager:accommodation.admin.actions.edit', { defaultValue: 'Edit' })}><Button size="small" icon={<EditOutlined />} onClick={() => handleEditBooking(r)} /></Tooltip>}
+           <Tooltip title={t('manager:accommodation.admin.actions.delete')}><Button size="small" danger loading={deletingIds.has(r.id)} disabled={deletingIds.has(r.id)} icon={<DeleteOutlined />} onClick={() => handleDeleteBooking(r.id)} /></Tooltip>
+         </div>
+       ),
+@@ -625,6 +633,7 @@ function AccommodationAdminPage() {
+           onConfirm={handleConfirmBooking}
+           onComplete={handleCompleteBooking}
+           onCancel={handleCancelBooking}
++          onEdit={handleEditBooking}
+           onDelete={handleDeleteBooking}
+           deletingIds={deletingIds}
+         />
+@@ -652,6 +661,18 @@ function AccommodationAdminPage() {
+           }}
+         />
+       )}
++
++      {editingBooking && (
++        <QuickAccommodationModal
++          open={!!editingBooking}
++          editBooking={editingBooking}
++          onClose={() => setEditingBooking(null)}
++          onSuccess={() => {
++            setEditingBooking(null);
++            loadBookings();
++          }}
++        />
++      )}
+     </div>
+   );
+ }
+diff --git a/src/features/bookings/components/components/BookingDrawer.jsx b/src/features/bookings/components/components/BookingDrawer.jsx
+index 5274958..9b18d10 100644
+--- a/src/features/bookings/components/components/BookingDrawer.jsx
++++ b/src/features/bookings/components/components/BookingDrawer.jsx
+@@ -541,7 +541,18 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
+         if (!p.userId || allUserPackages[p.userId]) continue;
+         try {
+           const response = await apiClient.get(`/users/${p.userId}/packages`);
+-          let active = (response.data || []).filter(pkg => pkg.status === 'active' && (pkg.remaining_hours > 0 || pkg.remainingHours > 0));
++          // Exclude depleted/overdrawn packages (remaining_hours <= 0 or used >= total).
++          // A package whose status was somehow left 'active' despite being fully consumed
++          // would otherwise appear bookable here.
++          let active = (response.data || []).filter(pkg => {
++            if (pkg.status !== 'active') return false;
++            const remaining = Number(pkg.remaining_hours ?? pkg.remainingHours ?? 0);
++            const used = Number(pkg.used_hours ?? pkg.usedHours ?? 0);
++            const total = Number(pkg.total_hours ?? pkg.totalHours ?? 0);
++            if (remaining <= 0) return false;
++            if (total > 0 && used >= total) return false;
++            return true;
++          });
+           // Filter packages by participant count — exclude group/semi-private for single participant
+           if (participantCount === 1) {
+             active = active.filter(pkg => {
+@@ -576,7 +587,15 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
+           if (formData.serviceCategory) params.append('serviceCategory', formData.serviceCategory);
+           const url = `/users/${p.userId}/packages${params.toString() ? `?${params}` : ''}`;
+           const response = await apiClient.get(url);
+-          let active = (response.data || []).filter(pkg => pkg.status === 'active' && (pkg.remaining_hours > 0 || pkg.remainingHours > 0));
++          let active = (response.data || []).filter(pkg => {
++            if (pkg.status !== 'active') return false;
++            const remaining = Number(pkg.remaining_hours ?? pkg.remainingHours ?? 0);
++            const used = Number(pkg.used_hours ?? pkg.usedHours ?? 0);
++            const total = Number(pkg.total_hours ?? pkg.totalHours ?? 0);
++            if (remaining <= 0) return false;
++            if (total > 0 && used >= total) return false;
++            return true;
++          });
+           // Client-side filter: exclude packages whose lesson_category_tag doesn't match the selected service type
+           const selectedType = (formData.serviceType || '').toLowerCase();
+           if (selectedType && ['private', 'group', 'semi-private'].includes(selectedType)) {
+diff --git a/src/features/customers/components/CustomerBillModal.jsx b/src/features/customers/components/CustomerBillModal.jsx
+index aab0488..3c3c3a1 100644
+--- a/src/features/customers/components/CustomerBillModal.jsx
++++ b/src/features/customers/components/CustomerBillModal.jsx
+@@ -1,4 +1,4 @@
+-import { useState, useEffect, useMemo, useCallback } from 'react';
++import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+ import { Modal, Button, DatePicker, Spin, Empty, Tooltip } from 'antd';
+ import dayjs from 'dayjs';
+ import {
+@@ -12,7 +12,7 @@ import {
+   buildBillItems, filterByPeriod, groupByCategory,
+   computeTotals, CATEGORY_DISPLAY_ORDER, CATEGORY_LABELS,
+ } from './customerBill/billAggregator';
+-import { exportBillPdf } from './customerBill/billPdfExport';
++import { exportBillPdfFromElement, exportBillPdf } from './customerBill/billPdfExport';
+ import './customerBill/billPrint.css';
+ 
+ const BRAND_TEAL = '#00a8c4';
+@@ -28,17 +28,20 @@ const CATEGORY_ICONS = {
+ };
+ 
+ const STATUS_PILL = {
+-  paid:      { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Paid' },
+-  unpaid:    { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   label: 'Unpaid' },
+-  package:   { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     label: 'Incl. in package' },
+-  cancelled: { bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   label: 'Cancelled' },
+-  refunded:  { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    label: 'Refunded' },
++  paid:      { text: 'text-emerald-600', label: 'Paid' },
++  unpaid:    { text: 'text-amber-600',   label: 'Unpaid' },
++  package:   { text: 'text-sky-600',     label: 'Incl. in package' },
++  cancelled: { text: 'text-slate-400',   label: 'Cancelled' },
++  refunded:  { text: 'text-rose-600',    label: 'Refunded' },
+ };
+ 
+ function StatusPill({ status }) {
+   const s = STATUS_PILL[status] || STATUS_PILL.paid;
++  // Plain colored label — pills removed per UX simplification. The status
++  // colors still carry meaning (emerald=paid, amber=unpaid, etc.) without
++  // the bubble chrome that was causing alignment headaches.
+   return (
+-    <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border} whitespace-nowrap`}>
++    <span className={`text-[11px] font-semibold whitespace-nowrap ${s.text}`}>
+       {s.label}
+     </span>
+   );
+@@ -104,8 +107,9 @@ const CustomerBillModal = ({
+   const allItems = useMemo(() => buildBillItems({
+     bookings, rentals, accommodationBookings, packages,
+     shopOrders, memberships, instructors,
++    transactions,
+     discountsByEntity,
+-  }), [bookings, rentals, accommodationBookings, packages, shopOrders, memberships, instructors, discountsByEntity]);
++  }), [bookings, rentals, accommodationBookings, packages, shopOrders, memberships, instructors, transactions, discountsByEntity]);
+ 
+   // Hide the discount column unless at least one line in the bill carries one,
+   // so unaffected customers' bills look exactly as before.
+@@ -148,9 +152,25 @@ const CustomerBillModal = ({
+ 
+   const issuedAt = dayjs().format('DD MMM YYYY');
+ 
++  const printableRef = useRef(null);
+   const handlePrint = () => window.print();
+ 
+   const handlePdf = async () => {
++    const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
++    const datePart = new Date().toISOString().slice(0, 10);
++    const filename = `DPC-Statement-${safeName}-${datePart}.pdf`;
++
++    if (printableRef.current) {
++      try {
++        await exportBillPdfFromElement(printableRef.current, filename);
++        return;
++      } catch (err) {
++        // Fall through to the legacy text-based path so the user always gets
++        // a PDF, even if html2canvas hits a CORS/font/layout edge case.
++        console.warn('Bill PDF: DOM capture failed, falling back to text export', err);
++      }
++    }
++
+     await exportBillPdf({
+       customerName,
+       customerEmail: customer?.email,
+@@ -181,7 +201,7 @@ const CustomerBillModal = ({
+       styles={{ body: { padding: 0 }, content: { padding: 0, overflow: 'hidden' } }}
+       wrapClassName="ukc-bill-modal-wrap"
+     >
+-      <div className="ukc-bill-printable bg-white">
++      <div className="ukc-bill-printable bg-white" ref={printableRef}>
+         <Spin spinning={loadingExtra} tip="Loading bill…">
+ 
+           {/* ── Letterhead (masthead style) ──────────────────────── */}
+@@ -289,11 +309,11 @@ const CustomerBillModal = ({
+                       <tr>
+                         <th className="text-left font-medium px-4 py-2">Date</th>
+                         <th className="text-left font-medium px-4 py-2">Description</th>
+-                        <th className="text-right font-medium px-4 py-2">Qty</th>
+-                        <th className="text-right font-medium px-4 py-2">Unit</th>
+-                        <th className="text-right font-medium px-4 py-2">Amount</th>
+-                        {hasAnyDiscount && <th className="text-right font-medium px-4 py-2">Discount</th>}
+-                        <th className="text-right font-medium px-4 py-2">Status</th>
++                        <th className="text-center font-medium px-4 py-2">Qty</th>
++                        <th className="text-center font-medium px-4 py-2">Unit</th>
++                        <th className="text-center font-medium px-4 py-2">Amount</th>
++                        {hasAnyDiscount && <th className="text-center font-medium px-4 py-2">Discount</th>}
++                        <th className="text-center font-medium px-4 py-2">Status</th>
+                       </tr>
+                     </thead>
+                     <tbody>
+@@ -309,11 +329,11 @@ const CustomerBillModal = ({
+                                 <div className="text-[11px] text-slate-400 mt-1 leading-snug">{it.detail}</div>
+                               )}
+                             </td>
+-                            <td className="px-4 py-2.5 align-top text-right tabular-nums">{it.qtyDisplay ?? it.qty}</td>
+-                            <td className="px-4 py-2.5 align-top text-right tabular-nums text-slate-500">
++                            <td className="px-4 py-2.5 align-top text-center tabular-nums">{it.qtyDisplay ?? it.qty}</td>
++                            <td className="px-4 py-2.5 align-top text-center tabular-nums text-slate-500">
+                               {it.unitPrice != null ? fmt(it.unitPrice) : '—'}
+                             </td>
+-                            <td className="px-4 py-2.5 align-top text-right tabular-nums font-medium whitespace-nowrap">
++                            <td className="px-4 py-2.5 align-top text-center tabular-nums font-medium whitespace-nowrap">
+                               {it.status === 'package' ? (
+                                 <Tooltip title="Covered by package">
+                                   <span className="text-slate-400 italic font-normal">included</span>
+@@ -328,13 +348,13 @@ const CustomerBillModal = ({
+                               )}
+                             </td>
+                             {hasAnyDiscount && (
+-                              <td className="px-4 py-2.5 align-top text-right tabular-nums whitespace-nowrap">
++                              <td className="px-4 py-2.5 align-top text-center tabular-nums whitespace-nowrap">
+                                 {hasDiscount ? (
+                                   <span className="text-rose-600 text-[11px] font-medium">{it.discountPercent}% −{fmt(it.discountAmount)}</span>
+                                 ) : <span className="text-slate-300">—</span>}
+                               </td>
+                             )}
+-                            <td className="px-4 py-2.5 align-top text-right">
++                            <td className="px-4 py-2.5 align-top text-center">
+                               <StatusPill status={it.status} />
+                             </td>
+                           </tr>
+diff --git a/src/features/customers/components/CustomerPackageManager.jsx b/src/features/customers/components/CustomerPackageManager.jsx
+index c850095..2954f9a 100644
+--- a/src/features/customers/components/CustomerPackageManager.jsx
++++ b/src/features/customers/components/CustomerPackageManager.jsx
+@@ -38,7 +38,7 @@ import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+ // Select.Option not used in the new wizard UI
+ 
+ // eslint-disable-next-line complexity
+-function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned, embedded = false, restrictParticipants = null, startAssignFlow = false, showHeader = true, showStats = true, showToolbar = true, forceViewMode = null, disableActions = false, discountsByEntity = null, onApplyDiscount = null }) {
++function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned, embedded = false, restrictParticipants = null, startAssignFlow = false, showHeader = true, showStats = true, showToolbar = true, forceViewMode = null, disableActions = false, discountsByEntity = null, onApplyDiscount = null, onEditPrice = null }) {
+   const { formatCurrency, businessCurrency, getCurrencySymbol } = useCurrency();
+   const [form] = Form.useForm();
+   const [loading, setLoading] = useState(false);
+@@ -743,15 +743,36 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
+       key: 'price',
+       render: (price, record) => {
+         const cur = record.currency || businessCurrency || 'EUR';
+-        const orig = Number(price) || 0;
++        const current = Number(price) || 0;
++        const rawOrig = record.originalPrice ?? record.original_price;
++        const originalPrice = rawOrig !== null && rawOrig !== undefined ? Number(rawOrig) : null;
++        const wasEdited = originalPrice !== null && Math.abs(originalPrice - current) >= 0.005;
+         const d = discountsByEntity?.get(`customer_package:${record.id}`);
+-        if (!d) return <span className="tabular-nums">{formatCurrency(orig, cur)}</span>;
+-        const final = Math.max(0, orig - (Number(d.amount) || 0));
++
++        // No edit, no discount: just the current price.
++        if (!wasEdited && !d) {
++          return <span className="tabular-nums">{formatCurrency(current, cur)}</span>;
++        }
++
++        // Compose the chain: [original (struck)] -> [current (struck if discounted)] -> [final]
++        const final = d ? Math.max(0, current - (Number(d.amount) || 0)) : current;
+         return (
+           <Space size={4} wrap>
+-            <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(orig, cur)}</span>
+-            <span className="tabular-nums font-semibold text-emerald-600">{formatCurrency(final, cur)}</span>
+-            <Tag color="orange" className="!m-0">−{Number(d.percent)}%</Tag>
++            {wasEdited && (
++              <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(originalPrice, cur)}</span>
++            )}
++            {d ? (
++              <>
++                <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(current, cur)}</span>
++                <span className="tabular-nums font-semibold text-emerald-600">{formatCurrency(final, cur)}</span>
++                <Tag color="orange" className="!m-0">−{Number(d.percent)}%</Tag>
++              </>
++            ) : (
++              <span className="tabular-nums font-semibold text-slate-700">{formatCurrency(current, cur)}</span>
++            )}
++            {wasEdited && !d && (
++              <Tag color="blue" className="!m-0">edited</Tag>
++            )}
+           </Space>
+         );
+       }
+@@ -783,6 +804,19 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
+               })}
+             >Discount</Button>
+           )}
++          {!disableActions && onEditPrice && (
++            <Button
++              type="link"
++              size="small"
++              onClick={() => onEditPrice({
++                packageId: record.id,
++                currentPrice: Number(record.price) || 0,
++                originalPrice: record.originalPrice ?? record.original_price ?? null,
++                currency: record.currency || businessCurrency || 'EUR',
++                description: record.packageName || record.package_name || record.name || 'Package',
++              })}
++            >Edit Price</Button>
++          )}
+           <Popconfirm
+             title="Are you sure you want to delete this package?"
+             onConfirm={() => handleDeletePackage(record.id)}
+diff --git a/src/features/customers/components/EnhancedCustomerDetailModal.jsx b/src/features/customers/components/EnhancedCustomerDetailModal.jsx
+index 0c5760f..ad0e0cd 100644
+--- a/src/features/customers/components/EnhancedCustomerDetailModal.jsx
++++ b/src/features/customers/components/EnhancedCustomerDetailModal.jsx
+@@ -43,6 +43,7 @@ const CustomerShopHistory = lazy(() => import('./CustomerShopHistory'));
+ const CustomerBillModal = lazy(() => import('./CustomerBillModal'));
+ const CustomerDiscountsTab = lazy(() => import('./CustomerDiscountsTab'));
+ const ApplyDiscountModal = lazy(() => import('./ApplyDiscountModal'));
++const EditPackagePriceModal = lazy(() => import('./EditPackagePriceModal'));
+ 
+ const { Text } = Typography;
+ const { Option } = Select;
+@@ -145,6 +146,9 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose,
+   // Per-row Apply Discount modal state — set when staff clicks "Discount" on
+   // a booking / rental / accommodation / package / membership row.
+   const [discountTarget, setDiscountTarget] = useState(null); // { entityType, entityId, originalPrice, currency, description }
++  // Per-row Edit Package Price modal state — set when staff clicks "Edit Price"
++  // on a customer package row in the Packages tab.
++  const [editPriceTarget, setEditPriceTarget] = useState(null); // { packageId, currentPrice, originalPrice, currency, description }
+   const hasFetchedRef = useRef(false);
+ 
+   // Modal states
+@@ -766,6 +770,11 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose,
+     setDiscountTarget({ entityType, entityId, originalPrice, currency, description });
+   }, []);
+ 
++  // Opens the EditPackagePriceModal for a customer package row.
++  const openEditPriceForPackage = useCallback(({ packageId, currentPrice, originalPrice, currency, description }) => {
++    setEditPriceTarget({ packageId, currentPrice, originalPrice, currency, description });
++  }, []);
++
+   // ─── Column definitions ───────────────────────────────────────
+   const bookingColumns = useMemo(() => [
+     { title: 'Date & Time', key: 'datetime', render: (_, r) => { if (r.date && r.startTime) return `${new Date(r.date).toLocaleDateString()} ${r.startTime}`; return formatDate(r.start_time || r.date); } },
+@@ -1068,6 +1077,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose,
+             onPackageAssigned={async () => { await refreshAllData(); message.success('Package assigned'); }}
+             discountsByEntity={discountsByEntity}
+             onApplyDiscount={openDiscountForEntity}
++            onEditPrice={openEditPriceForPackage}
+           />
+         )}
+       </Suspense>
+@@ -1655,6 +1665,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose,
+             onPackageAssigned={async () => { await refreshAllData(); message.success(`Package assigned to ${customerFullName}`); }}
+             discountsByEntity={discountsByEntity}
+             onApplyDiscount={openDiscountForEntity}
++            onEditPrice={openEditPriceForPackage}
+           />
+         )}
+       </Suspense>
+@@ -1731,6 +1742,26 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose,
+         </Suspense>
+       )}
+ 
++      {/* Edit Package Price modal — opened by "Edit Price" on a package row */}
++      {editPriceTarget && customer?.id && (
++        <Suspense fallback={null}>
++          <EditPackagePriceModal
++            open={!!editPriceTarget}
++            onClose={() => setEditPriceTarget(null)}
++            onSaved={async () => {
++              setEditPriceTarget(null);
++              await Promise.all([refreshAllData(), refreshDiscounts()]);
++              message.success('Package price updated');
++            }}
++            packageId={editPriceTarget.packageId}
++            currentPrice={editPriceTarget.currentPrice}
++            originalPrice={editPriceTarget.originalPrice}
++            currency={editPriceTarget.currency}
++            description={editPriceTarget.description}
++          />
++        </Suspense>
++      )}
++
+       {/* Dependency Modal */}
+       <Modal
+         title="Review Linked Items Before Deleting Transaction"
+diff --git a/src/features/customers/components/customerBill/billAggregator.js b/src/features/customers/components/customerBill/billAggregator.js
+index ac71d97..0b641a8 100644
+--- a/src/features/customers/components/customerBill/billAggregator.js
++++ b/src/features/customers/components/customerBill/billAggregator.js
+@@ -53,8 +53,38 @@ const packageRemainingHours = (pkg) => {
+ 
+ const formatHoursLabel = (h) => `${h % 1 === 0 ? h : h.toFixed(1)}h`;
+ 
++// Build a Set of "(entityType, entityId)" keys from the wallet transactions
++// where money actually moved IN (debit-direction charges or completed
++// payments tied to the entity). Used by the booking/rental/package
++// normalizers to trust evidence over the often-unreliable `payment_status`
++// column on the entity row itself — backends sometimes default that column
++// to 'paid' on entity creation even when no money changed hands, which made
++// the bill mis-report unpaid items as Paid.
++const buildPaidEntityIndex = (transactions = []) => {
++  const set = new Set();
++  for (const t of transactions || []) {
++    if (t.status && t.status !== 'completed') continue;
++    const dir = String(t.direction || '').toLowerCase();
++    const type = String(t.type || '').toLowerCase();
++    // Reversals don't count as evidence of payment.
++    if (type.includes('reversal')) continue;
++    // A debit (charge) tied to an entity is evidence the customer was
++    // billed for it — so the entity is "paid for from the wallet".
++    // A credit linked to an entity is a refund and shouldn't count.
++    if (dir !== 'debit') continue;
++    const entityType = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
++    const entityId = t.relatedEntityId || t.entity_id || t.booking_id || null;
++    if (!entityType || !entityId) continue;
++    set.add(`${entityType}:${entityId}`);
++  }
++  return set;
++};
++
++const isEntityPaid = (paidIndex, entityType, entityId) =>
++  !!entityId && paidIndex.has(`${String(entityType || '').toLowerCase()}:${entityId}`);
++
+ // ── Lessons / Supervision ───────────────────────────────────────────────────
+-const normalizeBooking = (b, instructors = [], packagesById = new Map()) => {
++const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidIndex = new Set()) => {
+   const date = safeDate(b.date || b.formatted_date || b.start_time);
+   const duration = num(b.duration);
+   const amount = num(b.final_amount ?? b.total_price ?? b.amount);
+@@ -67,13 +97,21 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map()) => {
+       ? `${instructors.find(i => i.id === instId).first_name || ''} ${instructors.find(i => i.id === instId).last_name || ''}`.trim()
+       : null);
+ 
+-  const paidByPackage = b.payment_status === 'package'
++  const ps = String(b.payment_status || '').toLowerCase();
++  const paidByPackage = ps === 'package'
+     || (b.payment_method_display && /package/i.test(b.payment_method_display));
+-
+-  let billStatus = 'paid';
++  // Trust the wallet ledger over the booking row's payment_status flag —
++  // the latter is sometimes stamped 'paid' on creation regardless of whether
++  // money moved. We only mark "Paid" when there's an actual debit-direction
++  // wallet transaction tied to this booking.
++  const hasWalletEvidence = isEntityPaid(paidIndex, 'booking', b.id);
++  let billStatus = 'unpaid';
+   if (status === 'cancelled') billStatus = 'cancelled';
+   else if (paidByPackage) billStatus = 'package';
+-  else if (status === 'no-show') billStatus = 'unpaid';
++  else if (hasWalletEvidence) billStatus = 'paid';
++  else if (ps === 'paid' && Number(amount) > 0 && hasWalletEvidence) billStatus = 'paid';
++  // No fallback to ps='paid' alone — if the wallet has no record of payment,
++  // the row is unpaid no matter what the booking flag says.
+ 
+   // Build the detail line. Lesson start time is intentionally omitted — the
+   // bill is a financial record, not a calendar; the date is sufficient context.
+@@ -117,13 +155,14 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map()) => {
+   };
+ };
+ 
+-export const normalizeBookings = (bookings = [], instructors = [], packages = []) => {
++export const normalizeBookings = (bookings = [], instructors = [], packages = [], transactions = []) => {
+   const packagesById = new Map((packages || []).map(p => [p.id, p]));
+-  return bookings.map(b => normalizeBooking(b, instructors, packagesById));
++  const paidIndex = buildPaidEntityIndex(transactions);
++  return bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex));
+ };
+ 
+ // ── Rentals ─────────────────────────────────────────────────────────────────
+-const normalizeRental = (r) => {
++const normalizeRental = (r, paidIndex = new Set()) => {
+   const date = safeDate(r.rental_date || r.start_date || r.created_at);
+   const total = num(r.total_price);
+   const isPackage = !!r.customer_package_id || r.payment_status === 'package';
+@@ -138,10 +177,14 @@ const normalizeRental = (r) => {
+     description = r.equipment_name;
+   }
+ 
+-  let billStatus = 'paid';
++  // Trust the wallet ledger over r.payment_status — backend often defaults
++  // payment_status='paid' on rental creation regardless of actual payment.
++  const ps = String(r.payment_status || '').toLowerCase();
++  const hasWalletEvidence = isEntityPaid(paidIndex, 'rental', r.id);
++  let billStatus = 'unpaid';
+   if (status === 'cancelled') billStatus = 'cancelled';
+-  else if (isPackage) billStatus = 'package';
+-  else if (total <= 0 && status !== 'returned' && status !== 'completed') billStatus = 'unpaid';
++  else if (isPackage || ps === 'package') billStatus = 'package';
++  else if (hasWalletEvidence) billStatus = 'paid';
+ 
+   const detail = (() => {
+     const start = safeDate(r.start_date || r.rental_date);
+@@ -171,7 +214,10 @@ const normalizeRental = (r) => {
+   };
+ };
+ 
+-export const normalizeRentals = (rentals = []) => rentals.map(normalizeRental);
++export const normalizeRentals = (rentals = [], transactions = []) => {
++  const paidIndex = buildPaidEntityIndex(transactions);
++  return rentals.map(r => normalizeRental(r, paidIndex));
++};
+ 
+ // ── Accommodation ───────────────────────────────────────────────────────────
+ // Mirrors the merge logic already used in EnhancedCustomerDetailModal.jsx so
+@@ -190,15 +236,21 @@ const normalizeAccommodationRow = (row) => {
+   const total = num(row.total_price);
+   const fromPackage = row._source === 'package';
+   const status = String(row.status || '').toLowerCase();
++  const ps = String(row.payment_status || '').toLowerCase();
+ 
+-  let billStatus = 'paid';
++  // Same default-to-unpaid rule as bookings/rentals.
++  let billStatus = 'unpaid';
+   if (status === 'cancelled') billStatus = 'cancelled';
+   else if (fromPackage) billStatus = 'package';
++  else if (ps === 'paid' || ps === 'completed') billStatus = 'paid';
+ 
+   const description = row.unit_name || row._package_name || 'Accommodation';
+   const detailParts = [];
+-  if (checkIn) detailParts.push(checkIn.toLocaleDateString());
+-  if (checkOut) detailParts.push(`→ ${checkOut.toLocaleDateString()}`);
++  if (checkIn && checkOut) {
++    detailParts.push(`${checkIn.toLocaleDateString()} - ${checkOut.toLocaleDateString()}`);
++  } else if (checkIn) {
++    detailParts.push(`From ${checkIn.toLocaleDateString()}`);
++  }
+   if (nights) detailParts.push(`${nights} night${nights === 1 ? '' : 's'}`);
+ 
+   return {
+@@ -206,7 +258,7 @@ const normalizeAccommodationRow = (row) => {
+     category: 'accommodation',
+     date,
+     description,
+-    detail: detailParts.join(' ') || null,
++    detail: detailParts.join(' · ') || null,
+     qty: nights || 1,
+     unit: 'night',
+     unitPrice: nights && total ? total / nights : null,
+@@ -252,14 +304,22 @@ export const normalizeAccommodation = (standaloneBookings = [], packages = []) =
+ // ── Packages ────────────────────────────────────────────────────────────────
+ // Packages are a *purchase* line — they show as one item priced at purchase price.
+ // The lessons consumed against them appear separately as `package`-paid lines.
+-const normalizePackage = (p) => {
++const normalizePackage = (p, paidIndex = new Set()) => {
+   const date = safeDate(p.createdAt || p.created_at || p.purchasedAt || p.purchase_date);
+   const total = num(p.purchasePrice ?? p.purchase_price ?? p.price);
+   const totalHours = num(p.totalHours ?? p.total_hours);
+   const status = String(p.status || '').toLowerCase();
+ 
+-  let billStatus = 'paid';
++  // Trust the wallet ledger first — if there's a debit-direction transaction
++  // tied to this package, the customer paid for it. Falling back to
++  // payment_method only when no transaction evidence exists is too lenient:
++  // packages can be created with a payment_method placeholder ('cash')
++  // without any money actually changing hands, so we require evidence.
++  const hasWalletEvidence = isEntityPaid(paidIndex, 'customer_package', p.id)
++    || isEntityPaid(paidIndex, 'package', p.id);
++  let billStatus = 'unpaid';
+   if (status === 'cancelled' || status === 'expired') billStatus = 'cancelled';
++  else if (hasWalletEvidence) billStatus = 'paid';
+ 
+   const detailParts = [];
+   if (totalHours > 0) detailParts.push(`${totalHours}h package`);
+@@ -291,21 +351,28 @@ const normalizePackage = (p) => {
+   };
+ };
+ 
+-export const normalizePackages = (packages = []) => packages.map(normalizePackage);
++export const normalizePackages = (packages = [], transactions = []) => {
++  const paidIndex = buildPaidEntityIndex(transactions);
++  return packages.map(p => normalizePackage(p, paidIndex));
++};
+ 
+ // ── Shop orders ─────────────────────────────────────────────────────────────
+ // One line per order (not per item) to keep the bill scannable. The detail
+ // line lists the products inside.
+-const normalizeShopOrder = (o) => {
++const normalizeShopOrder = (o, paidIndex = new Set()) => {
+   const date = safeDate(o.created_at);
+   const total = num(o.total_amount);
+   const status = String(o.status || '').toLowerCase();
+   const paymentStatus = String(o.payment_status || '').toLowerCase();
+ 
+-  let billStatus = 'paid';
++  // Trust the wallet ledger over the row's payment_status — same rule as
++  // bookings/rentals/packages, since the column can be stamped on creation
++  // independent of whether money actually moved.
++  const hasWalletEvidence = isEntityPaid(paidIndex, 'shop_order', o.id);
++  let billStatus = 'unpaid';
+   if (status === 'cancelled') billStatus = 'cancelled';
+   else if (status === 'refunded' || paymentStatus === 'refunded') billStatus = 'refunded';
+-  else if (paymentStatus !== 'completed' && paymentStatus !== 'paid') billStatus = 'unpaid';
++  else if (hasWalletEvidence) billStatus = 'paid';
+ 
+   const items = Array.isArray(o.items) ? o.items : [];
+   const itemCount = items.reduce((s, i) => s + num(i.quantity, 1), 0);
+@@ -334,18 +401,27 @@ const normalizeShopOrder = (o) => {
+   };
+ };
+ 
+-export const normalizeShopOrders = (orders = []) => orders.map(normalizeShopOrder);
++export const normalizeShopOrders = (orders = [], transactions = []) => {
++  const paidIndex = buildPaidEntityIndex(transactions);
++  return orders.map(o => normalizeShopOrder(o, paidIndex));
++};
+ 
+ // ── Memberships ─────────────────────────────────────────────────────────────
+-const normalizeMembership = (m) => {
++const normalizeMembership = (m, paidIndex = new Set()) => {
+   const date = safeDate(m.purchased_at);
+   const total = num(m.offering_price ?? m.price);
+   const status = String(m.status || '').toLowerCase();
+   const paymentStatus = String(m.payment_status || '').toLowerCase();
+ 
+-  let billStatus = 'paid';
+-  if (status === 'cancelled' || paymentStatus === 'refunded') billStatus = paymentStatus === 'refunded' ? 'refunded' : 'cancelled';
+-  else if (paymentStatus && paymentStatus !== 'completed' && paymentStatus !== 'paid') billStatus = 'unpaid';
++  // Trust the wallet ledger over m.payment_status — the member_purchases
++  // table defaults payment_status to 'completed' on creation regardless of
++  // whether money actually changed hands, which would otherwise inflate the
++  // bill's "Payments received" total.
++  const hasWalletEvidence = isEntityPaid(paidIndex, 'member_purchase', m.id);
++  let billStatus = 'unpaid';
++  if (paymentStatus === 'refunded') billStatus = 'refunded';
++  else if (status === 'cancelled') billStatus = 'cancelled';
++  else if (hasWalletEvidence) billStatus = 'paid';
+ 
+   const expires = safeDate(m.expires_at);
+   const detail = expires ? `Expires ${expires.toLocaleDateString()}` : (m.period || null);
+@@ -368,7 +444,10 @@ const normalizeMembership = (m) => {
+   };
+ };
+ 
+-export const normalizeMemberships = (memberships = []) => memberships.map(normalizeMembership);
++export const normalizeMemberships = (memberships = [], transactions = []) => {
++  const paidIndex = buildPaidEntityIndex(transactions);
++  return memberships.map(m => normalizeMembership(m, paidIndex));
++};
+ 
+ // ── Period filtering ────────────────────────────────────────────────────────
+ // `period` is `[startDate, endDate]` or `null` for "all time".
+@@ -431,23 +510,24 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
+     return d >= startMs && d <= endMs;
+   });
+ 
+-  // "Payments received" reflects cash (or cash-equivalent) the customer
+-  // actually paid IN to the business. Everything else in the wallet ledger
+-  // — refund-back-to-wallet credits, reversals from mistake-corrections,
+-  // package-purchase debits, charge reversals — is internal bookkeeping
+-  // motion and must not pollute this number.
+-  //
+-  // The system's `transaction_type` column does not distinguish a real
+-  // refund (money handed back to the customer) from a mistake-correction
+-  // refund (the admin deleted a wrongly-created record). Since we can't
+-  // tell them apart from the data, we don't try — we strip BOTH refund
+-  // credits and ALL reversals from the total, and only count gross deposits
+-  // net of deposit reversals.
++  // The per-line `payment_status` column is the canonical "did the customer
++  // pay for this" flag. Sum every line item already marked paid — that IS the
++  // money that has come in for items in this period, so the identity
++  // `subtotal = paymentsReceived + balanceDue` holds and the per-row "Paid"
++  // pill agrees with the totals block.
+   //
+-  // Result for the canonical case (customer paid €239, admin made a wrong
+-  // package then deleted it, then made the right package): bill shows
+-  // "Payments received: €239" instead of double-counting the refund credit
+-  // from the deletion.
++  // Wallet transactions (deposits / top-ups) are layered on top: they only
++  // contribute when they aren't already represented by a paid line item, so
++  // a customer who pre-paid into the wallet without yet booking anything
++  // still sees that credit reflected. Reversals, refund-back-to-wallet
++  // credits, and discount-adjustment pairs remain internal motion.
++  let paidLineTotal = 0;
++  for (const item of inPeriod) {
++    if (item.status === 'paid') {
++      paidLineTotal += conv(item.amount, item.currency || baseCurrency);
++    }
++  }
++
+   let grossDeposits = 0;
+   let depositReversals = 0;
+ 
+@@ -460,21 +540,45 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
+     const converted = conv(amt, currency);
+     const isReversal = type.includes('reversal');
+     const isRefund = type.includes('refund');
++    // Internal reconciliation entries: manual percentage discounts post a
++    // credit + reversal pair (`discount_adjustment` / `discount_adjustment_reversal`),
++    // package price edits post `package_price_adjustment` credits (price down)
++    // or debits (price up), and soft-delete restores post `*_adjustment` entries.
++    // None of these represent new money coming in — the affected line item's
++    // amount already reflects the change — so counting them as payments would
++    // double-count.
++    const isInternalAdjustment = type.includes('adjustment');
++    // Skip wallet credits that pay for line items we've already counted via
++    // `paidLineTotal` — those are recorded against a specific entity (booking,
++    // rental, package, etc.) and would double-count. Match either explicit
++    // *_id columns or the generic relatedEntityType+id pair (the only field
++    // populated for non-booking/non-rental entities).
++    const tiedEntityType = String(t.entity_type || t.relatedEntityType || '').toLowerCase();
++    const tiedEntityId = t.relatedEntityId ?? t.entity_id ?? null;
++    const tiedToPaidLine = !!(t.booking_id || t.bookingId
++      || t.rental_id || t.rentalId
++      || t.accommodation_booking_id || t.accommodationBookingId
++      || t.customer_package_id || t.customerPackageId
++      || t.shop_order_id || t.shopOrderId
++      || t.member_purchase_id || t.memberPurchaseId
++      || (tiedEntityType && tiedEntityId));
++
++    if (isInternalAdjustment) continue;
+ 
+     if (dir === 'credit') {
+-      if (isReversal) continue; // reversal of a prior debit — internal, not a payment
+-      if (isRefund) continue;   // refund-back-to-wallet — internal motion, money was already in
++      if (isReversal) continue;
++      if (isRefund) continue;
++      if (tiedToPaidLine) continue;
+       grossDeposits += converted;
+     } else if (dir === 'debit') {
+-      if (isReversal) depositReversals += converted; // this undoes a prior deposit
+-      // Plain debits are charges, already itemized in the line items above.
++      if (isReversal) depositReversals += converted;
+     } else if (!dir) {
+-      // Fallback for older rows without `direction`: use the synthesized type.
+       if (type === 'payment' || type === 'deposit') grossDeposits += converted;
+     }
+   }
+ 
+-  const paymentsReceived = Math.max(0, grossDeposits - depositReversals);
++  const walletNet = Math.max(0, grossDeposits - depositReversals);
++  const paymentsReceived = paidLineTotal + walletNet;
+   // Refunds line is intentionally retired: the data layer can't reliably
+   // distinguish real customer refunds from admin mistake-corrections, so any
+   // number we'd put here would be wrong some of the time. Real refunds reduce
+@@ -532,15 +636,16 @@ export const buildBillItems = ({
+   shopOrders = [],
+   memberships = [],
+   instructors = [],
++  transactions = [],
+   discountsByEntity = null,
+ } = {}) => {
+   const items = [
+-    ...normalizeBookings(bookings, instructors, packages),
+-    ...normalizeRentals(rentals),
++    ...normalizeBookings(bookings, instructors, packages, transactions),
++    ...normalizeRentals(rentals, transactions),
+     ...normalizeAccommodation(accommodationBookings, packages),
+-    ...normalizePackages(packages),
+-    ...normalizeShopOrders(shopOrders),
+-    ...normalizeMemberships(memberships),
++    ...normalizePackages(packages, transactions),
++    ...normalizeShopOrders(shopOrders, transactions),
++    ...normalizeMemberships(memberships, transactions),
+   ].sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+   return applyDiscounts(items, discountsByEntity);
+ };
+@@ -556,6 +661,12 @@ export const indexDiscounts = (discounts = []) => {
+   return map;
+ };
+ 
++// Categories whose rows should be partitioned so individually-paid items sit
++// at the top and package-funded items cluster beneath them. Lessons and
++// supervision are the natural fits — staff want a clean read of what was
++// paid out-of-pocket vs. what was drawn down from a package.
++const PARTITION_BY_PAYMENT = new Set(['lessons', 'supervision']);
++
+ export const groupByCategory = (items) => {
+   const groups = {};
+   for (const cat of CATEGORY_ORDER) groups[cat] = [];
+@@ -563,6 +674,23 @@ export const groupByCategory = (items) => {
+     if (!groups[item.category]) groups[item.category] = [];
+     groups[item.category].push(item);
+   }
++  // Within partitioned categories: individual (non-package, non-cancelled)
++  // first, then package, then cancelled — preserving the date-desc order
++  // already established by `buildBillItems` inside each bucket.
++  const rank = (it) => {
++    if (it.status === 'cancelled') return 2;
++    if (it.status === 'package') return 1;
++    return 0;
++  };
++  for (const cat of PARTITION_BY_PAYMENT) {
++    if (groups[cat]?.length > 1) {
++      groups[cat].sort((a, b) => {
++        const r = rank(a) - rank(b);
++        if (r !== 0) return r;
++        return (b.date?.getTime() || 0) - (a.date?.getTime() || 0);
++      });
++    }
++  }
+   return groups;
+ };
+ 
+diff --git a/src/features/customers/components/customerBill/billPdfExport.js b/src/features/customers/components/customerBill/billPdfExport.js
+index ca1e13c..8266fc9 100644
+--- a/src/features/customers/components/customerBill/billPdfExport.js
++++ b/src/features/customers/components/customerBill/billPdfExport.js
+@@ -1,9 +1,248 @@
+-// PDF export for the Customer Bill. Lazy-imports jsPDF + jspdf-autotable so
+-// we don't pay the bundle cost unless the user actually clicks Download.
+-// Mirrors the export pattern at PayrollDashboard.jsx:233.
++// PDF export for the Customer Bill. Two paths:
++//
++//   1) `exportBillPdfFromElement(element, filename)` — preferred. Captures
++//      the on-screen bill DOM with html2canvas and embeds it into a jsPDF
++//      A4 doc, paginating across pages when the bill is taller than one
++//      page. The PDF becomes a 1:1 visual match of the modal — same colors,
++//      icons, status pills, table alignment, totals block.
++//
++//   2) `exportBillPdf({...})` — legacy text-based fallback that draws every
++//      element manually with jsPDF text() / autoTable() calls. Kept around
++//      so the export still works if html2canvas fails or the DOM ref is
++//      somehow unavailable, but no longer the primary path.
+ 
+ import { CATEGORY_DISPLAY_ORDER, CATEGORY_LABELS } from './billAggregator';
+ 
++// ─────────────────────────────────────────────────────────────────────────
++// Path 1: DOM-capture export
++// ─────────────────────────────────────────────────────────────────────────
++export async function exportBillPdfFromElement(element, filename = 'DPC-Statement.pdf') {
++  if (!element) throw new Error('exportBillPdfFromElement: element is required');
++
++  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
++    import('html2canvas'),
++    import('jspdf'),
++  ]);
++
++  // Wait for any <img> elements inside the bill to finish loading. html2canvas
++  // captures synchronously, so an SVG/PNG that hasn't decoded yet shows up as
++  // an empty space (which is what made the Duotone Pro Center logo disappear
++  // from the first capture if the user hit Download immediately on open).
++  const imgs = Array.from(element.querySelectorAll('img'));
++  await Promise.all(imgs.map(img => {
++    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
++    return new Promise(resolve => {
++      const done = () => resolve();
++      img.addEventListener('load', done, { once: true });
++      img.addEventListener('error', done, { once: true });
++      // Safety timeout so a stuck image doesn't block the PDF forever.
++      setTimeout(done, 3000);
++    });
++  }));
++
++  // html2canvas reliably fails to rasterize SVG <img> sources — even when
++  // loaded, even as a base64 data URL, even with allowTaint. The bulletproof
++  // workaround is to rasterize the SVG to a PNG ourselves via canvas, then
++  // swap the img's src to that PNG data URL before html2canvas runs. The
++  // canvas API handles SVG drawing perfectly and emits a PNG that
++  // html2canvas trivially copies into the capture.
++  const restoreImgSrcs = [];
++  for (const img of imgs) {
++    const src = img.getAttribute('src') || '';
++    if (!src.toLowerCase().includes('.svg')) continue;
++    try {
++      // Decode the SVG into a fresh Image (separate from the live <img> so
++      // the user-visible element isn't flickered).
++      const sourceImg = new Image();
++      sourceImg.crossOrigin = 'anonymous';
++      sourceImg.src = src;
++      await new Promise((resolve, reject) => {
++        if (sourceImg.complete && sourceImg.naturalWidth > 0) return resolve();
++        sourceImg.addEventListener('load', resolve, { once: true });
++        sourceImg.addEventListener('error', reject, { once: true });
++        setTimeout(() => reject(new Error('svg load timeout')), 4000);
++      });
++
++      // Use the on-screen displayed size × 2 for retina-grade crispness.
++      const displayWidth = img.clientWidth || sourceImg.naturalWidth || 600;
++      const aspect = (sourceImg.naturalHeight && sourceImg.naturalWidth)
++        ? sourceImg.naturalHeight / sourceImg.naturalWidth
++        : (112.5 / 800);
++      const displayHeight = img.clientHeight || Math.round(displayWidth * aspect);
++
++      const offscreen = document.createElement('canvas');
++      offscreen.width = displayWidth * 2;
++      offscreen.height = displayHeight * 2;
++      const ctx = offscreen.getContext('2d');
++      ctx.fillStyle = '#ffffff';
++      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
++      ctx.drawImage(sourceImg, 0, 0, offscreen.width, offscreen.height);
++      const pngDataUrl = offscreen.toDataURL('image/png');
++
++      // Temporarily detach the modal img's onerror so a load failure on the
++      // PNG (extremely unlikely, but defensive) doesn't permanently hide the
++      // live logo via the modal's `onError={display:none}` handler.
++      const originalOnError = img.onerror;
++      img.onerror = null;
++
++      restoreImgSrcs.push({ img, originalSrc: src, originalOnError });
++      img.setAttribute('src', pngDataUrl);
++
++      await new Promise(resolve => {
++        if (img.complete && img.naturalWidth > 0) return resolve();
++        img.addEventListener('load', resolve, { once: true });
++        img.addEventListener('error', resolve, { once: true });
++        setTimeout(resolve, 1500);
++      });
++    } catch (e) {
++      console.warn('Bill PDF: failed to rasterize SVG to PNG; leaving original src', src, e);
++    }
++  }
++
++  // Render at 2× device scale for print-quality crispness without ballooning
++  // the resulting PDF size.
++  let canvas;
++  try {
++    canvas = await html2canvas(element, {
++      scale: 2,
++      backgroundColor: '#ffffff',
++      useCORS: true,
++      allowTaint: true, // tolerate the SVG even if CORS headers aren't set
++      logging: false,
++      imageTimeout: 5000,
++      // Drop the on-screen-only action bar (Close/Print/Download buttons) and
++      // anything else flagged as "no-print" so the captured image matches
++      // what a printed page would show.
++      ignoreElements: (el) => !!(el.classList && el.classList.contains('ukc-bill-no-print')),
++    });
++  } finally {
++    // Always restore original SVG src values and the onerror handler, even
++    // if html2canvas threw, so the live on-screen bill isn't left with
++    // embedded data-URLs or a stripped error handler.
++    for (const { img, originalSrc, originalOnError } of restoreImgSrcs) {
++      img.setAttribute('src', originalSrc);
++      if (originalOnError !== undefined) img.onerror = originalOnError;
++    }
++  }
++
++  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
++  const pageWidth = pdf.internal.pageSize.getWidth();
++  const pageHeight = pdf.internal.pageSize.getHeight();
++  const margin = 18;
++  const usablePtWidth = pageWidth - margin * 2;
++  const usablePtHeight = pageHeight - margin * 2;
++
++  // px ↔ pt conversion factor (the captured canvas is `scale` × element px).
++  const ptPerCanvasPx = usablePtWidth / canvas.width;
++  const fullPdfHeight = canvas.height * ptPerCanvasPx;
++
++  if (fullPdfHeight <= usablePtHeight) {
++    // Fits on one page — single addImage call, exact aspect ratio.
++    pdf.addImage(
++      canvas.toDataURL('image/png'),
++      'PNG',
++      margin,
++      margin,
++      usablePtWidth,
++      fullPdfHeight,
++    );
++  } else {
++    // Multi-page: slice the canvas vertically into page-tall chunks. Naively
++    // cutting at a fixed pixel height bisects whatever row of text happens
++    // to straddle that line — the user sees the top half of a sentence at
++    // the bottom of one page and the bottom half at the top of the next.
++    //
++    // To avoid that, before committing each slice we scan upward from the
++    // proposed cut for a horizontal band of mostly-white pixels (i.e. a
++    // gap between rows). Up to ~12% of a page-height of look-back is
++    // allowed; if no clean gap is found we fall back to the original cut.
++    const sliceCanvasPxHeight = Math.floor(usablePtHeight / ptPerCanvasPx);
++    const lookBackLimit = Math.floor(sliceCanvasPxHeight * 0.12);
++    const fullCtx = canvas.getContext('2d');
++
++    // True if the row at `y` is "blank enough" to cut on — almost every
++    // pixel near-white. Sampling every few px on the x-axis keeps this
++    // cheap on a 2000-pixel-wide canvas.
++    const isBlankRow = (y) => {
++      if (y < 0 || y >= canvas.height) return false;
++      let data;
++      try { data = fullCtx.getImageData(0, y, canvas.width, 1).data; }
++      catch { return false; }
++      const step = 4 * 8; // every 8th pixel
++      let nonWhite = 0;
++      const total = Math.floor(canvas.width / 8);
++      for (let i = 0; i < data.length; i += step) {
++        const r = data[i], g = data[i + 1], b = data[i + 2];
++        if (r < 245 || g < 245 || b < 245) nonWhite += 1;
++      }
++      // A row is "blank" if fewer than 1% of sampled pixels carry ink.
++      return nonWhite <= Math.max(1, Math.floor(total * 0.01));
++    };
++
++    const findCleanCut = (proposed) => {
++      if (proposed >= canvas.height) return canvas.height;
++      const minCut = Math.max(1, proposed - lookBackLimit);
++      // Find a contiguous band of blank rows, then cut in the middle of it.
++      let bandEnd = -1;
++      for (let y = proposed; y >= minCut; y--) {
++        if (isBlankRow(y)) {
++          if (bandEnd === -1) bandEnd = y;
++          // Walk up while still blank to find the band's start.
++          let bandStart = y;
++          while (bandStart - 1 >= minCut && isBlankRow(bandStart - 1)) bandStart -= 1;
++          return Math.floor((bandStart + bandEnd) / 2);
++        }
++      }
++      return proposed;
++    };
++
++    let yOffset = 0;
++    let pageIndex = 0;
++
++    while (yOffset < canvas.height) {
++      const remaining = canvas.height - yOffset;
++      const proposedEnd = yOffset + Math.min(sliceCanvasPxHeight, remaining);
++      // Don't bother searching for a gap on the final slice or when the
++      // slice already ends exactly at the canvas bottom.
++      const cutEnd = (proposedEnd >= canvas.height)
++        ? canvas.height
++        : findCleanCut(proposedEnd);
++      const thisSliceHeight = Math.max(1, cutEnd - yOffset);
++
++      const sliceCanvas = document.createElement('canvas');
++      sliceCanvas.width = canvas.width;
++      sliceCanvas.height = thisSliceHeight;
++      const ctx = sliceCanvas.getContext('2d');
++      ctx.fillStyle = '#ffffff';
++      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
++      ctx.drawImage(
++        canvas,
++        0, yOffset, canvas.width, thisSliceHeight,
++        0, 0, canvas.width, thisSliceHeight,
++      );
++
++      if (pageIndex > 0) pdf.addPage();
++      pdf.addImage(
++        sliceCanvas.toDataURL('image/png'),
++        'PNG',
++        margin,
++        margin,
++        usablePtWidth,
++        thisSliceHeight * ptPerCanvasPx,
++      );
++
++      yOffset += thisSliceHeight;
++      pageIndex += 1;
++    }
++  }
++
++  pdf.save(filename);
++}
++
++// ─────────────────────────────────────────────────────────────────────────
++// Path 2: legacy text-based export (fallback)
++// ─────────────────────────────────────────────────────────────────────────
++
+ const BRAND_RGB = [0, 168, 196];
+ 
+ const fmtShort = (date) => date
+diff --git a/src/features/dashboard/components/QuickAccommodationModal.jsx b/src/features/dashboard/components/QuickAccommodationModal.jsx
+index 515a94e..01f75f7 100644
+--- a/src/features/dashboard/components/QuickAccommodationModal.jsx
++++ b/src/features/dashboard/components/QuickAccommodationModal.jsx
+@@ -28,12 +28,15 @@ import {
+   EditOutlined
+ } from '@ant-design/icons';
+ import apiClient from '@/shared/services/apiClient';
++import accommodationApi from '@/shared/services/accommodationApi';
+ import { useCurrency } from '@/shared/contexts/CurrencyContext';
++import dayjs from 'dayjs';
+ 
+ const { Option } = Select;
+ const { RangePicker } = DatePicker;
+ 
+-function QuickAccommodationModal({ open, onClose, onSuccess }) {
++function QuickAccommodationModal({ open, onClose, onSuccess, editBooking = null }) {
++  const isEditMode = !!editBooking;
+   const [form] = Form.useForm();
+   const [loading, setLoading] = useState(false);
+   const [submitting, setSubmitting] = useState(false);
+@@ -55,14 +58,38 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+         ]);
+ 
+         const users = Array.isArray(usersRes.data) ? usersRes.data : [];
++        const editGuestId = editBooking?.guest_id;
+         setCustomers(users.filter(
+-          (u) => !u.user_role || u.user_role === 'student' || u.user_role === 'customer' || u.user_role === 'outsider'
++          (u) =>
++            !u.user_role ||
++            u.user_role === 'student' ||
++            u.user_role === 'customer' ||
++            u.user_role === 'outsider' ||
++            (editGuestId && u.id === editGuestId)
+         ));
+ 
+         const accommodationsList = Array.isArray(accommodationsRes.data)
+           ? accommodationsRes.data
+           : accommodationsRes.data?.units || [];
+-        setAccommodations(accommodationsList.filter(a => a.status === 'Available'));
++        // In edit mode, also keep the booking's current unit (even if not Available)
++        const editUnitId = editBooking?.unit_id;
++        const filtered = accommodationsList.filter(
++          (a) => a.status === 'Available' || (editUnitId && a.id === editUnitId)
++        );
++        setAccommodations(filtered);
++
++        if (isEditMode && editBooking) {
++          const unit = filtered.find(a => a.id === editBooking.unit_id);
++          if (unit) {
++            const raw = unit.amenities;
++            unit.amenities = Array.isArray(raw)
++              ? raw
++              : typeof raw === 'string' && raw.trim()
++                ? raw.startsWith('[') ? JSON.parse(raw) : raw.split(',').map(s => s.trim()).filter(Boolean)
++                : [];
++            setSelectedAccommodation(unit);
++          }
++        }
+       } catch {
+         message.error('Failed to load data');
+       } finally {
+@@ -71,7 +98,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+     };
+ 
+     loadData();
+-  }, [open]);
++  }, [open, isEditMode, editBooking, form]);
+ 
+   useEffect(() => {
+     if (!open) {
+@@ -81,6 +108,18 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+     }
+   }, [open, form]);
+ 
++  // Apply edit-mode field values once the form is mounted (after loading completes)
++  useEffect(() => {
++    if (!open || loading || !isEditMode || !editBooking) return;
++    form.setFieldsValue({
++      customer_id: editBooking.guest_id,
++      accommodation_id: editBooking.unit_id,
++      date_range: [dayjs(editBooking.check_in_date), dayjs(editBooking.check_out_date)],
++      guests_count: editBooking.guests_count || 1,
++      notes: editBooking.notes || '',
++    });
++  }, [open, loading, isEditMode, editBooking, form]);
++
+   const handleAccommodationChange = (accommodationId) => {
+     const selected = accommodations.find(a => a.id === accommodationId);
+     if (selected) {
+@@ -106,25 +145,39 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+   const handleSubmit = async (values) => {
+     setSubmitting(true);
+     try {
+-      const payload = {
+-        unit_id: values.accommodation_id,
+-        guest_id: values.customer_id,
+-        check_in_date: values.date_range[0].format('YYYY-MM-DD'),
+-        check_out_date: values.date_range[1].format('YYYY-MM-DD'),
+-        guests_count: values.guests_count || 1,
+-        notes: values.notes,
+-        payment_method: 'pay_later',
+-      };
+-
+-      if (priceOverride !== null && priceOverride !== '') {
+-        payload.custom_price = parseFloat(priceOverride);
++      if (isEditMode) {
++        const payload = {
++          unit_id: values.accommodation_id,
++          check_in_date: values.date_range[0].format('YYYY-MM-DD'),
++          check_out_date: values.date_range[1].format('YYYY-MM-DD'),
++          guests_count: values.guests_count || 1,
++          notes: values.notes,
++        };
++        if (priceOverride !== null && priceOverride !== '') {
++          payload.custom_price = parseFloat(priceOverride);
++        }
++        await accommodationApi.updateBooking(editBooking.id, payload);
++        onSuccess?.();
++        message.success('Booking updated successfully!');
++      } else {
++        const payload = {
++          unit_id: values.accommodation_id,
++          guest_id: values.customer_id,
++          check_in_date: values.date_range[0].format('YYYY-MM-DD'),
++          check_out_date: values.date_range[1].format('YYYY-MM-DD'),
++          guests_count: values.guests_count || 1,
++          notes: values.notes,
++          payment_method: 'pay_later',
++        };
++        if (priceOverride !== null && priceOverride !== '') {
++          payload.custom_price = parseFloat(priceOverride);
++        }
++        await apiClient.post('/accommodation/bookings', payload);
++        onSuccess?.();
++        message.success('Accommodation booked successfully!');
+       }
+-
+-      await apiClient.post('/accommodation/bookings', payload);
+-      onSuccess?.();
+-      message.success('Accommodation booked successfully!');
+     } catch (err) {
+-      message.error(err.response?.data?.error || 'Failed to create booking');
++      message.error(err.response?.data?.error || (isEditMode ? 'Failed to update booking' : 'Failed to create booking'));
+     } finally {
+       setSubmitting(false);
+     }
+@@ -135,7 +188,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+       title={
+         <Space>
+           <HomeOutlined style={{ color: '#7c3aed' }} />
+-          <span>Quick Accommodation Booking</span>
++          <span>{isEditMode ? 'Edit Accommodation Booking' : 'Quick Accommodation Booking'}</span>
+         </Space>
+       }
+       open={open}
+@@ -151,7 +204,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+             onClick={() => form.submit()}
+             style={{ background: '#7c3aed', borderColor: '#7c3aed' }}
+           >
+-            Book Accommodation
++            {isEditMode ? 'Save Changes' : 'Book Accommodation'}
+           </Button>
+         </div>
+       }
+@@ -174,6 +227,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess }) {
+           >
+             <Select
+               showSearch
++              disabled={isEditMode}
+               placeholder="Search and select guest"
+               optionFilterProp="children"
+               filterOption={(input, option) =>
+diff --git a/src/shared/components/ui/UserForm.jsx b/src/shared/components/ui/UserForm.jsx
+index 613cc2e..516e6b7 100644
+--- a/src/shared/components/ui/UserForm.jsx
++++ b/src/shared/components/ui/UserForm.jsx
+@@ -539,6 +539,11 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
+       // Remove confirm_password as it's not needed in the API
+       delete payload.confirm_password;
+ 
++      // Don't send empty password when editing — keeps existing password
++      if (user && user.id && !payload.password) {
++        delete payload.password;
++      }
++
+       sanitizeNumericField(payload, 'weight', 2);
+ 
+       // Convert date_of_birth dayjs to string and compute age
+@@ -856,41 +861,43 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
+         </Form.Item>
+       )}
+ 
+-      {!user && (
+-        <Row gutter={24}>
+-          <Col xs={24} sm={12}>
+-            <Form.Item
+-              name="password"
+-              label={t('common:userForm.password')}
+-              rules={[{ required: true, message: t('common:userForm.passwordRequired') }]}
+-              hasFeedback
+-            >
+-              <Input.Password placeholder={t('common:userForm.enterPassword')} autoComplete="new-password" />
+-            </Form.Item>
+-          </Col>
+-          <Col xs={24} sm={12}>
+-            <Form.Item
+-              name="confirm_password"
+-              label={t('common:userForm.confirmPassword')}
+-              dependencies={['password']}
+-              hasFeedback
+-              rules={[
+-                { required: true, message: t('common:userForm.confirmPasswordRequired') },
+-                ({ getFieldValue }) => ({
+-                  validator(_, value) {
+-                    if (!value || getFieldValue('password') === value) {
+-                      return Promise.resolve();
+-                    }
+-                    return Promise.reject(new Error(t('common:userForm.passwordMismatch')));
+-                  },
+-                }),
+-              ]}
+-            >
+-              <Input.Password placeholder={t('common:userForm.confirmPasswordPlaceholder')} autoComplete="new-password" />
+-            </Form.Item>
+-          </Col>
+-        </Row>
+-      )}
++      <Row gutter={24}>
++        <Col xs={24} sm={12}>
++          <Form.Item
++            name="password"
++            label={user && user.id ? t('common:userForm.newPassword') : t('common:userForm.password')}
++            rules={user && user.id ? [] : [{ required: true, message: t('common:userForm.passwordRequired') }]}
++            hasFeedback
++            extra={user && user.id ? t('common:userForm.leaveEmptyToKeepPassword') : undefined}
++          >
++            <Input.Password placeholder={t('common:userForm.enterPassword')} autoComplete="new-password" />
++          </Form.Item>
++        </Col>
++        <Col xs={24} sm={12}>
++          <Form.Item
++            name="confirm_password"
++            label={t('common:userForm.confirmPassword')}
++            dependencies={['password']}
++            hasFeedback
++            rules={[
++              ({ getFieldValue }) => ({
++                required: !!(user && user.id ? getFieldValue('password') : true),
++                message: t('common:userForm.confirmPasswordRequired'),
++              }),
++              ({ getFieldValue }) => ({
++                validator(_, value) {
++                  const password = getFieldValue('password');
++                  if (!password && !value) return Promise.resolve();
++                  if (password === value) return Promise.resolve();
++                  return Promise.reject(new Error(t('common:userForm.passwordMismatch')));
++                },
++              }),
++            ]}
++          >
++            <Input.Password placeholder={t('common:userForm.confirmPasswordPlaceholder')} autoComplete="new-password" />
++          </Form.Item>
++        </Col>
++      </Row>
+ 
+       <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
+         <Button onClick={onCancel} style={{ marginRight: 8 }}>
+diff --git a/src/shared/services/accommodationApi.js b/src/shared/services/accommodationApi.js
+index 5a7e54a..7066d83 100644
+--- a/src/shared/services/accommodationApi.js
++++ b/src/shared/services/accommodationApi.js
+@@ -150,6 +150,14 @@ export const cancelBooking = async (id) => {
+   return response.data;
+ };
+ 
++/**
++ * Update an existing booking (admin/manager) — unit, dates, guests, notes, price
++ */
++export const updateBooking = async (id, bookingData) => {
++  const response = await apiClient.patch(`/accommodation/bookings/${id}`, bookingData);
++  return response.data;
++};
++
+ // Export all functions
+ export const accommodationApi = {
+   // Units
+@@ -168,6 +176,7 @@ export const accommodationApi = {
+   confirmBooking,
+   completeBooking,
+   cancelBooking,
++  updateBooking,
+   deleteBooking,
+ };
+ 

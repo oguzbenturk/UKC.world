@@ -323,6 +323,8 @@
     "country": "Pays",
     "role": "Rôle",
     "password": "Mot de passe",
+    "newPassword": "Nouveau mot de passe",
+    "leaveEmptyToKeepPassword": "Laisser vide pour conserver le mot de passe actuel",
     "confirmPassword": "Confirmer le mot de passe",
     "changeAvatar": "Changer l'avatar",
     "saveChanges": "Enregistrer les modifications",

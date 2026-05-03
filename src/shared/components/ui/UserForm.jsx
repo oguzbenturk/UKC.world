@@ -539,6 +539,11 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       // Remove confirm_password as it's not needed in the API
       delete payload.confirm_password;
 
+      // Don't send empty password when editing — keeps existing password
+      if (user && user.id && !payload.password) {
+        delete payload.password;
+      }
+
       sanitizeNumericField(payload, 'weight', 2);
 
       // Convert date_of_birth dayjs to string and compute age
@@ -856,41 +861,43 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
         </Form.Item>
       )}
 
-      {!user && (
-        <Row gutter={24}>
-          <Col xs={24} sm={12}>
-            <Form.Item
-              name="password"
-              label={t('common:userForm.password')}
-              rules={[{ required: true, message: t('common:userForm.passwordRequired') }]}
-              hasFeedback
-            >
-              <Input.Password placeholder={t('common:userForm.enterPassword')} autoComplete="new-password" />
-            </Form.Item>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Form.Item
-              name="confirm_password"
-              label={t('common:userForm.confirmPassword')}
-              dependencies={['password']}
-              hasFeedback
-              rules={[
-                { required: true, message: t('common:userForm.confirmPasswordRequired') },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue('password') === value) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error(t('common:userForm.passwordMismatch')));
-                  },
-                }),
-              ]}
-            >
-              <Input.Password placeholder={t('common:userForm.confirmPasswordPlaceholder')} autoComplete="new-password" />
-            </Form.Item>
-          </Col>
-        </Row>
-      )}
+      <Row gutter={24}>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            name="password"
+            label={user && user.id ? t('common:userForm.newPassword') : t('common:userForm.password')}
+            rules={user && user.id ? [] : [{ required: true, message: t('common:userForm.passwordRequired') }]}
+            hasFeedback
+            extra={user && user.id ? t('common:userForm.leaveEmptyToKeepPassword') : undefined}
+          >
+            <Input.Password placeholder={t('common:userForm.enterPassword')} autoComplete="new-password" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item
+            name="confirm_password"
+            label={t('common:userForm.confirmPassword')}
+            dependencies={['password']}
+            hasFeedback
+            rules={[
+              ({ getFieldValue }) => ({
+                required: !!(user && user.id ? getFieldValue('password') : true),
+                message: t('common:userForm.confirmPasswordRequired'),
+              }),
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  const password = getFieldValue('password');
+                  if (!password && !value) return Promise.resolve();
+                  if (password === value) return Promise.resolve();
+                  return Promise.reject(new Error(t('common:userForm.passwordMismatch')));
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder={t('common:userForm.confirmPasswordPlaceholder')} autoComplete="new-password" />
+          </Form.Item>
+        </Col>
+      </Row>
 
       <Form.Item style={{ marginTop: 24, textAlign: 'right' }}>
         <Button onClick={onCancel} style={{ marginRight: 8 }}>

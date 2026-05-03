@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import Decimal from 'decimal.js';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
@@ -10,83 +11,8 @@ import CurrencyService from '../services/currencyService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { recordAccommodationCommission, cancelCommission } from '../services/managerCommissionService.js';
-
-/**
- * Extract extended pricing metadata stored inside the amenities JSONB array.
- * Meta is stored as a string entry like `__meta__{"weekend_price":80,...}`.
- */
-function extractUnitMeta(unitRow) {
-	const amenities = unitRow.amenities;
-	if (!Array.isArray(amenities)) return {};
-	const entry = amenities.find(a => typeof a === 'string' && a.startsWith('__meta__'));
-	if (!entry) return {};
-	try { return JSON.parse(entry.slice(8)); } catch { return {}; }
-}
-
-/**
- * Calculate total accommodation price for a date range, accounting for
- * weekend pricing, holiday/special pricing, and length-of-stay discounts.
- */
-function calculateTotalPrice(checkInDate, checkOutDate, basePrice, meta) {
-	const oneDay = 24 * 60 * 60 * 1000;
-	const nights = Math.ceil((checkOutDate - checkInDate) / oneDay);
-	if (nights <= 0) return { total: 0, nights: 0, breakdown: [] };
-
-	const weekendPrice = meta.weekend_price ? parseFloat(meta.weekend_price) : null;
-	const holidays = Array.isArray(meta.holiday_pricing) ? meta.holiday_pricing : [];
-	const discounts = Array.isArray(meta.custom_discounts) ? meta.custom_discounts : [];
-
-	let subtotal = 0;
-	const breakdown = [];
-
-	for (let i = 0; i < nights; i++) {
-		const nightDate = new Date(checkInDate.getTime() + i * oneDay);
-		const dateStr = nightDate.toISOString().slice(0, 10);
-		const dayOfWeek = nightDate.getDay(); // 0=Sun, 5=Fri, 6=Sat
-
-		// Check holiday pricing first (highest priority)
-		let price = basePrice;
-		let reason = 'standard';
-
-		const holidayMatch = holidays.find(h =>
-			h.start_date && h.end_date && h.price_per_night &&
-			dateStr >= h.start_date && dateStr <= h.end_date
-		);
-		if (holidayMatch) {
-			price = parseFloat(holidayMatch.price_per_night);
-			reason = 'holiday';
-		} else if (weekendPrice && (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6)) {
-			price = weekendPrice;
-			reason = 'weekend';
-		}
-
-		subtotal += price;
-		breakdown.push({ date: dateStr, price, reason });
-	}
-
-	// Apply length-of-stay discount (best matching)
-	let appliedDiscount = null;
-	if (discounts.length > 0) {
-		const eligible = discounts
-			.filter(d => d.min_nights && nights >= d.min_nights && d.discount_value > 0)
-			.sort((a, b) => (b.min_nights || 0) - (a.min_nights || 0));
-		if (eligible.length > 0) {
-			appliedDiscount = eligible[0];
-		}
-	}
-
-	let total = subtotal;
-	if (appliedDiscount) {
-		if (appliedDiscount.discount_type === 'percentage') {
-			total = subtotal * (1 - appliedDiscount.discount_value / 100);
-		} else {
-			total = subtotal - (appliedDiscount.discount_value * nights);
-		}
-		total = Math.max(0, total);
-	}
-
-	return { total: Math.round(total * 100) / 100, nights, subtotal, appliedDiscount, breakdown };
-}
+import { extractUnitMeta, calculateTotalPrice } from '../services/accommodationPricingService.js';
+import { recomputeDiscountForAccommodationBooking } from '../services/discountService.js';
 
 const router = Router();
 
@@ -992,6 +918,180 @@ router.get('/bookings/:id', authenticateJWT, async (req, res) => {
 		res.json(booking);
 	} catch (err) {
 		res.status(500).json({ error: 'Failed to get booking' });
+	}
+});
+
+// Edit a booking by ID (admin, manager) — update unit, dates, guests, notes, total price
+router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
+	const client = await pool.connect();
+	try {
+		await client.query('BEGIN');
+		const { id } = req.params;
+		const {
+			unit_id,
+			check_in_date,
+			check_out_date,
+			guests_count,
+			notes,
+			custom_price,
+		} = req.body;
+
+		const existing = await client.query(
+			`SELECT id, status, unit_id, check_in_date, check_out_date, guests_count,
+			        notes, total_price, payment_method, payment_status, guest_id
+			   FROM accommodation_bookings WHERE id = $1 FOR UPDATE`,
+			[id]
+		);
+		if (existing.rows.length === 0) {
+			throw Object.assign(new Error('Accommodation booking not found'), { statusCode: 404 });
+		}
+		const current = existing.rows[0];
+
+		if (current.status === 'cancelled' || current.status === 'completed') {
+			throw Object.assign(new Error(`Cannot edit a ${current.status} booking`), { statusCode: 400 });
+		}
+
+		const newUnitId = unit_id || current.unit_id;
+		const newCheckIn = check_in_date || current.check_in_date;
+		const newCheckOut = check_out_date || current.check_out_date;
+		const newGuests = guests_count != null ? parseInt(guests_count, 10) : current.guests_count;
+		const newNotes = notes !== undefined ? notes : current.notes;
+
+		const checkIn = new Date(newCheckIn);
+		const checkOut = new Date(newCheckOut);
+		if (checkOut <= checkIn) {
+			throw Object.assign(new Error('check_out_date must be after check_in_date'), { statusCode: 400 });
+		}
+
+		const unit = await client.query(
+			`SELECT id, name, capacity, price_per_night, amenities
+			   FROM accommodation_units WHERE id = $1`,
+			[newUnitId]
+		);
+		if (unit.rows.length === 0) {
+			throw Object.assign(new Error('Accommodation unit not found'), { statusCode: 404 });
+		}
+		const unitData = unit.rows[0];
+
+		if (newGuests > unitData.capacity) {
+			throw Object.assign(new Error(`Unit capacity is ${unitData.capacity} guests`), { statusCode: 400 });
+		}
+
+		const overlap = await client.query(
+			`SELECT id FROM accommodation_bookings
+			 WHERE unit_id = $1
+			 AND id != $2
+			 AND status NOT IN ('cancelled')
+			 AND COALESCE(payment_status, '') != 'failed'
+			 AND NOT (payment_method = 'credit_card' AND COALESCE(payment_status, '') = 'pending_payment')
+			 AND (check_in_date, check_out_date) OVERLAPS ($3::date, $4::date)`,
+			[newUnitId, id, newCheckIn, newCheckOut]
+		);
+		if (overlap.rows.length > 0) {
+			throw Object.assign(new Error('Unit is not available for the selected dates'), { statusCode: 400 });
+		}
+
+		let newTotal;
+		if (custom_price != null && custom_price !== '' && !isNaN(parseFloat(custom_price))) {
+			newTotal = parseFloat(custom_price);
+		} else {
+			const meta = extractUnitMeta(unitData);
+			const basePrice = parseFloat(unitData.price_per_night);
+			newTotal = calculateTotalPrice(checkIn, checkOut, basePrice, meta).total;
+		}
+
+		const oldTotal = parseFloat(current.total_price) || 0;
+		const delta = new Decimal(newTotal).minus(oldTotal).toDecimalPlaces(2).toNumber();
+		const isWalletPaid = current.payment_method === 'wallet' && current.payment_status === 'paid';
+
+		const { rows } = await client.query(
+			`UPDATE accommodation_bookings
+			 SET unit_id = $1,
+			     check_in_date = $2,
+			     check_out_date = $3,
+			     guests_count = $4,
+			     notes = $5,
+			     total_price = $6,
+			     payment_amount = CASE WHEN $9 THEN $6 ELSE payment_amount END,
+			     updated_by = $7,
+			     updated_at = NOW()
+			 WHERE id = $8
+			 RETURNING *`,
+			[newUnitId, newCheckIn, newCheckOut, newGuests, newNotes, newTotal, req.user.id, id, isWalletPaid]
+		);
+
+		await recomputeDiscountForAccommodationBooking(client, {
+			bookingId: id,
+			newBasePrice: newTotal,
+			currency: 'EUR',
+			createdBy: req.user.id,
+		});
+
+		// pay_later bookings have an `accommodation_charge` debit on creation;
+		// wallet-paid bookings have funds locked equal to the original total.
+		// Either way the customer balance must move by `delta` when the price
+		// changes.
+		if (delta !== 0 && current.guest_id) {
+			const unitLabel = unitData.name || 'Unit';
+			const oldFmt = `€${oldTotal.toFixed(2)}`;
+			const newFmt = `€${Number(newTotal).toFixed(2)}`;
+			if (current.payment_method === 'pay_later') {
+				await recordLegacyTransaction({
+					client,
+					userId: current.guest_id,
+					amount: -delta,
+					transactionType: 'accommodation_charge_adjustment',
+					status: 'completed',
+					direction: delta > 0 ? 'debit' : 'credit',
+					currency: 'EUR',
+					description: `Accommodation price ${delta > 0 ? 'increase' : 'decrease'}: ${unitLabel} (${oldFmt} → ${newFmt})`,
+					metadata: {
+						accommodationBookingId: id,
+						previousTotal: oldTotal,
+						newTotal,
+						source: 'accommodation:edit:pay_later',
+					},
+					entityType: 'accommodation_booking',
+					relatedEntityType: 'accommodation_booking',
+					relatedEntityId: id,
+					createdBy: req.user.id,
+					allowNegative: true,
+				});
+			} else if (isWalletPaid) {
+				if (delta > 0) {
+					await lockFundsForBooking({
+						userId: current.guest_id,
+						amount: delta,
+						bookingId: id,
+						currency: 'EUR',
+						client,
+						description: `Accommodation price increase: ${unitLabel}`,
+					});
+				} else {
+					await releaseLockedFunds({
+						userId: current.guest_id,
+						amount: Math.abs(delta),
+						bookingId: id,
+						currency: 'EUR',
+						client,
+						reason: 'release',
+					});
+				}
+			}
+		}
+
+		await client.query('COMMIT');
+		res.json(rows[0]);
+	} catch (err) {
+		await client.query('ROLLBACK');
+		const status = err.statusCode || 500;
+		if (status === 500) {
+			logger.error('[ACCOMMODATION PATCH] error', err);
+			return res.status(500).json({ error: 'Failed to update accommodation booking' });
+		}
+		res.status(status).json({ error: err.message });
+	} finally {
+		client.release();
 	}
 });
 

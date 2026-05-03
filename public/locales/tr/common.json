@@ -323,6 +323,8 @@
     "country": "Ülke",
     "role": "Rol",
     "password": "Şifre",
+    "newPassword": "Yeni Şifre",
+    "leaveEmptyToKeepPassword": "Mevcut şifreyi korumak için boş bırakın",
     "confirmPassword": "Şifreyi Onayla",
     "changeAvatar": "Avatarı Değiştir",
     "saveChanges": "Değişiklikleri Kaydet",

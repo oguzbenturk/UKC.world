@@ -5,6 +5,11 @@ import {
   getWalletAccountSummary
 } from './walletService.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { recomputeDiscountForCustomerPackage } from './discountService.js';
+import { recomputeManagerCommissionsForPackage } from './managerCommissionService.js';
+import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
+
+const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
 function normalizePackageRow(row) {
   if (!row) {
@@ -27,6 +32,11 @@ function normalizePackageRow(row) {
   const usedHours = toNumber(row.used_hours) || 0;
   const remainingHours = toNumber(row.remaining_hours) || 0;
   const purchasePrice = toNumber(row.purchase_price) || 0;
+  // NULL means the price has never been edited; keep null so callers can
+  // distinguish "never edited" from "edited back to original".
+  const originalPrice = row.original_price !== undefined && row.original_price !== null
+    ? toNumber(row.original_price)
+    : null;
   const pricePerHour = totalHours > 0 ? purchasePrice / totalHours : 0;
   const usageSummary = {
     totalHours,
@@ -48,6 +58,7 @@ function normalizePackageRow(row) {
     usedHours,
     remainingHours,
     purchasePrice,
+    originalPrice,
     currency: row.currency || 'EUR',
     purchaseDate: row.purchase_date,
     expiryDate: row.expiry_date,
@@ -67,7 +78,7 @@ export async function fetchCustomerPackagesByIds(client, packageIds = []) {
   }
 
   const { rows } = await client.query(
-    `SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at FROM customer_packages WHERE id = ANY($1)`,
+    `SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, original_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at FROM customer_packages WHERE id = ANY($1)`,
     [packageIds]
   );
 
@@ -89,7 +100,7 @@ export async function forceDeleteCustomerPackage({
   }
 
   const packageResult = await client.query(
-    'SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at, check_in_date, check_out_date FROM customer_packages WHERE id = $1 FOR UPDATE',
+    'SELECT id, customer_id, service_package_id, package_name, lesson_service_name, total_hours, used_hours, remaining_hours, purchase_price, original_price, currency, purchase_date, expiry_date, status, notes, last_used_date, created_at, updated_at, check_in_date, check_out_date FROM customer_packages WHERE id = $1 FOR UPDATE',
     [packageId]
   );
 
@@ -382,6 +393,170 @@ export async function forceDeleteCustomerPackage({
     walletTransaction,
     usageSettlementTransaction,
     walletSummary
+  };
+}
+
+// Edits a customer package's purchase_price after the fact (admin-only flow).
+//
+// Cascade:
+//   1) UPDATE customer_packages.purchase_price (preserving original_price on
+//      the very first edit).
+//   2) If the package was actually paid (completed wallet package_purchase
+//      transaction exists) and settleWallet=true, post a wallet credit
+//      (price decreased) or debit (price increased) for the delta.
+//   3) Recompute any layered % discount on this package against the new base.
+//   4) Recompute pending manager commissions for the package's bookings;
+//      already-paid-out commissions are left untouched.
+//
+// Instructor earnings recompute live on each query from purchase_price, so
+// no cascade is needed for them. The caller is responsible for transaction
+// boundaries (BEGIN/COMMIT) — we operate inside `client`.
+export async function updateCustomerPackagePrice({
+  client,
+  packageId,
+  newPrice,
+  reason,
+  settleWallet = true,
+  actorId = null
+}) {
+  if (!client) throw new Error('Database client is required');
+  if (!Number.isFinite(newPrice) || newPrice < 0) {
+    throw httpError(400, 'new_price must be a non-negative number');
+  }
+  const trimmedReason = (reason || '').trim();
+  if (!trimmedReason) {
+    throw httpError(400, 'reason is required');
+  }
+  if (trimmedReason.length > 500) {
+    throw httpError(400, 'reason exceeds 500 characters');
+  }
+
+  const pkgRes = await client.query(
+    `SELECT id, customer_id, purchase_price, original_price, currency, status, package_name,
+            EXISTS (
+              SELECT 1 FROM wallet_transactions
+               WHERE related_entity_id = customer_packages.id
+                 AND related_entity_type = 'customer_package'
+                 AND transaction_type = 'package_purchase'
+                 AND status = 'completed'
+                 AND amount < 0
+            ) AS was_actually_paid
+       FROM customer_packages
+      WHERE id = $1
+      FOR UPDATE`,
+    [packageId]
+  );
+  if (!pkgRes.rows.length) {
+    throw httpError(404, 'Customer package not found');
+  }
+  const pkg = pkgRes.rows[0];
+  if (pkg.status === 'cancelled') {
+    throw httpError(400, 'Cannot edit price of a cancelled package');
+  }
+
+  const oldPrice = Number(pkg.purchase_price) || 0;
+  const newPriceRounded = Number(new Decimal(newPrice).toDecimalPlaces(2).toString());
+  const delta = Number(new Decimal(newPriceRounded).sub(oldPrice).toDecimalPlaces(2).toString());
+  const currency = pkg.currency || 'EUR';
+
+  // Preserve the very first agreed price on the first edit. Subsequent
+  // edits leave original_price untouched.
+  const newOriginalPrice = pkg.original_price !== null && pkg.original_price !== undefined
+    ? pkg.original_price
+    : oldPrice;
+
+  const updated = await client.query(
+    `UPDATE customer_packages
+        SET purchase_price = $1,
+            original_price = $2,
+            updated_at = NOW()
+      WHERE id = $3
+  RETURNING *`,
+    [newPriceRounded, newOriginalPrice, packageId]
+  );
+
+  // Wallet settlement — only if delta is non-zero AND the package was
+  // actually paid (a completed package_purchase debit exists in the ledger).
+  let walletAdjustment = null;
+  if (settleWallet && Math.abs(delta) >= 0.005) {
+    if (pkg.was_actually_paid) {
+      const isCredit = delta < 0; // price went down -> refund the customer
+      const absAmount = Math.abs(delta);
+      walletAdjustment = await recordWalletTransaction({
+        client,
+        userId: pkg.customer_id,
+        amount: isCredit ? absAmount : -absAmount,
+        availableDelta: isCredit ? absAmount : -absAmount,
+        transactionType: 'package_price_adjustment',
+        status: 'completed',
+        direction: isCredit ? 'credit' : 'debit',
+        currency,
+        description: isCredit
+          ? `Package price reduced (${pkg.package_name}): ${trimmedReason}`
+          : `Package price increased (${pkg.package_name}): ${trimmedReason}`,
+        paymentMethod: 'package_price_adjustment',
+        referenceNumber: packageId,
+        metadata: {
+          packageId,
+          packageName: pkg.package_name,
+          oldPrice,
+          newPrice: newPriceRounded,
+          delta,
+          reason: trimmedReason,
+          actorId
+        },
+        entityType: 'customer_package',
+        relatedEntityType: 'customer_package',
+        relatedEntityId: packageId,
+        createdBy: actorId,
+        // Refunds must always be allowed even if the wallet is already
+        // negative; debits also bypass the negative-balance guard because
+        // this is an admin reconciliation, not a user purchase.
+        allowNegative: true
+      });
+    } else {
+      logger.info('Package was not paid — skipping wallet adjustment for price edit', { packageId });
+    }
+  }
+
+  // Rebase any layered % discount against the new base price.
+  const discountResult = await recomputeDiscountForCustomerPackage(client, {
+    packageId,
+    newBasePrice: newPriceRounded,
+    currency,
+    createdBy: actorId
+  });
+
+  // Recompute pending manager commissions tied to bookings that consumed this package.
+  const commissionResult = await recomputeManagerCommissionsForPackage(client, packageId);
+
+  // Refresh the per-lesson instructor_earnings snapshot for every completed
+  // booking from this package. Percentage-rate instructors see updated
+  // total_earnings; fixed-rate instructors are recomputed too but their
+  // earnings stay the same since they're driven by duration not lesson amount.
+  const earningsResult = await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, packageId);
+
+  logger.info('Customer package price edited', {
+    packageId,
+    oldPrice,
+    newPrice: newPriceRounded,
+    delta,
+    discountAdjusted: discountResult.adjusted,
+    commissionsUpdated: commissionResult.updated,
+    commissionsSkippedPaidOut: commissionResult.skippedPaidOut,
+    instructorEarningsUpdated: earningsResult.updated,
+    actorId
+  });
+
+  return {
+    package: normalizePackageRow(updated.rows[0]),
+    oldPrice,
+    newPrice: newPriceRounded,
+    delta,
+    walletAdjustment,
+    discount: discountResult,
+    commissions: commissionResult,
+    instructorEarnings: earningsResult
   };
 }
 

@@ -7,6 +7,11 @@
 import Decimal from 'decimal.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { recordTransaction } from './walletService.js';
+import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
+import {
+  recomputeManagerCommissionsForPackage,
+  recomputeManagerCommissionForEntity,
+} from './managerCommissionService.js';
 
 // Maps each supported entity to:
 //   table     - the SQL table to read the original price from
@@ -31,7 +36,7 @@ const ENTITY_CONFIG = {
     table: 'rentals',
     priceCol: 'total_price',
     customerCol: 'user_id',
-    currencyCol: 'currency',
+    currencyCol: null,
     idType: 'uuid',
     paidStatusExpr: `payment_status IN ('paid', 'completed')`,
   },
@@ -39,9 +44,12 @@ const ENTITY_CONFIG = {
     table: 'accommodation_bookings',
     priceCol: 'total_price',
     customerCol: 'guest_id',
-    currencyCol: 'currency',
+    currencyCol: null,
     idType: 'uuid',
-    paidStatusExpr: `payment_status IN ('paid', 'completed')`,
+    // pay_later bookings record a wallet charge at creation, so they behave
+    // like a paid item for discount purposes — the discount must refund the
+    // charged amount even though payment_status is still 'pending'.
+    paidStatusExpr: `(payment_status IN ('paid', 'completed') OR payment_method = 'pay_later')`,
   },
   customer_package: {
     table: 'customer_packages',
@@ -117,7 +125,11 @@ export async function getEntitySnapshot(client, entityType, entityId) {
 }
 
 // Find the live (non-reversed) discount-adjustment credit for a given discount.
-// Returns the row if a matching credit exists with no later reversal; null otherwise.
+// We match reversals by the explicit `metadata.reversal_of` pointer rather
+// than by timestamp ordering: when an apply both reverses a stale credit and
+// posts a fresh credit in the same DB transaction, both rows share the same
+// `created_at` (NOW() is fixed within a transaction), so timestamp comparison
+// would incorrectly mark the fresh credit as already-reversed.
 async function findOpenDiscountAdjustment(client, discountId) {
   const { rows } = await client.query(
     `
@@ -131,9 +143,9 @@ async function findOpenDiscountAdjustment(client, discountId) {
         SELECT 1 FROM wallet_transactions r
         WHERE r.discount_id = t.discount_id
           AND r.transaction_type = $3
-          AND r.created_at >= t.created_at
+          AND r.metadata->>'reversal_of' = t.id::text
       )
-    ORDER BY t.created_at DESC
+    ORDER BY t.created_at DESC, t.id DESC
     LIMIT 1
     `,
     [discountId, DISCOUNT_TX_TYPE, DISCOUNT_REVERSAL_TX_TYPE]
@@ -205,6 +217,19 @@ async function postDiscountAdjustment(client, {
   return tx;
 }
 
+// Run the staff-payout cascade after a discount on `entityType:entityId`
+// changes. customer_package discounts touch every booking that consumed the
+// package, so they need both the package-wide commission recompute and the
+// per-booking instructor-earnings refresh.
+async function cascadeRecomputeForDiscountChange(client, entityType, entityId) {
+  if (entityType === 'customer_package') {
+    await recomputeManagerCommissionsForPackage(client, entityId);
+    await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, entityId);
+  } else {
+    await recomputeManagerCommissionForEntity(client, entityType, entityId);
+  }
+}
+
 // Compute the discount amount given the original price and a percent.
 // Rounds half-up to 2 decimal places.
 export function computeDiscountAmount(originalPrice, percent) {
@@ -258,6 +283,7 @@ export async function applyDiscount(client, {
       `DELETE FROM discounts WHERE entity_type = $1 AND entity_id = $2 RETURNING id`,
       [entityType, String(entityId)]
     );
+    await cascadeRecomputeForDiscountChange(client, entityType, entityId);
     return { deleted: del.rowCount > 0, snapshot };
   }
 
@@ -321,6 +347,8 @@ export async function applyDiscount(client, {
     });
   }
 
+  await cascadeRecomputeForDiscountChange(client, entityType, entityId);
+
   return { discount, snapshot, adjustment };
 }
 
@@ -341,6 +369,13 @@ export async function listDiscountsForCustomer(client, customerId) {
 }
 
 export async function deleteDiscount(client, id, { createdBy } = {}) {
+  // Need entity_type / entity_id BEFORE the DELETE so we can fire the
+  // package-earnings cascade afterwards.
+  const { rows: target } = await client.query(
+    `SELECT entity_type, entity_id FROM discounts WHERE id = $1`,
+    [id]
+  );
+
   // Reverse any outstanding wallet credit for this discount before deleting.
   // Once the discount row is gone, `discount_id` on past credits goes NULL
   // (ON DELETE SET NULL) so it must be reversed first.
@@ -352,10 +387,159 @@ export async function deleteDiscount(client, id, { createdBy } = {}) {
     });
   }
   const { rowCount } = await client.query(`DELETE FROM discounts WHERE id = $1`, [id]);
+  if (rowCount > 0 && target.length) {
+    const { entity_type: et, entity_id: eid } = target[0];
+    await cascadeRecomputeForDiscountChange(client, et, eid);
+  }
   return rowCount > 0;
 }
 
 // Logger helper used by the route to keep audit context together.
 export function logDiscountApply(action, payload) {
   logger.info(`Discount ${action}`, payload);
+}
+
+// Re-derives an accommodation_booking's discount amount after its total_price
+// was edited. Mirrors recomputeDiscountForCustomerPackage but for stays.
+export async function recomputeDiscountForAccommodationBooking(client, {
+  bookingId,
+  newBasePrice,
+  currency = 'EUR',
+  createdBy,
+}) {
+  const { rows } = await client.query(
+    `SELECT id, customer_id, percent, amount, currency, reason
+       FROM discounts
+      WHERE entity_type = 'accommodation_booking' AND entity_id = $1`,
+    [String(bookingId)]
+  );
+  if (!rows.length) {
+    return { adjusted: false, discount: null, oldAmount: 0, newAmount: 0, adjustment: null };
+  }
+
+  const discount = rows[0];
+  const oldAmount = Number(discount.amount) || 0;
+  const newAmount = computeDiscountAmount(newBasePrice, discount.percent);
+  const finalCurrency = currency || discount.currency || 'EUR';
+
+  if (newAmount === oldAmount) {
+    return { adjusted: false, discount, oldAmount, newAmount, adjustment: null };
+  }
+
+  const openCredit = await findOpenDiscountAdjustment(client, discount.id);
+  if (openCredit) {
+    await reverseDiscountAdjustment(client, openCredit, {
+      reason: 'Discount amount changed (booking price edit)',
+      createdBy,
+    });
+  }
+
+  const updated = await client.query(
+    `UPDATE discounts
+        SET amount = $1, currency = $2, updated_at = NOW()
+      WHERE id = $3
+  RETURNING *`,
+    [newAmount, finalCurrency, discount.id]
+  );
+
+  let adjustment = null;
+  if (newAmount > 0) {
+    adjustment = await postDiscountAdjustment(client, {
+      customerId: discount.customer_id,
+      amount: newAmount,
+      currency: finalCurrency,
+      discountId: discount.id,
+      entityType: 'accommodation_booking',
+      entityId: bookingId,
+      reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
+      createdBy,
+    });
+  }
+
+  // Keep the manager's commission row in sync with the rebased discount.
+  await recomputeManagerCommissionForEntity(client, 'accommodation_booking', bookingId);
+
+  return {
+    adjusted: true,
+    discount: updated.rows[0],
+    oldAmount,
+    newAmount,
+    adjustment,
+  };
+}
+
+// Re-derives a customer_package's discount amount after its purchase_price was
+// edited. The stored percent is preserved; only the absolute amount and any
+// outstanding wallet credit are reconciled to match the new base price.
+//
+// Mirrors the apply path: reverse the open credit if its amount no longer
+// matches the new amount, UPDATE the discounts row, then post a fresh credit.
+//
+// Returns { adjusted: boolean, discount, oldAmount, newAmount, adjustment }.
+export async function recomputeDiscountForCustomerPackage(client, {
+  packageId,
+  newBasePrice,
+  currency,
+  createdBy,
+}) {
+  const { rows } = await client.query(
+    `SELECT id, customer_id, percent, amount, currency, reason
+       FROM discounts
+      WHERE entity_type = 'customer_package' AND entity_id = $1`,
+    [String(packageId)]
+  );
+  if (!rows.length) {
+    return { adjusted: false, discount: null, oldAmount: 0, newAmount: 0, adjustment: null };
+  }
+
+  const discount = rows[0];
+  const oldAmount = Number(discount.amount) || 0;
+  const newAmount = computeDiscountAmount(newBasePrice, discount.percent);
+  const finalCurrency = currency || discount.currency || 'EUR';
+
+  if (newAmount === oldAmount) {
+    return { adjusted: false, discount, oldAmount, newAmount, adjustment: null };
+  }
+
+  // Reverse any outstanding credit so the new credit reflects the new amount.
+  const openCredit = await findOpenDiscountAdjustment(client, discount.id);
+  if (openCredit) {
+    await reverseDiscountAdjustment(client, openCredit, {
+      reason: 'Discount amount changed (package price edit)',
+      createdBy,
+    });
+  }
+
+  const updated = await client.query(
+    `UPDATE discounts
+        SET amount = $1, currency = $2, updated_at = NOW()
+      WHERE id = $3
+  RETURNING *`,
+    [newAmount, finalCurrency, discount.id]
+  );
+
+  // Treat a customer_package discount as always applicable to a paid item
+  // (matches ENTITY_CONFIG.customer_package.paidStatusExpr = TRUE). Post a
+  // fresh credit if the new discount amount is positive.
+  let adjustment = null;
+  if (newAmount > 0) {
+    adjustment = await postDiscountAdjustment(client, {
+      customerId: discount.customer_id,
+      amount: newAmount,
+      currency: finalCurrency,
+      discountId: discount.id,
+      entityType: 'customer_package',
+      entityId: packageId,
+      reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
+      createdBy,
+    });
+  }
+
+  return {
+    adjusted: true,
+    discount: updated.rows[0],
+    oldAmount,
+    newAmount,
+    adjustment,
+  };
 }

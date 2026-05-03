@@ -1,8 +1,247 @@
-// PDF export for the Customer Bill. Lazy-imports jsPDF + jspdf-autotable so
-// we don't pay the bundle cost unless the user actually clicks Download.
-// Mirrors the export pattern at PayrollDashboard.jsx:233.
+// PDF export for the Customer Bill. Two paths:
+//
+//   1) `exportBillPdfFromElement(element, filename)` — preferred. Captures
+//      the on-screen bill DOM with html2canvas and embeds it into a jsPDF
+//      A4 doc, paginating across pages when the bill is taller than one
+//      page. The PDF becomes a 1:1 visual match of the modal — same colors,
+//      icons, status pills, table alignment, totals block.
+//
+//   2) `exportBillPdf({...})` — legacy text-based fallback that draws every
+//      element manually with jsPDF text() / autoTable() calls. Kept around
+//      so the export still works if html2canvas fails or the DOM ref is
+//      somehow unavailable, but no longer the primary path.
 
 import { CATEGORY_DISPLAY_ORDER, CATEGORY_LABELS } from './billAggregator';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Path 1: DOM-capture export
+// ─────────────────────────────────────────────────────────────────────────
+export async function exportBillPdfFromElement(element, filename = 'DPC-Statement.pdf') {
+  if (!element) throw new Error('exportBillPdfFromElement: element is required');
+
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+
+  // Wait for any <img> elements inside the bill to finish loading. html2canvas
+  // captures synchronously, so an SVG/PNG that hasn't decoded yet shows up as
+  // an empty space (which is what made the Duotone Pro Center logo disappear
+  // from the first capture if the user hit Download immediately on open).
+  const imgs = Array.from(element.querySelectorAll('img'));
+  await Promise.all(imgs.map(img => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => resolve();
+      img.addEventListener('load', done, { once: true });
+      img.addEventListener('error', done, { once: true });
+      // Safety timeout so a stuck image doesn't block the PDF forever.
+      setTimeout(done, 3000);
+    });
+  }));
+
+  // html2canvas reliably fails to rasterize SVG <img> sources — even when
+  // loaded, even as a base64 data URL, even with allowTaint. The bulletproof
+  // workaround is to rasterize the SVG to a PNG ourselves via canvas, then
+  // swap the img's src to that PNG data URL before html2canvas runs. The
+  // canvas API handles SVG drawing perfectly and emits a PNG that
+  // html2canvas trivially copies into the capture.
+  const restoreImgSrcs = [];
+  for (const img of imgs) {
+    const src = img.getAttribute('src') || '';
+    if (!src.toLowerCase().includes('.svg')) continue;
+    try {
+      // Decode the SVG into a fresh Image (separate from the live <img> so
+      // the user-visible element isn't flickered).
+      const sourceImg = new Image();
+      sourceImg.crossOrigin = 'anonymous';
+      sourceImg.src = src;
+      await new Promise((resolve, reject) => {
+        if (sourceImg.complete && sourceImg.naturalWidth > 0) return resolve();
+        sourceImg.addEventListener('load', resolve, { once: true });
+        sourceImg.addEventListener('error', reject, { once: true });
+        setTimeout(() => reject(new Error('svg load timeout')), 4000);
+      });
+
+      // Use the on-screen displayed size × 2 for retina-grade crispness.
+      const displayWidth = img.clientWidth || sourceImg.naturalWidth || 600;
+      const aspect = (sourceImg.naturalHeight && sourceImg.naturalWidth)
+        ? sourceImg.naturalHeight / sourceImg.naturalWidth
+        : (112.5 / 800);
+      const displayHeight = img.clientHeight || Math.round(displayWidth * aspect);
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = displayWidth * 2;
+      offscreen.height = displayHeight * 2;
+      const ctx = offscreen.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+      ctx.drawImage(sourceImg, 0, 0, offscreen.width, offscreen.height);
+      const pngDataUrl = offscreen.toDataURL('image/png');
+
+      // Temporarily detach the modal img's onerror so a load failure on the
+      // PNG (extremely unlikely, but defensive) doesn't permanently hide the
+      // live logo via the modal's `onError={display:none}` handler.
+      const originalOnError = img.onerror;
+      img.onerror = null;
+
+      restoreImgSrcs.push({ img, originalSrc: src, originalOnError });
+      img.setAttribute('src', pngDataUrl);
+
+      await new Promise(resolve => {
+        if (img.complete && img.naturalWidth > 0) return resolve();
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+        setTimeout(resolve, 1500);
+      });
+    } catch (e) {
+      console.warn('Bill PDF: failed to rasterize SVG to PNG; leaving original src', src, e);
+    }
+  }
+
+  // Render at 2× device scale for print-quality crispness without ballooning
+  // the resulting PDF size.
+  let canvas;
+  try {
+    canvas = await html2canvas(element, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      allowTaint: true, // tolerate the SVG even if CORS headers aren't set
+      logging: false,
+      imageTimeout: 5000,
+      // Drop the on-screen-only action bar (Close/Print/Download buttons) and
+      // anything else flagged as "no-print" so the captured image matches
+      // what a printed page would show.
+      ignoreElements: (el) => !!(el.classList && el.classList.contains('ukc-bill-no-print')),
+    });
+  } finally {
+    // Always restore original SVG src values and the onerror handler, even
+    // if html2canvas threw, so the live on-screen bill isn't left with
+    // embedded data-URLs or a stripped error handler.
+    for (const { img, originalSrc, originalOnError } of restoreImgSrcs) {
+      img.setAttribute('src', originalSrc);
+      if (originalOnError !== undefined) img.onerror = originalOnError;
+    }
+  }
+
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 18;
+  const usablePtWidth = pageWidth - margin * 2;
+  const usablePtHeight = pageHeight - margin * 2;
+
+  // px ↔ pt conversion factor (the captured canvas is `scale` × element px).
+  const ptPerCanvasPx = usablePtWidth / canvas.width;
+  const fullPdfHeight = canvas.height * ptPerCanvasPx;
+
+  if (fullPdfHeight <= usablePtHeight) {
+    // Fits on one page — single addImage call, exact aspect ratio.
+    pdf.addImage(
+      canvas.toDataURL('image/png'),
+      'PNG',
+      margin,
+      margin,
+      usablePtWidth,
+      fullPdfHeight,
+    );
+  } else {
+    // Multi-page: slice the canvas vertically into page-tall chunks. Naively
+    // cutting at a fixed pixel height bisects whatever row of text happens
+    // to straddle that line — the user sees the top half of a sentence at
+    // the bottom of one page and the bottom half at the top of the next.
+    //
+    // To avoid that, before committing each slice we scan upward from the
+    // proposed cut for a horizontal band of mostly-white pixels (i.e. a
+    // gap between rows). Up to ~12% of a page-height of look-back is
+    // allowed; if no clean gap is found we fall back to the original cut.
+    const sliceCanvasPxHeight = Math.floor(usablePtHeight / ptPerCanvasPx);
+    const lookBackLimit = Math.floor(sliceCanvasPxHeight * 0.12);
+    const fullCtx = canvas.getContext('2d');
+
+    // True if the row at `y` is "blank enough" to cut on — almost every
+    // pixel near-white. Sampling every few px on the x-axis keeps this
+    // cheap on a 2000-pixel-wide canvas.
+    const isBlankRow = (y) => {
+      if (y < 0 || y >= canvas.height) return false;
+      let data;
+      try { data = fullCtx.getImageData(0, y, canvas.width, 1).data; }
+      catch { return false; }
+      const step = 4 * 8; // every 8th pixel
+      let nonWhite = 0;
+      const total = Math.floor(canvas.width / 8);
+      for (let i = 0; i < data.length; i += step) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (r < 245 || g < 245 || b < 245) nonWhite += 1;
+      }
+      // A row is "blank" if fewer than 1% of sampled pixels carry ink.
+      return nonWhite <= Math.max(1, Math.floor(total * 0.01));
+    };
+
+    const findCleanCut = (proposed) => {
+      if (proposed >= canvas.height) return canvas.height;
+      const minCut = Math.max(1, proposed - lookBackLimit);
+      // Find a contiguous band of blank rows, then cut in the middle of it.
+      let bandEnd = -1;
+      for (let y = proposed; y >= minCut; y--) {
+        if (isBlankRow(y)) {
+          if (bandEnd === -1) bandEnd = y;
+          // Walk up while still blank to find the band's start.
+          let bandStart = y;
+          while (bandStart - 1 >= minCut && isBlankRow(bandStart - 1)) bandStart -= 1;
+          return Math.floor((bandStart + bandEnd) / 2);
+        }
+      }
+      return proposed;
+    };
+
+    let yOffset = 0;
+    let pageIndex = 0;
+
+    while (yOffset < canvas.height) {
+      const remaining = canvas.height - yOffset;
+      const proposedEnd = yOffset + Math.min(sliceCanvasPxHeight, remaining);
+      // Don't bother searching for a gap on the final slice or when the
+      // slice already ends exactly at the canvas bottom.
+      const cutEnd = (proposedEnd >= canvas.height)
+        ? canvas.height
+        : findCleanCut(proposedEnd);
+      const thisSliceHeight = Math.max(1, cutEnd - yOffset);
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = thisSliceHeight;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0, yOffset, canvas.width, thisSliceHeight,
+        0, 0, canvas.width, thisSliceHeight,
+      );
+
+      if (pageIndex > 0) pdf.addPage();
+      pdf.addImage(
+        sliceCanvas.toDataURL('image/png'),
+        'PNG',
+        margin,
+        margin,
+        usablePtWidth,
+        thisSliceHeight * ptPerCanvasPx,
+      );
+
+      yOffset += thisSliceHeight;
+      pageIndex += 1;
+    }
+  }
+
+  pdf.save(filename);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Path 2: legacy text-based export (fallback)
+// ─────────────────────────────────────────────────────────────────────────
 
 const BRAND_RGB = [0, 168, 196];
 
@@ -292,17 +531,6 @@ export async function exportBillPdf({
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
   cursorY += 14;
-
-  // ── Footer note ───────────────────────────────────────────────────────
-  const footY = doc.internal.pageSize.getHeight() - 28;
-  doc.setFontSize(7);
-  doc.setTextColor(160, 160, 160);
-  doc.text(
-    'This statement reflects activity on file at the time of generation. Contact Duotone Pro Center Urla for discrepancies.',
-    margin,
-    footY,
-  );
-  doc.text('Duotone Pro Center Urla  ·  Powered by UKC', pageWidth - margin, footY, { align: 'right' });
 
   const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
   const datePart = new Date().toISOString().slice(0, 10);

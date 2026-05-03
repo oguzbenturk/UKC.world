@@ -319,6 +319,8 @@
     "country": "Country",
     "role": "Role",
     "password": "Password",
+    "newPassword": "New Password",
+    "leaveEmptyToKeepPassword": "Leave empty to keep current password",
     "confirmPassword": "Confirm Password",
     "changeAvatar": "Change Avatar",
     "saveChanges": "Save Changes",

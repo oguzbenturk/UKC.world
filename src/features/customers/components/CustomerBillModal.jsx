@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Modal, Button, DatePicker, Spin, Empty, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -12,7 +12,7 @@ import {
   buildBillItems, filterByPeriod, groupByCategory,
   computeTotals, CATEGORY_DISPLAY_ORDER, CATEGORY_LABELS,
 } from './customerBill/billAggregator';
-import { exportBillPdf } from './customerBill/billPdfExport';
+import { exportBillPdfFromElement, exportBillPdf } from './customerBill/billPdfExport';
 import './customerBill/billPrint.css';
 
 const BRAND_TEAL = '#00a8c4';
@@ -28,17 +28,17 @@ const CATEGORY_ICONS = {
 };
 
 const STATUS_PILL = {
-  paid:      { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Paid' },
-  unpaid:    { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   label: 'Unpaid' },
-  package:   { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     label: 'Incl. in package' },
-  cancelled: { bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   label: 'Cancelled' },
-  refunded:  { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200',    label: 'Refunded' },
+  paid:      { text: 'text-emerald-600', label: 'Paid' },
+  unpaid:    { text: 'text-amber-600',   label: 'Unpaid' },
+  package:   { text: 'text-sky-600',     label: 'Incl. in package' },
+  cancelled: { text: 'text-slate-400',   label: 'Cancelled' },
+  refunded:  { text: 'text-rose-600',    label: 'Refunded' },
 };
 
 function StatusPill({ status }) {
   const s = STATUS_PILL[status] || STATUS_PILL.paid;
   return (
-    <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border} whitespace-nowrap`}>
+    <span className={`text-[11px] font-semibold whitespace-nowrap ${s.text}`}>
       {s.label}
     </span>
   );
@@ -104,8 +104,9 @@ const CustomerBillModal = ({
   const allItems = useMemo(() => buildBillItems({
     bookings, rentals, accommodationBookings, packages,
     shopOrders, memberships, instructors,
+    transactions,
     discountsByEntity,
-  }), [bookings, rentals, accommodationBookings, packages, shopOrders, memberships, instructors, discountsByEntity]);
+  }), [bookings, rentals, accommodationBookings, packages, shopOrders, memberships, instructors, transactions, discountsByEntity]);
 
   // Hide the discount column unless at least one line in the bill carries one,
   // so unaffected customers' bills look exactly as before.
@@ -148,9 +149,25 @@ const CustomerBillModal = ({
 
   const issuedAt = dayjs().format('DD MMM YYYY');
 
+  const printableRef = useRef(null);
   const handlePrint = () => window.print();
 
   const handlePdf = async () => {
+    const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
+    const datePart = new Date().toISOString().slice(0, 10);
+    const filename = `DPC-Statement-${safeName}-${datePart}.pdf`;
+
+    if (printableRef.current) {
+      try {
+        await exportBillPdfFromElement(printableRef.current, filename);
+        return;
+      } catch (err) {
+        // Fall through to the legacy text-based path so the user always gets
+        // a PDF, even if html2canvas hits a CORS/font/layout edge case.
+        console.warn('Bill PDF: DOM capture failed, falling back to text export', err);
+      }
+    }
+
     await exportBillPdf({
       customerName,
       customerEmail: customer?.email,
@@ -181,7 +198,7 @@ const CustomerBillModal = ({
       styles={{ body: { padding: 0 }, content: { padding: 0, overflow: 'hidden' } }}
       wrapClassName="ukc-bill-modal-wrap"
     >
-      <div className="ukc-bill-printable bg-white">
+      <div className="ukc-bill-printable bg-white" ref={printableRef}>
         <Spin spinning={loadingExtra} tip="Loading bill…">
 
           {/* ── Letterhead (masthead style) ──────────────────────── */}
@@ -222,16 +239,18 @@ const CustomerBillModal = ({
               </div>
               <div>
                 <div className="text-[9px] uppercase tracking-[0.28em] text-slate-400 font-bold mb-2.5">Period</div>
-                <DatePicker.RangePicker
-                  value={period}
-                  onChange={setPeriod}
-                  presets={RANGE_PRESETS}
-                  allowClear
-                  className="ukc-bill-no-print w-full"
-                  format="DD MMM YYYY"
-                  placeholder={['All time', 'All time']}
-                />
-                <div className="hidden print:block text-sm text-slate-700 font-medium">
+                <div className="ukc-bill-no-print">
+                  <DatePicker.RangePicker
+                    value={period}
+                    onChange={setPeriod}
+                    presets={RANGE_PRESETS}
+                    allowClear
+                    className="w-full"
+                    format="DD MMM YYYY"
+                    placeholder={['All time', 'All time']}
+                  />
+                </div>
+                <div className="text-sm text-slate-700 font-medium mt-1">
                   {period
                     ? `${period[0].format('DD MMM YYYY')} → ${period[1].format('DD MMM YYYY')}`
                     : 'All time'}
@@ -259,15 +278,15 @@ const CustomerBillModal = ({
                   key={cat}
                   className="ukc-bill-section rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm"
                 >
-                  <header className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between gap-3 border-l-4" style={{ borderLeftColor: BRAND_TEAL }}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base" style={{ color: BRAND_TEAL }}>{CATEGORY_ICONS[cat]}</span>
-                      <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wide">{CATEGORY_LABELS[cat]}</h3>
-                      <span className="text-[10px] text-slate-500 font-semibold px-1.5 py-0.5 rounded bg-white border border-slate-200">
+                  <header className="px-4 py-1 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between gap-3 border-l-4" style={{ borderLeftColor: BRAND_TEAL, minHeight: 24 }}>
+                    <div className="flex items-center gap-2 leading-none">
+                      <span className="inline-flex items-center justify-center leading-none" style={{ color: BRAND_TEAL, fontSize: 14, lineHeight: 1 }}>{CATEGORY_ICONS[cat]}</span>
+                      <h3 className="text-[12px] font-semibold text-slate-800 uppercase tracking-wide leading-none m-0">{CATEGORY_LABELS[cat]}</h3>
+                      <span className="inline-flex items-center text-[10px] text-slate-500 font-semibold px-1.5 py-[1px] rounded bg-white border border-slate-200 leading-none">
                         {rows.length}
                       </span>
                     </div>
-                    <div className="text-sm font-semibold text-slate-900 tabular-nums">
+                    <div className="text-[13px] font-semibold text-slate-900 tabular-nums leading-none">
                       {fmt(subtotal)}
                     </div>
                   </header>
@@ -289,11 +308,11 @@ const CustomerBillModal = ({
                       <tr>
                         <th className="text-left font-medium px-4 py-2">Date</th>
                         <th className="text-left font-medium px-4 py-2">Description</th>
-                        <th className="text-right font-medium px-4 py-2">Qty</th>
-                        <th className="text-right font-medium px-4 py-2">Unit</th>
-                        <th className="text-right font-medium px-4 py-2">Amount</th>
-                        {hasAnyDiscount && <th className="text-right font-medium px-4 py-2">Discount</th>}
-                        <th className="text-right font-medium px-4 py-2">Status</th>
+                        <th className="text-center font-medium px-4 py-2">Qty</th>
+                        <th className="text-center font-medium px-4 py-2">Unit</th>
+                        <th className="text-center font-medium px-4 py-2">Amount</th>
+                        {hasAnyDiscount && <th className="text-center font-medium px-4 py-2">Discount</th>}
+                        <th className="text-center font-medium px-4 py-2">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -309,11 +328,11 @@ const CustomerBillModal = ({
                                 <div className="text-[11px] text-slate-400 mt-1 leading-snug">{it.detail}</div>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 align-top text-right tabular-nums">{it.qtyDisplay ?? it.qty}</td>
-                            <td className="px-4 py-2.5 align-top text-right tabular-nums text-slate-500">
+                            <td className="px-4 py-2.5 align-top text-center tabular-nums">{it.qtyDisplay ?? it.qty}</td>
+                            <td className="px-4 py-2.5 align-top text-center tabular-nums text-slate-500">
                               {it.unitPrice != null ? fmt(it.unitPrice) : '—'}
                             </td>
-                            <td className="px-4 py-2.5 align-top text-right tabular-nums font-medium whitespace-nowrap">
+                            <td className="px-4 py-2.5 align-top text-center tabular-nums font-medium whitespace-nowrap">
                               {it.status === 'package' ? (
                                 <Tooltip title="Covered by package">
                                   <span className="text-slate-400 italic font-normal">included</span>
@@ -328,13 +347,13 @@ const CustomerBillModal = ({
                               )}
                             </td>
                             {hasAnyDiscount && (
-                              <td className="px-4 py-2.5 align-top text-right tabular-nums whitespace-nowrap">
+                              <td className="px-4 py-2.5 align-top text-center tabular-nums whitespace-nowrap">
                                 {hasDiscount ? (
                                   <span className="text-rose-600 text-[11px] font-medium">{it.discountPercent}% −{fmt(it.discountAmount)}</span>
                                 ) : <span className="text-slate-300">—</span>}
                               </td>
                             )}
-                            <td className="px-4 py-2.5 align-top text-right">
+                            <td className="px-4 py-2.5 align-top text-center">
                               <StatusPill status={it.status} />
                             </td>
                           </tr>
@@ -386,20 +405,6 @@ const CustomerBillModal = ({
             </div>
           )}
 
-          {/* ── Footer note ──────────────────────────────────────── */}
-          <div className="px-8 pb-6 pt-3 border-t border-slate-100">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="text-[10px] text-slate-400 leading-relaxed max-w-[520px]">
-                This statement reflects activity on file as of {dayjs().format('DD MMM YYYY HH:mm')}.
-                Package-funded items show as <em>included</em>; balance due reflects payments received against subtotal.
-                Contact Duotone Pro Center Urla for any discrepancies.
-              </div>
-              <div className="text-right">
-                <div className="text-xs font-semibold text-slate-700">Duotone Pro Center Urla</div>
-                <div className="text-[9px] uppercase tracking-[0.18em] text-slate-400 font-semibold mt-0.5">Powered by UKC</div>
-              </div>
-            </div>
-          </div>
         </Spin>
 
         {/* ── Action bar (hidden when printing) ──────────────────── */}

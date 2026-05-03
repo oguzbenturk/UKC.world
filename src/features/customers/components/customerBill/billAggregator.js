@@ -53,8 +53,38 @@ const packageRemainingHours = (pkg) => {
 
 const formatHoursLabel = (h) => `${h % 1 === 0 ? h : h.toFixed(1)}h`;
 
+// Build a Set of "(entityType, entityId)" keys from the wallet transactions
+// where money actually moved IN (debit-direction charges or completed
+// payments tied to the entity). Used by the booking/rental/package
+// normalizers to trust evidence over the often-unreliable `payment_status`
+// column on the entity row itself — backends sometimes default that column
+// to 'paid' on entity creation even when no money changed hands, which made
+// the bill mis-report unpaid items as Paid.
+const buildPaidEntityIndex = (transactions = []) => {
+  const set = new Set();
+  for (const t of transactions || []) {
+    if (t.status && t.status !== 'completed') continue;
+    const dir = String(t.direction || '').toLowerCase();
+    const type = String(t.type || '').toLowerCase();
+    // Reversals don't count as evidence of payment.
+    if (type.includes('reversal')) continue;
+    // A debit (charge) tied to an entity is evidence the customer was
+    // billed for it — so the entity is "paid for from the wallet".
+    // A credit linked to an entity is a refund and shouldn't count.
+    if (dir !== 'debit') continue;
+    const entityType = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
+    const entityId = t.relatedEntityId || t.entity_id || t.booking_id || null;
+    if (!entityType || !entityId) continue;
+    set.add(`${entityType}:${entityId}`);
+  }
+  return set;
+};
+
+const isEntityPaid = (paidIndex, entityType, entityId) =>
+  !!entityId && paidIndex.has(`${String(entityType || '').toLowerCase()}:${entityId}`);
+
 // ── Lessons / Supervision ───────────────────────────────────────────────────
-const normalizeBooking = (b, instructors = [], packagesById = new Map()) => {
+const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidIndex = new Set()) => {
   const date = safeDate(b.date || b.formatted_date || b.start_time);
   const duration = num(b.duration);
   const amount = num(b.final_amount ?? b.total_price ?? b.amount);
@@ -67,13 +97,20 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map()) => {
       ? `${instructors.find(i => i.id === instId).first_name || ''} ${instructors.find(i => i.id === instId).last_name || ''}`.trim()
       : null);
 
-  const paidByPackage = b.payment_status === 'package'
+  const ps = String(b.payment_status || '').toLowerCase();
+  const paidByPackage = ps === 'package'
     || (b.payment_method_display && /package/i.test(b.payment_method_display));
-
-  let billStatus = 'paid';
+  // Trust the wallet ledger over the booking row's payment_status flag —
+  // the latter is sometimes stamped 'paid' on creation regardless of whether
+  // money moved. We only mark "Paid" when there's an actual debit-direction
+  // wallet transaction tied to this booking.
+  const hasWalletEvidence = isEntityPaid(paidIndex, 'booking', b.id);
+  let billStatus = 'unpaid';
   if (status === 'cancelled') billStatus = 'cancelled';
   else if (paidByPackage) billStatus = 'package';
-  else if (status === 'no-show') billStatus = 'unpaid';
+  else if (hasWalletEvidence) billStatus = 'paid';
+  // No fallback to ps='paid' alone — if the wallet has no record of payment,
+  // the row is unpaid no matter what the booking flag says.
 
   // Build the detail line. Lesson start time is intentionally omitted — the
   // bill is a financial record, not a calendar; the date is sufficient context.
@@ -117,13 +154,14 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map()) => {
   };
 };
 
-export const normalizeBookings = (bookings = [], instructors = [], packages = []) => {
+export const normalizeBookings = (bookings = [], instructors = [], packages = [], transactions = []) => {
   const packagesById = new Map((packages || []).map(p => [p.id, p]));
-  return bookings.map(b => normalizeBooking(b, instructors, packagesById));
+  const paidIndex = buildPaidEntityIndex(transactions);
+  return bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex));
 };
 
 // ── Rentals ─────────────────────────────────────────────────────────────────
-const normalizeRental = (r) => {
+const normalizeRental = (r, paidIndex = new Set()) => {
   const date = safeDate(r.rental_date || r.start_date || r.created_at);
   const total = num(r.total_price);
   const isPackage = !!r.customer_package_id || r.payment_status === 'package';
@@ -138,10 +176,14 @@ const normalizeRental = (r) => {
     description = r.equipment_name;
   }
 
-  let billStatus = 'paid';
+  // Trust the wallet ledger over r.payment_status — backend often defaults
+  // payment_status='paid' on rental creation regardless of actual payment.
+  const ps = String(r.payment_status || '').toLowerCase();
+  const hasWalletEvidence = isEntityPaid(paidIndex, 'rental', r.id);
+  let billStatus = 'unpaid';
   if (status === 'cancelled') billStatus = 'cancelled';
-  else if (isPackage) billStatus = 'package';
-  else if (total <= 0 && status !== 'returned' && status !== 'completed') billStatus = 'unpaid';
+  else if (isPackage || ps === 'package') billStatus = 'package';
+  else if (hasWalletEvidence) billStatus = 'paid';
 
   const detail = (() => {
     const start = safeDate(r.start_date || r.rental_date);
@@ -171,7 +213,10 @@ const normalizeRental = (r) => {
   };
 };
 
-export const normalizeRentals = (rentals = []) => rentals.map(normalizeRental);
+export const normalizeRentals = (rentals = [], transactions = []) => {
+  const paidIndex = buildPaidEntityIndex(transactions);
+  return rentals.map(r => normalizeRental(r, paidIndex));
+};
 
 // ── Accommodation ───────────────────────────────────────────────────────────
 // Mirrors the merge logic already used in EnhancedCustomerDetailModal.jsx so
@@ -190,15 +235,21 @@ const normalizeAccommodationRow = (row) => {
   const total = num(row.total_price);
   const fromPackage = row._source === 'package';
   const status = String(row.status || '').toLowerCase();
+  const ps = String(row.payment_status || '').toLowerCase();
 
-  let billStatus = 'paid';
+  // Same default-to-unpaid rule as bookings/rentals.
+  let billStatus = 'unpaid';
   if (status === 'cancelled') billStatus = 'cancelled';
   else if (fromPackage) billStatus = 'package';
+  else if (ps === 'paid' || ps === 'completed') billStatus = 'paid';
 
   const description = row.unit_name || row._package_name || 'Accommodation';
   const detailParts = [];
-  if (checkIn) detailParts.push(checkIn.toLocaleDateString());
-  if (checkOut) detailParts.push(`→ ${checkOut.toLocaleDateString()}`);
+  if (checkIn && checkOut) {
+    detailParts.push(`${checkIn.toLocaleDateString()} - ${checkOut.toLocaleDateString()}`);
+  } else if (checkIn) {
+    detailParts.push(`From ${checkIn.toLocaleDateString()}`);
+  }
   if (nights) detailParts.push(`${nights} night${nights === 1 ? '' : 's'}`);
 
   return {
@@ -206,7 +257,7 @@ const normalizeAccommodationRow = (row) => {
     category: 'accommodation',
     date,
     description,
-    detail: detailParts.join(' ') || null,
+    detail: detailParts.join(' · ') || null,
     qty: nights || 1,
     unit: 'night',
     unitPrice: nights && total ? total / nights : null,
@@ -252,14 +303,22 @@ export const normalizeAccommodation = (standaloneBookings = [], packages = []) =
 // ── Packages ────────────────────────────────────────────────────────────────
 // Packages are a *purchase* line — they show as one item priced at purchase price.
 // The lessons consumed against them appear separately as `package`-paid lines.
-const normalizePackage = (p) => {
+const normalizePackage = (p, paidIndex = new Set()) => {
   const date = safeDate(p.createdAt || p.created_at || p.purchasedAt || p.purchase_date);
   const total = num(p.purchasePrice ?? p.purchase_price ?? p.price);
   const totalHours = num(p.totalHours ?? p.total_hours);
   const status = String(p.status || '').toLowerCase();
 
-  let billStatus = 'paid';
+  // Trust the wallet ledger first — if there's a debit-direction transaction
+  // tied to this package, the customer paid for it. Falling back to
+  // payment_method only when no transaction evidence exists is too lenient:
+  // packages can be created with a payment_method placeholder ('cash')
+  // without any money actually changing hands, so we require evidence.
+  const hasWalletEvidence = isEntityPaid(paidIndex, 'customer_package', p.id)
+    || isEntityPaid(paidIndex, 'package', p.id);
+  let billStatus = 'unpaid';
   if (status === 'cancelled' || status === 'expired') billStatus = 'cancelled';
+  else if (hasWalletEvidence) billStatus = 'paid';
 
   const detailParts = [];
   if (totalHours > 0) detailParts.push(`${totalHours}h package`);
@@ -291,21 +350,28 @@ const normalizePackage = (p) => {
   };
 };
 
-export const normalizePackages = (packages = []) => packages.map(normalizePackage);
+export const normalizePackages = (packages = [], transactions = []) => {
+  const paidIndex = buildPaidEntityIndex(transactions);
+  return packages.map(p => normalizePackage(p, paidIndex));
+};
 
 // ── Shop orders ─────────────────────────────────────────────────────────────
 // One line per order (not per item) to keep the bill scannable. The detail
 // line lists the products inside.
-const normalizeShopOrder = (o) => {
+const normalizeShopOrder = (o, paidIndex = new Set()) => {
   const date = safeDate(o.created_at);
   const total = num(o.total_amount);
   const status = String(o.status || '').toLowerCase();
   const paymentStatus = String(o.payment_status || '').toLowerCase();
 
-  let billStatus = 'paid';
+  // Trust the wallet ledger over the row's payment_status — same rule as
+  // bookings/rentals/packages, since the column can be stamped on creation
+  // independent of whether money actually moved.
+  const hasWalletEvidence = isEntityPaid(paidIndex, 'shop_order', o.id);
+  let billStatus = 'unpaid';
   if (status === 'cancelled') billStatus = 'cancelled';
   else if (status === 'refunded' || paymentStatus === 'refunded') billStatus = 'refunded';
-  else if (paymentStatus !== 'completed' && paymentStatus !== 'paid') billStatus = 'unpaid';
+  else if (hasWalletEvidence) billStatus = 'paid';
 
   const items = Array.isArray(o.items) ? o.items : [];
   const itemCount = items.reduce((s, i) => s + num(i.quantity, 1), 0);
@@ -334,18 +400,27 @@ const normalizeShopOrder = (o) => {
   };
 };
 
-export const normalizeShopOrders = (orders = []) => orders.map(normalizeShopOrder);
+export const normalizeShopOrders = (orders = [], transactions = []) => {
+  const paidIndex = buildPaidEntityIndex(transactions);
+  return orders.map(o => normalizeShopOrder(o, paidIndex));
+};
 
 // ── Memberships ─────────────────────────────────────────────────────────────
-const normalizeMembership = (m) => {
+const normalizeMembership = (m, paidIndex = new Set()) => {
   const date = safeDate(m.purchased_at);
   const total = num(m.offering_price ?? m.price);
   const status = String(m.status || '').toLowerCase();
   const paymentStatus = String(m.payment_status || '').toLowerCase();
 
-  let billStatus = 'paid';
-  if (status === 'cancelled' || paymentStatus === 'refunded') billStatus = paymentStatus === 'refunded' ? 'refunded' : 'cancelled';
-  else if (paymentStatus && paymentStatus !== 'completed' && paymentStatus !== 'paid') billStatus = 'unpaid';
+  // Trust the wallet ledger over m.payment_status — the member_purchases
+  // table defaults payment_status to 'completed' on creation regardless of
+  // whether money actually changed hands, which would otherwise inflate the
+  // bill's "Payments received" total.
+  const hasWalletEvidence = isEntityPaid(paidIndex, 'member_purchase', m.id);
+  let billStatus = 'unpaid';
+  if (paymentStatus === 'refunded') billStatus = 'refunded';
+  else if (status === 'cancelled') billStatus = 'cancelled';
+  else if (hasWalletEvidence) billStatus = 'paid';
 
   const expires = safeDate(m.expires_at);
   const detail = expires ? `Expires ${expires.toLocaleDateString()}` : (m.period || null);
@@ -368,7 +443,10 @@ const normalizeMembership = (m) => {
   };
 };
 
-export const normalizeMemberships = (memberships = []) => memberships.map(normalizeMembership);
+export const normalizeMemberships = (memberships = [], transactions = []) => {
+  const paidIndex = buildPaidEntityIndex(transactions);
+  return memberships.map(m => normalizeMembership(m, paidIndex));
+};
 
 // ── Period filtering ────────────────────────────────────────────────────────
 // `period` is `[startDate, endDate]` or `null` for "all time".
@@ -431,23 +509,24 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
     return d >= startMs && d <= endMs;
   });
 
-  // "Payments received" reflects cash (or cash-equivalent) the customer
-  // actually paid IN to the business. Everything else in the wallet ledger
-  // — refund-back-to-wallet credits, reversals from mistake-corrections,
-  // package-purchase debits, charge reversals — is internal bookkeeping
-  // motion and must not pollute this number.
+  // The per-line `payment_status` column is the canonical "did the customer
+  // pay for this" flag. Sum every line item already marked paid — that IS the
+  // money that has come in for items in this period, so the identity
+  // `subtotal = paymentsReceived + balanceDue` holds and the per-row "Paid"
+  // pill agrees with the totals block.
   //
-  // The system's `transaction_type` column does not distinguish a real
-  // refund (money handed back to the customer) from a mistake-correction
-  // refund (the admin deleted a wrongly-created record). Since we can't
-  // tell them apart from the data, we don't try — we strip BOTH refund
-  // credits and ALL reversals from the total, and only count gross deposits
-  // net of deposit reversals.
-  //
-  // Result for the canonical case (customer paid €239, admin made a wrong
-  // package then deleted it, then made the right package): bill shows
-  // "Payments received: €239" instead of double-counting the refund credit
-  // from the deletion.
+  // Wallet transactions (deposits / top-ups) are layered on top: they only
+  // contribute when they aren't already represented by a paid line item, so
+  // a customer who pre-paid into the wallet without yet booking anything
+  // still sees that credit reflected. Reversals, refund-back-to-wallet
+  // credits, and discount-adjustment pairs remain internal motion.
+  let paidLineTotal = 0;
+  for (const item of inPeriod) {
+    if (item.status === 'paid') {
+      paidLineTotal += conv(item.amount, item.currency || baseCurrency);
+    }
+  }
+
   let grossDeposits = 0;
   let depositReversals = 0;
 
@@ -460,21 +539,45 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
     const converted = conv(amt, currency);
     const isReversal = type.includes('reversal');
     const isRefund = type.includes('refund');
+    // Internal reconciliation entries: manual percentage discounts post a
+    // credit + reversal pair (`discount_adjustment` / `discount_adjustment_reversal`),
+    // package price edits post `package_price_adjustment` credits (price down)
+    // or debits (price up), and soft-delete restores post `*_adjustment` entries.
+    // None of these represent new money coming in — the affected line item's
+    // amount already reflects the change — so counting them as payments would
+    // double-count.
+    const isInternalAdjustment = type.includes('adjustment');
+    // Skip wallet credits that pay for line items we've already counted via
+    // `paidLineTotal` — those are recorded against a specific entity (booking,
+    // rental, package, etc.) and would double-count. Match either explicit
+    // *_id columns or the generic relatedEntityType+id pair (the only field
+    // populated for non-booking/non-rental entities).
+    const tiedEntityType = String(t.entity_type || t.relatedEntityType || '').toLowerCase();
+    const tiedEntityId = t.relatedEntityId ?? t.entity_id ?? null;
+    const tiedToPaidLine = !!(t.booking_id || t.bookingId
+      || t.rental_id || t.rentalId
+      || t.accommodation_booking_id || t.accommodationBookingId
+      || t.customer_package_id || t.customerPackageId
+      || t.shop_order_id || t.shopOrderId
+      || t.member_purchase_id || t.memberPurchaseId
+      || (tiedEntityType && tiedEntityId));
+
+    if (isInternalAdjustment) continue;
 
     if (dir === 'credit') {
-      if (isReversal) continue; // reversal of a prior debit — internal, not a payment
-      if (isRefund) continue;   // refund-back-to-wallet — internal motion, money was already in
+      if (isReversal) continue;
+      if (isRefund) continue;
+      if (tiedToPaidLine) continue;
       grossDeposits += converted;
     } else if (dir === 'debit') {
-      if (isReversal) depositReversals += converted; // this undoes a prior deposit
-      // Plain debits are charges, already itemized in the line items above.
+      if (isReversal) depositReversals += converted;
     } else if (!dir) {
-      // Fallback for older rows without `direction`: use the synthesized type.
       if (type === 'payment' || type === 'deposit') grossDeposits += converted;
     }
   }
 
-  const paymentsReceived = Math.max(0, grossDeposits - depositReversals);
+  const walletNet = Math.max(0, grossDeposits - depositReversals);
+  const paymentsReceived = paidLineTotal + walletNet;
   // Refunds line is intentionally retired: the data layer can't reliably
   // distinguish real customer refunds from admin mistake-corrections, so any
   // number we'd put here would be wrong some of the time. Real refunds reduce
@@ -532,15 +635,20 @@ export const buildBillItems = ({
   shopOrders = [],
   memberships = [],
   instructors = [],
+  transactions = [],
   discountsByEntity = null,
 } = {}) => {
+  // Build the paid-entity index once and share it across normalizers — each
+  // per-category wrapper would otherwise rescan `transactions` independently.
+  const paidIndex = buildPaidEntityIndex(transactions);
+  const packagesById = new Map((packages || []).map(p => [p.id, p]));
   const items = [
-    ...normalizeBookings(bookings, instructors, packages),
-    ...normalizeRentals(rentals),
+    ...bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex)),
+    ...rentals.map(r => normalizeRental(r, paidIndex)),
     ...normalizeAccommodation(accommodationBookings, packages),
-    ...normalizePackages(packages),
-    ...normalizeShopOrders(shopOrders),
-    ...normalizeMemberships(memberships),
+    ...packages.map(p => normalizePackage(p, paidIndex)),
+    ...shopOrders.map(o => normalizeShopOrder(o, paidIndex)),
+    ...memberships.map(m => normalizeMembership(m, paidIndex)),
   ].sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
   return applyDiscounts(items, discountsByEntity);
 };
@@ -556,12 +664,35 @@ export const indexDiscounts = (discounts = []) => {
   return map;
 };
 
+// Categories whose rows should be partitioned so individually-paid items sit
+// at the top and package-funded items cluster beneath them. Lessons and
+// supervision are the natural fits — staff want a clean read of what was
+// paid out-of-pocket vs. what was drawn down from a package.
+const PARTITION_BY_PAYMENT = new Set(['lessons', 'supervision']);
+
 export const groupByCategory = (items) => {
   const groups = {};
   for (const cat of CATEGORY_ORDER) groups[cat] = [];
   for (const item of items) {
     if (!groups[item.category]) groups[item.category] = [];
     groups[item.category].push(item);
+  }
+  // Within partitioned categories: individual (non-package, non-cancelled)
+  // first, then package, then cancelled — preserving the date-desc order
+  // already established by `buildBillItems` inside each bucket.
+  const rank = (it) => {
+    if (it.status === 'cancelled') return 2;
+    if (it.status === 'package') return 1;
+    return 0;
+  };
+  for (const cat of PARTITION_BY_PAYMENT) {
+    if (groups[cat]?.length > 1) {
+      groups[cat].sort((a, b) => {
+        const r = rank(a) - rank(b);
+        if (r !== 0) return r;
+        return (b.date?.getTime() || 0) - (a.date?.getTime() || 0);
+      });
+    }
   }
   return groups;
 };

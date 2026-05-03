@@ -1078,6 +1078,18 @@ export async function fetchTransactions(userId, {
   return rows;
 }
 
+// Read the recorded available_delta for a transaction, defaulting to the
+// transaction amount only when the column is NULL. A stored 0 must NOT be
+// treated as missing — that's how the salary-into-wallet bug reappears
+// (see migration 258).
+export function resolveStoredAvailableDelta(transaction) {
+  if (!transaction) return 0;
+  if (transaction.available_delta == null) {
+    return Number.parseFloat(transaction.amount) || 0;
+  }
+  return Number.parseFloat(transaction.available_delta) || 0;
+}
+
 export async function getTransactionById(transactionId, client) {
   const executor = client ?? pool;
   const { rows } = await executor.query(

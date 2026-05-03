@@ -279,16 +279,27 @@ export async function recordBookingCommission(booking, options = {}) {
       return null;
     }
 
+    // Subtract any active manual discount on this booking so the commission is
+    // computed against the realized price (matches the package-discount path).
+    const isPackagePaid = booking.customer_package_id &&
+      (booking.payment_status === 'package' || booking.payment_status === 'partial');
+    if (!isPackagePaid) {
+      const bookingDiscount = await getActiveDiscountAmount(client, 'booking', booking.id);
+      if (bookingDiscount > 0) {
+        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - bookingDiscount).toFixed(2));
+      }
+    }
+
     // Convert to EUR for commission calculation
     let amountInEur = sourceAmount;
     if (sourceCurrency !== 'EUR') {
       try {
         amountInEur = await CurrencyService.convertCurrency(sourceAmount, sourceCurrency, 'EUR');
       } catch (convError) {
-        logger.warn('Currency conversion failed, using original amount', { 
-          error: convError.message, 
-          sourceAmount, 
-          sourceCurrency 
+        logger.warn('Currency conversion failed, using original amount', {
+          error: convError.message,
+          sourceAmount,
+          sourceCurrency
         });
         amountInEur = sourceAmount;
       }
@@ -475,16 +486,25 @@ export async function recordRentalCommission(rental, options = {}) {
       return null;
     }
 
+    // Subtract any active manual discount on this rental (skip package-paid
+    // rentals — those follow the package's own discount path).
+    if (rental.payment_status !== 'package') {
+      const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
+      if (rentalDiscount > 0) {
+        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - rentalDiscount).toFixed(2));
+      }
+    }
+
     // Convert to EUR for commission calculation
     let amountInEur = sourceAmount;
     if (sourceCurrency !== 'EUR') {
       try {
         amountInEur = await CurrencyService.convertCurrency(sourceAmount, sourceCurrency, 'EUR');
       } catch (convError) {
-        logger.warn('Currency conversion failed, using original amount', { 
-          error: convError.message, 
-          sourceAmount, 
-          sourceCurrency 
+        logger.warn('Currency conversion failed, using original amount', {
+          error: convError.message,
+          sourceAmount,
+          sourceCurrency
         });
         amountInEur = sourceAmount;
       }
@@ -562,6 +582,344 @@ export async function recordRentalCommission(rental, options = {}) {
   }
 }
 
+// Recompute pending manager_commissions for every booking that consumed the
+// given customer package. Called after the package's purchase_price has been
+// edited so future payouts reflect the new lesson value.
+//
+// Skips rows where payout_id IS NOT NULL: once a commission has been paid
+// out we treat it as immutable history. Cancelled rows are also skipped.
+//
+// Runs inside the caller's transaction (no own pool.connect / BEGIN).
+//
+// Mirrors the source-amount derivation used by recordBookingCommission so
+// values stay consistent: stored package_hourly_rate first, otherwise
+// subtract rental + accommodation costs from purchase_price.
+export async function recomputeManagerCommissionsForPackage(client, packageId) {
+  const summary = { updated: 0, skippedPaidOut: 0, skippedNoChange: 0 };
+
+  // Pull the package + its service_packages metadata once. Same query shape
+  // as recordBookingCommission so the math matches.
+  const pkgRes = await client.query(
+    `SELECT cp.id AS pkg_id, cp.purchase_price, cp.total_hours, cp.remaining_hours,
+            cp.used_hours, cp.currency,
+            sp.package_hourly_rate, sp.rental_service_id, sp.accommodation_unit_id,
+            sp.rental_days, sp.accommodation_nights,
+            sp.sessions_count, sp.total_hours AS sp_total_hours,
+            cs.exchange_rate
+       FROM customer_packages cp
+  LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+  LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
+      WHERE cp.id = $1`,
+    [packageId]
+  );
+  if (!pkgRes.rows.length) return summary;
+  const pkg = pkgRes.rows[0];
+
+  // Convert package price to EUR if stored in another currency.
+  let pkgPriceEur = toNumber(pkg.purchase_price);
+  if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
+    pkgPriceEur = Math.round((pkgPriceEur / toNumber(pkg.exchange_rate)) * 100) / 100;
+  }
+
+  // Subtract any active per-package discount so manager commission tracks
+  // actual realized revenue, not the headline pre-discount price.
+  const { rows: discRows } = await client.query(
+    `SELECT amount FROM discounts WHERE entity_type='customer_package' AND entity_id=$1`,
+    [String(packageId)]
+  );
+  if (discRows.length) {
+    const discountAmount = toNumber(discRows[0].amount);
+    pkgPriceEur = Math.max(0, pkgPriceEur - discountAmount);
+  }
+
+  // Derive the lesson-only portion of the package.
+  const storedHourlyRate = toNumber(pkg.package_hourly_rate);
+  const pkgTotalHours = toNumber(pkg.total_hours) || toNumber(pkg.sp_total_hours);
+  let effectiveLessonPrice = pkgPriceEur;
+  if (storedHourlyRate > 0 && pkgTotalHours > 0) {
+    effectiveLessonPrice = storedHourlyRate * pkgTotalHours;
+  } else {
+    let rentalCost = 0;
+    let accomCost = 0;
+    const rentalDays = parseInt(pkg.rental_days, 10) || 0;
+    const accomNights = parseInt(pkg.accommodation_nights, 10) || 0;
+    if (rentalDays > 0 && pkg.rental_service_id) {
+      try {
+        const { rows } = await client.query('SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]);
+        rentalCost = rentalDays * (toNumber(rows[0]?.price) || 0);
+      } catch { /* ignore */ }
+    }
+    if (accomNights > 0 && pkg.accommodation_unit_id) {
+      try {
+        const { rows } = await client.query('SELECT price_per_night FROM accommodation_units WHERE id = $1', [pkg.accommodation_unit_id]);
+        accomCost = accomNights * (toNumber(rows[0]?.price_per_night) || 0);
+      } catch { /* ignore */ }
+    }
+    if (rentalCost + accomCost > 0) {
+      effectiveLessonPrice = Math.max(0, pkgPriceEur - rentalCost - accomCost);
+    }
+  }
+
+  // Pull every editable commission row tied to this package's bookings.
+  const cmsRes = await client.query(
+    `SELECT mc.id, mc.commission_rate, mc.source_amount, mc.commission_amount,
+            mc.payout_id, mc.status,
+            b.id AS booking_id, b.duration, b.payment_status, b.group_size,
+            b.final_amount, b.amount, b.currency AS booking_currency,
+            b.customer_package_id
+       FROM manager_commissions mc
+       JOIN bookings b ON b.id = mc.source_id::uuid
+      WHERE mc.source_type = 'booking'
+        AND b.customer_package_id = $1
+        AND b.deleted_at IS NULL
+        AND mc.status != 'cancelled'`,
+    [packageId]
+  );
+
+  for (const row of cmsRes.rows) {
+    if (row.payout_id) {
+      summary.skippedPaidOut += 1;
+      continue;
+    }
+
+    let newSourceAmount;
+    const isPackagePayment = row.payment_status === 'package' || row.payment_status === 'partial';
+    if (isPackagePayment) {
+      const perPersonAmount = deriveLessonAmount({
+        paymentStatus: 'package',
+        duration: toNumber(row.duration),
+        baseAmount: 0,
+        packagePrice: effectiveLessonPrice,
+        packageTotalHours: pkgTotalHours,
+        packageRemainingHours: toNumber(pkg.remaining_hours),
+        packageUsedHours: toNumber(pkg.used_hours),
+        packageSessionsCount: toNumber(pkg.sessions_count),
+        fallbackSessionDuration: toNumber(row.duration),
+      });
+      const groupSize = Math.max(1, parseInt(row.group_size, 10) || 1);
+      if (row.payment_status === 'partial') {
+        const cashAmount = parseFloat(row.final_amount) || parseFloat(row.amount) || 0;
+        newSourceAmount = Number.parseFloat((perPersonAmount + cashAmount).toFixed(2));
+      } else {
+        newSourceAmount = Number.parseFloat((perPersonAmount * (groupSize > 1 ? groupSize : 1)).toFixed(2));
+      }
+    } else {
+      // Non-package payment: source_amount tracks the booking's own price,
+      // which the package edit doesn't affect — leave it alone.
+      summary.skippedNoChange += 1;
+      continue;
+    }
+
+    // Convert to EUR if booking currency differs.
+    let amountInEur = newSourceAmount;
+    const bookingCurrency = row.booking_currency || 'EUR';
+    if (bookingCurrency !== 'EUR') {
+      try {
+        amountInEur = await CurrencyService.convertCurrency(newSourceAmount, bookingCurrency, 'EUR');
+      } catch {
+        amountInEur = newSourceAmount;
+      }
+    }
+
+    const rate = toNumber(row.commission_rate);
+    const newCommissionAmount = Number.parseFloat(((amountInEur * rate) / 100).toFixed(2));
+
+    const oldSourceAmount = toNumber(row.source_amount);
+    const oldCommissionAmount = toNumber(row.commission_amount);
+    if (Math.abs(oldSourceAmount - newSourceAmount) < 0.005 &&
+        Math.abs(oldCommissionAmount - newCommissionAmount) < 0.005) {
+      summary.skippedNoChange += 1;
+      continue;
+    }
+
+    await client.query(
+      `UPDATE manager_commissions
+          SET source_amount = $1,
+              commission_amount = $2,
+              notes = COALESCE(notes || ' | ', '') || $3,
+              updated_at = NOW()
+        WHERE id = $4`,
+      [
+        newSourceAmount,
+        newCommissionAmount,
+        `Recomputed after package price edit (${oldSourceAmount.toFixed(2)} -> ${newSourceAmount.toFixed(2)})`,
+        row.id,
+      ]
+    );
+    summary.updated += 1;
+  }
+
+  return summary;
+}
+
+// Maps a discount entity_type to the matching manager_commissions source_type
+// + the source-row metadata needed to re-derive the post-discount price.
+//
+// Package-paid bookings/rentals are deliberately skipped here: their commission
+// follows the package's own price, so the package-level discount path
+// (recomputeManagerCommissionsForPackage) already handles them.
+const ENTITY_COMMISSION_MAP = {
+  booking: {
+    sourceType: 'booking',
+    table: 'bookings',
+    priceCol: 'COALESCE(NULLIF(final_amount, 0), amount)',
+    currencyCol: 'currency',
+    idType: 'uuid',
+    skipExpr: `payment_status IN ('package', 'partial')`,
+  },
+  rental: {
+    sourceType: 'rental',
+    table: 'rentals',
+    priceCol: 'total_price',
+    currencyCol: null,
+    idType: 'uuid',
+    skipExpr: `payment_status = 'package'`,
+  },
+  accommodation_booking: {
+    sourceType: 'accommodation',
+    table: 'accommodation_bookings',
+    priceCol: 'total_price',
+    currencyCol: null,
+    idType: 'uuid',
+    skipExpr: null,
+  },
+  member_purchase: {
+    sourceType: 'membership',
+    table: 'member_purchases',
+    priceCol: 'offering_price',
+    currencyCol: null,
+    idType: 'int',
+    skipExpr: null,
+  },
+  shop_order: {
+    sourceType: 'shop',
+    table: 'shop_orders',
+    priceCol: 'total_amount',
+    currencyCol: 'currency',
+    idType: 'int',
+    skipExpr: null,
+  },
+};
+
+// Reads any active per-entity manual discount amount. Returns 0 when no row
+// exists. Safe to call from any service that has the discount entity type/id.
+export async function getActiveDiscountAmount(client, entityType, entityId) {
+  if (entityType == null || entityId == null) return 0;
+  const { rows } = await client.query(
+    `SELECT amount FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
+    [entityType, String(entityId)]
+  );
+  return rows.length ? toNumber(rows[0].amount) : 0;
+}
+
+// Re-derives source_amount + commission_amount for the active commission row
+// tied to a single non-package source entity, after its manual discount has
+// been applied / changed / removed. Mirrors the recordX paths so the math
+// stays consistent: read the entity's base price, subtract any active
+// discount, convert to EUR, multiply by the row's stored commission_rate.
+//
+// No-ops when:
+//   - the entity_type isn't in ENTITY_COMMISSION_MAP
+//   - the row is fully package-paid (handled by the package recompute path)
+//   - the commission row has been paid out (immutable history)
+//   - amounts haven't actually changed
+//
+// Runs inside the caller's transaction.
+export async function recomputeManagerCommissionForEntity(client, entityType, entityId) {
+  const cfg = ENTITY_COMMISSION_MAP[entityType];
+  if (!cfg) return { skipped: 'unsupported_entity_type' };
+
+  const idCast = cfg.idType === 'int' ? '::integer' : '::uuid';
+  const currencyExpr = cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`;
+  const skipExpr = cfg.skipExpr ? `, (${cfg.skipExpr}) AS skip_pkg` : `, FALSE AS skip_pkg`;
+
+  const { rows: entityRows } = await client.query(
+    `SELECT ${cfg.priceCol} AS base_price,
+            ${currencyExpr} AS currency
+            ${skipExpr}
+       FROM ${cfg.table}
+      WHERE id = $1${idCast}
+      LIMIT 1`,
+    [String(entityId)]
+  );
+  if (!entityRows.length) return { skipped: 'entity_not_found' };
+  const entity = entityRows[0];
+  if (entity.skip_pkg) return { skipped: 'package_paid' };
+
+  const basePrice = toNumber(entity.base_price);
+  const discountAmount = await getActiveDiscountAmount(client, entityType, entityId);
+  const newSourceAmount = Number.parseFloat(Math.max(0, basePrice - discountAmount).toFixed(2));
+
+  const { rows: cmsRows } = await client.query(
+    `SELECT id, commission_rate, source_amount, commission_amount, payout_id, source_currency
+       FROM manager_commissions
+      WHERE source_type = $1
+        AND source_id = $2
+        AND status != 'cancelled'
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [cfg.sourceType, String(entityId)]
+  );
+  if (!cmsRows.length) return { skipped: 'no_commission' };
+  const cms = cmsRows[0];
+  if (cms.payout_id) return { skipped: 'paid_out' };
+
+  const sourceCurrency = entity.currency || cms.source_currency || 'EUR';
+  let amountInEur = newSourceAmount;
+  if (sourceCurrency !== 'EUR') {
+    try {
+      amountInEur = await CurrencyService.convertCurrency(newSourceAmount, sourceCurrency, 'EUR');
+    } catch {
+      amountInEur = newSourceAmount;
+    }
+  }
+
+  const rate = toNumber(cms.commission_rate);
+  const newCommissionAmount = Number.parseFloat(((amountInEur * rate) / 100).toFixed(2));
+
+  const oldSourceAmount = toNumber(cms.source_amount);
+  const oldCommissionAmount = toNumber(cms.commission_amount);
+  if (Math.abs(oldSourceAmount - newSourceAmount) < 0.005 &&
+      Math.abs(oldCommissionAmount - newCommissionAmount) < 0.005) {
+    return { skipped: 'no_change' };
+  }
+
+  await client.query(
+    `UPDATE manager_commissions
+        SET source_amount = $1,
+            commission_amount = $2,
+            notes = COALESCE(notes || ' | ', '') || $3,
+            updated_at = NOW()
+      WHERE id = $4`,
+    [
+      newSourceAmount,
+      newCommissionAmount,
+      `Recomputed after discount change (${oldSourceAmount.toFixed(2)} -> ${newSourceAmount.toFixed(2)})`,
+      cms.id,
+    ]
+  );
+
+  logger.info('Manager commission recomputed after discount change', {
+    entityType,
+    entityId: String(entityId),
+    sourceType: cfg.sourceType,
+    commissionId: cms.id,
+    oldSourceAmount,
+    newSourceAmount,
+    oldCommissionAmount,
+    newCommissionAmount,
+  });
+
+  return {
+    updated: true,
+    commissionId: cms.id,
+    oldSourceAmount,
+    newSourceAmount,
+    oldCommissionAmount,
+    newCommissionAmount,
+  };
+}
+
 /**
  * Cancel a commission (e.g., when booking/rental is cancelled or refunded)
  * @param {string} sourceType - 'booking' or 'rental'
@@ -602,8 +960,13 @@ export async function cancelCommission(sourceType, sourceId, reason = 'cancelled
  * Generic helper – record a manager commission for any source type.
  * Follows the same pattern as recordBookingCommission / recordRentalCommission
  * but is parameterised so we don't duplicate 80 lines per category.
+ *
+ * `discountEntityType` (optional) — the discounts table entity_type used for
+ * this source. When provided, any active manual discount is subtracted from
+ * the source amount before computing commission, mirroring the booking/rental
+ * paths so a pre-existing discount doesn't get ignored at record time.
  */
-async function recordGenericCommission(sourceType, { id, amount, currency, date, metadata }) {
+async function recordGenericCommission(sourceType, { id, amount, currency, date, metadata, discountEntityType }) {
   const sourceId = String(id);
   const client = await pool.connect();
   try {
@@ -632,10 +995,17 @@ async function recordGenericCommission(sourceType, { id, amount, currency, date,
       return null;
     }
 
-    const sourceAmount = parseFloat(amount) || 0;
+    let sourceAmount = parseFloat(amount) || 0;
     if (sourceAmount <= 0) {
       await client.query('ROLLBACK');
       return null;
+    }
+
+    if (discountEntityType) {
+      const disc = await getActiveDiscountAmount(client, discountEntityType, id);
+      if (disc > 0) {
+        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - disc).toFixed(2));
+      }
     }
 
     const sourceCurrency = currency || 'EUR';
@@ -694,6 +1064,7 @@ export async function recordAccommodationCommission(booking) {
     amount: booking.total_price,
     currency: booking.currency || 'EUR',
     date: booking.check_in_date || booking.created_at,
+    discountEntityType: 'accommodation_booking',
     metadata: {
       guestId: booking.guest_id || null,
       unitId: booking.unit_id || null,
@@ -713,6 +1084,7 @@ export async function recordShopCommission(order) {
     amount: order.total_amount,
     currency: order.currency || 'EUR',
     date: order.confirmed_at || order.created_at,
+    discountEntityType: 'shop_order',
     metadata: {
       orderNumber: order.order_number || null,
       customerName: order.customer_name || null,
@@ -730,6 +1102,7 @@ export async function recordMembershipCommission(purchase) {
     amount: purchase.offering_price || purchase.price,
     currency: purchase.currency || 'EUR',
     date: purchase.purchased_at || purchase.created_at,
+    discountEntityType: 'member_purchase',
     metadata: {
       offeringName: purchase.offering_name || null,
       userId: purchase.user_id || null,

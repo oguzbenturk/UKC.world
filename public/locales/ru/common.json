@@ -323,6 +323,8 @@
     "country": "Страна",
     "role": "Роль",
     "password": "Пароль",
+    "newPassword": "Новый пароль",
+    "leaveEmptyToKeepPassword": "Оставьте пустым, чтобы сохранить текущий пароль",
     "confirmPassword": "Подтвердите пароль",
     "changeAvatar": "Изменить аватар",
     "saveChanges": "Сохранить изменения",
