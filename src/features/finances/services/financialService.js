@@ -115,15 +115,17 @@ class FinancialService {
         type: txnData.type,
         description: txnData.description || '',
         paymentMethod: txnData.payment_method,
-        relatedEntityId: txnData.booking_id,
-        relatedEntityType: txnData.entity_type,
+        relatedEntityId: txnData.related_entity_id || txnData.booking_id,
+        relatedEntityType: txnData.related_entity_type || txnData.entity_type,
         status: txnData.status || 'completed',
         receiptNumber: txnData.reference_number,
         createdAt: txnData.transaction_date || txnData.created_at,
         updatedAt: txnData.updated_at,
         createdBy: txnData.created_by,
         currency: txnData.currency || null,
-        direction: txnData.direction || null
+        direction: txnData.direction || null,
+        balanceAvailableAfter: txnData.balance_available_after != null ? parseFloat(txnData.balance_available_after) : null,
+        bookingId: txnData.booking_id || null
       }));
       
     } catch (error) {

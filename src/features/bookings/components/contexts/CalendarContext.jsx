@@ -138,6 +138,10 @@ const standardizeBookingData = (rawBooking) => {
   final_amount: Number(rawBooking.final_amount) || 0,
   amount: Number(rawBooking.amount) || 0,
   price: Number(rawBooking.price || rawBooking.amount || rawBooking.final_amount) || 0,
+  // Total of all manual discount rows on this booking (entity-wide +
+  // per-participant). The detail modal subtracts it from the displayed
+  // total so the price reflects applied discounts.
+  total_discount_amount: rawBooking.total_discount_amount != null ? Number(rawBooking.total_discount_amount) : 0,
   // Payment/package indicators
   payment_status: rawBooking.payment_status || rawBooking.paymentStatus,
   customer_package_id: rawBooking.customer_package_id || rawBooking.customerPackageId || null,

@@ -47,9 +47,9 @@ router.get('/', authorizeRoles(READ_ROLES), async (req, res) => {
   }
 });
 
-// POST /api/discounts  { customer_id, entity_type, entity_id, percent, reason? }
+// POST /api/discounts  { customer_id, entity_type, entity_id, percent, reason?, participant_user_id? }
 router.post('/', authorizeRoles(STAFF_ROLES), async (req, res) => {
-  const { customer_id, entity_type, entity_id, percent, reason } = req.body || {};
+  const { customer_id, entity_type, entity_id, percent, reason, participant_user_id } = req.body || {};
   if (!customer_id || !entity_type || entity_id == null || percent == null) {
     return res.status(400).json({ error: 'customer_id, entity_type, entity_id, percent are required' });
   }
@@ -67,6 +67,7 @@ router.post('/', authorizeRoles(STAFF_ROLES), async (req, res) => {
       percent,
       reason,
       createdBy: req.user?.id || null,
+      participantUserId: participant_user_id || null,
     });
     await client.query('COMMIT');
     logger.info('Discount applied', {
@@ -116,6 +117,7 @@ router.post('/bulk', authorizeRoles(STAFF_ROLES), async (req, res) => {
           percent,
           reason,
           createdBy: req.user?.id || null,
+          participantUserId: it.participant_user_id || null,
         });
         if (result.discount) applied.push(result.discount);
         else if (result.deleted) skipped.push({ ...it, reason: 'percent=0, removed existing' });

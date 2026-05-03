@@ -66,19 +66,33 @@ const buildPaidEntityIndex = (transactions = []) => {
     if (t.status && t.status !== 'completed') continue;
     const dir = String(t.direction || '').toLowerCase();
     const type = String(t.type || '').toLowerCase();
-    // Reversals don't count as evidence of payment.
+    // Reversals + refunds + internal adjustments aren't evidence of payment.
     if (type.includes('reversal')) continue;
-    // A debit (charge) tied to an entity is evidence the customer was
-    // billed for it — so the entity is "paid for from the wallet".
-    // A credit linked to an entity is a refund and shouldn't count.
-    if (dir !== 'debit') continue;
-    // pay_later charges record the debt without any incoming money — staff /
-    // trusted_customer flows allow the wallet to go negative. Treating them
-    // as paid would tell the customer "you owe €0" when they actually owe.
-    const paymentMethod = String(t.paymentMethod || t.payment_method || '').toLowerCase();
-    if (paymentMethod === 'pay_later') continue;
+    if (type.includes('refund')) continue;
+    if (type.includes('adjustment')) continue;
+    // A line item is "paid" only when there's an actual incoming-money
+    // CREDIT tied to it — i.e. the customer (or staff on their behalf)
+    // recorded a payment that explicitly references this entity.
+    //
+    // We deliberately do NOT mark items paid based on debit-direction
+    // charges, even when the wallet had funds to absorb them: a debit just
+    // records "we billed the customer," it doesn't prove "the customer
+    // paid for this." When the customer deposits cash and the wallet later
+    // funds a booking, the deposit is the real payment — counted once via
+    // computeTotals' credit sum — and items they didn't specifically pay
+    // for stay "unpaid" so the bill totals stay correct (the prior debit-
+    // based rule double-counted the deposit AND the wallet-funded line).
+    if (dir !== 'credit') continue;
     const entityType = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
-    const entityId = t.relatedEntityId || t.entity_id || t.booking_id || null;
+    const entityId = t.relatedEntityId
+      || t.entity_id
+      || t.booking_id
+      || t.rental_id
+      || t.accommodation_booking_id
+      || t.customer_package_id
+      || t.shop_order_id
+      || t.member_purchase_id
+      || null;
     if (!entityType || !entityId) continue;
     set.add(`${entityType}:${entityId}`);
   }
@@ -89,10 +103,28 @@ const isEntityPaid = (paidIndex, entityType, entityId) =>
   !!entityId && paidIndex.has(`${String(entityType || '').toLowerCase()}:${entityId}`);
 
 // ── Lessons / Supervision ───────────────────────────────────────────────────
-const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidIndex = new Set()) => {
+// Pull this customer's share of a multi-participant (semi-private / group)
+// booking. The booking row's `amount`/`final_amount` is the GROUP total —
+// each participant's actual cost lives on `booking_participants.payment_amount`,
+// surfaced as `participants[].paymentAmount`. Returns the participant's share
+// when found; null means "fall back to booking-level amount" (solo lessons,
+// or customer-id unknown).
+const participantShare = (b, customerId) => {
+  if (!customerId) return null;
+  const participants = Array.isArray(b.participants) ? b.participants : [];
+  if (participants.length <= 1) return null;
+  const mine = participants.find(p => p && p.userId === customerId);
+  if (!mine) return null;
+  const pay = num(mine.paymentAmount, NaN);
+  return Number.isFinite(pay) ? pay : null;
+};
+
+const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidIndex = new Set(), customerId = null) => {
   const date = safeDate(b.date || b.formatted_date || b.start_time);
   const duration = num(b.duration);
-  const amount = num(b.final_amount ?? b.total_price ?? b.amount);
+  const myShare = participantShare(b, customerId);
+  const isGroupShare = myShare != null;
+  const amount = isGroupShare ? myShare : num(b.final_amount ?? b.total_price ?? b.amount);
   const status = String(b.status || '').toLowerCase();
 
   const instId = b.instructor_user_id || b.instructor_id;
@@ -161,13 +193,17 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidInd
     paymentMethod: b.payment_method_display || (paidByPackage ? 'Package' : null),
     entityType: 'booking',
     entityId: b.id,
+    // For group bookings, the discount lookup needs to know which
+    // participant this row represents so per-participant discounts attach
+    // to the right line.
+    participantUserId: isGroupShare ? customerId : null,
   };
 };
 
-export const normalizeBookings = (bookings = [], instructors = [], packages = [], transactions = []) => {
+export const normalizeBookings = (bookings = [], instructors = [], packages = [], transactions = [], customerId = null) => {
   const packagesById = new Map((packages || []).map(p => [p.id, p]));
   const paidIndex = buildPaidEntityIndex(transactions);
-  return bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex));
+  return bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex, customerId));
 };
 
 // ── Rentals ─────────────────────────────────────────────────────────────────
@@ -186,13 +222,20 @@ const normalizeRental = (r, paidIndex = new Set()) => {
     description = r.equipment_name;
   }
 
-  // Trust the wallet ledger over r.payment_status — backend often defaults
-  // payment_status='paid' on rental creation regardless of actual payment.
+  // Trust the wallet ledger over r.payment_status for 'paid' claims —
+  // backend often defaults payment_status='paid' on rental creation
+  // regardless of actual payment. But when the row says NOT settled, trust
+  // that (matches the booking-side guard): a wallet debit can exist for
+  // pay_later / staff-allow-negative flows that didn't actually take in
+  // money, and the cumulative wallet-went-negative check in
+  // buildPaidEntityIndex is a backstop, not a substitute.
   const ps = String(r.payment_status || '').toLowerCase();
+  const NOT_SETTLED = new Set(['unpaid', 'pending', 'pending_payment', 'waiting_payment', 'failed', 'partial']);
   const hasWalletEvidence = isEntityPaid(paidIndex, 'rental', r.id);
   let billStatus = 'unpaid';
   if (status === 'cancelled') billStatus = 'cancelled';
   else if (isPackage || ps === 'package') billStatus = 'package';
+  else if (NOT_SETTLED.has(ps)) billStatus = 'unpaid';
   else if (hasWalletEvidence) billStatus = 'paid';
 
   const detail = (() => {
@@ -519,26 +562,22 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
     return d >= startMs && d <= endMs;
   });
 
-  // The per-line `payment_status` column is the canonical "did the customer
-  // pay for this" flag. Sum every line item already marked paid — that IS the
-  // money that has come in for items in this period, so the identity
-  // `subtotal = paymentsReceived + balanceDue` holds and the per-row "Paid"
-  // pill agrees with the totals block.
+  // Payments received = actual money the customer paid us during the period.
+  // Sum every CREDIT-direction wallet transaction (cash deposits, card
+  // payments, bank transfers, payments tied to specific entities) once,
+  // excluding internal motion that doesn't represent real incoming cash:
+  //   - reversals (cancel a prior entry)
+  //   - refunds (money going back out to the customer)
+  //   - *_adjustment types (discount/price-edit reconciliation, no money)
   //
-  // Wallet transactions (deposits / top-ups) are layered on top: they only
-  // contribute when they aren't already represented by a paid line item, so
-  // a customer who pre-paid into the wallet without yet booking anything
-  // still sees that credit reflected. Reversals, refund-back-to-wallet
-  // credits, and discount-adjustment pairs remain internal motion.
-  let paidLineTotal = 0;
-  for (const item of inPeriod) {
-    if (item.status === 'paid') {
-      paidLineTotal += conv(item.amount, item.currency || baseCurrency);
-    }
-  }
-
-  let grossDeposits = 0;
-  let depositReversals = 0;
+  // Crucially we do NOT also add `paidLineTotal` (sum of items marked paid).
+  // The previous implementation did, which double-counted the common
+  // "customer deposits cash, then wallet funds a booking" flow: the deposit
+  // got counted via wallet credits AND the booking got counted via its
+  // paid-line amount, even though both reflect the SAME cash inflow.
+  // The ONLY source of truth for "money in" is the credit ledger.
+  let paymentsReceived = 0;
+  let refundsOut = 0;
 
   for (const t of txInPeriod) {
     if (t.status && t.status !== 'completed') continue;
@@ -547,55 +586,38 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
     const amt = Math.abs(num(t.amount));
     const currency = t.currency || baseCurrency;
     const converted = conv(amt, currency);
-    const isReversal = type.includes('reversal');
-    const isRefund = type.includes('refund');
-    // Internal reconciliation entries: manual percentage discounts post a
-    // credit + reversal pair (`discount_adjustment` / `discount_adjustment_reversal`),
-    // package price edits post `package_price_adjustment` credits (price down)
-    // or debits (price up), and soft-delete restores post `*_adjustment` entries.
-    // None of these represent new money coming in — the affected line item's
-    // amount already reflects the change — so counting them as payments would
-    // double-count.
-    const isInternalAdjustment = type.includes('adjustment');
-    // Skip wallet credits that pay for line items we've already counted via
-    // `paidLineTotal` — those are recorded against a specific entity (booking,
-    // rental, package, etc.) and would double-count. Match either explicit
-    // *_id columns or the generic relatedEntityType+id pair (the only field
-    // populated for non-booking/non-rental entities).
-    const tiedEntityType = String(t.entity_type || t.relatedEntityType || '').toLowerCase();
-    const tiedEntityId = t.relatedEntityId ?? t.entity_id ?? null;
-    const tiedToPaidLine = !!(t.booking_id || t.bookingId
-      || t.rental_id || t.rentalId
-      || t.accommodation_booking_id || t.accommodationBookingId
-      || t.customer_package_id || t.customerPackageId
-      || t.shop_order_id || t.shopOrderId
-      || t.member_purchase_id || t.memberPurchaseId
-      || (tiedEntityType && tiedEntityId));
 
-    if (isInternalAdjustment) continue;
+    // Internal reconciliation (discount adjustments, price edits, soft-delete
+    // restores) — never moves real money, so it's neither a payment nor a
+    // refund. Crucially, this also covers the discount_adjustment credit
+    // posted when a discount is applied to a paid item, which would
+    // otherwise inflate paymentsReceived.
+    if (type.includes('adjustment')) continue;
+    // Reversals cancel a prior row — net effect is zero, ignore both halves.
+    if (type.includes('reversal')) continue;
+
+    if (type.includes('refund')) {
+      // Refund-typed credit = money going back to the customer's wallet
+      // (still reduces what they paid us net). Refund-typed debit = money
+      // out to the customer's bank/cash. Either way, it's an outflow from
+      // our books.
+      refundsOut += converted;
+      continue;
+    }
 
     if (dir === 'credit') {
-      if (isReversal) continue;
-      if (isRefund) continue;
-      if (tiedToPaidLine) continue;
-      grossDeposits += converted;
-    } else if (dir === 'debit') {
-      if (isReversal) depositReversals += converted;
-    } else if (!dir) {
-      if (type === 'payment' || type === 'deposit') grossDeposits += converted;
+      paymentsReceived += converted;
     }
+    // Debit charges (booking_charge, rental_charge, etc.) record what the
+    // customer owes — already reflected in the line items' subtotal — so
+    // we don't subtract them here.
   }
 
-  const walletNet = Math.max(0, grossDeposits - depositReversals);
-  const paymentsReceived = paidLineTotal + walletNet;
-  // Refunds line is intentionally retired: the data layer can't reliably
-  // distinguish real customer refunds from admin mistake-corrections, so any
-  // number we'd put here would be wrong some of the time. Real refunds reduce
-  // the customer's effective outstanding balance through the line items they
-  // cancel (which already show as `cancelled` and contribute €0).
+  // Net payments received after refunds, but never go below zero.
+  paymentsReceived = Math.max(0, paymentsReceived - refundsOut);
   const refundsIssued = 0;
 
-  const balanceDue = subtotal - paymentsReceived + refundsIssued;
+  const balanceDue = subtotal - paymentsReceived;
 
   return { subtotalsByCategory, subtotal, paymentsReceived, refundsIssued, balanceDue, periodItems: inPeriod };
 };
@@ -608,13 +630,26 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
 // `discountPercent` / `discountId` are populated for display.
 //
 // Pass-through if no discounts. Pure: returns a new array of new objects.
+//
+// For multi-participant bookings, line items carry `participantUserId` —
+// look up the per-participant discount first, then fall back to the
+// entity-wide row (legacy / solo).
 export const applyDiscounts = (items, discountsByEntity) => {
   if (!discountsByEntity || (discountsByEntity.size ?? 0) === 0) {
     return items.map(it => ({ ...it, originalAmount: it.amount }));
   }
   return items.map(it => {
-    const key = it.entityType && it.entityId != null ? `${it.entityType}:${it.entityId}` : null;
-    const discount = key ? discountsByEntity.get(key) : null;
+    if (!it.entityType || it.entityId == null) {
+      return { ...it, originalAmount: it.amount };
+    }
+    // Participant-scoped rows only match per-participant discounts. Entity-
+    // scoped rows match entity-wide discounts. No fallback between the two —
+    // mixing them produces wrong final amounts (whole-booking discount
+    // applied to a half-share).
+    const key = it.participantUserId
+      ? `${it.entityType}:${it.entityId}:${it.participantUserId}`
+      : `${it.entityType}:${it.entityId}`;
+    const discount = discountsByEntity.get(key) || null;
     if (!discount || it.status === 'cancelled' || it.status === 'package') {
       return { ...it, originalAmount: it.amount };
     }
@@ -647,13 +682,14 @@ export const buildBillItems = ({
   instructors = [],
   transactions = [],
   discountsByEntity = null,
+  customerId = null,
 } = {}) => {
   // Build the paid-entity index once and share it across normalizers — each
   // per-category wrapper would otherwise rescan `transactions` independently.
   const paidIndex = buildPaidEntityIndex(transactions);
   const packagesById = new Map((packages || []).map(p => [p.id, p]));
   const items = [
-    ...bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex)),
+    ...bookings.map(b => normalizeBooking(b, instructors, packagesById, paidIndex, customerId)),
     ...rentals.map(r => normalizeRental(r, paidIndex)),
     ...normalizeAccommodation(accommodationBookings, packages),
     ...packages.map(p => normalizePackage(p, paidIndex)),
@@ -663,13 +699,20 @@ export const buildBillItems = ({
   return applyDiscounts(items, discountsByEntity);
 };
 
-// Convenience: builds a Map<`${entityType}:${entityId}`, discountRow> from
-// the array shape returned by `GET /api/discounts`.
+// Convenience: builds a Map keyed by either:
+//   `${entityType}:${entityId}`                           — entity-wide discount
+//   `${entityType}:${entityId}:${participantUserId}`      — per-participant discount
+// from the array shape returned by `GET /api/discounts`. Both shapes can
+// coexist (a group booking might have one entity-wide row from a legacy
+// pre-participant discount AND per-participant rows for newer ones).
 export const indexDiscounts = (discounts = []) => {
   const map = new Map();
   for (const d of discounts || []) {
     if (!d?.entity_type || d.entity_id == null) continue;
-    map.set(`${d.entity_type}:${d.entity_id}`, d);
+    const key = d.participant_user_id
+      ? `${d.entity_type}:${d.entity_id}:${d.participant_user_id}`
+      : `${d.entity_type}:${d.entity_id}`;
+    map.set(key, d);
   }
   return map;
 };

@@ -551,6 +551,8 @@ router.get('/',
         cp.package_name,
         cp.total_hours as package_total_hours,
         (COALESCE(cp.purchase_price, 0) - COALESCE(d_pkg.amount, 0)) as package_price,
+        (SELECT COALESCE(SUM(amount), 0) FROM discounts
+           WHERE entity_type = 'booking' AND entity_id = b.id::text) as total_discount_amount,
         TO_CHAR(b.date, 'YYYY-MM-DD') as formatted_date,
         COALESCE(
           CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
@@ -845,6 +847,8 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
         cp.package_name,
         cp.total_hours as package_total_hours,
         (COALESCE(cp.purchase_price, 0) - COALESCE(d_pkg.amount, 0)) as package_price,
+        (SELECT COALESCE(SUM(amount), 0) FROM discounts
+           WHERE entity_type = 'booking' AND entity_id = b.id::text) as total_discount_amount,
         COALESCE(
           CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
                THEN COALESCE(idc.self_student_commission_rate, 45) END,
@@ -1430,6 +1434,8 @@ router.get('/:id', authenticateJWT, async (req, res) => {
         cp.package_name,
         cp.total_hours as package_total_hours,
         (COALESCE(cp.purchase_price, 0) - COALESCE(d_pkg.amount, 0)) as package_price,
+        (SELECT COALESCE(SUM(amount), 0) FROM discounts
+           WHERE entity_type = 'booking' AND entity_id = b.id::text) as total_discount_amount,
         COALESCE(b.final_amount, b.amount, srv.price, 0) as display_amount,
         COALESCE(
           CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id

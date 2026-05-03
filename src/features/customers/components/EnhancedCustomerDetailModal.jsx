@@ -749,10 +749,20 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   // ─── Discount helpers ─────────────────────────────────────────
   // Renders an inline price + discount chip when this entity has a discount
   // row attached. `originalPrice` is the price BEFORE the manual discount.
-  const renderDiscountedPrice = useCallback((entityType, entityId, originalPrice, currency) => {
+  // `participantUserId` (optional) scopes the lookup to a per-participant
+  // discount on a group booking — falls back to the entity-wide row.
+  const renderDiscountedPrice = useCallback((entityType, entityId, originalPrice, currency, participantUserId = null) => {
     const cur = currency || storageCurrency;
     const orig = Number(originalPrice) || 0;
-    const d = entityId != null ? discountsByEntity.get(`${entityType}:${entityId}`) : null;
+    let d = null;
+    if (entityId != null) {
+      // Participant scope uses ONLY the per-participant row — falling back
+      // to an entity-wide row would apply the whole-booking discount to a
+      // half-share and produce wrong arithmetic.
+      d = participantUserId
+        ? (discountsByEntity.get(`${entityType}:${entityId}:${participantUserId}`) || null)
+        : (discountsByEntity.get(`${entityType}:${entityId}`) || null);
+    }
     if (!d) return <span className="tabular-nums">{fmtCurrency(orig, cur)}</span>;
     const dAmt = Number(d.amount) || 0;
     const final = Math.max(0, orig - dAmt);
@@ -766,14 +776,29 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   }, [discountsByEntity, fmtCurrency, storageCurrency]);
 
   // Opens the ApplyDiscountModal targeted at one entity row.
-  const openDiscountForEntity = useCallback(({ entityType, entityId, originalPrice, currency, description }) => {
-    setDiscountTarget({ entityType, entityId, originalPrice, currency, description });
+  const openDiscountForEntity = useCallback(({ entityType, entityId, originalPrice, currency, description, participantUserId = null }) => {
+    setDiscountTarget({ entityType, entityId, originalPrice, currency, description, participantUserId });
   }, []);
 
   // Opens the EditPackagePriceModal for a customer package row.
   const openEditPriceForPackage = useCallback(({ packageId, currentPrice, originalPrice, currency, description }) => {
     setEditPriceTarget({ packageId, currentPrice, originalPrice, currency, description });
   }, []);
+
+  // For multi-participant (semi-private / supervision / group) bookings, the
+  // booking row's amount/final_amount is the GROUP total. Each participant's
+  // own share lives on `booking_participants.payment_amount`. Show this
+  // customer's share in their profile so per-hour math comes out right.
+  // Returns null when the booking is solo or the customer isn't a participant.
+  const getCustomerBookingShare = useCallback((r) => {
+    if (!customerId) return null;
+    const participants = Array.isArray(r?.participants) ? r.participants : [];
+    if (participants.length <= 1) return null;
+    const mine = participants.find(p => p && p.userId === customerId);
+    if (!mine) return null;
+    const pay = Number(mine.paymentAmount);
+    return Number.isFinite(pay) ? pay : null;
+  }, [customerId]);
 
   // ─── Column definitions ───────────────────────────────────────
   const bookingColumns = useMemo(() => [
@@ -782,9 +807,11 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Type', dataIndex: 'booking_type', key: 'type', render: t => t?.charAt(0).toUpperCase() + t?.slice(1) || 'Standard' },
     { title: 'Instructor', key: 'instructor', render: (_, r) => { if (r.instructor_name) return r.instructor_name; const iid = r.instructor_id || r.instructor_user_id; const inst = instructors.find(i => i.id === iid); return inst ? (inst.name || `${inst.first_name} ${inst.last_name}`) : 'N/A'; } },
     { title: 'Price', key: 'price', render: (_, r) => {
-      const orig = Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
+      const share = getCustomerBookingShare(r);
+      const isParticipantScope = share != null;
+      const orig = isParticipantScope ? share : Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
       if (orig <= 0 && r.payment_status === 'package') return <span className="text-slate-400 text-xs italic">included</span>;
-      return renderDiscountedPrice('booking', r.id, orig, r.currency);
+      return renderDiscountedPrice('booking', r.id, orig, r.currency, isParticipantScope ? customerId : null);
     }},
     { title: 'Status', dataIndex: 'status', key: 'status', render: s => getStatusTag(s) },
     { title: 'Payment', key: 'payment', render: (_, r) => {
@@ -805,13 +832,20 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             size="small"
             onClick={(e) => {
               e.stopPropagation();
-              const orig = Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
+              // Group bookings: scope the discount to this customer's
+              // participant share. Solo bookings: discount the whole row.
+              const share = getCustomerBookingShare(r);
+              const isParticipantScope = share != null;
+              const orig = isParticipantScope
+                ? share
+                : Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
               openDiscountForEntity({
                 entityType: 'booking',
                 entityId: r.id,
                 originalPrice: orig,
                 currency: r.currency,
                 description: `${r.service_name || r.serviceName || 'Lesson'} · ${formatDate(r.start_time || r.date)}`,
+                participantUserId: isParticipantScope ? customerId : null,
               });
             }}
           >Discount</Button>
@@ -819,7 +853,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteBooking(r)}>Delete</Button>}
       </Space>
     )}
-  ], [instructors, handleDeleteBooking, readOnly, renderDiscountedPrice, openDiscountForEntity]);
+  ], [instructors, handleDeleteBooking, readOnly, renderDiscountedPrice, openDiscountForEntity, getCustomerBookingShare]);
 
   const rentalColumns = useMemo(() => [
     { title: 'Equipment', key: 'equipment', render: (_, r) => {
@@ -1730,7 +1764,12 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             onClose={() => setDiscountTarget(null)}
             onSaved={async () => {
               setDiscountTarget(null);
-              await refreshDiscounts();
+              // Refresh ALL data, not just the discounts list — the booking
+              // row carries `total_discount_amount` (a SUM subquery in the
+              // SELECT) which the BookingDetailModal subtracts from its
+              // displayed total. Without re-fetching bookings, the modal
+              // would still show the pre-discount total.
+              await Promise.all([refreshDiscounts(), refreshAllData()]);
               message.success('Discount saved');
             }}
             customerId={customer.id}
@@ -1739,7 +1778,14 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             originalPrice={discountTarget.originalPrice}
             currency={discountTarget.currency}
             description={discountTarget.description}
-            existingDiscount={discountsByEntity.get(`${discountTarget.entityType}:${discountTarget.entityId}`) || null}
+            participantUserId={discountTarget.participantUserId || null}
+            existingDiscount={
+              discountsByEntity.get(
+                discountTarget.participantUserId
+                  ? `${discountTarget.entityType}:${discountTarget.entityId}:${discountTarget.participantUserId}`
+                  : `${discountTarget.entityType}:${discountTarget.entityId}`
+              ) || null
+            }
           />
         </Suspense>
       )}

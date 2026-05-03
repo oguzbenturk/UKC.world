@@ -816,13 +816,18 @@ const ENTITY_BASE_SELECT = Object.fromEntries(
 
 // Reads any active per-entity manual discount amount. Returns 0 when no row
 // exists. Safe to call from any service that has the discount entity type/id.
+//
+// Bookings may carry multiple discount rows when the booking is a group /
+// semi-private session and each participant has their own discount on their
+// share — the cascade math wants the total across all of them so manager
+// commissions and instructor earnings reflect the post-discount lesson value.
 export async function getActiveDiscountAmount(client, entityType, entityId) {
   if (entityType == null || entityId == null) return 0;
   const { rows } = await client.query(
-    `SELECT amount FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
     [entityType, String(entityId)]
   );
-  return rows.length ? toNumber(rows[0].amount) : 0;
+  return rows.length ? toNumber(rows[0].total) : 0;
 }
 
 // Re-derives source_amount + commission_amount for the active commission row

@@ -138,12 +138,16 @@ function mapTransactionRow(row) {
     booking_id: bookingId,
     rental_id: rentalId,
     entity_type: entityType,
+    related_entity_type: row.related_entity_type ?? null,
+    related_entity_id: row.related_entity_id ?? null,
     status: row.status,
     transaction_date: row.transaction_date,
     created_at: row.created_at,
     updated_at: row.updated_at,
     currency: row.currency,
     direction: row.direction,
+    balance_available_after: toNumber(row.balance_available_after),
+    available_delta: toNumber(row.available_delta),
     metadata
   };
 }

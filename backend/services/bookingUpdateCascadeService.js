@@ -28,9 +28,8 @@ class BookingUpdateCascadeService {
               sp.rental_days        AS sp_rental_days,
               sp.accommodation_nights AS sp_accommodation_nights,
               sp.package_hourly_rate AS sp_package_hourly_rate,
-              (SELECT amount FROM discounts
-                 WHERE entity_type = 'customer_package' AND entity_id = cp.id::text
-                 LIMIT 1) AS discount_amount,
+              (SELECT COALESCE(SUM(amount), 0) FROM discounts
+                 WHERE entity_type = 'customer_package' AND entity_id = cp.id::text) AS discount_amount,
               (SELECT price FROM services WHERE id = sp.rental_service_id) AS rental_price,
               (SELECT price_per_night FROM accommodation_units WHERE id = sp.accommodation_unit_id) AS accom_price_per_night
          FROM customer_packages cp

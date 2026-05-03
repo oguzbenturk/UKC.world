@@ -28,6 +28,8 @@ class Transaction {
     this.metadata = data.metadata || {};
     this.currency = data.currency || null;
     this.direction = data.direction || null;
+    this.balanceAvailableAfter = data.balanceAvailableAfter !== undefined ? data.balanceAvailableAfter : null;
+    this.bookingId = data.bookingId || null;
   }
 
   /**

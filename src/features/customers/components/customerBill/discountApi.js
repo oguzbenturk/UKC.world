@@ -30,7 +30,7 @@ export const fetchCustomerDiscounts = async (customerId) => {
   return data.discounts || [];
 };
 
-export const applyDiscount = async ({ customerId, entityType, entityId, percent, reason }) => {
+export const applyDiscount = async ({ customerId, entityType, entityId, percent, reason, participantUserId = null }) => {
   const res = await fetch('/api/discounts', {
     method: 'POST',
     headers: buildHeaders(),
@@ -40,6 +40,7 @@ export const applyDiscount = async ({ customerId, entityType, entityId, percent,
       entity_id: entityId,
       percent,
       reason,
+      participant_user_id: participantUserId || null,
     }),
   });
   return handle(res);

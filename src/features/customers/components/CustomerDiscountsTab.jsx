@@ -69,7 +69,8 @@ export default function CustomerDiscountsTab({
     bookings, rentals, accommodationBookings, packages, instructors,
     shopOrders, memberships,
     discountsByEntity,
-  }), [bookings, rentals, accommodationBookings, packages, instructors, shopOrders, memberships, discountsByEntity]);
+    customerId: customer?.id || null,
+  }), [bookings, rentals, accommodationBookings, packages, instructors, shopOrders, memberships, discountsByEntity, customer?.id]);
 
   // Only rows that point at a discountable entity are eligible. Package-funded
   // lessons (status='package') and cancelled rows aren't real charges.
@@ -107,6 +108,7 @@ export default function CustomerDiscountsTab({
       const itemsPayload = selectedRows.map(r => ({
         entity_type: r.entityType,
         entity_id: r.entityId,
+        participant_user_id: r.participantUserId || null,
       }));
       const res = await applyBulkDiscount({
         customerId: customer.id,

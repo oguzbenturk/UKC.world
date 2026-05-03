@@ -92,12 +92,46 @@ const isSupported = (entityType) => Object.hasOwn(ENTITY_CONFIG, entityType);
 
 // Reads the original price + currency + owning customer for one entity.
 // Throws if the row doesn't exist.
-export async function getEntitySnapshot(client, entityType, entityId) {
+//
+// When `participantUserId` is supplied for a booking, the snapshot scopes to
+// that participant's share of a group/semi-private/supervision booking
+// (booking_participants.payment_amount). The "owning customer" then becomes
+// the participant rather than the booking's primary student_user_id, so the
+// per-participant discount UI can verify ownership against the customer
+// whose profile is open without falsely 403'ing on group bookings.
+export async function getEntitySnapshot(client, entityType, entityId, participantUserId = null) {
   if (!isSupported(entityType)) {
     const err = new Error(`Unsupported entity_type: ${entityType}`);
     err.status = 400;
     throw err;
   }
+
+  if (participantUserId && entityType === 'booking') {
+    const { rows } = await client.query(
+      `SELECT bp.payment_amount AS original_price,
+              b.currency AS currency,
+              bp.user_id AS customer_id,
+              (b.payment_status IN ('paid','completed')) AS is_paid
+         FROM booking_participants bp
+         JOIN bookings b ON b.id = bp.booking_id
+        WHERE bp.booking_id = $1::uuid
+          AND bp.user_id = $2::uuid
+        LIMIT 1`,
+      [String(entityId), String(participantUserId)]
+    );
+    if (!rows.length) {
+      const err = new Error(`Participant ${participantUserId} not found on booking ${entityId}`);
+      err.status = 404;
+      throw err;
+    }
+    return {
+      originalPrice: Number(rows[0].original_price) || 0,
+      currency: rows[0].currency || null,
+      customerId: rows[0].customer_id,
+      isPaid: !!rows[0].is_paid,
+    };
+  }
+
   const cfg = ENTITY_CONFIG[entityType];
   const currencyExpr = cfg.currencyCol ? cfg.currencyCol : `NULL::text`;
   const idCast = cfg.idType === 'int' ? '::integer' : '::uuid';
@@ -241,6 +275,12 @@ export function computeDiscountAmount(originalPrice, percent) {
 
 // Upserts a single discount row inside an existing client transaction.
 // Verifies the entity actually belongs to the supplied customer_id.
+//
+// When `participantUserId` is supplied (only meaningful for booking entities),
+// the discount is scoped to that participant's share of a group booking.
+// One discount row per (entity_type, entity_id, participant_user_id); rows
+// with NULL participant_user_id remain the legacy "discount applies to whole
+// entity" semantic for solo bookings, rentals, packages, etc.
 export async function applyDiscount(client, {
   customerId,
   entityType,
@@ -248,6 +288,7 @@ export async function applyDiscount(client, {
   percent,
   reason,
   createdBy,
+  participantUserId = null,
 }) {
   if (!customerId) throw Object.assign(new Error('customer_id required'), { status: 400 });
   if (!isSupported(entityType)) throw Object.assign(new Error(`Unsupported entity_type: ${entityType}`), { status: 400 });
@@ -255,8 +296,11 @@ export async function applyDiscount(client, {
   if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
     throw Object.assign(new Error('percent must be between 0 and 100'), { status: 400 });
   }
+  if (participantUserId && entityType !== 'booking') {
+    throw Object.assign(new Error('participant_user_id is only valid for booking entities'), { status: 400 });
+  }
 
-  const snapshot = await getEntitySnapshot(client, entityType, entityId);
+  const snapshot = await getEntitySnapshot(client, entityType, entityId, participantUserId);
   if (snapshot.customerId !== customerId) {
     throw Object.assign(new Error('Entity does not belong to this customer'), { status: 403 });
   }
@@ -265,8 +309,12 @@ export async function applyDiscount(client, {
   // before applying a new value. Both apply-with-new-percent AND zero-percent
   // (delete) paths reuse this lookup.
   const existing = await client.query(
-    `SELECT id FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
-    [entityType, String(entityId)]
+    participantUserId
+      ? `SELECT id FROM discounts WHERE entity_type = $1 AND entity_id = $2 AND participant_user_id = $3::uuid`
+      : `SELECT id FROM discounts WHERE entity_type = $1 AND entity_id = $2 AND participant_user_id IS NULL`,
+    participantUserId
+      ? [entityType, String(entityId), String(participantUserId)]
+      : [entityType, String(entityId)]
   );
   const existingId = existing.rows[0]?.id || null;
   const openCredit = existingId ? await findOpenDiscountAdjustment(client, existingId) : null;
@@ -281,8 +329,12 @@ export async function applyDiscount(client, {
       });
     }
     const del = await client.query(
-      `DELETE FROM discounts WHERE entity_type = $1 AND entity_id = $2 RETURNING id`,
-      [entityType, String(entityId)]
+      participantUserId
+        ? `DELETE FROM discounts WHERE entity_type = $1 AND entity_id = $2 AND participant_user_id = $3::uuid RETURNING id`
+        : `DELETE FROM discounts WHERE entity_type = $1 AND entity_id = $2 AND participant_user_id IS NULL RETURNING id`,
+      participantUserId
+        ? [entityType, String(entityId), String(participantUserId)]
+        : [entityType, String(entityId)]
     );
     await cascadeRecomputeForDiscountChange(client, entityType, entityId);
     return { deleted: del.rowCount > 0, snapshot };
@@ -301,31 +353,41 @@ export async function applyDiscount(client, {
     });
   }
 
-  const result = await client.query(
-    `
-    INSERT INTO discounts (
-      customer_id, entity_type, entity_id, percent, amount, currency, reason, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    ON CONFLICT (entity_type, entity_id) DO UPDATE
-      SET percent    = EXCLUDED.percent,
-          amount     = EXCLUDED.amount,
-          currency   = EXCLUDED.currency,
-          reason     = EXCLUDED.reason,
-          customer_id = EXCLUDED.customer_id,
-          updated_at = NOW()
-    RETURNING *
-    `,
-    [
-      customerId,
-      entityType,
-      String(entityId),
-      pct,
-      amount,
-      snapshot.currency,
-      reason || null,
-      createdBy || null,
-    ]
-  );
+  // ON CONFLICT can't directly target the partial unique indexes, so do
+  // SELECT-then-INSERT/UPDATE manually.
+  let result;
+  if (existingId) {
+    result = await client.query(
+      `UPDATE discounts
+          SET percent     = $1,
+              amount      = $2,
+              currency    = $3,
+              reason      = $4,
+              customer_id = $5,
+              updated_at  = NOW()
+        WHERE id = $6
+        RETURNING *`,
+      [pct, amount, snapshot.currency, reason || null, customerId, existingId]
+    );
+  } else {
+    result = await client.query(
+      `INSERT INTO discounts (
+         customer_id, entity_type, entity_id, percent, amount, currency, reason, created_by, participant_user_id
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        customerId,
+        entityType,
+        String(entityId),
+        pct,
+        amount,
+        snapshot.currency,
+        reason || null,
+        createdBy || null,
+        participantUserId || null,
+      ]
+    );
+  }
 
   const discount = result.rows[0];
   let adjustment = null;
@@ -358,10 +420,12 @@ export async function applyDiscount(client, {
 export async function listDiscountsForCustomer(client, customerId) {
   const { rows } = await client.query(
     `
-    SELECT id, customer_id, entity_type, entity_id, percent, amount, currency,
+    SELECT id, customer_id, entity_type, entity_id, participant_user_id,
+           percent, amount, currency,
            reason, created_by, created_at, updated_at
     FROM discounts
     WHERE customer_id = $1
+       OR participant_user_id = $1
     ORDER BY created_at DESC
     `,
     [customerId]

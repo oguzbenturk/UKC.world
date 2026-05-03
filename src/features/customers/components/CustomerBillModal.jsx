@@ -106,7 +106,8 @@ const CustomerBillModal = ({
     shopOrders, memberships, instructors,
     transactions,
     discountsByEntity,
-  }), [bookings, rentals, accommodationBookings, packages, shopOrders, memberships, instructors, transactions, discountsByEntity]);
+    customerId: customer?.id || null,
+  }), [bookings, rentals, accommodationBookings, packages, shopOrders, memberships, instructors, transactions, discountsByEntity, customer?.id]);
 
   // Hide the discount column unless at least one line in the bill carries one,
   // so unaffected customers' bills look exactly as before.

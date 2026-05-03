@@ -28,6 +28,7 @@ export default function ApplyDiscountModal({
   currency,
   existingDiscount = null,
   description = '',
+  participantUserId = null,
 }) {
   const { businessCurrency } = useCurrency();
   const cur = currency || businessCurrency || 'EUR';
@@ -57,6 +58,7 @@ export default function ApplyDiscountModal({
       entityId,
       percent: Number(percent) || 0,
       reason: reason || null,
+      participantUserId,
     });
     onSaved?.(result);
     onClose?.();

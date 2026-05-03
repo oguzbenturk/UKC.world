@@ -619,21 +619,29 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
 
   // Calculate display price — always return the real amount, even for package bookings
   const getDisplayPrice = () => {
+    // Manual % discounts (entity-wide and per-participant) live in the
+    // `discounts` table; the backend sums them into `total_discount_amount`
+    // so the displayed total reflects the actual realized revenue. For
+    // group bookings with one participant discounted, this means the total
+    // drops by that participant's discount only — matching the per-row
+    // shares shown elsewhere in the UI.
+    const discountTotal = Math.max(0, parseFloat(booking.total_discount_amount) || 0);
+
     // Use backend calculated final_amount as the definitive source
     if (booking.final_amount && parseFloat(booking.final_amount) > 0) {
-      return parseFloat(booking.final_amount);
+      return Math.max(0, parseFloat(booking.final_amount) - discountTotal);
     }
 
     // Fallback to amount field
     if (booking.amount && parseFloat(booking.amount) > 0) {
-      return parseFloat(booking.amount);
+      return Math.max(0, parseFloat(booking.amount) - discountTotal);
     }
 
     // Last resort: use service base price (but this shouldn't happen for confirmed bookings)
     if (services.length > 0 && booking.service_id) {
       const selectedService = services.find((s) => s.id === booking.service_id);
       if (selectedService && selectedService.price) {
-        return parseFloat(selectedService.price);
+        return Math.max(0, parseFloat(selectedService.price) - discountTotal);
       }
     }
 
