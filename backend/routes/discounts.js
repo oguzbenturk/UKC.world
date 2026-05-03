@@ -22,12 +22,21 @@ import {
 const router = Router();
 
 const STAFF_ROLES = ['admin', 'manager'];
+// Students/customers may view their own discounts (read-only). Write/delete
+// is still restricted to STAFF_ROLES below.
+const READ_ROLES = [...STAFF_ROLES, 'receptionist', 'instructor', 'student', 'trusted_customer'];
 
 // GET /api/discounts?customer_id=<uuid>
-router.get('/', authorizeRoles(STAFF_ROLES), async (req, res) => {
+router.get('/', authorizeRoles(READ_ROLES), async (req, res) => {
   const customerId = req.query.customer_id;
   if (!customerId) {
     return res.status(400).json({ error: 'customer_id query param is required' });
+  }
+  // Non-staff callers may only read their own discounts.
+  const role = req.user?.role;
+  const isStaff = STAFF_ROLES.includes(role) || role === 'owner' || role === 'receptionist';
+  if (!isStaff && String(req.user?.id) !== String(customerId)) {
+    return res.status(403).json({ error: 'Forbidden: cannot view another customer\'s discounts' });
   }
   try {
     const rows = await listDiscountsForCustomer(pool, customerId);

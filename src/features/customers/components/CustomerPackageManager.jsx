@@ -817,19 +817,21 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
               })}
             >Edit Price</Button>
           )}
-          <Popconfirm
-            title="Are you sure you want to delete this package?"
-            onConfirm={() => handleDeletePackage(record.id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
-            />
-          </Popconfirm>
+          {!disableActions && (
+            <Popconfirm
+              title="Are you sure you want to delete this package?"
+              onConfirm={() => handleDeletePackage(record.id)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+              />
+            </Popconfirm>
+          )}
         </Space>
       )
     }
@@ -1058,9 +1060,11 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
                 disabled={!!forceViewMode}
                 size="small"
               />
-              <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAssign} size="small">
-                Assign Package
-              </Button>
+              {!disableActions && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAssign} size="small">
+                  Assign Package
+                </Button>
+              )}
             </div>
           </div>
         )}

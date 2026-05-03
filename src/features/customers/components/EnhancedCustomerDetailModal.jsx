@@ -991,23 +991,25 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         ))}
       </div>
 
-      {/* Create Bill */}
-      <button
-        type="button"
-        onClick={() => setBillModalVisible(true)}
-        className="w-full rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-sky-50/40 hover:from-cyan-100 hover:to-sky-100/60 transition-colors px-4 py-3 flex items-center justify-between gap-3 cursor-pointer"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#00a8c4' }}>
-            <FileTextOutlined className="text-white text-base" />
+      {/* Create Bill — staff only (admin / manager / receptionist), not students */}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={() => setBillModalVisible(true)}
+          className="w-full rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-sky-50/40 hover:from-cyan-100 hover:to-sky-100/60 transition-colors px-4 py-3 flex items-center justify-between gap-3 cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#00a8c4' }}>
+              <FileTextOutlined className="text-white text-base" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-semibold text-gray-800 leading-tight">Create Bill</div>
+              <div className="text-[11px] text-gray-500 leading-tight mt-0.5">Duotone Pro Center Urla statement — accommodation, lessons, rentals, shop &amp; more</div>
+            </div>
           </div>
-          <div className="text-left">
-            <div className="text-sm font-semibold text-gray-800 leading-tight">Create Bill</div>
-            <div className="text-[11px] text-gray-500 leading-tight mt-0.5">Duotone Pro Center Urla statement — accommodation, lessons, rentals, shop &amp; more</div>
-          </div>
-        </div>
-        <span className="text-xs font-medium" style={{ color: '#00a8c4' }}>Open →</span>
-      </button>
+          <span className="text-xs font-medium" style={{ color: '#00a8c4' }}>Open →</span>
+        </button>
+      )}
 
       {/* Upcoming Lessons */}
       {stats.upcomingLessons > 0 && (
