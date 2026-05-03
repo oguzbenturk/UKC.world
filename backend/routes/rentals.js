@@ -62,13 +62,21 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
           ) FILTER (WHERE s.id IS NOT NULL),
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      GROUP BY r.id, u.name, u.email, creator.name
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
       LIMIT $1
     `;
@@ -104,13 +112,21 @@ router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      GROUP BY r.id, u.name, u.email, creator.name
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
       LIMIT $1
     `;
@@ -145,14 +161,22 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
           ) FILTER (WHERE s.id IS NOT NULL),
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.status = 'active'
-      GROUP BY r.id, u.name, u.email, creator.name
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
     `;
     const { rows } = await pool.query(query);
@@ -186,14 +210,22 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTR
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.status = 'upcoming'
-      GROUP BY r.id, u.name, u.email, creator.name
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.start_date ASC
     `;
     const { rows } = await pool.query(query);
@@ -227,14 +259,22 @@ router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.status = 'overdue'
-      GROUP BY r.id, u.name, u.email, creator.name
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.end_date ASC
     `;
     const { rows } = await pool.query(query);
@@ -268,14 +308,22 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.status = 'completed'
-      GROUP BY r.id, u.name, u.email, creator.name
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.end_date DESC
     `;
     const { rows } = await pool.query(query);
@@ -309,14 +357,22 @@ router.get('/pending', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.status = 'pending'
-      GROUP BY r.id, u.name, u.email, creator.name
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
     `;
     const { rows } = await pool.query(query);
@@ -353,16 +409,24 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.id = $1
-      GROUP BY r.id, u.name, u.email, u.phone, creator.name
+      GROUP BY r.id, u.name, u.email, u.phone, creator.name, d_rental.amount_total
     `;
-    
+
     const { rows } = await pool.query(query, [id]);
     
     if (rows.length === 0) {
@@ -733,14 +797,22 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.id = $1
-      GROUP BY r.id, u.name, u.email, creator.name`,
+      GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total`,
       [rental.id]
     );
     const completeRental = rows[0];
@@ -940,14 +1012,22 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
           ) FILTER (WHERE s.id IS NOT NULL), 
           '{}'::json
         ) as equipment_details,
-        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as equipment_ids,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
       FROM rentals r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
       WHERE r.id = $1
-      GROUP BY r.id, u.name, u.email, u.phone, creator.name`,
+      GROUP BY r.id, u.name, u.email, u.phone, creator.name, d_rental.amount_total`,
       [id]
     );
     const completeRental = rows[0];
@@ -1400,16 +1480,24 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
               'category', s.category,
               'image_url', s.image_url
             )
-          ) FILTER (WHERE s.id IS NOT NULL), 
+          ) FILTER (WHERE s.id IS NOT NULL),
           '[]'::json
-        ) as equipment
+        ) as equipment,
+        COALESCE(d_rental.amount_total, 0) AS rental_discount_amount,
+        GREATEST(r.total_price - COALESCE(d_rental.amount_total, 0), 0) AS effective_total_price
   FROM rentals r
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
       LEFT JOIN customer_packages cp ON r.customer_package_id = cp.id
       LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
+      LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text
   WHERE r.user_id = $1
-      GROUP BY r.id, sp.package_daily_rate
+      GROUP BY r.id, sp.package_daily_rate, d_rental.amount_total
   ORDER BY r.start_date DESC
     `;
     

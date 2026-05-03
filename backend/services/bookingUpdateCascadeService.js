@@ -9,6 +9,7 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { writeLessonSnapshot } from './revenueSnapshotService.js';
 import { deriveLessonAmount } from '../utils/instructorEarnings.js';
+import { getActiveDiscountAmount } from '../utils/discountAmounts.js';
 
 class BookingUpdateCascadeService {
   /**
@@ -171,6 +172,36 @@ class BookingUpdateCascadeService {
   }
 
   /**
+   * Compute the booking's total realized lesson value: per-person amount from
+   * `computeLessonAmount`, scaled to total for group bookings, with any active
+   * manual discount on the booking subtracted. This is THE single source of
+   * truth used by both manager commission and instructor earnings paths so
+   * they stay aligned no matter what discount changes.
+   *
+   * Per-booking discounts (entity-wide AND per-participant rows are summed by
+   * `getActiveDiscountAmount`) apply at the BOOKING level — i.e. against the
+   * group total — so we subtract after the group_size multiplication, never
+   * before, to avoid scaling a participant's per-share discount up by group
+   * size.
+   */
+  static async computeBookingTotalAmount(client, booking, pkgContext = null) {
+    let total = await this.computeLessonAmount(client, booking, pkgContext);
+    const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
+    // Mirror the existing convention from updateInstructorEarnings: only
+    // multiply when the booking is fully package-paid AND a true group.
+    // 'partial' bookings already had the cash portion (full group sum) added
+    // inside computeLessonAmount, so we don't multiply again.
+    if (booking.payment_status === 'package' && groupSize > 1) {
+      total = new Decimal(total).mul(groupSize).toDecimalPlaces(2).toNumber();
+    }
+    const bookingDiscount = await getActiveDiscountAmount(client, 'booking', booking.id);
+    if (bookingDiscount > 0) {
+      total = Math.max(0, new Decimal(total).sub(bookingDiscount).toDecimalPlaces(2).toNumber());
+    }
+    return total;
+  }
+
+  /**
    * Compute instructor earnings amount from commission settings
    */
   static computeInstructorEarnings(commissionType, commissionValue, lessonAmount, duration) {
@@ -277,9 +308,9 @@ class BookingUpdateCascadeService {
    */
   static async updateInstructorEarnings(client, booking, pkgContext = null) {
     try {
-      // Get current earnings record
+      // Get current earnings record (need payroll_id to enforce immutable history)
       const existingEarnings = await client.query(
-        'SELECT * FROM instructor_earnings WHERE booking_id = $1',
+        'SELECT id, payroll_id FROM instructor_earnings WHERE booking_id = $1',
         [booking.id]
       );
 
@@ -289,44 +320,40 @@ class BookingUpdateCascadeService {
         return;
       }
 
-  // Recalculate commission
-  const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-  let lessonAmount = await this.computeLessonAmount(client, booking, pkgContext);
+      // Once an earnings row has been included in a payroll run we treat it as
+      // immutable history — paying out then changing the underlying number
+      // would leave the instructor over- or under-paid relative to what was
+      // settled. Skip silently rather than throwing so cascades don't fail.
+      if (existingEarnings.rows[0].payroll_id) {
+        return;
+      }
 
-  // For group/semi-private bookings using packages, lessonAmount is per-person.
-  // Multiply by group_size to get the true total lesson value.
-  const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
-  if (booking.payment_status === 'package' && groupSize > 1) {
-    lessonAmount = new Decimal(lessonAmount).mul(groupSize).toDecimalPlaces(2).toNumber();
-  }
+      // Recalculate commission. computeBookingTotalAmount returns the post-
+      // discount, group-scaled total — same number used by manager commission.
+      const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
+      const lessonAmount = await this.computeBookingTotalAmount(client, booking, pkgContext);
 
-  const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
+      const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
 
-  // Get booking currency (fallback to EUR if not set)
-  const bookingCurrency = booking.currency || 'EUR';
+      const bookingCurrency = booking.currency || 'EUR';
 
-      // Commission amount is what the instructor gets (not what company takes)
-  // Update earnings record
-  const updateResult = await client.query(`
-        UPDATE instructor_earnings 
-        SET 
-          commission_rate = $1,
-          total_earnings = $2,
-          lesson_amount = $3,
-          lesson_duration = $4,
-          currency = $5,
-          updated_at = NOW()
-        WHERE booking_id = $6
-        RETURNING *
+      await client.query(`
+        UPDATE instructor_earnings
+        SET commission_rate = $1,
+            total_earnings  = $2,
+            lesson_amount   = $3,
+            lesson_duration = $4,
+            currency        = $5,
+            updated_at      = NOW()
+        WHERE booking_id = $6 AND payroll_id IS NULL
       `, [
         commissionValue / 100,
-        instructorEarnings,     // What instructor gets for this lesson
-        lessonAmount,           // Price of this lesson (or derived from package)
+        instructorEarnings,
+        lessonAmount,
         booking.duration || 1,
-        bookingCurrency,        // Currency from the booking
-        booking.id
+        bookingCurrency,
+        booking.id,
       ]);
-      
     } catch (error) {
       throw error;
     }
@@ -338,22 +365,17 @@ class BookingUpdateCascadeService {
   static async createInstructorEarnings(client, booking, pkgContext = null) {
     if (!booking.instructor_user_id) return;
 
-  const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-  let lessonAmount = await this.computeLessonAmount(client, booking, pkgContext);
+    const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
+    // Use the same total-amount helper as updates so creation and recompute
+    // stay in lockstep. Includes group_size scaling AND active booking
+    // discounts (entity-wide + per-participant).
+    const lessonAmount = await this.computeBookingTotalAmount(client, booking, pkgContext);
 
-  // For group/semi-private bookings using packages, lessonAmount is per-person.
-  // Multiply by group_size to get the true total lesson value.
-  const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
-  if (booking.payment_status === 'package' && groupSize > 1) {
-    lessonAmount = new Decimal(lessonAmount).mul(groupSize).toDecimalPlaces(2).toNumber();
-  }
+    const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
 
-  const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
+    const bookingCurrency = booking.currency || 'EUR';
 
-  // Get booking currency (fallback to EUR if not set)
-  const bookingCurrency = booking.currency || 'EUR';
-
-  if (lessonAmount > 0) {
+    if (lessonAmount > 0) {
       await client.query(`
         INSERT INTO instructor_earnings 
         (instructor_id, booking_id, base_rate, commission_rate, total_earnings, lesson_amount, lesson_date, lesson_duration, currency)
@@ -476,7 +498,7 @@ class BookingUpdateCascadeService {
    * Returns { updated: number, skipped: number }.
    */
   static async recomputeEarningsForPackageBookings(client, packageId) {
-    const summary = { updated: 0, skipped: 0 };
+    const summary = { updated: 0, skipped: 0, skippedPaidOut: 0 };
     const pkgContext = await this.loadPackageContext(client, packageId);
     const { rows: bookings } = await client.query(
       `SELECT b.*
@@ -490,6 +512,17 @@ class BookingUpdateCascadeService {
 
     for (const booking of bookings) {
       try {
+        // Pre-check payroll_id so we count paid-out skips explicitly. The
+        // updateInstructorEarnings call also gates on payroll_id, so this
+        // pre-check is purely for accurate summary reporting.
+        const { rows: er } = await client.query(
+          `SELECT payroll_id FROM instructor_earnings WHERE booking_id = $1`,
+          [booking.id]
+        );
+        if (er[0]?.payroll_id) {
+          summary.skippedPaidOut += 1;
+          continue;
+        }
         await this.updateInstructorEarnings(client, booking, pkgContext);
         summary.updated += 1;
       } catch (err) {
@@ -501,6 +534,50 @@ class BookingUpdateCascadeService {
     }
 
     return summary;
+  }
+
+  /**
+   * Re-derive lesson_amount + total_earnings for a SINGLE booking after its
+   * own discount changes. Mirrors `recomputeEarningsForPackageBookings` but
+   * scoped to one entity, so the booking-level discount cascade has an
+   * instructor-earnings counterpart to call.
+   *
+   * Only meaningful for entityType='booking' (rentals don't have instructor
+   * earnings). Skips silently when:
+   *   - entityType isn't 'booking'
+   *   - booking row missing or soft-deleted
+   *   - booking has no instructor
+   *   - earnings row doesn't exist
+   *   - earnings row already paid out (payroll_id IS NOT NULL)
+   *
+   * Runs inside the caller's transaction.
+   */
+  static async recomputeInstructorEarningsForEntity(client, entityType, entityId) {
+    if (entityType !== 'booking') return { skipped: 'unsupported_entity_type' };
+    const { rows } = await client.query(
+      `SELECT b.* FROM bookings b WHERE b.id = $1::uuid AND b.deleted_at IS NULL`,
+      [String(entityId)]
+    );
+    if (!rows.length) return { skipped: 'booking_not_found' };
+    const booking = rows[0];
+    if (!booking.instructor_user_id) return { skipped: 'no_instructor' };
+
+    const { rows: erows } = await client.query(
+      `SELECT id, payroll_id FROM instructor_earnings WHERE booking_id = $1`,
+      [booking.id]
+    );
+    if (!erows.length) return { skipped: 'no_earnings_row' };
+    if (erows[0].payroll_id) return { skipped: 'paid_out' };
+
+    try {
+      await this.updateInstructorEarnings(client, booking);
+      return { updated: true, earningsId: erows[0].id };
+    } catch (err) {
+      logger.warn('Failed to recompute instructor earnings for booking', {
+        bookingId: booking.id, error: err.message,
+      });
+      return { skipped: 'error', error: err.message };
+    }
   }
 
   /**

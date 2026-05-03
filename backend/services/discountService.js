@@ -256,12 +256,19 @@ async function postDiscountAdjustment(client, {
 // changes. customer_package discounts touch every booking that consumed the
 // package, so they need both the package-wide commission recompute and the
 // per-booking instructor-earnings refresh.
+//
+// For non-package entities (booking, rental, etc.) we now recompute BOTH
+// manager commission AND instructor earnings (when applicable). Previously
+// only the manager side cascaded, so a per-booking discount left
+// instructor_earnings.lesson_amount stale until the next package edit or
+// manual fix — paying instructors more than the post-discount lesson value.
 async function cascadeRecomputeForDiscountChange(client, entityType, entityId) {
   if (entityType === WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE) {
     await recomputeManagerCommissionsForPackage(client, entityId);
     await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, entityId);
   } else {
     await recomputeManagerCommissionForEntity(client, entityType, entityId);
+    await BookingUpdateCascadeService.recomputeInstructorEarningsForEntity(client, entityType, entityId);
   }
 }
 

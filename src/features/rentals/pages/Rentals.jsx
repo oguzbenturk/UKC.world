@@ -573,9 +573,24 @@ function Rentals() {
       key: 'price_status',
       width: 90,
       render: (_, record) => {
-        const total = parseFloat(record.total_price) || 0;
+        // Prefer the discount-adjusted price from the backend join. Falls
+        // back to the raw total_price for older records / shapes that
+        // haven't been re-fetched since the rental list endpoint started
+        // returning effective_total_price.
+        const effective = record.effective_total_price != null
+          ? parseFloat(record.effective_total_price)
+          : parseFloat(record.total_price);
+        const total = Number.isFinite(effective) ? effective : 0;
+        const discount = parseFloat(record.rental_discount_amount) || 0;
         if (total > 0) {
-          return <span className="text-xs font-medium whitespace-nowrap">{formatCurrency(total, record.currency || businessCurrency)}</span>;
+          return (
+            <span className="text-xs font-medium whitespace-nowrap">
+              {formatCurrency(total, record.currency || businessCurrency)}
+              {discount > 0 && (
+                <span className="ml-1 text-[10px] text-rose-600">−{formatCurrency(discount, record.currency || businessCurrency)}</span>
+              )}
+            </span>
+          );
         }
         // Package rental: compute service value from equipment_details dailyRate
         if (record.customer_package_id) {
@@ -881,7 +896,7 @@ function Rentals() {
                   {date ? formatDate(date) : 'â€”'}
                 </span>
                 <span className="font-semibold text-slate-900">
-                  {formatCurrency(record.total_price || record.amount || record.final_amount, record.currency || businessCurrency)}
+                  {formatCurrency(record.effective_total_price ?? record.total_price ?? record.amount ?? record.final_amount, record.currency || businessCurrency)}
                 </span>
               </div>
               {record.notes && (

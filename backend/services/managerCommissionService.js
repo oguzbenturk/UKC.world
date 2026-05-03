@@ -17,6 +17,8 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from './currencyService.js';
 import { deriveLessonAmount, toNumber } from '../utils/instructorEarnings.js';
+import { getActiveDiscountAmount as sharedGetActiveDiscountAmount } from '../utils/discountAmounts.js';
+import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
 
 // Filters manager_commissions rows to those whose source booking/rental is still
 // alive (not soft-deleted / cancelled). Without this, orphan commission rows for
@@ -176,118 +178,19 @@ export async function recordBookingCommission(booking, options = {}) {
       return null;
     }
 
-    // Get the booking amount — for package bookings derive the actual lesson
-    // value from the package price, exactly like instructor earnings does.
-    let sourceAmount = parseFloat(booking.final_amount) || parseFloat(booking.amount) || 0;
+    // Get the booking amount via the shared helper so creation, update, and
+    // discount-cascade paths all agree on the post-discount total. The helper
+    // handles: package-derived lesson value (with package discount), group
+    // size multiplication for package-paid groups, and per-booking discount
+    // subtraction (entity-wide + per-participant, summed). One source of
+    // truth — replaces ~80 lines of bespoke per-path math that used to drift.
     const sourceCurrency = booking.currency || 'EUR';
-
-    if (booking.customer_package_id &&
-        (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
-      const cashAmount = sourceAmount; // Preserve the cash portion for partial
-      try {
-        const pkgRes = await client.query(
-          `SELECT cp.purchase_price, cp.total_hours, cp.remaining_hours, cp.used_hours,
-                  cp.service_package_id, cp.currency,
-                  sp.sessions_count, sp.total_hours as sp_total_hours,
-                  sp.package_hourly_rate, sp.rental_service_id, sp.accommodation_unit_id,
-                  sp.rental_days, sp.accommodation_nights,
-                  cs.exchange_rate
-           FROM customer_packages cp
-           LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-           LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
-           WHERE cp.id = $1`,
-          [booking.customer_package_id]
-        );
-        if (pkgRes.rows.length > 0) {
-          const pkg = pkgRes.rows[0];
-          // Convert package price to EUR if needed
-          let pkgPrice = toNumber(pkg.purchase_price);
-          if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
-            pkgPrice = Math.round((pkgPrice / toNumber(pkg.exchange_rate)) * 100) / 100;
-          }
-
-          // Derive lesson-only portion using stored hourly rate or subtraction fallback
-          const storedHourlyRate = toNumber(pkg.package_hourly_rate);
-          const pkgTotalHours = toNumber(pkg.total_hours) || toNumber(pkg.sp_total_hours);
-          let effectivePackagePrice = pkgPrice;
-
-          if (storedHourlyRate > 0 && pkgTotalHours > 0) {
-            effectivePackagePrice = storedHourlyRate * pkgTotalHours;
-          } else {
-            // Fallback: subtract rental + accommodation costs
-            let rentalCost = 0;
-            let accomCost = 0;
-            const rentalDays = parseInt(pkg.rental_days) || 0;
-            const accomNights = parseInt(pkg.accommodation_nights) || 0;
-            if (rentalDays > 0 && pkg.rental_service_id) {
-              try {
-                const { rows: rRows } = await client.query(
-                  'SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]
-                );
-                rentalCost = rentalDays * (toNumber(rRows[0]?.price) || 0);
-              } catch { /* ignore */ }
-            }
-            if (accomNights > 0 && pkg.accommodation_unit_id) {
-              try {
-                const { rows: aRows } = await client.query(
-                  'SELECT price_per_night FROM accommodation_units WHERE id = $1', [pkg.accommodation_unit_id]
-                );
-                accomCost = accomNights * (toNumber(aRows[0]?.price_per_night) || 0);
-              } catch { /* ignore */ }
-            }
-            if (rentalCost + accomCost > 0) {
-              effectivePackagePrice = Math.max(0, pkgPrice - rentalCost - accomCost);
-            }
-          }
-
-          sourceAmount = deriveLessonAmount({
-            paymentStatus: 'package', // Always treat as package for derivation
-            duration: booking.duration,
-            baseAmount: 0,
-            packagePrice: effectivePackagePrice,
-            packageTotalHours: pkgTotalHours,
-            packageRemainingHours: toNumber(pkg.remaining_hours),
-            packageUsedHours: toNumber(pkg.used_hours),
-            packageSessionsCount: toNumber(pkg.sessions_count),
-            fallbackSessionDuration: booking.duration,
-          });
-
-          // For fully package-paid group bookings, multiply per-person amount by group_size
-          // For partial bookings, add the per-person package portion to the cash amount
-          const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
-          if (booking.payment_status === 'partial') {
-            // packagePortion (per-person) + cashAmount (all cash participants)
-            sourceAmount = Number.parseFloat((sourceAmount + cashAmount).toFixed(2));
-          } else if (groupSize > 1) {
-            sourceAmount = Number.parseFloat((sourceAmount * groupSize).toFixed(2));
-          }
-
-          logger.info('Derived package lesson value for manager commission', {
-            bookingId: booking.id, packageId: booking.customer_package_id,
-            derivedAmount: sourceAmount, effectivePackagePrice, storedHourlyRate,
-            fullPackagePrice: pkgPrice, groupSize
-          });
-        }
-      } catch (err) {
-        logger.warn('Failed to derive package lesson value', { bookingId: booking.id, error: err.message });
-      }
-    }
+    let sourceAmount = await BookingUpdateCascadeService.computeBookingTotalAmount(client, booking);
 
     if (sourceAmount <= 0) {
       logger.warn('Booking has no amount for commission calculation', { bookingId: booking.id });
       await client.query('ROLLBACK');
       return null;
-    }
-
-    // Subtract any active manual discount on this booking so the commission is
-    // computed against the realized price (matches the package-discount path).
-    const isPackagePaid = booking.customer_package_id &&
-      (booking.payment_status === 'package' || booking.payment_status === 'partial');
-    if (!isPackagePaid) {
-      const bookingDiscount = await getActiveDiscountAmount(client, 'booking', booking.id);
-      if (bookingDiscount > 0) {
-        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - bookingDiscount).toFixed(2));
-      }
     }
 
     // Convert to EUR for commission calculation
@@ -429,7 +332,7 @@ export async function recordRentalCommission(rental, options = {}) {
     if (sourceAmount <= 0 && rental.payment_status === 'package' && rental.customer_package_id) {
       try {
         const pkgRes = await client.query(
-          `SELECT cp.purchase_price, cp.currency,
+          `SELECT cp.id, cp.purchase_price, cp.currency,
                   sp.rental_days, sp.price as sp_price,
                   sp.package_daily_rate, sp.rental_service_id,
                   cs.exchange_rate
@@ -462,12 +365,16 @@ export async function recordRentalCommission(rental, options = {}) {
             if (dailyRate > 0) {
               sourceAmount = Math.round(dailyRate * daysUsed * 100) / 100;
             } else {
-              // Last fallback: proportional from full package price
+              // Last fallback: proportional from full package price minus
+              // the package discount (so a discounted package's rentals see
+              // their fair-share reduction).
               let pkgPrice = toNumber(pkg.purchase_price);
               if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
                 pkgPrice = Math.round((pkgPrice / toNumber(pkg.exchange_rate)) * 100) / 100;
               }
-              sourceAmount = Math.round((pkgPrice / totalDays * daysUsed) * 100) / 100;
+              const pkgDiscount = await getActiveDiscountAmount(client, 'customer_package', pkg.id);
+              const effectivePkgPrice = Math.max(0, pkgPrice - pkgDiscount);
+              sourceAmount = Math.round((effectivePkgPrice / totalDays * daysUsed) * 100) / 100;
             }
           }
           logger.info('Derived package rental value for manager commission', {
@@ -486,13 +393,13 @@ export async function recordRentalCommission(rental, options = {}) {
       return null;
     }
 
-    // Subtract any active manual discount on this rental (skip package-paid
-    // rentals — those follow the package's own discount path).
-    if (rental.payment_status !== 'package') {
-      const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
-      if (rentalDiscount > 0) {
-        sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - rentalDiscount).toFixed(2));
-      }
+    // Always subtract any active manual discount on this rental — including
+    // package-paid rentals where staff applied a per-rental adjustment on top
+    // of the package. The previous gate (skip when payment_status='package')
+    // silently dropped those discounts from manager commissions.
+    const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
+    if (rentalDiscount > 0) {
+      sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - rentalDiscount).toFixed(2));
     }
 
     // Convert to EUR for commission calculation
@@ -703,6 +610,14 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
       } else {
         newSourceAmount = Number.parseFloat((perPersonAmount * (groupSize > 1 ? groupSize : 1)).toFixed(2));
       }
+      // Subtract any active per-booking discount on top of the package
+      // discount that already shaped `effectiveLessonPrice`. Without this
+      // step, manager commissions on package-paid bookings ignored the
+      // booking-level discount entirely.
+      const bookingDiscount = await getActiveDiscountAmount(client, 'booking', row.booking_id);
+      if (bookingDiscount > 0) {
+        newSourceAmount = Number.parseFloat(Math.max(0, newSourceAmount - bookingDiscount).toFixed(2));
+      }
     } else {
       // Non-package payment: source_amount tracks the booking's own price,
       // which the package edit doesn't affect — leave it alone.
@@ -802,33 +717,40 @@ const ENTITY_COMMISSION_MAP = {
 };
 
 // Per-entity source-row SELECT, built once at module load and reused per call.
+//
+// For bookings we project the entire row (`*`) so package-paid recompute can
+// hand the booking off to BookingUpdateCascadeService.computeBookingTotalAmount
+// — which expects every column it'd see on a booking-fetch path. Other
+// entities only need price/currency/skip flags so they keep their narrow
+// SELECTs.
 const ENTITY_BASE_SELECT = Object.fromEntries(
-  Object.entries(ENTITY_COMMISSION_MAP).map(([type, cfg]) => [
-    type,
-    `SELECT ${cfg.priceCol} AS base_price,
-            ${cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`} AS currency,
-            ${cfg.skipExpr ? `(${cfg.skipExpr})` : `FALSE`} AS skip_pkg
-       FROM ${cfg.table}
-      WHERE id = $1${cfg.idType === 'int' ? '::integer' : '::uuid'}
-      LIMIT 1`,
-  ])
+  Object.entries(ENTITY_COMMISSION_MAP).map(([type, cfg]) => {
+    if (type === 'booking') {
+      return [type, `SELECT b.*,
+              ${cfg.priceCol} AS base_price,
+              ${cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`} AS currency,
+              ${cfg.skipExpr ? `(${cfg.skipExpr})` : `FALSE`} AS skip_pkg
+         FROM ${cfg.table} b
+        WHERE b.id = $1::uuid
+        LIMIT 1`];
+    }
+    return [
+      type,
+      `SELECT ${cfg.priceCol} AS base_price,
+              ${cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`} AS currency,
+              ${cfg.skipExpr ? `(${cfg.skipExpr})` : `FALSE`} AS skip_pkg
+         FROM ${cfg.table}
+        WHERE id = $1${cfg.idType === 'int' ? '::integer' : '::uuid'}
+        LIMIT 1`,
+    ];
+  })
 );
 
-// Reads any active per-entity manual discount amount. Returns 0 when no row
-// exists. Safe to call from any service that has the discount entity type/id.
-//
-// Bookings may carry multiple discount rows when the booking is a group /
-// semi-private session and each participant has their own discount on their
-// share — the cascade math wants the total across all of them so manager
-// commissions and instructor earnings reflect the post-discount lesson value.
-export async function getActiveDiscountAmount(client, entityType, entityId) {
-  if (entityType == null || entityId == null) return 0;
-  const { rows } = await client.query(
-    `SELECT COALESCE(SUM(amount), 0) AS total FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
-    [entityType, String(entityId)]
-  );
-  return rows.length ? toNumber(rows[0].total) : 0;
-}
+// Re-export from the shared util so existing callers keep working. The
+// implementation lives in `utils/discountAmounts.js` to avoid a circular
+// import between this service and bookingUpdateCascadeService (which both
+// need to read the active discount total).
+export const getActiveDiscountAmount = sharedGetActiveDiscountAmount;
 
 // Re-derives source_amount + commission_amount for the active commission row
 // tied to a single non-package source entity, after its manual discount has
@@ -836,9 +758,18 @@ export async function getActiveDiscountAmount(client, entityType, entityId) {
 // stays consistent: read the entity's base price, subtract any active
 // discount, convert to EUR, multiply by the row's stored commission_rate.
 //
+// For package-paid BOOKINGS we hand the row off to
+// BookingUpdateCascadeService.computeBookingTotalAmount so the post-discount
+// total uses the same lesson-amount derivation as instructor earnings (single
+// source of truth — no parallel math). This means a per-booking discount on
+// a package-paid booking now propagates correctly; previously the function
+// short-circuited with `skipped: 'package_paid'` and the per-booking discount
+// never reached the manager commission row.
+//
 // No-ops when:
 //   - the entity_type isn't in ENTITY_COMMISSION_MAP
-//   - the row is fully package-paid (handled by the package recompute path)
+//   - a non-booking entity is package-paid (still skipped — packages drive
+//     their own recompute path which handles those)
 //   - the commission row has been paid out (immutable history)
 //   - amounts haven't actually changed
 //
@@ -853,11 +784,23 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
   );
   if (!entityRows.length) return { skipped: 'entity_not_found' };
   const entity = entityRows[0];
-  if (entity.skip_pkg) return { skipped: 'package_paid' };
 
-  const basePrice = toNumber(entity.base_price);
-  const discountAmount = await getActiveDiscountAmount(client, entityType, entityId);
-  const newSourceAmount = Number.parseFloat(Math.max(0, basePrice - discountAmount).toFixed(2));
+  let newSourceAmount;
+  if (entity.skip_pkg && entityType === 'booking') {
+    // Package-paid booking — derive total via the shared helper so the
+    // discount math (package + per-booking) is identical to what the
+    // instructor earnings path produces.
+    const total = await BookingUpdateCascadeService.computeBookingTotalAmount(client, entity);
+    newSourceAmount = Number.parseFloat(total.toFixed(2));
+  } else if (entity.skip_pkg) {
+    // Other package-paid entities (rentals) — leave to the package cascade
+    // which already handles them.
+    return { skipped: 'package_paid' };
+  } else {
+    const basePrice = toNumber(entity.base_price);
+    const discountAmount = await getActiveDiscountAmount(client, entityType, entityId);
+    newSourceAmount = Number.parseFloat(Math.max(0, basePrice - discountAmount).toFixed(2));
+  }
 
   const { rows: cmsRows } = await client.query(
     `SELECT id, commission_rate, source_amount, commission_amount, payout_id, source_currency
