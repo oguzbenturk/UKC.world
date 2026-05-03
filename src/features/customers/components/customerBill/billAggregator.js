@@ -72,6 +72,11 @@ const buildPaidEntityIndex = (transactions = []) => {
     // billed for it — so the entity is "paid for from the wallet".
     // A credit linked to an entity is a refund and shouldn't count.
     if (dir !== 'debit') continue;
+    // pay_later charges record the debt without any incoming money — staff /
+    // trusted_customer flows allow the wallet to go negative. Treating them
+    // as paid would tell the customer "you owe €0" when they actually owe.
+    const paymentMethod = String(t.paymentMethod || t.payment_method || '').toLowerCase();
+    if (paymentMethod === 'pay_later') continue;
     const entityType = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
     const entityId = t.relatedEntityId || t.entity_id || t.booking_id || null;
     if (!entityType || !entityId) continue;
