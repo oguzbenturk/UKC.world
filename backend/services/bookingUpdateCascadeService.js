@@ -10,6 +10,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import { writeLessonSnapshot } from './revenueSnapshotService.js';
 import { deriveLessonAmount } from '../utils/instructorEarnings.js';
 import { getActiveDiscountAmount } from '../utils/discountAmounts.js';
+import { WALLET_ENTITY_TYPE } from '../constants/transactions.js';
 
 class BookingUpdateCascadeService {
   /**
@@ -194,7 +195,7 @@ class BookingUpdateCascadeService {
     if (booking.payment_status === 'package' && groupSize > 1) {
       total = new Decimal(total).mul(groupSize).toDecimalPlaces(2).toNumber();
     }
-    const bookingDiscount = await getActiveDiscountAmount(client, 'booking', booking.id);
+    const bookingDiscount = await getActiveDiscountAmount(client, WALLET_ENTITY_TYPE.BOOKING, booking.id);
     if (bookingDiscount > 0) {
       total = Math.max(0, new Decimal(total).sub(bookingDiscount).toDecimalPlaces(2).toNumber());
     }
@@ -307,92 +308,98 @@ class BookingUpdateCascadeService {
    * `pkgContext` is forwarded to computeLessonAmount when present.
    */
   static async updateInstructorEarnings(client, booking, pkgContext = null) {
-    try {
-      // Get current earnings record (need payroll_id to enforce immutable history)
-      const existingEarnings = await client.query(
-        'SELECT id, payroll_id FROM instructor_earnings WHERE booking_id = $1',
-        [booking.id]
-      );
+    // Get current earnings record (need payroll_id to enforce immutable history)
+    const existingEarnings = await client.query(
+      'SELECT id, payroll_id, lesson_amount, total_earnings FROM instructor_earnings WHERE booking_id = $1',
+      [booking.id]
+    );
 
-      if (existingEarnings.rows.length === 0) {
-        // Create new earnings record
-        await this.createInstructorEarnings(client, booking, pkgContext);
-        return;
-      }
-
-      // Once an earnings row has been included in a payroll run we treat it as
-      // immutable history — paying out then changing the underlying number
-      // would leave the instructor over- or under-paid relative to what was
-      // settled. Skip silently rather than throwing so cascades don't fail.
-      if (existingEarnings.rows[0].payroll_id) {
-        return;
-      }
-
-      // Recalculate commission. computeBookingTotalAmount returns the post-
-      // discount, group-scaled total — same number used by manager commission.
-      const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-      const lessonAmount = await this.computeBookingTotalAmount(client, booking, pkgContext);
-
-      const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
-
-      const bookingCurrency = booking.currency || 'EUR';
-
-      await client.query(`
-        UPDATE instructor_earnings
-        SET commission_rate = $1,
-            total_earnings  = $2,
-            lesson_amount   = $3,
-            lesson_duration = $4,
-            currency        = $5,
-            updated_at      = NOW()
-        WHERE booking_id = $6 AND payroll_id IS NULL
-      `, [
-        commissionValue / 100,
-        instructorEarnings,
-        lessonAmount,
-        booking.duration || 1,
-        bookingCurrency,
-        booking.id,
-      ]);
-    } catch (error) {
-      throw error;
+    if (existingEarnings.rows.length === 0) {
+      const created = await this.createInstructorEarnings(client, booking, pkgContext);
+      return created
+        ? { created: true, lessonAmount: created.lesson_amount, totalEarnings: created.total_earnings }
+        : { skipped: 'no_instructor_or_zero_amount' };
     }
+
+    // Once an earnings row has been included in a payroll run we treat it as
+    // immutable history — paying out then changing the underlying number
+    // would leave the instructor over- or under-paid relative to what was
+    // settled. Skip silently rather than throwing so cascades don't fail.
+    if (existingEarnings.rows[0].payroll_id) {
+      return { skipped: 'paid_out' };
+    }
+
+    const oldLessonAmount = Number(existingEarnings.rows[0].lesson_amount) || 0;
+    const oldTotalEarnings = Number(existingEarnings.rows[0].total_earnings) || 0;
+
+    // Recalculate commission. computeBookingTotalAmount returns the post-
+    // discount, group-scaled total — same number used by manager commission.
+    const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
+    const lessonAmount = await this.computeBookingTotalAmount(client, booking, pkgContext);
+    const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
+    const bookingCurrency = booking.currency || 'EUR';
+
+    const { rows } = await client.query(`
+      UPDATE instructor_earnings
+      SET commission_rate = $1,
+          total_earnings  = $2,
+          lesson_amount   = $3,
+          lesson_duration = $4,
+          currency        = $5,
+          updated_at      = NOW()
+      WHERE booking_id = $6 AND payroll_id IS NULL
+      RETURNING lesson_amount, total_earnings
+    `, [
+      commissionValue / 100,
+      instructorEarnings,
+      lessonAmount,
+      booking.duration || 1,
+      bookingCurrency,
+      booking.id,
+    ]);
+
+    return {
+      updated: rows.length > 0,
+      oldLessonAmount,
+      oldTotalEarnings,
+      lessonAmount: rows[0] ? Number(rows[0].lesson_amount) : oldLessonAmount,
+      totalEarnings: rows[0] ? Number(rows[0].total_earnings) : oldTotalEarnings,
+    };
   }
   
   /**
    * Create new instructor earnings record
    */
   static async createInstructorEarnings(client, booking, pkgContext = null) {
-    if (!booking.instructor_user_id) return;
+    if (!booking.instructor_user_id) return null;
 
     const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
     // Use the same total-amount helper as updates so creation and recompute
     // stay in lockstep. Includes group_size scaling AND active booking
     // discounts (entity-wide + per-participant).
     const lessonAmount = await this.computeBookingTotalAmount(client, booking, pkgContext);
-
     const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
-
     const bookingCurrency = booking.currency || 'EUR';
 
-    if (lessonAmount > 0) {
-      await client.query(`
-        INSERT INTO instructor_earnings 
+    if (lessonAmount <= 0) return null;
+
+    const { rows } = await client.query(`
+      INSERT INTO instructor_earnings
         (instructor_id, booking_id, base_rate, commission_rate, total_earnings, lesson_amount, lesson_date, lesson_duration, currency)
-        VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, CURRENT_DATE), $8, $9)
-        RETURNING *
-      `, [
-        booking.instructor_user_id,
-        booking.id,
-        commissionValue,         // Store percentage value as base_rate
-        commissionValue / 100,   // Store as decimal for commission_rate (0.25 for 25%)
-    instructorEarnings,      // What instructor gets for this lesson
-    lessonAmount,            // Price of this lesson (or derived from package)
-        booking.date,           // Use booking date or fallback to current date
-        booking.duration || 1,
-        bookingCurrency          // Currency from the booking
-      ]);
-    }
+      VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, CURRENT_DATE), $8, $9)
+      RETURNING lesson_amount, total_earnings
+    `, [
+      booking.instructor_user_id,
+      booking.id,
+      commissionValue,
+      commissionValue / 100,
+      instructorEarnings,
+      lessonAmount,
+      booking.date,
+      booking.duration || 1,
+      bookingCurrency,
+    ]);
+    return rows[0] || null;
   }
   
   /**
@@ -553,7 +560,7 @@ class BookingUpdateCascadeService {
    * Runs inside the caller's transaction.
    */
   static async recomputeInstructorEarningsForEntity(client, entityType, entityId) {
-    if (entityType !== 'booking') return { skipped: 'unsupported_entity_type' };
+    if (entityType !== WALLET_ENTITY_TYPE.BOOKING) return { skipped: 'unsupported_entity_type' };
     const { rows } = await client.query(
       `SELECT b.* FROM bookings b WHERE b.id = $1::uuid AND b.deleted_at IS NULL`,
       [String(entityId)]

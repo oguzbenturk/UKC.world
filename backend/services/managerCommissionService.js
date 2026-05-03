@@ -19,6 +19,7 @@ import CurrencyService from './currencyService.js';
 import { deriveLessonAmount, toNumber } from '../utils/instructorEarnings.js';
 import { getActiveDiscountAmount as sharedGetActiveDiscountAmount } from '../utils/discountAmounts.js';
 import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
+import { WALLET_ENTITY_TYPE } from '../constants/transactions.js';
 
 // Filters manager_commissions rows to those whose source booking/rental is still
 // alive (not soft-deleted / cancelled). Without this, orphan commission rows for
@@ -331,57 +332,10 @@ export async function recordRentalCommission(rental, options = {}) {
 
     if (sourceAmount <= 0 && rental.payment_status === 'package' && rental.customer_package_id) {
       try {
-        const pkgRes = await client.query(
-          `SELECT cp.id, cp.purchase_price, cp.currency,
-                  sp.rental_days, sp.price as sp_price,
-                  sp.package_daily_rate, sp.rental_service_id,
-                  cs.exchange_rate
-           FROM customer_packages cp
-           LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-           LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
-           WHERE cp.id = $1`,
-          [rental.customer_package_id]
-        );
-        if (pkgRes.rows.length > 0) {
-          const pkg = pkgRes.rows[0];
-          const totalDays = toNumber(pkg.rental_days) || 1;
-          const daysUsed = toNumber(rental.rental_days_used) || 1;
-
-          // Use stored daily rate if available
-          const storedDailyRate = toNumber(pkg.package_daily_rate);
-          if (storedDailyRate > 0) {
-            sourceAmount = Math.round(storedDailyRate * daysUsed * 100) / 100;
-          } else {
-            // Fallback: use linked rental service price
-            let dailyRate = 0;
-            if (pkg.rental_service_id) {
-              try {
-                const { rows: rRows } = await client.query(
-                  'SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]
-                );
-                dailyRate = toNumber(rRows[0]?.price) || 0;
-              } catch { /* ignore */ }
-            }
-            if (dailyRate > 0) {
-              sourceAmount = Math.round(dailyRate * daysUsed * 100) / 100;
-            } else {
-              // Last fallback: proportional from full package price minus
-              // the package discount (so a discounted package's rentals see
-              // their fair-share reduction).
-              let pkgPrice = toNumber(pkg.purchase_price);
-              if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
-                pkgPrice = Math.round((pkgPrice / toNumber(pkg.exchange_rate)) * 100) / 100;
-              }
-              const pkgDiscount = await getActiveDiscountAmount(client, 'customer_package', pkg.id);
-              const effectivePkgPrice = Math.max(0, pkgPrice - pkgDiscount);
-              sourceAmount = Math.round((effectivePkgPrice / totalDays * daysUsed) * 100) / 100;
-            }
-          }
-          logger.info('Derived package rental value for manager commission', {
-            rentalId: rental.id, packageId: rental.customer_package_id,
-            derivedAmount: sourceAmount, storedDailyRate, totalDays, daysUsed
-          });
-        }
+        sourceAmount = await derivePackageRentalAmount(client, rental);
+        logger.info('Derived package rental value for manager commission', {
+          rentalId: rental.id, packageId: rental.customer_package_id, derivedAmount: sourceAmount,
+        });
       } catch (err) {
         logger.warn('Failed to derive package rental value', { rentalId: rental.id, error: err.message });
       }
@@ -397,7 +351,7 @@ export async function recordRentalCommission(rental, options = {}) {
     // package-paid rentals where staff applied a per-rental adjustment on top
     // of the package. The previous gate (skip when payment_status='package')
     // silently dropped those discounts from manager commissions.
-    const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
+    const rentalDiscount = await getActiveDiscountAmount(client, WALLET_ENTITY_TYPE.RENTAL, rental.id);
     if (rentalDiscount > 0) {
       sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - rentalDiscount).toFixed(2));
     }
@@ -583,6 +537,22 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
     [packageId]
   );
 
+  // Pre-fetch per-booking discounts in one query, indexed by booking_id, so
+  // the loop below doesn't issue N extra getActiveDiscountAmount calls.
+  const bookingIds = cmsRes.rows.map((r) => r.booking_id).filter(Boolean);
+  const bookingDiscountMap = new Map();
+  if (bookingIds.length > 0) {
+    const { rows: discRowsBkg } = await client.query(
+      `SELECT entity_id, COALESCE(SUM(amount), 0)::numeric AS total
+         FROM discounts
+        WHERE entity_type = 'booking'
+          AND entity_id = ANY($1::text[])
+        GROUP BY entity_id`,
+      [bookingIds.map(String)]
+    );
+    for (const r of discRowsBkg) bookingDiscountMap.set(r.entity_id, toNumber(r.total));
+  }
+
   for (const row of cmsRes.rows) {
     if (row.payout_id) {
       summary.skippedPaidOut += 1;
@@ -614,7 +584,7 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
       // discount that already shaped `effectiveLessonPrice`. Without this
       // step, manager commissions on package-paid bookings ignored the
       // booking-level discount entirely.
-      const bookingDiscount = await getActiveDiscountAmount(client, 'booking', row.booking_id);
+      const bookingDiscount = bookingDiscountMap.get(String(row.booking_id)) || 0;
       if (bookingDiscount > 0) {
         newSourceAmount = Number.parseFloat(Math.max(0, newSourceAmount - bookingDiscount).toFixed(2));
       }
@@ -752,6 +722,62 @@ const ENTITY_BASE_SELECT = Object.fromEntries(
 // need to read the active discount total).
 export const getActiveDiscountAmount = sharedGetActiveDiscountAmount;
 
+// Derive the lesson/rental value of a single package-paid rental for
+// commission purposes. Tries (in order):
+//   1. The package's stored `package_daily_rate` × days used
+//   2. The linked rental service's price × days used
+//   3. A proportional cut of the (post-discount) package price
+//
+// Used by both `recordRentalCommission` (creation path) and the one-shot
+// backfill script so the math stays in lockstep. Returns 0 when nothing can
+// be derived (callers should treat as "no commission").
+export async function derivePackageRentalAmount(client, rental) {
+  if (!rental?.customer_package_id) return 0;
+  const { rows } = await client.query(
+    `SELECT cp.id, cp.purchase_price, cp.currency,
+            sp.rental_days, sp.package_daily_rate, sp.rental_service_id,
+            cs.exchange_rate
+       FROM customer_packages cp
+       LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+       LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
+      WHERE cp.id = $1`,
+    [rental.customer_package_id]
+  );
+  if (!rows.length) return 0;
+  const pkg = rows[0];
+  const totalDays = toNumber(pkg.rental_days) || 1;
+  const daysUsed = toNumber(rental.rental_days_used) || 1;
+
+  const storedDailyRate = toNumber(pkg.package_daily_rate);
+  if (storedDailyRate > 0) {
+    return Math.round(storedDailyRate * daysUsed * 100) / 100;
+  }
+
+  let dailyRate = 0;
+  if (pkg.rental_service_id) {
+    try {
+      const { rows: rRows } = await client.query(
+        'SELECT price FROM services WHERE id = $1', [pkg.rental_service_id]
+      );
+      dailyRate = toNumber(rRows[0]?.price) || 0;
+    } catch { /* ignore */ }
+  }
+  if (dailyRate > 0) {
+    return Math.round(dailyRate * daysUsed * 100) / 100;
+  }
+
+  // Proportional fallback: scale the post-discount package price by
+  // days-used / total-days so a discounted package's rentals see their
+  // fair-share reduction.
+  let pkgPrice = toNumber(pkg.purchase_price);
+  if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
+    pkgPrice = Math.round((pkgPrice / toNumber(pkg.exchange_rate)) * 100) / 100;
+  }
+  const pkgDiscount = await getActiveDiscountAmount(client, WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE, pkg.id);
+  const effectivePkgPrice = Math.max(0, pkgPrice - pkgDiscount);
+  return Math.round((effectivePkgPrice / totalDays * daysUsed) * 100) / 100;
+}
+
 // Re-derives source_amount + commission_amount for the active commission row
 // tied to a single non-package source entity, after its manual discount has
 // been applied / changed / removed. Mirrors the recordX paths so the math
@@ -786,7 +812,7 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
   const entity = entityRows[0];
 
   let newSourceAmount;
-  if (entity.skip_pkg && entityType === 'booking') {
+  if (entity.skip_pkg && entityType === WALLET_ENTITY_TYPE.BOOKING) {
     // Package-paid booking — derive total via the shared helper so the
     // discount math (package + per-booking) is identical to what the
     // instructor earnings path produces.

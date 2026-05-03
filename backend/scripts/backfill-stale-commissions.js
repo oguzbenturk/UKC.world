@@ -22,8 +22,8 @@
 import { pool } from '../db.js';
 import {
   recomputeManagerCommissionForEntity,
-  recomputeManagerCommissionsForPackage,
   getActiveDiscountAmount,
+  derivePackageRentalAmount,
 } from '../services/managerCommissionService.js';
 import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
 import CurrencyService from '../services/currencyService.js';
@@ -38,60 +38,28 @@ function fmt(n) {
 }
 
 async function recomputePackageRental(client, commissionRow) {
-  // Mirrors the package-rental derivation in recordRentalCommission so we can
-  // refresh package-paid rental commissions (which recomputeManagerCommissionForEntity
-  // intentionally skips). Returns { newSourceAmount, newCommissionAmount } or null.
+  // Refresh a package-paid rental commission (recomputeManagerCommissionForEntity
+  // intentionally skips these — packages drive their own cascade). Reuses
+  // the same derivation helper as recordRentalCommission so the math stays
+  // in lockstep.
   const { rows } = await client.query(
-    `SELECT r.id, r.total_price, r.rental_days_used, r.payment_status, r.customer_package_id, r.currency,
-            cp.purchase_price AS pkg_price, cp.currency AS pkg_currency,
-            sp.rental_days, sp.package_daily_rate, sp.rental_service_id,
-            cs.exchange_rate
-       FROM rentals r
-       LEFT JOIN customer_packages cp ON cp.id = r.customer_package_id
-       LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-       LEFT JOIN currency_settings cs ON cs.currency_code = cp.currency
-      WHERE r.id = $1::uuid
+    `SELECT id, total_price, rental_days_used, payment_status, customer_package_id, currency
+       FROM rentals
+      WHERE id = $1::uuid AND deleted_at IS NULL
       LIMIT 1`,
     [commissionRow.source_id]
   );
   if (!rows.length) return null;
-  const r = rows[0];
-  if (r.payment_status !== 'package' || !r.customer_package_id) return null;
+  const rental = rows[0];
+  if (rental.payment_status !== 'package' || !rental.customer_package_id) return null;
 
-  const totalDays = toNumber(r.rental_days) || 1;
-  const daysUsed = toNumber(r.rental_days_used) || 1;
-  const storedDailyRate = toNumber(r.package_daily_rate);
-
-  let sourceAmount;
-  if (storedDailyRate > 0) {
-    sourceAmount = Math.round(storedDailyRate * daysUsed * 100) / 100;
-  } else {
-    let dailyRate = 0;
-    if (r.rental_service_id) {
-      const { rows: rRows } = await client.query(
-        'SELECT price FROM services WHERE id = $1', [r.rental_service_id]
-      );
-      dailyRate = toNumber(rRows[0]?.price) || 0;
-    }
-    if (dailyRate > 0) {
-      sourceAmount = Math.round(dailyRate * daysUsed * 100) / 100;
-    } else {
-      let pkgPrice = toNumber(r.pkg_price);
-      if (r.pkg_currency && r.pkg_currency !== 'EUR' && toNumber(r.exchange_rate) > 0) {
-        pkgPrice = Math.round((pkgPrice / toNumber(r.exchange_rate)) * 100) / 100;
-      }
-      const pkgDiscount = await getActiveDiscountAmount(client, 'customer_package', r.customer_package_id);
-      const effectivePkgPrice = Math.max(0, pkgPrice - pkgDiscount);
-      sourceAmount = Math.round((effectivePkgPrice / totalDays * daysUsed) * 100) / 100;
-    }
-  }
-
-  const rentalDiscount = await getActiveDiscountAmount(client, 'rental', r.id);
+  let sourceAmount = await derivePackageRentalAmount(client, rental);
+  const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
   if (rentalDiscount > 0) {
     sourceAmount = Number.parseFloat(Math.max(0, sourceAmount - rentalDiscount).toFixed(2));
   }
 
-  const sourceCurrency = r.currency || 'EUR';
+  const sourceCurrency = rental.currency || 'EUR';
   let amountInEur = sourceAmount;
   if (sourceCurrency !== 'EUR') {
     try {
@@ -261,38 +229,31 @@ async function recomputePackageRental(client, commissionRow) {
 
     for (const booking of bks) {
       try {
-        // Capture pre-state so we can report a diff.
-        const { rows: pre } = await client.query(
-          `SELECT lesson_amount, total_earnings FROM instructor_earnings WHERE booking_id = $1`,
-          [booking.id]
-        );
-        const oldLessonAmount = toNumber(pre[0]?.lesson_amount);
-        const oldTotalEarnings = toNumber(pre[0]?.total_earnings);
+        // updateInstructorEarnings now returns old+new values so we don't
+        // need separate pre/post SELECTs around it.
+        const result = await BookingUpdateCascadeService.updateInstructorEarnings(client, booking);
+        if (result?.skipped === 'paid_out') {
+          summary.ieSkippedPaidOut += 1;
+          continue;
+        }
+        if (!result || !result.updated) continue;
 
-        await BookingUpdateCascadeService.updateInstructorEarnings(client, booking);
-
-        const { rows: post } = await client.query(
-          `SELECT lesson_amount, total_earnings FROM instructor_earnings WHERE booking_id = $1`,
-          [booking.id]
-        );
-        const newLessonAmount = toNumber(post[0]?.lesson_amount);
-        const newTotalEarnings = toNumber(post[0]?.total_earnings);
-
-        if (Math.abs(oldLessonAmount - newLessonAmount) > 0.005 ||
-            Math.abs(oldTotalEarnings - newTotalEarnings) > 0.005) {
+        const { oldLessonAmount, oldTotalEarnings, lessonAmount, totalEarnings } = result;
+        if (Math.abs(oldLessonAmount - lessonAmount) > 0.005 ||
+            Math.abs(oldTotalEarnings - totalEarnings) > 0.005) {
           summary.ieUpdated += 1;
           diffs.push({
             kind: 'instructor',
             bookingId: booking.id,
             oldLesson: fmt(oldLessonAmount),
-            newLesson: fmt(newLessonAmount),
+            newLesson: fmt(lessonAmount),
             oldEarnings: fmt(oldTotalEarnings),
-            newEarnings: fmt(newTotalEarnings),
+            newEarnings: fmt(totalEarnings),
           });
           if (VERBOSE) {
             console.log(
-              `  [IE ${booking.id}] lesson ${fmt(oldLessonAmount)} -> ${fmt(newLessonAmount)} ` +
-              `(earnings ${fmt(oldTotalEarnings)} -> ${fmt(newTotalEarnings)})`
+              `  [IE ${booking.id}] lesson ${fmt(oldLessonAmount)} -> ${fmt(lessonAmount)} ` +
+              `(earnings ${fmt(oldTotalEarnings)} -> ${fmt(totalEarnings)})`
             );
           }
         }

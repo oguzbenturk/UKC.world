@@ -15,6 +15,17 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 
 const RENTAL_CACHE_PATTERNS = ['api:GET:/api/rentals*'];
 
+// Aggregates active rental discounts so the rental SELECTs below can show a
+// post-discount `effective_total_price`. The unique-index on
+// (entity_type, entity_id) means at most one row per rental, so the SUM is
+// effectively a 1:1 lookup and does not multiply rows.
+const RENTAL_DISCOUNT_JOIN = `LEFT JOIN (
+        SELECT entity_id, SUM(amount) AS amount_total
+          FROM discounts
+         WHERE entity_type = 'rental'
+         GROUP BY entity_id
+      ) d_rental ON d_rental.entity_id = r.id::text`;
+
 const router = Router();
 
 // Record a manager commission for a rental. Awaited so the commission row
@@ -70,12 +81,7 @@ router.get('/', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR), 
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
       LIMIT $1
@@ -120,12 +126,7 @@ router.get('/recent', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
       LIMIT $1
@@ -169,12 +170,7 @@ router.get('/active', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUC
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.status = 'active'
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
@@ -218,12 +214,7 @@ router.get('/upcoming', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTR
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.status = 'upcoming'
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.start_date ASC
@@ -267,12 +258,7 @@ router.get('/overdue', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.status = 'overdue'
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.end_date ASC
@@ -316,12 +302,7 @@ router.get('/completed', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INST
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.status = 'completed'
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.end_date DESC
@@ -365,12 +346,7 @@ router.get('/pending', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRU
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.status = 'pending'
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total
       ORDER BY r.created_at DESC
@@ -417,12 +393,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(ALLOW_ROLES_EXCEPT_INSTRUCTOR
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.id = $1
       GROUP BY r.id, u.name, u.email, u.phone, creator.name, d_rental.amount_total
     `;
@@ -805,12 +776,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.id = $1
       GROUP BY r.id, u.name, u.email, creator.name, d_rental.amount_total`,
       [rental.id]
@@ -1020,12 +986,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
       LEFT JOIN users creator ON r.created_by = creator.id
       LEFT JOIN rental_equipment re ON r.id = re.rental_id
       LEFT JOIN services s ON re.equipment_id = s.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
       WHERE r.id = $1
       GROUP BY r.id, u.name, u.email, u.phone, creator.name, d_rental.amount_total`,
       [id]
@@ -1490,12 +1451,7 @@ router.get('/user/:userId', authenticateJWT, async (req, res) => {
       LEFT JOIN services s ON re.equipment_id = s.id
       LEFT JOIN customer_packages cp ON r.customer_package_id = cp.id
       LEFT JOIN service_packages sp ON cp.service_package_id = sp.id
-      LEFT JOIN (
-        SELECT entity_id, SUM(amount) AS amount_total
-          FROM discounts
-         WHERE entity_type = 'rental'
-         GROUP BY entity_id
-      ) d_rental ON d_rental.entity_id = r.id::text
+      ${RENTAL_DISCOUNT_JOIN}
   WHERE r.user_id = $1
       GROUP BY r.id, sp.package_daily_rate, d_rental.amount_total
   ORDER BY r.start_date DESC
