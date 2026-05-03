@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Modal, Button, DatePicker, Spin, Empty, Tooltip } from 'antd';
+import { Modal, Button, DatePicker, Spin, Empty, Tooltip, App } from 'antd';
 import dayjs from 'dayjs';
 import {
   PrinterOutlined, DownloadOutlined, CloseOutlined,
@@ -67,6 +67,7 @@ const CustomerBillModal = ({
 }) => {
   const { apiClient } = useData();
   const { formatCurrency, businessCurrency, convertCurrency } = useCurrency();
+  const { message } = App.useApp();
   const baseCurrency = businessCurrency || 'EUR';
 
   const [period, setPeriod] = useState(null); // null = all time
@@ -153,35 +154,73 @@ const CustomerBillModal = ({
   const printableRef = useRef(null);
   const handlePrint = () => window.print();
 
+  // Best-effort breadcrumb so PDF failures land in production server logs
+  // (the browser console isn't accessible to staff on prod). Fire-and-forget;
+  // never let logging itself break the user flow.
+  const reportClientError = async (context, err) => {
+    try {
+      const payload = {
+        context,
+        message: err?.message || String(err),
+        stack: err?.stack || null,
+        url: typeof window !== 'undefined' ? window.location.href : null,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+      };
+      // Use sendBeacon when available so the request survives a tab reset.
+      const body = JSON.stringify(payload);
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([body], { type: 'application/json' });
+        navigator.sendBeacon('/api/client-errors', blob);
+        return;
+      }
+      await fetch('/api/client-errors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+    } catch { /* swallow — logging must never throw */ }
+  };
+
   const handlePdf = async () => {
     const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
     const datePart = new Date().toISOString().slice(0, 10);
     const filename = `DPC-Statement-${safeName}-${datePart}.pdf`;
 
+    let domCaptureError = null;
     if (printableRef.current) {
       try {
         await exportBillPdfFromElement(printableRef.current, filename);
         return;
       } catch (err) {
-        // Fall through to the legacy text-based path so the user always gets
-        // a PDF, even if html2canvas hits a CORS/font/layout edge case.
+        domCaptureError = err;
         console.warn('Bill PDF: DOM capture failed, falling back to text export', err);
       }
     }
 
-    await exportBillPdf({
-      customerName,
-      customerEmail: customer?.email,
-      customerPhone: customer?.phone,
-      customerAddress,
-      billRef,
-      issuedAt,
-      period: period ? [period[0].format('DD MMM YYYY'), period[1].format('DD MMM YYYY')] : null,
-      grouped,
-      totals,
-      baseCurrency,
-      formatCurrency,
-    });
+    // Both paths get a try/catch — the legacy export had none, so a throw
+    // there propagated up to React's error boundary and "reset" the app.
+    try {
+      await exportBillPdf({
+        customerName,
+        customerEmail: customer?.email,
+        customerPhone: customer?.phone,
+        customerAddress,
+        billRef,
+        issuedAt,
+        period: period ? [period[0].format('DD MMM YYYY'), period[1].format('DD MMM YYYY')] : null,
+        grouped,
+        totals,
+        baseCurrency,
+        formatCurrency,
+      });
+    } catch (err) {
+      // Both paths failed. Tell the user, surface a print fallback, and
+      // ship both errors to the backend so prod has a stack trace to grep.
+      console.error('Bill PDF: legacy export also failed', err);
+      message.error('Could not generate PDF. Use the Print button (Save as PDF) as a workaround.');
+      reportClientError('CustomerBillModal.handlePdf', err);
+      if (domCaptureError) reportClientError('CustomerBillModal.handlePdf:dom-capture', domCaptureError);
+    }
   };
 
   const visibleCategories = CATEGORY_DISPLAY_ORDER.filter(cat => grouped[cat]?.length > 0);

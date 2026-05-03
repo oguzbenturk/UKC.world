@@ -319,6 +319,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// Lightweight client-error sink: the frontend posts here whenever an
+// unexpected exception bubbles up (PDF export, big async actions, error
+// boundary). The body lands in the backend log stream so docker-compose logs
+// captures it on prod, where the browser console isn't accessible to staff.
+// No auth required by design — we want failures from the not-yet-logged-in
+// states too — but the payload is bounded and rate-limited via apiRateLimit.
+app.post('/api/client-errors', (req, res) => {
+  const { context, message, stack, url, userAgent } = req.body || {};
+  const safe = (v, max = 4000) => (typeof v === 'string' ? v.slice(0, max) : null);
+  logger.error('[client-error]', {
+    context: safe(context, 200),
+    message: safe(message, 1000),
+    stack: safe(stack, 4000),
+    url: safe(url, 500),
+    userAgent: safe(userAgent, 300),
+    ip: req.ip,
+  });
+  res.status(204).end();
+});
+
 // SEC-032 FIX: Health check endpoint - minimal info for public, detailed for authenticated
 app.get('/api/health', (req, res) => {
   // Public health check - minimal information
