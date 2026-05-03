@@ -142,7 +142,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         icon: HomeOutlined,
         color: 'blue',
         permissions: ['bookings:read', 'bookings:write'],
-        primaryAction: createAction('Book Room', '/accommodation', 'newAccommodation'),
+        primaryAction: createAction('My Bookings', '/accommodation', 'newAccommodation'),
         secondaryActions: [
           { label: 'Manage Units', to: '/services/accommodation' }
         ],
