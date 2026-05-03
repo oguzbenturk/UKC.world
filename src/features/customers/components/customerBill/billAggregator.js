@@ -105,14 +105,19 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidInd
   const ps = String(b.payment_status || '').toLowerCase();
   const paidByPackage = ps === 'package'
     || (b.payment_method_display && /package/i.test(b.payment_method_display));
-  // Trust the wallet ledger over the booking row's payment_status flag —
-  // the latter is sometimes stamped 'paid' on creation regardless of whether
-  // money moved. We only mark "Paid" when there's an actual debit-direction
-  // wallet transaction tied to this booking.
+  // Trust the wallet ledger over the booking row's payment_status flag for
+  // 'paid' claims — the latter is sometimes stamped 'paid' on creation
+  // regardless of whether money moved. But when the booking row says the
+  // payment is NOT settled (unpaid/pending/waiting/failed), trust that:
+  // staff bookings can produce a wallet debit while the wallet goes
+  // negative (allowNegativeBalance), which would otherwise fool the
+  // wallet-evidence check into reporting "Paid".
+  const NOT_SETTLED_STATUSES = new Set(['unpaid', 'pending', 'pending_payment', 'waiting_payment', 'failed', 'partial']);
   const hasWalletEvidence = isEntityPaid(paidIndex, 'booking', b.id);
   let billStatus = 'unpaid';
   if (status === 'cancelled') billStatus = 'cancelled';
   else if (paidByPackage) billStatus = 'package';
+  else if (NOT_SETTLED_STATUSES.has(ps)) billStatus = 'unpaid';
   else if (hasWalletEvidence) billStatus = 'paid';
   // No fallback to ps='paid' alone — if the wallet has no record of payment,
   // the row is unpaid no matter what the booking flag says.
