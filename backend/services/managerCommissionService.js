@@ -801,6 +801,19 @@ const ENTITY_COMMISSION_MAP = {
   },
 };
 
+// Per-entity source-row SELECT, built once at module load and reused per call.
+const ENTITY_BASE_SELECT = Object.fromEntries(
+  Object.entries(ENTITY_COMMISSION_MAP).map(([type, cfg]) => [
+    type,
+    `SELECT ${cfg.priceCol} AS base_price,
+            ${cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`} AS currency,
+            ${cfg.skipExpr ? `(${cfg.skipExpr})` : `FALSE`} AS skip_pkg
+       FROM ${cfg.table}
+      WHERE id = $1${cfg.idType === 'int' ? '::integer' : '::uuid'}
+      LIMIT 1`,
+  ])
+);
+
 // Reads any active per-entity manual discount amount. Returns 0 when no row
 // exists. Safe to call from any service that has the discount entity type/id.
 export async function getActiveDiscountAmount(client, entityType, entityId) {
@@ -829,17 +842,8 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
   const cfg = ENTITY_COMMISSION_MAP[entityType];
   if (!cfg) return { skipped: 'unsupported_entity_type' };
 
-  const idCast = cfg.idType === 'int' ? '::integer' : '::uuid';
-  const currencyExpr = cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`;
-  const skipExpr = cfg.skipExpr ? `, (${cfg.skipExpr}) AS skip_pkg` : `, FALSE AS skip_pkg`;
-
   const { rows: entityRows } = await client.query(
-    `SELECT ${cfg.priceCol} AS base_price,
-            ${currencyExpr} AS currency
-            ${skipExpr}
-       FROM ${cfg.table}
-      WHERE id = $1${idCast}
-      LIMIT 1`,
+    ENTITY_BASE_SELECT[entityType],
     [String(entityId)]
   );
   if (!entityRows.length) return { skipped: 'entity_not_found' };

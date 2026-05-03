@@ -303,7 +303,7 @@ const EnhancedInstructorDetailModal = ({
       if (earningsRes.status === 'fulfilled') {
         const { earnings = [], payrollHistory = [] } = earningsRes.value.data || {};
         const totalEarned = earnings.reduce((s, e) => s + parseFloat(e.total_earnings || 0), 0);
-        const totalPaid = payrollHistory.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+        const totalPaid = payrollHistory.reduce((s, p) => s + Math.abs(parseFloat(p.amount || 0)), 0);
         setEarningsBalance({ totalEarned, totalPaid, balance: totalEarned - totalPaid });
       }
     } catch (error) {

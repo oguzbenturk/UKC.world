@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, InputNumber, Input, Alert, Tag } from 'antd';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { applyDiscount as apiApplyDiscount, removeDiscount as apiRemoveDiscount } from './customerBill/discountApi';
+import { useApiSubmit, PriceSummaryRows } from './customerBill/priceModalBits';
 
 // Reusable single-line discount editor.
 //
@@ -28,13 +29,12 @@ export default function ApplyDiscountModal({
   existingDiscount = null,
   description = '',
 }) {
-  const { formatCurrency, businessCurrency } = useCurrency();
+  const { businessCurrency } = useCurrency();
   const cur = currency || businessCurrency || 'EUR';
 
   const [percent, setPercent] = useState(0);
   const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const { submitting, error, setError, run } = useApiSubmit();
 
   useEffect(() => {
     if (open) {
@@ -42,51 +42,33 @@ export default function ApplyDiscountModal({
       setReason(existingDiscount?.reason || '');
       setError(null);
     }
-  }, [open, existingDiscount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
-  const previewAmount = useMemo(() => {
-    const pct = Number(percent) || 0;
-    const orig = Number(originalPrice) || 0;
-    return Math.max(0, orig - (orig * pct) / 100);
-  }, [percent, originalPrice]);
+  const orig = Number(originalPrice) || 0;
+  const pct = Number(percent) || 0;
+  const previewAmount = Math.max(0, orig - (orig * pct) / 100);
+  const discountAmount = Math.max(0, orig - previewAmount);
 
-  const discountAmount = useMemo(() => {
-    return Math.max(0, (Number(originalPrice) || 0) - previewAmount);
-  }, [originalPrice, previewAmount]);
+  const handleSubmit = () => run(async () => {
+    const result = await apiApplyDiscount({
+      customerId,
+      entityType,
+      entityId,
+      percent: Number(percent) || 0,
+      reason: reason || null,
+    });
+    onSaved?.(result);
+    onClose?.();
+  });
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await apiApplyDiscount({
-        customerId,
-        entityType,
-        entityId,
-        percent: Number(percent) || 0,
-        reason: reason || null,
-      });
-      onSaved?.(result);
-      onClose?.();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleRemove = async () => {
+  const handleRemove = () => {
     if (!existingDiscount?.id) return;
-    setSubmitting(true);
-    setError(null);
-    try {
+    run(async () => {
       await apiRemoveDiscount(existingDiscount.id);
       onSaved?.({ deleted: true });
       onClose?.();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -100,26 +82,17 @@ export default function ApplyDiscountModal({
       title="Apply Discount"
       width={460}
       destroyOnHidden
-      footer={existingDiscount?.id ? undefined : undefined}
     >
       {description && (
         <div className="text-sm text-slate-600 mb-3">{description}</div>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 mb-3">
-        <div className="flex justify-between text-xs">
-          <span className="text-slate-500">Original</span>
-          <span className="tabular-nums font-medium text-slate-700">{formatCurrency(originalPrice || 0, cur)}</span>
-        </div>
-        <div className="flex justify-between text-xs mt-1">
-          <span className="text-slate-500">Discount</span>
-          <span className="tabular-nums font-medium text-rose-600">−{formatCurrency(discountAmount, cur)}</span>
-        </div>
-        <div className="flex justify-between text-sm mt-1.5 pt-1.5 border-t border-slate-200">
-          <span className="font-semibold text-slate-700">Final</span>
-          <span className="tabular-nums font-bold text-emerald-600">{formatCurrency(previewAmount, cur)}</span>
-        </div>
-      </div>
+      <PriceSummaryRows
+        currency={cur}
+        originalPrice={orig}
+        discountAmount={discountAmount}
+        finalPrice={previewAmount}
+      />
 
       <div className="space-y-3">
         <div>

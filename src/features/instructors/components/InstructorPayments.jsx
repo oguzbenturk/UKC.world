@@ -72,8 +72,10 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
         };
       });
 
+      // Both payments (positive) and deductions (negative) reduce what's still
+      // owed — sum |amount| so a deduction lowers the balance like a payment.
       let paidTotal = new Decimal(0);
-      for (const p of history) paidTotal = paidTotal.plus(new Decimal(p.amount || 0));
+      for (const p of history) paidTotal = paidTotal.plus(new Decimal(p.amount || 0).abs());
 
       const balance = calcEarnings.minus(paidTotal);
 

@@ -13,6 +13,15 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 import { recordAccommodationCommission, cancelCommission } from '../services/managerCommissionService.js';
 import { extractUnitMeta, calculateTotalPrice } from '../services/accommodationPricingService.js';
 import { recomputeDiscountForAccommodationBooking } from '../services/discountService.js';
+import {
+  TRANSACTION_TYPE,
+  WALLET_ENTITY_TYPE,
+  WALLET_TX_STATUS,
+  BOOKING_STATUS,
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
+  TX_DIRECTION,
+} from '../constants/transactions.js';
 
 const router = Router();
 
@@ -454,7 +463,7 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 		const booking = rows[0];
 		
 		// Refund wallet if payment was made
-		if (booking.payment_status === 'paid' && booking.guest_id) {
+		if (booking.payment_status === PAYMENT_STATUS.PAID && booking.guest_id) {
 			const refundAmount = parseFloat(booking.payment_amount || booking.total_price);
 			if (refundAmount > 0) {
 				try {
@@ -616,7 +625,7 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 					description: `Accommodation booking: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`
 				});
 				walletTxId = lockResult?.id || null;
-				paymentStatus = 'paid';
+				paymentStatus = PAYMENT_STATUS.PAID;
 			} catch (walletErr) {
 				await client.query('ROLLBACK');
 				logger.error('[ACCOMMODATION] Wallet deduction failed:', walletErr);
@@ -657,8 +666,8 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 					userId: guest_id,
 					amount: -Math.abs(total_price),
 					transactionType: 'accommodation_charge',
-					status: 'completed',
-					direction: 'debit',
+					status: WALLET_TX_STATUS.COMPLETED,
+					direction: TX_DIRECTION.DEBIT,
 					currency: 'EUR',
 					description: `Accommodation charge: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`,
 					metadata: {
@@ -947,7 +956,7 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 		}
 		const current = existing.rows[0];
 
-		if (current.status === 'cancelled' || current.status === 'completed') {
+		if (current.status === BOOKING_STATUS.CANCELLED || current.status === BOOKING_STATUS.COMPLETED) {
 			throw Object.assign(new Error(`Cannot edit a ${current.status} booking`), { statusCode: 400 });
 		}
 
@@ -1002,7 +1011,7 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 
 		const oldTotal = parseFloat(current.total_price) || 0;
 		const delta = new Decimal(newTotal).minus(oldTotal).toDecimalPlaces(2).toNumber();
-		const isWalletPaid = current.payment_method === 'wallet' && current.payment_status === 'paid';
+		const isWalletPaid = current.payment_method === PAYMENT_METHOD.WALLET && current.payment_status === PAYMENT_STATUS.PAID;
 
 		const { rows } = await client.query(
 			`UPDATE accommodation_bookings
@@ -1035,14 +1044,14 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 			const unitLabel = unitData.name || 'Unit';
 			const oldFmt = `€${oldTotal.toFixed(2)}`;
 			const newFmt = `€${Number(newTotal).toFixed(2)}`;
-			if (current.payment_method === 'pay_later') {
+			if (current.payment_method === PAYMENT_METHOD.PAY_LATER) {
 				await recordLegacyTransaction({
 					client,
 					userId: current.guest_id,
 					amount: -delta,
-					transactionType: 'accommodation_charge_adjustment',
-					status: 'completed',
-					direction: delta > 0 ? 'debit' : 'credit',
+					transactionType: TRANSACTION_TYPE.ACCOMMODATION_CHARGE_ADJUSTMENT,
+					status: WALLET_TX_STATUS.COMPLETED,
+					direction: delta > 0 ? TX_DIRECTION.DEBIT : TX_DIRECTION.CREDIT,
 					currency: 'EUR',
 					description: `Accommodation price ${delta > 0 ? 'increase' : 'decrease'}: ${unitLabel} (${oldFmt} → ${newFmt})`,
 					metadata: {
@@ -1051,8 +1060,8 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 						newTotal,
 						source: 'accommodation:edit:pay_later',
 					},
-					entityType: 'accommodation_booking',
-					relatedEntityType: 'accommodation_booking',
+					entityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
+					relatedEntityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
 					relatedEntityId: id,
 					createdBy: req.user.id,
 					allowNegative: true,

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal, InputNumber, Input, Alert, Checkbox, Tag } from 'antd';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { updatePackagePrice } from './customerBill/packagePriceApi';
+import { useApiSubmit, PriceSummaryRows } from './customerBill/priceModalBits';
 
 // Direct edit of a customer package's purchase_price.
 //
@@ -26,8 +27,7 @@ export default function EditPackagePriceModal({
   const [newPrice, setNewPrice] = useState(currentPrice ?? 0);
   const [reason, setReason] = useState('');
   const [settleWallet, setSettleWallet] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const { submitting, error, setError, run } = useApiSubmit();
 
   // Reset only on open transition; depending on currentPrice would clobber
   // user input if the parent re-fetches mid-edit.
@@ -43,32 +43,27 @@ export default function EditPackagePriceModal({
 
   const delta = Math.round(((Number(newPrice) || 0) - (Number(currentPrice) || 0)) * 100) / 100;
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const reasonTrimmed = (reason || '').trim();
-    if (!reasonTrimmed) {
-      setError('Reason is required.');
-      return;
-    }
-    if (!Number.isFinite(Number(newPrice)) || Number(newPrice) < 0) {
-      setError('Price must be zero or greater.');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await updatePackagePrice({
-        packageId,
-        newPrice: Number(newPrice),
-        reason: reasonTrimmed,
-        settleWallet,
-      });
-      onSaved?.(result);
-      onClose?.();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
+    run(
+      async () => {
+        const result = await updatePackagePrice({
+          packageId,
+          newPrice: Number(newPrice),
+          reason: reasonTrimmed,
+          settleWallet,
+        });
+        onSaved?.(result);
+        onClose?.();
+      },
+      {
+        validate: () => {
+          if (!reasonTrimmed) return 'Reason is required.';
+          if (!Number.isFinite(Number(newPrice)) || Number(newPrice) < 0) return 'Price must be zero or greater.';
+          return null;
+        },
+      }
+    );
   };
 
   const showOriginalRow = originalPrice !== null && originalPrice !== undefined && Number(originalPrice) !== Number(currentPrice);
@@ -89,30 +84,14 @@ export default function EditPackagePriceModal({
         <div className="text-sm text-slate-600 mb-3">{description}</div>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 mb-3">
-        {showOriginalRow && (
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-500">Original</span>
-            <span className="tabular-nums text-slate-500 line-through">{formatCurrency(originalPrice || 0, cur)}</span>
-          </div>
-        )}
-        <div className="flex justify-between text-xs mt-1">
-          <span className="text-slate-500">Current</span>
-          <span className="tabular-nums font-medium text-slate-700">{formatCurrency(currentPrice || 0, cur)}</span>
-        </div>
-        <div className="flex justify-between text-sm mt-1.5 pt-1.5 border-t border-slate-200">
-          <span className="font-semibold text-slate-700">New</span>
-          <span className="tabular-nums font-bold text-emerald-600">{formatCurrency(Number(newPrice) || 0, cur)}</span>
-        </div>
-        {delta !== 0 && (
-          <div className="flex justify-between text-xs mt-1">
-            <span className="text-slate-500">Delta</span>
-            <span className={`tabular-nums font-medium ${delta < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
-              {delta < 0 ? '−' : '+'}{formatCurrency(Math.abs(delta), cur)}
-            </span>
-          </div>
-        )}
-      </div>
+      <PriceSummaryRows
+        currency={cur}
+        originalPrice={showOriginalRow ? originalPrice : null}
+        currentPrice={currentPrice}
+        finalPrice={Number(newPrice) || 0}
+        finalLabel="New"
+        delta={delta}
+      />
 
       <div className="space-y-3">
         <div>

@@ -13,11 +13,11 @@ import { logger } from '../middlewares/errorHandler.js';
 import { pool } from '../db.js';
 import { resolveActorId } from '../utils/auditUtils.js';
 import {
-  recordTransaction as recordWalletTransaction,
-  recordLegacyTransaction,
-  getTransactionById as getWalletTransactionById,
-  resolveStoredAvailableDelta
-} from '../services/walletService.js';
+  createStaffPayment,
+  updateStaffPayment,
+  deleteStaffPayment,
+  STAFF_KIND,
+} from '../services/staffPaymentService.js';
 import {
   getManagerCommissionSettings,
   getManagerCommissionSummary,
@@ -475,6 +475,7 @@ router.get('/admin/managers/:managerId/payment-history', authenticateJWT, author
        FROM wallet_transactions
        WHERE user_id = $1
          AND entity_type = 'manager_payment'
+         AND transaction_type IN ('payment', 'deduction')
          AND status != 'cancelled'
        ORDER BY created_at DESC`,
       [managerId]
@@ -500,40 +501,20 @@ router.post('/admin/managers/:managerId/payments', authenticateJWT, authorizeRol
       return res.status(400).json({ error: 'Missing required fields: amount, description, payment_date' });
     }
 
-    const transactionAmount = parseFloat(amount);
-    const transactionType = transactionAmount < 0 ? 'deduction' : 'payment';
-    const actorId = resolveActorId(req);
-    const paymentDate = payment_date ? new Date(payment_date) : new Date();
-    const referenceNumber = `MGR_${Date.now()}`;
-
-    const transactionRecord = await recordLegacyTransaction({
+    const { transactionRecord, transactionType } = await createStaffPayment({
+      kind: STAFF_KIND.MANAGER,
       userId: managerId,
-      amount: transactionAmount,
-      transactionType,
-      status: 'completed',
-      direction: transactionAmount >= 0 ? 'credit' : 'debit',
+      amount,
       description,
-      paymentMethod: payment_method || null,
-      referenceNumber,
-      // Salary/commission payouts must not affect the staff member's wallet
-      // balance — the wallet is for customer-style credit, not payroll.
-      availableDelta: 0,
-      metadata: {
-        source: 'manager-commissions:payments:create',
-        paymentDate: paymentDate.toISOString(),
-        referenceNumber
-      },
-      entityType: 'manager_payment',
-      relatedEntityType: 'manager',
-      relatedEntityId: managerId,
-      createdBy: actorId || null,
-      allowNegative: true
+      paymentDate: new Date(payment_date),
+      paymentMethod: payment_method,
+      actorId: resolveActorId(req),
     });
 
     res.json({
       success: true,
       transaction: transactionRecord,
-      message: `Manager ${transactionType} recorded successfully`
+      message: `Manager ${transactionType} recorded successfully`,
     });
   } catch (error) {
     logger.error('Error recording manager payment:', { error: error.message, managerId: req.params.managerId });
@@ -547,98 +528,31 @@ router.post('/admin/managers/:managerId/payments', authenticateJWT, authorizeRol
  * @access  Admin only
  */
 router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
-  const client = await pool.connect();
   try {
     const { paymentId } = req.params;
     const { amount, description, payment_date, payment_method = 'cash' } = req.body;
 
     if (!amount || !description || !payment_date) {
-      client.release();
       return res.status(400).json({ error: 'Missing required fields: amount, description, payment_date' });
     }
 
-    const transaction = await getWalletTransactionById(paymentId);
-    if (!transaction) {
-      client.release();
-      return res.status(404).json({ error: 'Payment not found' });
-    }
-    if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
-      client.release();
-      return res.status(400).json({ error: 'Only payment/deduction transactions can be updated' });
-    }
-
-    const actorId = resolveActorId(req) || null;
-    const newAmount = parseFloat(amount);
-    const transactionType = newAmount < 0 ? 'deduction' : 'payment';
-
-    await client.query('BEGIN');
-
-    const originalAmount = parseFloat(transaction.amount) || 0;
-    const availableDelta = resolveStoredAvailableDelta(transaction);
-    const pendingDelta = parseFloat(transaction.pending_delta) || 0;
-    const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
-
-    // Cancel old transaction
-    await client.query(
-      `UPDATE wallet_transactions SET status = 'cancelled',
-         metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
-         updated_at = NOW()
-       WHERE id = $1`,
-      [paymentId, JSON.stringify({ updatedBy: actorId, updatedAt: new Date().toISOString() })]
-    );
-
-    // Reversal
-    if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
-      await recordWalletTransaction({
-        userId: transaction.user_id,
-        amount: -originalAmount,
-        availableDelta: -availableDelta,
-        pendingDelta: -pendingDelta,
-        nonWithdrawableDelta: -nonWithdrawableDelta,
-        transactionType: `${transaction.transaction_type}_reversal`,
-        currency: transaction.currency || 'EUR',
-        description: `Reversal for manager payment ${transaction.id}`,
-        metadata: { origin: 'manager-commissions:payments:update:reversal', reversedTransactionId: transaction.id },
-        relatedEntityType: 'manager_payment',
-        relatedEntityId: transaction.related_entity_id || transaction.id,
-        createdBy: actorId,
-        allowNegative: true,
-        client
-      });
-    }
-
-    // New replacement transaction — keep wallet balance untouched (see POST handler).
-    const updated = await recordLegacyTransaction({
-      userId: transaction.user_id,
-      amount: newAmount,
-      transactionType,
-      status: 'completed',
-      direction: newAmount >= 0 ? 'credit' : 'debit',
+    const { updatedTransaction } = await updateStaffPayment({
+      kind: STAFF_KIND.MANAGER,
+      paymentId,
+      amount,
       description,
-      paymentMethod: payment_method || null,
-      referenceNumber: transaction.reference_number || `MGR_${Date.now()}`,
-      availableDelta: 0,
-      metadata: {
-        source: 'manager-commissions:payments:update',
-        replacesTransactionId: transaction.id,
-        paymentDate: (payment_date ? new Date(payment_date) : new Date()).toISOString(),
-        previousAmount: originalAmount
-      },
-      entityType: 'manager_payment',
-      relatedEntityType: 'manager',
-      relatedEntityId: transaction.user_id,
-      createdBy: actorId,
-      client
+      paymentDate: new Date(payment_date),
+      paymentMethod: payment_method,
+      actorId: resolveActorId(req) || null,
     });
 
-    await client.query('COMMIT');
-    res.json({ success: true, transaction: updated, message: 'Manager payment updated successfully' });
+    res.json({ success: true, transaction: updatedTransaction, message: 'Manager payment updated successfully' });
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
     logger.error('Error updating manager payment:', { error: error.message });
     res.status(500).json({ error: 'Failed to update manager payment' });
-  } finally {
-    client.release();
   }
 });
 
@@ -648,65 +562,22 @@ router.put('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, au
  * @access  Admin only
  */
 router.delete('/admin/managers/:managerId/payments/:paymentId', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
-  const client = await pool.connect();
   try {
     const { paymentId } = req.params;
 
-    await client.query('BEGIN');
+    await deleteStaffPayment({
+      kind: STAFF_KIND.MANAGER,
+      paymentId,
+      actorId: resolveActorId(req) || null,
+    });
 
-    const transaction = await getWalletTransactionById(paymentId);
-    if (!transaction) {
-      await client.query('ROLLBACK');
-      client.release();
-      return res.status(404).json({ error: 'Payment not found' });
-    }
-    if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
-      await client.query('ROLLBACK');
-      client.release();
-      return res.status(400).json({ error: 'Only payment/deduction transactions can be deleted' });
-    }
-
-    const actorId = resolveActorId(req) || null;
-    const originalAmount = parseFloat(transaction.amount) || 0;
-    const availableDelta = resolveStoredAvailableDelta(transaction);
-    const pendingDelta = parseFloat(transaction.pending_delta) || 0;
-    const nonWithdrawableDelta = parseFloat(transaction.non_withdrawable_delta) || 0;
-
-    await client.query(
-      `UPDATE wallet_transactions SET status = 'cancelled',
-         metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
-         updated_at = NOW()
-       WHERE id = $1`,
-      [paymentId, JSON.stringify({ cancelledBy: actorId, cancelledAt: new Date().toISOString() })]
-    );
-
-    if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
-      await recordWalletTransaction({
-        userId: transaction.user_id,
-        amount: -originalAmount,
-        availableDelta: -availableDelta,
-        pendingDelta: -pendingDelta,
-        nonWithdrawableDelta: -nonWithdrawableDelta,
-        transactionType: `${transaction.transaction_type}_reversal`,
-        currency: transaction.currency || 'EUR',
-        description: `Reversal for manager payment ${transaction.id}`,
-        metadata: { origin: 'manager-commissions:payments:delete:reversal', reversedTransactionId: transaction.id },
-        relatedEntityType: 'manager_payment',
-        relatedEntityId: transaction.related_entity_id || transaction.id,
-        createdBy: actorId,
-        allowNegative: true,
-        client
-      });
-    }
-
-    await client.query('COMMIT');
     res.json({ success: true, message: 'Manager payment deleted successfully' });
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
     logger.error('Error deleting manager payment:', { error: error.message });
     res.status(500).json({ error: 'Failed to delete manager payment' });
-  } finally {
-    client.release();
   }
 });
 

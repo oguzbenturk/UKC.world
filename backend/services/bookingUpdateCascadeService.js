@@ -12,9 +12,65 @@ import { deriveLessonAmount } from '../utils/instructorEarnings.js';
 
 class BookingUpdateCascadeService {
   /**
-   * Compute the effective lesson amount for a booking (package-aware)
+   * Pre-fetch all package-level data needed by computeLessonAmount, so a
+   * cascade that recomputes earnings for every booking on a package can
+   * pass the same context in instead of re-querying per booking.
    */
-  static async computeLessonAmount(client, booking) {
+  static async loadPackageContext(client, packageId) {
+    if (!packageId) return null;
+    const { rows } = await client.query(
+      `SELECT cp.purchase_price, cp.total_hours, cp.remaining_hours, cp.used_hours,
+              cp.service_package_id,
+              sp.total_hours        AS sp_total_hours,
+              sp.sessions_count     AS sp_sessions_count,
+              sp.rental_service_id  AS sp_rental_service_id,
+              sp.accommodation_unit_id AS sp_accommodation_unit_id,
+              sp.rental_days        AS sp_rental_days,
+              sp.accommodation_nights AS sp_accommodation_nights,
+              sp.package_hourly_rate AS sp_package_hourly_rate,
+              (SELECT amount FROM discounts
+                 WHERE entity_type = 'customer_package' AND entity_id = cp.id::text
+                 LIMIT 1) AS discount_amount,
+              (SELECT price FROM services WHERE id = sp.rental_service_id) AS rental_price,
+              (SELECT price_per_night FROM accommodation_units WHERE id = sp.accommodation_unit_id) AS accom_price_per_night
+         FROM customer_packages cp
+         LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+        WHERE cp.id = $1`,
+      [packageId]
+    );
+    if (!rows.length) return null;
+    const r = rows[0];
+    return {
+      packageId,
+      pkg: {
+        purchase_price: r.purchase_price,
+        total_hours: r.total_hours,
+        remaining_hours: r.remaining_hours,
+        used_hours: r.used_hours,
+        service_package_id: r.service_package_id,
+      },
+      servicePackage: r.service_package_id ? {
+        total_hours: r.sp_total_hours,
+        sessions_count: r.sp_sessions_count,
+        rental_service_id: r.sp_rental_service_id,
+        accommodation_unit_id: r.sp_accommodation_unit_id,
+        rental_days: r.sp_rental_days,
+        accommodation_nights: r.sp_accommodation_nights,
+        package_hourly_rate: r.sp_package_hourly_rate,
+      } : null,
+      discountAmount: r.discount_amount,
+      rentalPrice: r.rental_price,
+      accomPricePerNight: r.accom_price_per_night,
+    };
+  }
+
+  /**
+   * Compute the effective lesson amount for a booking (package-aware).
+   * `pkgContext` (optional) is the result of `loadPackageContext` for the
+   * booking's customer_package — pass it when recomputing many bookings on
+   * the same package to avoid re-querying invariant data per iteration.
+   */
+  static async computeLessonAmount(client, booking, pkgContext = null) {
     const baseAmount = new Decimal(booking.final_amount || booking.amount || 0);
 
     // For non-package bookings without a package reference, use the base amount (with service price fallback)
@@ -37,41 +93,24 @@ class BookingUpdateCascadeService {
       return baseAmount.toNumber();
     }
 
-    // For package bookings, derive lesson value from package price / hours
     try {
-      const { rows } = await client.query(
-        'SELECT purchase_price, total_hours, remaining_hours, used_hours, service_package_id FROM customer_packages WHERE id = $1',
-        [booking.customer_package_id]
-      );
+      const ctx = pkgContext && pkgContext.packageId === booking.customer_package_id
+        ? pkgContext
+        : await this.loadPackageContext(client, booking.customer_package_id);
 
-      if (!rows.length) {
+      if (!ctx) {
         logger.warn('[computeLessonAmount] Package not found: ' + booking.customer_package_id);
         return baseAmount.toNumber();
       }
 
-      const pkg = rows[0];
-
-      let servicePackage = null;
-      if (pkg.service_package_id) {
-        const serviceResult = await client.query(
-          'SELECT total_hours, sessions_count, rental_service_id, accommodation_unit_id, rental_days, accommodation_nights, package_hourly_rate FROM service_packages WHERE id = $1',
-          [pkg.service_package_id]
-        );
-        servicePackage = serviceResult.rows[0] || null;
-      }
+      const { pkg, servicePackage, discountAmount, rentalPrice, accomPricePerNight } = ctx;
 
       // Treat any active per-package discount as effectively reducing the
       // purchase price for downstream commission math. Mirrors the behaviour
       // of an admin price edit so both paths affect commission identically.
       let basePrice = new Decimal(pkg.purchase_price || 0);
-      const { rows: discountRows } = await client.query(
-        `SELECT amount FROM discounts
-          WHERE entity_type = 'customer_package' AND entity_id = $1`,
-        [String(booking.customer_package_id)]
-      );
-      if (discountRows.length) {
-        const discountAmount = new Decimal(discountRows[0].amount || 0);
-        basePrice = Decimal.max(new Decimal(0), basePrice.sub(discountAmount));
+      if (discountAmount != null) {
+        basePrice = Decimal.max(new Decimal(0), basePrice.sub(new Decimal(discountAmount || 0)));
       }
 
       // Derive lesson-only portion of the package price
@@ -83,27 +122,14 @@ class BookingUpdateCascadeService {
           // Use explicitly stored per-hour lesson rate
           effectivePackagePrice = storedHourlyRate.mul(pkgTotalHours);
         } else {
-          // Fallback: subtract rental + accommodation costs
-          let rentalCost = new Decimal(0);
-          let accomCost = new Decimal(0);
           const rentalDays = parseInt(servicePackage.rental_days) || 0;
           const accomNights = parseInt(servicePackage.accommodation_nights) || 0;
-          if (rentalDays > 0 && servicePackage.rental_service_id) {
-            try {
-              const { rows: rRows } = await client.query(
-                'SELECT price FROM services WHERE id = $1', [servicePackage.rental_service_id]
-              );
-              rentalCost = new Decimal(rentalDays).mul(new Decimal(rRows[0]?.price || 0));
-            } catch { /* ignore */ }
-          }
-          if (accomNights > 0 && servicePackage.accommodation_unit_id) {
-            try {
-              const { rows: aRows } = await client.query(
-                'SELECT price_per_night FROM accommodation_units WHERE id = $1', [servicePackage.accommodation_unit_id]
-              );
-              accomCost = new Decimal(accomNights).mul(new Decimal(aRows[0]?.price_per_night || 0));
-            } catch { /* ignore */ }
-          }
+          const rentalCost = rentalDays > 0 && servicePackage.rental_service_id
+            ? new Decimal(rentalDays).mul(new Decimal(rentalPrice || 0))
+            : new Decimal(0);
+          const accomCost = accomNights > 0 && servicePackage.accommodation_unit_id
+            ? new Decimal(accomNights).mul(new Decimal(accomPricePerNight || 0))
+            : new Decimal(0);
           const deductions = rentalCost.add(accomCost);
           if (deductions.gt(0)) {
             // Subtract proportionally so the discount-adjusted basePrice keeps
@@ -122,9 +148,9 @@ class BookingUpdateCascadeService {
       // so deriveLessonAmount uses the package hourly rate, not the cash amount)
       const isPartial = booking.payment_status === 'partial';
       const lessonAmount = deriveLessonAmount({
-        paymentStatus: 'package', // Always derive from package when we reach this point
+        paymentStatus: 'package',
         duration: booking.duration,
-        baseAmount: 0, // Don't use base amount for derivation — add cash portion separately for partial
+        baseAmount: 0,
         packagePrice: effectivePackagePrice.toNumber(),
         packageTotalHours: pkg.total_hours || servicePackage?.total_hours,
         packageRemainingHours: pkg.remaining_hours,
@@ -247,25 +273,26 @@ class BookingUpdateCascadeService {
   }
   
   /**
-   * Update instructor earnings based on booking changes
+   * Update instructor earnings based on booking changes.
+   * `pkgContext` is forwarded to computeLessonAmount when present.
    */
-  static async updateInstructorEarnings(client, booking) {
+  static async updateInstructorEarnings(client, booking, pkgContext = null) {
     try {
       // Get current earnings record
       const existingEarnings = await client.query(
         'SELECT * FROM instructor_earnings WHERE booking_id = $1',
         [booking.id]
       );
-      
+
       if (existingEarnings.rows.length === 0) {
         // Create new earnings record
-        await this.createInstructorEarnings(client, booking);
+        await this.createInstructorEarnings(client, booking, pkgContext);
         return;
       }
-      
+
   // Recalculate commission
   const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-  let lessonAmount = await this.computeLessonAmount(client, booking);
+  let lessonAmount = await this.computeLessonAmount(client, booking, pkgContext);
 
   // For group/semi-private bookings using packages, lessonAmount is per-person.
   // Multiply by group_size to get the true total lesson value.
@@ -309,11 +336,11 @@ class BookingUpdateCascadeService {
   /**
    * Create new instructor earnings record
    */
-  static async createInstructorEarnings(client, booking) {
+  static async createInstructorEarnings(client, booking, pkgContext = null) {
     if (!booking.instructor_user_id) return;
-    
+
   const { commissionType, commissionValue } = await this.getCommissionRate(client, booking);
-  let lessonAmount = await this.computeLessonAmount(client, booking);
+  let lessonAmount = await this.computeLessonAmount(client, booking, pkgContext);
 
   // For group/semi-private bookings using packages, lessonAmount is per-person.
   // Multiply by group_size to get the true total lesson value.
@@ -451,6 +478,7 @@ class BookingUpdateCascadeService {
    */
   static async recomputeEarningsForPackageBookings(client, packageId) {
     const summary = { updated: 0, skipped: 0 };
+    const pkgContext = await this.loadPackageContext(client, packageId);
     const { rows: bookings } = await client.query(
       `SELECT b.*
          FROM bookings b
@@ -463,7 +491,7 @@ class BookingUpdateCascadeService {
 
     for (const booking of bookings) {
       try {
-        await this.updateInstructorEarnings(client, booking);
+        await this.updateInstructorEarnings(client, booking, pkgContext);
         summary.updated += 1;
       } catch (err) {
         summary.skipped += 1;

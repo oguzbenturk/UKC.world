@@ -13,8 +13,13 @@ import {
   recordLegacyTransaction,
   fetchTransactions as fetchWalletTransactions,
   getTransactionById as getWalletTransactionById,
-  resolveStoredAvailableDelta
 } from '../services/walletService.js';
+import {
+  createStaffPayment,
+  updateStaffPayment,
+  deleteStaffPayment,
+  STAFF_KIND,
+} from '../services/staffPaymentService.js';
 import { fetchCustomerPackagesByIds, forceDeleteCustomerPackage, mapWalletTransactionForResponse } from '../services/customerPackageService.js';
 import { fetchRentalsByIds, forceDeleteRental } from '../services/rentalCleanupService.js';
 import {
@@ -1841,11 +1846,10 @@ router.get('/instructor-earnings/:instructorId',
  * POST /api/finances/instructor-payments
  * Record a new instructor payment or deduction
  */
-router.post('/instructor-payments', 
-  authenticateJWT, 
-  authorizeRoles(['admin', 'manager']), 
+router.post('/instructor-payments',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
   async (req, res) => {
-  
   try {
     const {
       instructor_id,
@@ -1853,62 +1857,38 @@ router.post('/instructor-payments',
       description,
       payment_date,
       payment_method = 'cash',
-      type
+      type,
     } = req.body;
 
-  logger.debug('[DEBUG] Recording instructor payment:', { instructor_id, amount, description, payment_date, type });
+    logger.debug('[DEBUG] Recording instructor payment:', { instructor_id, amount, description, payment_date, type });
 
-    // Validate required fields
     if (!instructor_id || !amount || !description || !payment_date) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: instructor_id, amount, description, payment_date' 
+      return res.status(400).json({
+        error: 'Missing required fields: instructor_id, amount, description, payment_date'
       });
     }
 
-    // Determine transaction type based on amount
-    const transactionType = amount < 0 ? 'deduction' : 'payment';
-    const transactionAmount = parseFloat(amount);
-
-    // Create transaction record
-    const actorId = resolveActorId(req);
-    const paymentDate = payment_date ? new Date(payment_date) : new Date();
-    const referenceNumber = `INST_${Date.now()}`;
-    const transactionRecord = await recordLegacyTransaction({
+    const { transactionRecord, transactionType } = await createStaffPayment({
+      kind: STAFF_KIND.INSTRUCTOR,
       userId: instructor_id,
-      amount: transactionAmount,
-      transactionType,
-      status: 'completed',
-      direction: transactionAmount >= 0 ? 'credit' : 'debit',
+      amount,
       description,
-      paymentMethod: payment_method || null,
-      referenceNumber,
-      // Salary/commission payouts must not affect the staff member's wallet
-      // balance — the wallet is for customer-style credit, not payroll.
-      availableDelta: 0,
-      metadata: {
-        source: 'finances:instructor-payments:create',
-        requestedType: type || null,
-        paymentDate: paymentDate.toISOString(),
-        referenceNumber
-      },
-      entityType: 'instructor_payment',
-      relatedEntityType: 'instructor',
-      relatedEntityId: instructor_id,
-      createdBy: actorId || null
+      paymentDate: new Date(payment_date),
+      paymentMethod: payment_method,
+      actorId: resolveActorId(req),
+      requestedType: type,
     });
 
     const mapped = mapTransactionRow(transactionRecord);
-
     logger.debug('[DEBUG] Instructor wallet transaction created:', mapped);
 
     res.json({
       success: true,
       transaction: mapped,
-      message: `Instructor ${transactionType} recorded successfully`
+      message: `Instructor ${transactionType} recorded successfully`,
     });
-
   } catch (error) {
-  logger.error('Error recording instructor payment:', error);
+    logger.error('Error recording instructor payment:', error);
     res.status(500).json({ error: 'Failed to record instructor payment' });
   }
 });
@@ -1917,133 +1897,44 @@ router.post('/instructor-payments',
  * PUT /api/finances/instructor-payments/:id
  * Update an existing instructor payment
  */
-router.put('/instructor-payments/:id', 
-  authenticateJWT, 
-  authorizeRoles(['admin', 'manager']), 
+router.put('/instructor-payments/:id',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
   async (req, res) => {
-  const client = await pool.connect();
-
   try {
     const { id } = req.params;
-    const {
-      amount,
-      description,
-      payment_date,
-      payment_method = 'cash'
-    } = req.body;
+    const { amount, description, payment_date, payment_method = 'cash' } = req.body;
 
     logger.debug('[DEBUG] Updating instructor payment:', { id, amount, description, payment_date });
 
     if (!amount || !description || !payment_date) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: amount, description, payment_date' 
+      return res.status(400).json({
+        error: 'Missing required fields: amount, description, payment_date'
       });
     }
 
-    const transaction = await getWalletTransactionById(id);
-
-    if (!transaction) {
-      return res.status(404).json({ error: 'Instructor payment not found in wallet ledger' });
-    }
-
-    if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
-      return res.status(400).json({ error: 'Only instructor payment transactions can be updated with this endpoint.' });
-    }
-
-    const actorId = resolveActorId(req) || null;
-    const paymentDate = payment_date ? new Date(payment_date) : new Date();
-    const newAmount = parseFloat(amount);
-    const transactionType = newAmount < 0 ? 'deduction' : 'payment';
-
-    await client.query('BEGIN');
-
-    const originalAmount = Number.parseFloat(transaction.amount) || 0;
-    const availableDelta = resolveStoredAvailableDelta(transaction);
-    const pendingDelta = Number.parseFloat(transaction.pending_delta) || 0;
-    const nonWithdrawableDelta = Number.parseFloat(transaction.non_withdrawable_delta) || 0;
-
-    const cancellationMetadata = {
-      updatedAt: new Date().toISOString(),
-      updatedBy: actorId,
-      updateOrigin: 'finances:instructor-payments:update',
-      replacedByTransactionType: transactionType,
-      replacedAt: paymentDate.toISOString()
-    };
-
-    await client.query(
-      `UPDATE wallet_transactions
-         SET status = 'cancelled',
-             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
-             updated_at = NOW()
-       WHERE id = $1`,
-      [id, JSON.stringify(cancellationMetadata)]
-    );
-
-    if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
-      await recordWalletTransaction({
-        userId: transaction.user_id,
-        amount: -originalAmount,
-        availableDelta: -availableDelta,
-        pendingDelta: -pendingDelta,
-        nonWithdrawableDelta: -nonWithdrawableDelta,
-        transactionType: `${transaction.transaction_type}_reversal`,
-        currency: transaction.currency || 'EUR',
-        description: `Reversal for instructor payment ${transaction.id}`,
-        metadata: {
-          origin: 'finances:instructor-payments:update:reversal',
-          reversedTransactionId: transaction.id
-        },
-        relatedEntityType: transaction.related_entity_type || 'instructor_payment',
-        relatedEntityId: transaction.related_entity_id || transaction.id,
-        createdBy: actorId,
-        allowNegative: (-originalAmount) < 0,
-        client
-      });
-    }
-
-    const updatedTransaction = await recordLegacyTransaction({
-      userId: transaction.user_id,
-      amount: newAmount,
-      transactionType,
-      status: 'completed',
-      direction: newAmount >= 0 ? 'credit' : 'debit',
+    const { updatedTransaction, replacedTransactionId } = await updateStaffPayment({
+      kind: STAFF_KIND.INSTRUCTOR,
+      paymentId: id,
+      amount,
       description,
-      paymentMethod: payment_method || null,
-      referenceNumber: transaction.reference_number || `INST_${Date.now()}`,
-      availableDelta: 0,
-      metadata: {
-        source: 'finances:instructor-payments:update',
-        replacesTransactionId: transaction.id,
-        paymentDate: paymentDate.toISOString(),
-        previousAmount: originalAmount,
-        requestedType: transactionType
-      },
-      entityType: 'instructor_payment',
-      relatedEntityType: 'instructor',
-      relatedEntityId: transaction.user_id,
-      createdBy: actorId,
-      client
+      paymentDate: new Date(payment_date),
+      paymentMethod: payment_method,
+      actorId: resolveActorId(req) || null,
     });
-
-    await client.query('COMMIT');
 
     res.json({
       success: true,
       transaction: mapTransactionRow(updatedTransaction),
-      replacedTransactionId: transaction.id,
-      message: 'Instructor payment updated successfully'
+      replacedTransactionId,
+      message: 'Instructor payment updated successfully',
     });
-
   } catch (error) {
-    try {
-      await client.query('ROLLBACK');
-    } catch (rollbackError) {
-      logger.error('Failed to rollback instructor payment update:', rollbackError);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
     }
     logger.error('Error updating instructor payment:', error);
     res.status(500).json({ error: 'Failed to update instructor payment' });
-  } finally {
-    client.release();
   }
 });
 
@@ -2051,90 +1942,27 @@ router.put('/instructor-payments/:id',
  * DELETE /api/finances/instructor-payments/:id
  * Delete an instructor payment
  */
-router.delete('/instructor-payments/:id', 
-  authenticateJWT, 
-  authorizeRoles(['admin', 'manager']), 
+router.delete('/instructor-payments/:id',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
   async (req, res) => {
-  const client = await pool.connect();
-
   try {
     const { id } = req.params;
     logger.debug('[DEBUG] Deleting instructor payment:', { id });
 
-    await client.query('BEGIN');
-
-    const transaction = await getWalletTransactionById(id);
-
-    if (!transaction) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Instructor payment not found in wallet ledger' });
-    }
-
-    if (!['payment', 'deduction'].includes(transaction.transaction_type)) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Only instructor payment transactions can be deleted with this endpoint.' });
-    }
-
-    const actorId = resolveActorId(req) || null;
-    const originalAmount = Number.parseFloat(transaction.amount) || 0;
-    const availableDelta = resolveStoredAvailableDelta(transaction);
-    const pendingDelta = Number.parseFloat(transaction.pending_delta) || 0;
-    const nonWithdrawableDelta = Number.parseFloat(transaction.non_withdrawable_delta) || 0;
-
-    const cancellationMetadata = {
-      cancelledAt: new Date().toISOString(),
-      cancelledBy: actorId,
-      cancellationOrigin: 'finances:instructor-payments:delete'
-    };
-
-    await client.query(
-      `UPDATE wallet_transactions
-         SET status = 'cancelled',
-             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
-             updated_at = NOW()
-       WHERE id = $1`,
-      [id, JSON.stringify(cancellationMetadata)]
-    );
-
-    if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
-      await recordWalletTransaction({
-        userId: transaction.user_id,
-        amount: -originalAmount,
-        availableDelta: -availableDelta,
-        pendingDelta: -pendingDelta,
-        nonWithdrawableDelta: -nonWithdrawableDelta,
-        transactionType: `${transaction.transaction_type}_reversal`,
-        currency: transaction.currency || 'EUR',
-        description: `Reversal for instructor payment ${transaction.id}`,
-        metadata: {
-          origin: 'finances:instructor-payments:delete:reversal',
-          reversedTransactionId: transaction.id
-        },
-        relatedEntityType: transaction.related_entity_type || 'instructor_payment',
-        relatedEntityId: transaction.related_entity_id || transaction.id,
-        createdBy: actorId,
-        allowNegative: (-originalAmount) < 0,
-        client
-      });
-    }
-
-    await client.query('COMMIT');
-
-    res.json({
-      success: true,
-      message: 'Instructor payment deleted successfully'
+    await deleteStaffPayment({
+      kind: STAFF_KIND.INSTRUCTOR,
+      paymentId: id,
+      actorId: resolveActorId(req) || null,
     });
 
+    res.json({ success: true, message: 'Instructor payment deleted successfully' });
   } catch (error) {
-    try {
-      await client.query('ROLLBACK');
-    } catch (rollbackError) {
-      logger.error('Failed to rollback instructor payment deletion:', rollbackError);
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
     }
     logger.error('Error deleting instructor payment:', error);
     res.status(500).json({ error: 'Failed to delete instructor payment' });
-  } finally {
-    client.release();
   }
 });
 

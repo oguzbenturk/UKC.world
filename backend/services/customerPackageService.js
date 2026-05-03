@@ -8,6 +8,13 @@ import { logger } from '../middlewares/errorHandler.js';
 import { recomputeDiscountForCustomerPackage } from './discountService.js';
 import { recomputeManagerCommissionsForPackage } from './managerCommissionService.js';
 import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
+import {
+  TRANSACTION_TYPE,
+  WALLET_ENTITY_TYPE,
+  WALLET_TX_STATUS,
+  PAYMENT_METHOD,
+  TX_DIRECTION,
+} from '../constants/transactions.js';
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
@@ -275,8 +282,8 @@ export async function forceDeleteCustomerPackage({
         userId: deletedPackage.customer_id,
         amount: partialRefundAmount.toDecimalPlaces(2).toNumber(),
         transactionType: 'package_refund',
-        status: 'completed',
-        direction: 'credit',
+        status: WALLET_TX_STATUS.COMPLETED,
+        direction: TX_DIRECTION.CREDIT,
         description: `Package Partial Refund: ${deletedPackage.package_name} (${remainingHours.toNumber()}h/${totalHours.toNumber()}h unused)`,
         currency: refundCurrency,
         paymentMethod: 'package_refund',
@@ -290,8 +297,8 @@ export async function forceDeleteCustomerPackage({
           pricePerHour: pricePerHour.toNumber(),
           source: issueRefund ? 'services:customer-packages:force-delete' : 'finances:transaction-cascade'
         },
-        entityType: 'customer_package',
-        relatedEntityType: 'customer_package',
+        entityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
+        relatedEntityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
         relatedEntityId: deletedPackage.id,
         createdBy: actorId || null
       });
@@ -324,8 +331,8 @@ export async function forceDeleteCustomerPackage({
           amount: settlementDebitAmount,
           availableDelta: settlementDebitAmount,
           transactionType: 'package_usage_settlement',
-          status: 'completed',
-          direction: 'debit',
+          status: WALLET_TX_STATUS.COMPLETED,
+          direction: TX_DIRECTION.DEBIT,
           description: `Charge for used hours from package ${deletedPackage.package_name}`,
           currency: refundCurrency,
           paymentMethod: 'package_usage_settlement',
@@ -341,8 +348,8 @@ export async function forceDeleteCustomerPackage({
             source: 'finances:transaction-cascade',
             requestedBy: usageSettlement?.requestedBy || actorId || null
           },
-          entityType: 'customer_package',
-          relatedEntityType: 'customer_package',
+          entityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
+          relatedEntityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
           relatedEntityId: deletedPackage.id,
           createdBy: actorId || null,
           allowNegative: usageSettlement?.allowNegative !== false
@@ -487,14 +494,14 @@ export async function updateCustomerPackagePrice({
         userId: pkg.customer_id,
         amount: isCredit ? absAmount : -absAmount,
         availableDelta: isCredit ? absAmount : -absAmount,
-        transactionType: 'package_price_adjustment',
-        status: 'completed',
-        direction: isCredit ? 'credit' : 'debit',
+        transactionType: TRANSACTION_TYPE.PACKAGE_PRICE_ADJUSTMENT,
+        status: WALLET_TX_STATUS.COMPLETED,
+        direction: isCredit ? TX_DIRECTION.CREDIT : TX_DIRECTION.DEBIT,
         currency,
         description: isCredit
           ? `Package price reduced (${pkg.package_name}): ${trimmedReason}`
           : `Package price increased (${pkg.package_name}): ${trimmedReason}`,
-        paymentMethod: 'package_price_adjustment',
+        paymentMethod: PAYMENT_METHOD.PACKAGE_PRICE_ADJUSTMENT,
         referenceNumber: packageId,
         metadata: {
           packageId,
@@ -505,8 +512,8 @@ export async function updateCustomerPackagePrice({
           reason: trimmedReason,
           actorId
         },
-        entityType: 'customer_package',
-        relatedEntityType: 'customer_package',
+        entityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
+        relatedEntityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
         relatedEntityId: packageId,
         createdBy: actorId,
         // Refunds must always be allowed even if the wallet is already

@@ -12,6 +12,7 @@ import {
   recomputeManagerCommissionsForPackage,
   recomputeManagerCommissionForEntity,
 } from './managerCommissionService.js';
+import { WALLET_ENTITY_TYPE, TX_DIRECTION } from '../constants/transactions.js';
 
 // Maps each supported entity to:
 //   table     - the SQL table to read the original price from
@@ -164,7 +165,7 @@ async function reverseDiscountAdjustment(client, openCredit, { reason, createdBy
     userId: openCredit.user_id,
     amount,
     transactionType: DISCOUNT_REVERSAL_TX_TYPE,
-    direction: 'debit',
+    direction: TX_DIRECTION.DEBIT,
     availableDelta: -amount,
     currency: openCredit.currency,
     description: reason || 'Discount adjustment reversed',
@@ -198,7 +199,7 @@ async function postDiscountAdjustment(client, {
     userId: customerId,
     amount,
     transactionType: DISCOUNT_TX_TYPE,
-    direction: 'credit',
+    direction: TX_DIRECTION.CREDIT,
     availableDelta: amount,
     currency,
     description: reason ? `Discount adjustment: ${reason}` : 'Discount adjustment',
@@ -222,7 +223,7 @@ async function postDiscountAdjustment(client, {
 // package, so they need both the package-wide commission recompute and the
 // per-booking instructor-earnings refresh.
 async function cascadeRecomputeForDiscountChange(client, entityType, entityId) {
-  if (entityType === 'customer_package') {
+  if (entityType === WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE) {
     await recomputeManagerCommissionsForPackage(client, entityId);
     await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, entityId);
   } else {
@@ -449,7 +450,7 @@ export async function recomputeDiscountForAccommodationBooking(client, {
       amount: newAmount,
       currency: finalCurrency,
       discountId: discount.id,
-      entityType: 'accommodation_booking',
+      entityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
       entityId: bookingId,
       reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
       createdBy,
@@ -457,7 +458,7 @@ export async function recomputeDiscountForAccommodationBooking(client, {
   }
 
   // Keep the manager's commission row in sync with the rebased discount.
-  await recomputeManagerCommissionForEntity(client, 'accommodation_booking', bookingId);
+  await recomputeManagerCommissionForEntity(client, WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING, bookingId);
 
   return {
     adjusted: true,
@@ -528,7 +529,7 @@ export async function recomputeDiscountForCustomerPackage(client, {
       amount: newAmount,
       currency: finalCurrency,
       discountId: discount.id,
-      entityType: 'customer_package',
+      entityType: WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
       entityId: packageId,
       reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
       createdBy,
