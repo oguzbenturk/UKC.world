@@ -15,7 +15,7 @@ import {
   HomeOutlined, BookOutlined, CloseOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
   FieldTimeOutlined, DashboardOutlined, CrownOutlined,
-  LineChartOutlined, FileTextOutlined
+  LineChartOutlined, FileTextOutlined, TeamOutlined
 } from '@ant-design/icons';
 import DataService from '@/shared/services/dataService';
 import FinancialService from '../../finances/services/financialService';
@@ -32,6 +32,7 @@ import {
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 import { fetchCustomerDiscounts } from './customerBill/discountApi';
 import { indexDiscounts } from './customerBill/billAggregator';
+import { loadBillCohort } from './customerBill/billCustomerLoader';
 
 const CustomerPackageManager = lazy(() => import('./CustomerPackageManager'));
 const BookingDrawer = lazy(() => import('../../bookings/components/components/BookingDrawer'));
@@ -41,6 +42,7 @@ const TransactionDetailModal = lazy(() => import('./TransactionDetailModal'));
 const MemberPurchasesSection = lazy(() => import('../../members/components/MemberPurchasesSection'));
 const CustomerShopHistory = lazy(() => import('./CustomerShopHistory'));
 const CustomerBillModal = lazy(() => import('./CustomerBillModal'));
+const CombineBillSetupModal = lazy(() => import('./customerBill/CombineBillSetupModal'));
 const CustomerDiscountsTab = lazy(() => import('./CustomerDiscountsTab'));
 const ApplyDiscountModal = lazy(() => import('./ApplyDiscountModal'));
 const EditPackagePriceModal = lazy(() => import('./EditPackagePriceModal'));
@@ -169,6 +171,10 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const [selectedRental, setSelectedRental] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [billModalVisible, setBillModalVisible] = useState(false);
+  // Combined-bill flow: picker → loader → cohort bill modal.
+  const [combineSetupVisible, setCombineSetupVisible] = useState(false);
+  const [combineLoading, setCombineLoading] = useState(false);
+  const [combinedCohort, setCombinedCohort] = useState(null);
 
   // Dependency delete state
   const [transactionDependencyInfo, setTransactionDependencyInfo] = useState(null);
@@ -231,7 +237,11 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           DataService.getRentalsByUserId(customerId),
           DataService.getInstructors(),
           FinancialService.getUserBalance(customerId, true),
-          FinancialService.getUserTransactions(customerId),
+          // Default API limit is 50 — too low for the bill's period filter
+          // when older deposits / payments need to be visible. Pull a wide
+          // window so payments-received doesn't intermittently drop the
+          // €155 deposit (or any historical credit) out of the bill totals.
+          FinancialService.getUserTransactions(customerId, { limit: 1000 }),
           fetch(`/api/services/customer-packages/${customerId}`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
           fetch(`/api/accommodation/bookings?guestId=${customerId}&limit=200`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
           fetchCustomerDiscounts(customerId),
@@ -269,7 +279,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     const headers = buildAuthHeaders();
     const [balanceResult, transactionsResult, packagesResult, lessonsResult, rentalsResult, accommodationRefreshResult, discountsResult] = await Promise.allSettled([
       FinancialService.getUserBalance(customerId, true),
-      FinancialService.getUserTransactions(customerId),
+      FinancialService.getUserTransactions(customerId, { limit: 1000 }),
       fetch(`/api/services/customer-packages/${customerId}`, { headers }).then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); }),
       DataService.getLessonsByUserId(customerId),
       DataService.getRentalsByUserId(customerId),
@@ -780,6 +790,63 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     setDiscountTarget({ entityType, entityId, originalPrice, currency, description, participantUserId });
   }, []);
 
+  // Combined-bill flow: picker confirms → fetch each extra customer's data
+  // in parallel → assemble cohort (primary first) → open the bill modal.
+  const handleCombineConfirm = useCallback(async (selectedCustomers) => {
+    if (!customer?.id) return;
+    setCombineSetupVisible(false);
+    setCombineLoading(true);
+    try {
+      const primaryCohort = {
+        customer,
+        customerId: customer.id,
+        customerName: (() => {
+          const f = customer.first_name || customer.firstName;
+          const l = customer.last_name || customer.lastName;
+          return [f, l].filter(Boolean).join(' ') || customer.name || customer.email || 'Customer';
+        })(),
+        bookings,
+        rentals,
+        packages: customerPackages,
+        accommodationBookings,
+        transactions,
+        instructors,
+        discountsByEntity,
+        // Primary doesn't have shopOrders/memberships preloaded in the parent —
+        // CustomerBillModal's own fallback fetch covers that for solo bills,
+        // but cohort mode skips it. Load them here so the primary row matches
+        // the extras in completeness.
+        shopOrders: [],
+        memberships: [],
+      };
+
+      const extraCohorts = await Promise.all(
+        selectedCustomers.map(c => loadBillCohort(c.id))
+      );
+
+      // Backfill primary's shop+memberships using the same loader so both
+      // the payer and the extras render the same dataset shape.
+      const primaryFull = await loadBillCohort(customer.id);
+      // Prefer freshly loaded primary data, but keep the parent's discount /
+      // instructor caches since they're already up-to-date.
+      const merged = {
+        ...primaryFull,
+        instructors: instructors.length ? instructors : primaryFull.instructors,
+        discountsByEntity: discountsByEntity || primaryFull.discountsByEntity,
+        customer: customer || primaryFull.customer,
+        customerName: primaryCohort.customerName,
+      };
+
+      setCombinedCohort([merged, ...extraCohorts]);
+      setBillModalVisible(true);
+    } catch (err) {
+      console.error('Combined bill load failed', err);
+      message.error('Could not load combined bill. Try again.');
+    } finally {
+      setCombineLoading(false);
+    }
+  }, [customer, bookings, rentals, customerPackages, accommodationBookings, transactions, instructors, discountsByEntity, message]);
+
   // Opens the EditPackagePriceModal for a customer package row.
   const openEditPriceForPackage = useCallback(({ packageId, currentPrice, originalPrice, currency, description }) => {
     setEditPriceTarget({ packageId, currentPrice, originalPrice, currency, description });
@@ -800,6 +867,19 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     return Number.isFinite(pay) ? pay : null;
   }, [customerId]);
 
+  // Whether this customer's slot in the booking was paid via a package. For
+  // solo bookings we can read it off the booking row; for group bookings each
+  // participant has their own payment_status / customer_package_id, so we
+  // have to look at the participant entry.
+  const isCustomerSlotPackage = useCallback((r) => {
+    const participants = Array.isArray(r?.participants) ? r.participants : [];
+    if (customerId && participants.length > 1) {
+      const mine = participants.find(p => p && p.userId === customerId);
+      if (mine) return mine.paymentStatus === 'package' || !!mine.customerPackageId;
+    }
+    return r?.payment_status === 'package' || !!r?.customer_package_id;
+  }, [customerId]);
+
   // ─── Column definitions ───────────────────────────────────────
   const bookingColumns = useMemo(() => [
     { title: 'Date & Time', key: 'datetime', render: (_, r) => { if (r.date && r.startTime) return `${new Date(r.date).toLocaleDateString()} ${r.startTime}`; return formatDate(r.start_time || r.date); } },
@@ -807,10 +887,18 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Type', dataIndex: 'booking_type', key: 'type', render: t => t?.charAt(0).toUpperCase() + t?.slice(1) || 'Standard' },
     { title: 'Instructor', key: 'instructor', render: (_, r) => { if (r.instructor_name) return r.instructor_name; const iid = r.instructor_id || r.instructor_user_id; const inst = instructors.find(i => i.id === iid); return inst ? (inst.name || `${inst.first_name} ${inst.last_name}`) : 'N/A'; } },
     { title: 'Price', key: 'price', render: (_, r) => {
+      // Package-paid lessons: the lesson value is already covered by the
+      // package purchase, so showing a numeric price here misleads readers
+      // into thinking it's an outstanding charge. Match the accommodation
+      // tab's "Incl. in package" treatment. For group bookings, each
+      // participant can have their own payment method, so check the
+      // customer's slot rather than the booking row.
+      if (isCustomerSlotPackage(r)) {
+        return <Tooltip title="Lesson covered by package hours"><span className="text-gray-400 text-xs">Incl. in package</span></Tooltip>;
+      }
       const share = getCustomerBookingShare(r);
       const isParticipantScope = share != null;
       const orig = isParticipantScope ? share : Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
-      if (orig <= 0 && r.payment_status === 'package') return <span className="text-slate-400 text-xs italic">included</span>;
       return renderDiscountedPrice('booking', r.id, orig, r.currency, isParticipantScope ? customerId : null);
     }},
     { title: 'Status', dataIndex: 'status', key: 'status', render: s => getStatusTag(s) },
@@ -823,37 +911,45 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       if (r.payment_status === 'package') return <Tag color="blue" icon={<GiftOutlined />}>{r.customer_package_name ? `Package: ${r.customer_package_name}` : 'Package Hours'}</Tag>;
       return <Tag color="green">Paid</Tag>;
     }},
-    { title: 'Actions', key: 'actions', render: (_, r) => (
-      <Space size="small">
-        <Button type="link" size="small" onClick={() => handleViewBooking(r)}>View</Button>
-        {!readOnly && (
-          <Button
-            type="link"
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Group bookings: scope the discount to this customer's
-              // participant share. Solo bookings: discount the whole row.
-              const share = getCustomerBookingShare(r);
-              const isParticipantScope = share != null;
-              const orig = isParticipantScope
-                ? share
-                : Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
-              openDiscountForEntity({
-                entityType: 'booking',
-                entityId: r.id,
-                originalPrice: orig,
-                currency: r.currency,
-                description: `${r.service_name || r.serviceName || 'Lesson'} · ${formatDate(r.start_time || r.date)}`,
-                participantUserId: isParticipantScope ? customerId : null,
-              });
-            }}
-          >Discount</Button>
-        )}
-        {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteBooking(r)}>Delete</Button>}
-      </Space>
-    )}
-  ], [instructors, handleDeleteBooking, readOnly, renderDiscountedPrice, openDiscountForEntity, getCustomerBookingShare]);
+    { title: 'Actions', key: 'actions', render: (_, r) => {
+      // Package-paid lessons can't be discounted at the booking level — the
+      // discount belongs on the package itself. Mirrors the rental tab's
+      // guard so the action set is consistent across entities. For group
+      // bookings we check the customer's own slot, since other participants
+      // may have paid individually and still need a discount option here.
+      const isPackage = isCustomerSlotPackage(r);
+      return (
+        <Space size="small">
+          <Button type="link" size="small" onClick={() => handleViewBooking(r)}>View</Button>
+          {!readOnly && !isPackage && (
+            <Button
+              type="link"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Group bookings: scope the discount to this customer's
+                // participant share. Solo bookings: discount the whole row.
+                const share = getCustomerBookingShare(r);
+                const isParticipantScope = share != null;
+                const orig = isParticipantScope
+                  ? share
+                  : Number(r.final_amount ?? r.amount ?? r.total_price ?? 0);
+                openDiscountForEntity({
+                  entityType: 'booking',
+                  entityId: r.id,
+                  originalPrice: orig,
+                  currency: r.currency,
+                  description: `${r.service_name || r.serviceName || 'Lesson'} · ${formatDate(r.start_time || r.date)}`,
+                  participantUserId: isParticipantScope ? customerId : null,
+                });
+              }}
+            >Discount</Button>
+          )}
+          {!readOnly && <Button type="link" size="small" danger onClick={() => handleDeleteBooking(r)}>Delete</Button>}
+        </Space>
+      );
+    }}
+  ], [instructors, handleDeleteBooking, readOnly, renderDiscountedPrice, openDiscountForEntity, getCustomerBookingShare, isCustomerSlotPackage]);
 
   const rentalColumns = useMemo(() => [
     { title: 'Equipment', key: 'equipment', render: (_, r) => {
@@ -862,22 +958,21 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     }},
     { title: 'Rental Date', key: 'rental_date', render: (_, r) => formatDate(r.rental_date || r.start_date || r.created_at), sorter: (a, b) => new Date(a.rental_date || a.start_date || 0) - new Date(b.rental_date || b.start_date || 0), defaultSortOrder: 'descend' },
     { title: 'Price', key: 'price', render: (_, r) => {
-      const tp = parseFloat(r.total_price);
+      // Package-paid rentals: covered by the package, so showing a numeric
+      // price reads as an outstanding charge. Match the lesson / accommodation
+      // tab behaviour for consistency.
       const isPackage = !!r.customer_package_id || r.payment_status === 'package';
-      if (tp > 0) return (
-        <Space size={4}>
-          {renderDiscountedPrice('rental', r.id, tp, r.currency || storageCurrency)}
-          {isPackage && <span>📦</span>}
-        </Space>
-      );
-      const pkgRate = parseFloat(r.package_daily_rate);
-      if (pkgRate > 0) return <span className="text-slate-500">{fmtCurrency(pkgRate, storageCurrency)}/h 📦</span>;
+      if (isPackage) {
+        return <Tooltip title="Rental covered by package"><span className="text-gray-400 text-xs">Incl. in package</span></Tooltip>;
+      }
+      const tp = parseFloat(r.total_price);
+      if (tp > 0) return renderDiscountedPrice('rental', r.id, tp, r.currency || storageCurrency);
       const eq = r.equipment;
       if (eq && Array.isArray(eq) && eq.length > 0) {
         const rate = parseFloat(eq[0].daily_rate);
-        if (rate > 0) return <span className="text-slate-500">{fmtCurrency(rate, storageCurrency)}/h{isPackage ? ' 📦' : ''}</span>;
+        if (rate > 0) return <span className="text-slate-500">{fmtCurrency(rate, storageCurrency)}/h</span>;
       }
-      return isPackage ? <span className="text-slate-500">📦 Package</span> : 'N/A';
+      return 'N/A';
     }},
     { title: 'Status', dataIndex: 'status', key: 'status', render: s => getStatusTag(s) },
     { title: 'Actions', key: 'actions', render: (_, r) => (
@@ -1027,22 +1122,46 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
 
       {/* Create Bill — staff only (admin / manager / receptionist), not students */}
       {!readOnly && (
-        <button
-          type="button"
-          onClick={() => setBillModalVisible(true)}
-          className="w-full rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-sky-50/40 hover:from-cyan-100 hover:to-sky-100/60 transition-colors px-4 py-3 flex items-center justify-between gap-3 cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#00a8c4' }}>
-              <FileTextOutlined className="text-white text-base" />
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => { setCombinedCohort(null); setBillModalVisible(true); }}
+            className="w-full rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-sky-50/40 hover:from-cyan-100 hover:to-sky-100/60 transition-colors px-4 py-3 flex items-center justify-between gap-3 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#00a8c4' }}>
+                <FileTextOutlined className="text-white text-base" />
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-semibold text-gray-800 leading-tight">Create Bill</div>
+                <div className="text-[11px] text-gray-500 leading-tight mt-0.5">Duotone Pro Center Urla statement — accommodation, lessons, rentals, shop &amp; more</div>
+              </div>
             </div>
-            <div className="text-left">
-              <div className="text-sm font-semibold text-gray-800 leading-tight">Create Bill</div>
-              <div className="text-[11px] text-gray-500 leading-tight mt-0.5">Duotone Pro Center Urla statement — accommodation, lessons, rentals, shop &amp; more</div>
+            <span className="text-xs font-medium" style={{ color: '#00a8c4' }}>Open →</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCombineSetupVisible(true)}
+            disabled={combineLoading}
+            className="w-full rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors px-4 py-2.5 flex items-center justify-between gap-3 cursor-pointer disabled:cursor-wait disabled:opacity-60"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100">
+                <TeamOutlined className="text-slate-600 text-sm" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-semibold text-gray-800 leading-tight">
+                  {combineLoading ? 'Loading combined bill…' : 'Combine bill with other customers'}
+                </div>
+                <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                  Family / group billing — one statement for multiple people
+                </div>
+              </div>
             </div>
-          </div>
-          <span className="text-xs font-medium" style={{ color: '#00a8c4' }}>Open →</span>
-        </button>
+            {combineLoading ? <Spin size="small" /> : <span className="text-xs font-medium text-slate-500">Setup →</span>}
+          </button>
+        </div>
       )}
 
       {/* Upcoming Lessons */}
@@ -1738,12 +1857,12 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
         </Suspense>
       )}
 
-      {/* Customer Bill */}
+      {/* Customer Bill — solo mode by default; cohort mode when combinedCohort is set */}
       {billModalVisible && customer && (
         <Suspense fallback={<Spin size="small" />}>
           <CustomerBillModal
             open={billModalVisible}
-            onClose={() => setBillModalVisible(false)}
+            onClose={() => { setBillModalVisible(false); setCombinedCohort(null); }}
             customer={customer}
             bookings={bookings}
             rentals={rentals}
@@ -1752,6 +1871,19 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             transactions={transactions}
             instructors={instructors}
             discountsByEntity={discountsByEntity}
+            cohort={combinedCohort}
+          />
+        </Suspense>
+      )}
+
+      {/* Combined-bill setup picker */}
+      {combineSetupVisible && customer && (
+        <Suspense fallback={null}>
+          <CombineBillSetupModal
+            open={combineSetupVisible}
+            onCancel={() => setCombineSetupVisible(false)}
+            primaryCustomer={customer}
+            onConfirm={handleCombineConfirm}
           />
         </Suspense>
       )}

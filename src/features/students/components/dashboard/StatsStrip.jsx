@@ -128,8 +128,9 @@ const AccommodationCards = ({ bookings, formatPrice }) => {
 
   // Show upcoming/current first, then recent past — max 4
   const now = dayjs();
-  const upcoming = bookings.filter(b => b.status !== 'cancelled' && dayjs(b.check_out_date).isAfter(now));
-  const past = bookings.filter(b => b.status === 'completed' || dayjs(b.check_out_date).isBefore(now)).slice(0, 2);
+  const isPast = (b) => b.status === 'completed' || dayjs(b.check_out_date).isBefore(now);
+  const upcoming = bookings.filter(b => b.status !== 'cancelled' && !isPast(b));
+  const past = bookings.filter(isPast).slice(0, 2);
   const visible = [...upcoming, ...past].slice(0, 4);
   if (visible.length === 0) return null;
 

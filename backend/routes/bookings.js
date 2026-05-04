@@ -540,13 +540,14 @@ router.get('/',
   const limitedRoles = new Set(['student', 'freelancer']);
     
     let query = `
-      SELECT b.*, 
+      SELECT b.*,
         s.name as student_name,
         i.name as instructor_name,
         srv.name as service_name,
         srv.category as service_category,
         srv.service_type as service_type,
         srv.duration as service_duration,
+        srv.price as service_price,
         cp.package_name as customer_package_name,
         cp.package_name,
         cp.total_hours as package_total_hours,
@@ -688,7 +689,7 @@ router.get('/',
       }
     }
     
-    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, s.self_student_of_instructor_id, i.name, srv.name, srv.category, srv.service_type, srv.duration, cp.package_name, cp.total_hours, cp.purchase_price, d_pkg.amount, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, idc.self_student_commission_rate, t.id, creator.name, creator.email, updater.name, updater.email
+    query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.customer_package_id, b.created_by, b.updated_by, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.balance, s.self_student_of_instructor_id, i.name, srv.name, srv.category, srv.service_type, srv.duration, srv.price, cp.package_name, cp.total_hours, cp.purchase_price, d_pkg.amount, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, idc.self_student_commission_rate, t.id, creator.name, creator.email, updater.name, updater.email
                ORDER BY b.date DESC
                LIMIT $${paramCount++}`;
     

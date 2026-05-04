@@ -178,6 +178,20 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidInd
     || b.serviceName
     || `${(b.booking_type || 'Lesson').replace(/^./, c => c.toUpperCase())}`;
 
+  // Per-hour unit price. For package-paid lessons the booking's `amount` is
+  // the prorated package cost (e.g. €40 / 4h = €10/h), which would surface
+  // a misleading "Unit €10" for what's actually a €70/h supervision session.
+  // Prefer the service's list price (srv.price / srv.duration) so the bill
+  // shows the lesson's market value regardless of how it was paid for.
+  const servicePrice = num(b.service_price);
+  const serviceDuration = num(b.service_duration);
+  const listPricePerHour = servicePrice > 0 && serviceDuration > 0
+    ? servicePrice / serviceDuration
+    : null;
+  const unitPrice = paidByPackage
+    ? (listPricePerHour ?? (duration > 0 && amount > 0 ? amount / duration : null))
+    : (duration > 0 && amount > 0 ? amount / duration : (listPricePerHour ?? null));
+
   return {
     id: `lesson-${b.id}`,
     category: isSupervisionBooking(b) ? 'supervision' : 'lessons',
@@ -186,7 +200,7 @@ const normalizeBooking = (b, instructors = [], packagesById = new Map(), paidInd
     detail: detailParts.join(' · ') || null,
     qty: 1,
     unit: 'session',
-    unitPrice: duration > 0 && amount > 0 ? amount / duration : null,
+    unitPrice,
     amount: billStatus === 'cancelled' ? 0 : (paidByPackage ? 0 : amount),
     currency: b.currency || null,
     status: billStatus,
@@ -552,14 +566,19 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
   }
   const subtotal = Object.values(subtotalsByCategory).reduce((s, v) => s + v, 0);
 
-  // Filter transactions to the same period.
+  // Filter transactions: include everything UP TO and including the period
+  // end. A deposit/credit made before the period started is still paying for
+  // items in this period — strictly windowing payments inside [start, end]
+  // dropped older deposits like a €155 booking deposit, leaving the bill
+  // showing the full period subtotal as "balance due" even though the
+  // customer had already paid. We do still exclude credits dated AFTER the
+  // period (those belong to the next statement).
   const txInPeriod = (transactions || []).filter(t => {
     const d = safeDate(t.createdAt || t.created_at || t.transaction_date);
     if (!d) return false;
     if (!period || !period[0] || !period[1]) return true;
-    const startMs = +safeDate(period[0]);
     const endMs = +safeDate(period[1]) + 86400000 - 1;
-    return d >= startMs && d <= endMs;
+    return d <= endMs;
   });
 
   // Payments received = actual money the customer paid us during the period.
@@ -672,6 +691,11 @@ export const applyDiscounts = (items, discountsByEntity) => {
 //
 // `discountsByEntity` (optional) — Map<`${type}:${id}`, discountRow> applied
 // to every matching line. See `applyDiscounts`.
+//
+// `customerLabel` (optional) — when present, every emitted line carries
+// `{customerId, customerName}`. The combined-bill view uses this to show
+// which person each line belongs to. Solo bills leave it null and the UI
+// hides the column.
 export const buildBillItems = ({
   bookings = [],
   rentals = [],
@@ -683,6 +707,7 @@ export const buildBillItems = ({
   transactions = [],
   discountsByEntity = null,
   customerId = null,
+  customerLabel = null,
 } = {}) => {
   // Build the paid-entity index once and share it across normalizers — each
   // per-category wrapper would otherwise rescan `transactions` independently.
@@ -696,7 +721,126 @@ export const buildBillItems = ({
     ...shopOrders.map(o => normalizeShopOrder(o, paidIndex)),
     ...memberships.map(m => normalizeMembership(m, paidIndex)),
   ].sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
-  return applyDiscounts(items, discountsByEntity);
+  const withDiscounts = applyDiscounts(items, discountsByEntity);
+  if (!customerLabel && !customerId) return withDiscounts;
+  return withDiscounts.map(it => ({
+    ...it,
+    customerId: customerId || it.customerId || null,
+    customerName: customerLabel || it.customerName || null,
+  }));
+};
+
+// Combined-bill aggregator. Takes one cohort entry per customer and returns
+// the merged, date-sorted item list with each line tagged by customer. Each
+// cohort gets its own paidIndex / discount map so per-customer payment
+// evidence and discounts don't leak across people.
+//
+// Group bookings shared across multiple cohort members (e.g. a 2h supervision
+// session attended by Thibaut AND Victor — both are in `booking_participants`,
+// so the same booking row shows up in both customers' fetches) get merged
+// into a single line. Without this dedupe the bill would render one row per
+// participant per session — staff would see "4 supervision sessions" when
+// only 2 actually happened. We sum amounts across shares so the displayed
+// total still equals the booking's group total, and list every co-billed
+// customer in `sharedCustomerNames` so the UI can show them as chips.
+//
+// cohort entry shape (mirrors buildBillItems args):
+//   { customerId, customerName, bookings, rentals, accommodationBookings,
+//     packages, shopOrders, memberships, instructors, transactions,
+//     discountsByEntity }
+export const buildCombinedBillItems = (cohorts = []) => {
+  const all = [];
+  for (const c of cohorts) {
+    if (!c) continue;
+    const items = buildBillItems({
+      ...c,
+      customerLabel: c.customerName || null,
+    });
+    for (const it of items) all.push(it);
+  }
+
+  // Dedupe by entity. Items with no entityType/entityId (rare; defensive)
+  // pass through unchanged.
+  const merged = new Map();
+  const passthrough = [];
+  for (const it of all) {
+    if (!it.entityType || it.entityId == null) { passthrough.push(it); continue; }
+    const key = `${it.entityType}:${it.entityId}`;
+    const prior = merged.get(key);
+    if (!prior) {
+      merged.set(key, {
+        ...it,
+        sharedCustomerNames: it.customerName ? [it.customerName] : [],
+        sharedCustomerIds: it.customerId ? [it.customerId] : [],
+      });
+      continue;
+    }
+    // Sum amounts across participant shares. originalAmount + discountAmount
+    // are summed in lockstep so the discount chip math (orig − disc = amount)
+    // still holds at the merged level.
+    prior.amount = num(prior.amount) + num(it.amount);
+    prior.originalAmount = num(prior.originalAmount) + num(it.originalAmount);
+    if (it.discountAmount != null) {
+      prior.discountAmount = num(prior.discountAmount) + num(it.discountAmount);
+      // Discount % is per-share but identical across shares of the same
+      // entity in the typical case. Keep the existing value rather than
+      // averaging — staff see the row-level percent the discount was
+      // configured at, which matches what they typed in.
+      if (prior.discountPercent == null) prior.discountPercent = it.discountPercent;
+      if (prior.discountId == null) prior.discountId = it.discountId;
+    }
+    if (it.customerName && !prior.sharedCustomerNames.includes(it.customerName)) {
+      prior.sharedCustomerNames.push(it.customerName);
+    }
+    if (it.customerId && !prior.sharedCustomerIds.includes(it.customerId)) {
+      prior.sharedCustomerIds.push(it.customerId);
+    }
+    // Leave unitPrice as the first share's value. Recomputing as
+    // mergedAmount / qty would mislead — qty stays at 1 for sessions, so
+    // the "unit" column would balloon to the booking's full group total.
+    // Each cohort's share has the same per-hour rate, so the first one is
+    // representative.
+  }
+
+  return [...merged.values(), ...passthrough]
+    .sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
+};
+
+// Combined-bill totals: subtotals come from the merged items, but
+// paymentsReceived has to be computed by summing each cohort's transactions
+// (each customer's own wallet ledger) — concatenating raw transactions and
+// running computeTotals once would be equivalent only if every transaction
+// is unique-per-customer (which they are, since wallet_transactions are
+// keyed by user_id). Done this way to make per-customer breakdown easy.
+export const computeCombinedTotals = (cohorts, period, baseCurrency, convertToBase) => {
+  const perCustomer = cohorts.map(c => {
+    const items = buildBillItems({ ...c, customerLabel: c.customerName || null });
+    const totals = computeTotals(items, c.transactions || [], period, baseCurrency, convertToBase);
+    return {
+      customerId: c.customerId,
+      customerName: c.customerName,
+      ...totals,
+    };
+  });
+
+  const grand = {
+    subtotalsByCategory: {},
+    subtotal: 0,
+    paymentsReceived: 0,
+    refundsIssued: 0,
+    balanceDue: 0,
+    perCustomer,
+  };
+  for (const t of perCustomer) {
+    grand.subtotal += t.subtotal;
+    grand.paymentsReceived += t.paymentsReceived;
+    grand.refundsIssued += t.refundsIssued;
+    grand.balanceDue += t.balanceDue;
+    for (const [cat, v] of Object.entries(t.subtotalsByCategory)) {
+      grand.subtotalsByCategory[cat] = (grand.subtotalsByCategory[cat] || 0) + v;
+    }
+  }
+  return grand;
 };
 
 // Convenience: builds a Map keyed by either:

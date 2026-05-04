@@ -1,55 +1,121 @@
 /* Print rules for the Customer Bill modal.
-   Strategy: hide everything outside the bill root and pull the bill into the
-   page flow at the top-left of the printed page. */
+   Strategy: hide everything outside the bill root, drop the bill into normal
+   page flow (NOT position:fixed — that breaks multi-page pagination, the
+   browser keeps repainting the same first page), and let @page handle the
+   physical page setup so "Save as PDF" produces a clean A4 document.
+
+   These rules apply to the on-screen Print button (which calls
+   window.print() on the host page). The "Save as PDF" button uses an
+   isolated iframe so it doesn't depend on these rules. */
 
 @media print {
-  body * {
-    visibility: hidden;
+  /* Reset every ancestor so it doesn't contribute boxes/borders/scroll. */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
 
-  .ukc-bill-printable,
-  .ukc-bill-printable * {
-    visibility: visible;
+  /* Hide everything off the page, then unhide the bill. display:none on
+     ancestors would cascade down and hide the bill too, so we use
+     visibility: collapse on table-like / generic containers and absolute
+     positioning to lift the bill out of the layout. */
+  body > *:not(.ukc-bill-print-host) {
+    display: none !important;
   }
 
+  /* AntD renders the modal via a portal as a sibling of #root in <body>;
+     traverse down through that portal to find the printable bill. */
+  body .ukc-bill-printable,
+  body .ukc-bill-printable * {
+    visibility: visible !important;
+  }
+
+  /* Lift the bill to the page origin so it occupies the printed page on
+     its own — no leftover layout from the (display:none) host page. */
   .ukc-bill-printable {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    padding: 12mm 14mm;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #fff !important;
     box-shadow: none !important;
     overflow: visible !important;
+  }
+
+  /* AntD modal chrome — the modal mask + wrapper get displayed:none above,
+     but if a future AntD version renders them inline-with-root we'd want
+     them gone too. */
+  .ant-modal-mask, .ant-modal-wrap, .ant-modal {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .ant-modal-content {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
   }
 
   .ukc-bill-no-print {
     display: none !important;
   }
 
+  /* Keep each section together on a single page when possible. Long sections
+     (like a 30-row supervision list) still split, but the section header
+     and at least a few rows stay together. */
   .ukc-bill-section {
     page-break-inside: avoid;
     break-inside: avoid;
   }
 
-  /* Ant Design modal chrome adds a backdrop & wrapper that we want gone. */
-  .ant-modal-mask,
-  .ant-modal-wrap {
-    background: transparent !important;
+  /* Section headers (the colored bar with the category icon) want to keep
+     their first row of body content on the same page so the bar isn't
+     orphaned at the bottom of a page. */
+  .ukc-bill-section header {
+    page-break-after: avoid;
+    break-after: avoid-page;
   }
 
-  .ant-modal {
-    box-shadow: none !important;
-    max-width: 100% !important;
-    top: 0 !important;
+  /* Table rows: never split a row across pages. */
+  table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
-  .ant-modal-content {
-    box-shadow: none !important;
-    border-radius: 0 !important;
+  /* AntD Tag pillboxes — make sure background colors print. Without
+     -webkit-print-color-adjust the chips would render as transparent
+     outlines on color-managed printers / Save-as-PDF. */
+  .ant-tag {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Discount strikethrough — force the line to render with the digits.
+     Default print engines sometimes drop text-decoration to save ink. */
+  .line-through, [class*="line-through"] {
+    text-decoration: line-through !important;
+  }
+
+  /* Force colored text (status pills, balance due, discount %, etc.) to
+     keep their colors instead of degrading to black ink. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   @page {
     size: A4;
-    margin: 0;
+    /* A small physical margin so printers don't clip edges. The Save-as-PDF
+       path also honours this. */
+    margin: 10mm 10mm;
   }
 }

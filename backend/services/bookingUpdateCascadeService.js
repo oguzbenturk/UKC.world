@@ -493,20 +493,76 @@ class BookingUpdateCascadeService {
   }
   
   /**
+   * Refresh `bookings.final_amount` for a single package booking from the
+   * current package state. Used by package-level cascades so that displays
+   * (which read final_amount as the lesson value) stay in sync after a
+   * package price edit or a customer_package discount change.
+   *
+   * Only touches package-paid bookings — non-package bookings are owned by
+   * their own update flows. Skips silently when there's no instructor_user_id
+   * or when the computed value is unchanged. Returns true if a write happened.
+   */
+  static async syncBookingFinalAmountFromPackage(client, booking, pkgContext = null) {
+    if (!booking?.customer_package_id || booking?.payment_status !== 'package') return false;
+    const newAmount = await this.computeLessonAmount(client, booking, pkgContext);
+    const current = Number(booking.final_amount);
+    if (Number.isFinite(current) && Math.abs(current - newAmount) < 0.005) return false;
+    await client.query(
+      `UPDATE bookings
+          SET final_amount = $1,
+              amount       = COALESCE($1, amount),
+              updated_at   = NOW()
+        WHERE id = $2`,
+      [newAmount, booking.id]
+    );
+    return true;
+  }
+
+  /**
    * Recompute instructor_earnings snapshot rows for every completed booking
    * tied to a customer package. Called after the package's purchase_price is
    * edited or its discount changes so per-lesson lesson_amount + total_earnings
    * track the new per-hour value.
    *
+   * Also refreshes each booking's `final_amount` so the displayed lesson
+   * value stays in sync — without this, package-price edits left every
+   * affected booking row showing the snapshot from creation time, which is
+   * what staff were seeing in the customer-detail "Lesson History" tab and
+   * any other surface that reads `final_amount` (display_amount in /bookings,
+   * cashPortion math, etc.).
+   *
    * Fixed-rate (and fixed_per_lesson) instructors are unaffected because
    * computeInstructorEarnings keys their earnings off duration, not lesson
    * amount — so even though we re-run, total_earnings stays the same for them.
    *
-   * Returns { updated: number, skipped: number }.
+   * Returns { updated: number, skipped: number, finalAmountUpdated: number }.
    */
   static async recomputeEarningsForPackageBookings(client, packageId) {
-    const summary = { updated: 0, skipped: 0, skippedPaidOut: 0 };
+    const summary = { updated: 0, skipped: 0, skippedPaidOut: 0, finalAmountUpdated: 0 };
     const pkgContext = await this.loadPackageContext(client, packageId);
+
+    // Refresh final_amount for ALL non-deleted package bookings (not just
+    // completed ones). Earnings cascade still only touches completed bookings
+    // with an instructor — historical behaviour preserved.
+    const { rows: allPkgBookings } = await client.query(
+      `SELECT b.*
+         FROM bookings b
+        WHERE b.customer_package_id = $1
+          AND b.deleted_at IS NULL
+          AND b.payment_status = 'package'`,
+      [packageId]
+    );
+    for (const booking of allPkgBookings) {
+      try {
+        const wrote = await this.syncBookingFinalAmountFromPackage(client, booking, pkgContext);
+        if (wrote) summary.finalAmountUpdated += 1;
+      } catch (err) {
+        logger.warn('Failed to sync booking final_amount from package', {
+          packageId, bookingId: booking.id, error: err.message
+        });
+      }
+    }
+
     const { rows: bookings } = await client.query(
       `SELECT b.*
          FROM bookings b

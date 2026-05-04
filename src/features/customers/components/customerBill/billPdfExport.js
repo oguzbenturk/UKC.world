@@ -125,116 +125,34 @@ export async function exportBillPdfFromElement(element, filename = 'DPC-Statemen
     }
   }
 
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
+  // Always emit a single-page PDF. The page width is fixed at A4 portrait
+  // (595pt) so the document still prints cleanly to a standard A4 sheet
+  // when needed; the page height is sized to fit the entire bill content
+  // exactly. This eliminates the previous "content cut at page boundary"
+  // problem (the bill would slice mid-section across pages, even with the
+  // blank-row gap detector). Long bills produce a tall single page —
+  // browsers render it as one continuous page on screen, and when the user
+  // prints, the browser handles its own pagination cleanly.
+  const A4_WIDTH_PT = 595.28;
   const margin = 18;
-  const usablePtWidth = pageWidth - margin * 2;
-  const usablePtHeight = pageHeight - margin * 2;
+  const contentWidthPt = A4_WIDTH_PT - margin * 2;
+  const ptPerCanvasPx = contentWidthPt / canvas.width;
+  const contentHeightPt = canvas.height * ptPerCanvasPx;
+  const pageHeightPt = contentHeightPt + margin * 2;
 
-  // px ↔ pt conversion factor (the captured canvas is `scale` × element px).
-  const ptPerCanvasPx = usablePtWidth / canvas.width;
-  const fullPdfHeight = canvas.height * ptPerCanvasPx;
-
-  if (fullPdfHeight <= usablePtHeight) {
-    // Fits on one page — single addImage call, exact aspect ratio.
-    pdf.addImage(
-      canvas.toDataURL('image/png'),
-      'PNG',
-      margin,
-      margin,
-      usablePtWidth,
-      fullPdfHeight,
-    );
-  } else {
-    // Multi-page: slice the canvas vertically into page-tall chunks. Naively
-    // cutting at a fixed pixel height bisects whatever row of text happens
-    // to straddle that line — the user sees the top half of a sentence at
-    // the bottom of one page and the bottom half at the top of the next.
-    //
-    // To avoid that, before committing each slice we scan upward from the
-    // proposed cut for a horizontal band of mostly-white pixels (i.e. a
-    // gap between rows). Up to ~12% of a page-height of look-back is
-    // allowed; if no clean gap is found we fall back to the original cut.
-    const sliceCanvasPxHeight = Math.floor(usablePtHeight / ptPerCanvasPx);
-    const lookBackLimit = Math.floor(sliceCanvasPxHeight * 0.12);
-    const fullCtx = canvas.getContext('2d');
-
-    // True if the row at `y` is "blank enough" to cut on — almost every
-    // pixel near-white. Sampling every few px on the x-axis keeps this
-    // cheap on a 2000-pixel-wide canvas.
-    const isBlankRow = (y) => {
-      if (y < 0 || y >= canvas.height) return false;
-      let data;
-      try { data = fullCtx.getImageData(0, y, canvas.width, 1).data; }
-      catch { return false; }
-      const step = 4 * 8; // every 8th pixel
-      let nonWhite = 0;
-      const total = Math.floor(canvas.width / 8);
-      for (let i = 0; i < data.length; i += step) {
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        if (r < 245 || g < 245 || b < 245) nonWhite += 1;
-      }
-      // A row is "blank" if fewer than 1% of sampled pixels carry ink.
-      return nonWhite <= Math.max(1, Math.floor(total * 0.01));
-    };
-
-    const findCleanCut = (proposed) => {
-      if (proposed >= canvas.height) return canvas.height;
-      const minCut = Math.max(1, proposed - lookBackLimit);
-      // Find a contiguous band of blank rows, then cut in the middle of it.
-      let bandEnd = -1;
-      for (let y = proposed; y >= minCut; y--) {
-        if (isBlankRow(y)) {
-          if (bandEnd === -1) bandEnd = y;
-          // Walk up while still blank to find the band's start.
-          let bandStart = y;
-          while (bandStart - 1 >= minCut && isBlankRow(bandStart - 1)) bandStart -= 1;
-          return Math.floor((bandStart + bandEnd) / 2);
-        }
-      }
-      return proposed;
-    };
-
-    let yOffset = 0;
-    let pageIndex = 0;
-
-    while (yOffset < canvas.height) {
-      const remaining = canvas.height - yOffset;
-      const proposedEnd = yOffset + Math.min(sliceCanvasPxHeight, remaining);
-      // Don't bother searching for a gap on the final slice or when the
-      // slice already ends exactly at the canvas bottom.
-      const cutEnd = (proposedEnd >= canvas.height)
-        ? canvas.height
-        : findCleanCut(proposedEnd);
-      const thisSliceHeight = Math.max(1, cutEnd - yOffset);
-
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = thisSliceHeight;
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(
-        canvas,
-        0, yOffset, canvas.width, thisSliceHeight,
-        0, 0, canvas.width, thisSliceHeight,
-      );
-
-      if (pageIndex > 0) pdf.addPage();
-      pdf.addImage(
-        sliceCanvas.toDataURL('image/png'),
-        'PNG',
-        margin,
-        margin,
-        usablePtWidth,
-        thisSliceHeight * ptPerCanvasPx,
-      );
-
-      yOffset += thisSliceHeight;
-      pageIndex += 1;
-    }
-  }
+  const pdf = new jsPDF({
+    unit: 'pt',
+    format: [A4_WIDTH_PT, pageHeightPt],
+    orientation: 'portrait',
+  });
+  pdf.addImage(
+    canvas.toDataURL('image/png'),
+    'PNG',
+    margin,
+    margin,
+    contentWidthPt,
+    contentHeightPt,
+  );
 
   pdf.save(filename);
 }
