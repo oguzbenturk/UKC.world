@@ -14,6 +14,7 @@ import {
   computeTotals, computeCombinedTotals, buildCombinedBillItems,
   CATEGORY_DISPLAY_ORDER, CATEGORY_LABELS,
 } from './customerBill/billAggregator';
+import { exportBillPdfFromElement, exportBillPdf } from './customerBill/billPdfExport';
 import './customerBill/billPrint.css';
 
 const BRAND_TEAL = '#00a8c4';
@@ -210,102 +211,57 @@ const CustomerBillModal = ({
     } catch { /* swallow — logging must never throw */ }
   };
 
-  const handlePdf = () => {
-    // Print via a hidden iframe instead of the page's own window.print().
-    // The bill modal lives inside an AntD modal portal, so calling print()
-    // on the parent window leaves all the hidden-by-visibility ancestor
-    // boxes occupying layout space — Chrome ends up with empty pages and
-    // duplicated content. An iframe with ONLY the bill HTML eliminates
-    // that whole class of bugs because there's no surrounding modal
-    // chrome to print around.
-    if (!printableRef.current) {
-      message.error('Bill not ready yet — try again in a moment.');
-      return;
-    }
-
+  const handlePdf = async () => {
+    // Generate a real PDF file via html2canvas + jsPDF. This produces an
+    // actual file download which works on every device — desktop browsers,
+    // iOS Safari, Android Chrome — without requiring the user to navigate
+    // a print dialog and pick "Save as PDF" (which mobile doesn't expose
+    // the same way and iOS Safari often blocks for cross-frame content).
+    //
+    // Trade-off: html2canvas is a layout APPROXIMATION, so chip baselines
+    // and strikethrough positions can drift slightly compared to the live
+    // modal. The single-page custom-format export keeps everything
+    // together (no mid-section slicing) so at worst the visuals are a hair
+    // off — never cut, never duplicated, never blank pages.
     const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
     const datePart = new Date().toISOString().slice(0, 10);
-    const filename = `DPC-Statement-${safeName}-${datePart}`;
+    const filename = `DPC-Statement-${safeName}-${datePart}.pdf`;
 
-    // Stylesheets / inline <style> from the host document, copied so the
-    // bill renders identically inside the iframe (AntD via cssinjs, the
-    // Tailwind bundle, billPrint.css, anything else loaded at runtime).
-    const styleNodes = Array.from(
-      document.querySelectorAll('link[rel="stylesheet"], style')
-    ).map(el => el.outerHTML).join('\n');
+    let domCaptureError = null;
+    if (printableRef.current) {
+      try {
+        await exportBillPdfFromElement(printableRef.current, filename);
+        return;
+      } catch (err) {
+        domCaptureError = err;
+        console.warn('Bill PDF: DOM capture failed, falling back to text export', err);
+      }
+    }
 
-    const iframe = document.createElement('iframe');
-    // Off-screen but in-document so the iframe can resolve relative URLs
-    // (logo /dps-procenter.svg) against the same origin.
-    iframe.setAttribute('aria-hidden', 'true');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
-    document.body.appendChild(iframe);
-
-    const cleanup = () => {
-      // Wait a beat after print closes so the browser has time to start
-      // the actual save — removing the iframe too early can interrupt the
-      // download in some browsers.
-      setTimeout(() => iframe.remove(), 1500);
-    };
-
-    iframe.onload = () => {
-      const doc = iframe.contentDocument;
-      const win = iframe.contentWindow;
-      if (!doc || !win) { cleanup(); return; }
-
-      // Wait for any images inside the cloned bill to finish loading
-      // before triggering print, so the logo doesn't appear blank.
-      const imgs = Array.from(doc.images || []);
-      const allImagesReady = Promise.all(imgs.map(img => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        return new Promise(resolve => {
-          img.addEventListener('load', resolve, { once: true });
-          img.addEventListener('error', resolve, { once: true });
-          setTimeout(resolve, 3000);
-        });
-      }));
-
-      allImagesReady.then(() => {
-        try {
-          win.focus();
-          win.print();
-        } catch (err) {
-          console.error('Bill PDF: iframe print failed', err);
-          message.error('Could not open the print dialog.');
-          reportClientError('CustomerBillModal.handlePdf:iframe-print', err);
-        } finally {
-          cleanup();
-        }
+    // Fallback: legacy text-based PDF, drawn entirely with jsPDF text()
+    // calls. Visually plainer than the DOM-capture path but doesn't depend
+    // on a working canvas pipeline, so it survives whatever broke the
+    // primary path (rare — usually only when the printable ref is null).
+    try {
+      await exportBillPdf({
+        customerName,
+        customerEmail: customer?.email,
+        customerPhone: customer?.phone,
+        customerAddress,
+        billRef,
+        issuedAt,
+        period: period ? [period[0].format('DD MMM YYYY'), period[1].format('DD MMM YYYY')] : null,
+        grouped,
+        totals,
+        baseCurrency,
+        formatCurrency,
       });
-    };
-
-    // Build the iframe document. The bill's title becomes the prefilled
-    // "Save as PDF" filename in Chrome / Edge.
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${filename}</title>
-  ${styleNodes}
-  <style>
-    /* Strip the @media print visibility-hiding from billPrint.css inside
-       the iframe — the iframe contains ONLY the bill, so we want it
-       always visible, not gated on @media print. */
-    html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-    body * { visibility: visible !important; }
-    .ukc-bill-no-print { display: none !important; }
-    @page { size: A4; margin: 10mm; }
-  </style>
-</head>
-<body>${printableRef.current.outerHTML}</body>
-</html>`;
-
-    iframe.srcdoc = html;
-
-    message.info({
-      content: 'Pick "Save as PDF" as the destination in the print dialog',
-      duration: 4,
-    });
+    } catch (err) {
+      console.error('Bill PDF: legacy export also failed', err);
+      message.error('Could not generate PDF. Use the Print button as a workaround.');
+      reportClientError('CustomerBillModal.handlePdf', err);
+      if (domCaptureError) reportClientError('CustomerBillModal.handlePdf:dom-capture', domCaptureError);
+    }
   };
 
   const visibleCategories = CATEGORY_DISPLAY_ORDER.filter(cat => grouped[cat]?.length > 0);
@@ -315,7 +271,11 @@ const CustomerBillModal = ({
     <Modal
       open={open}
       onCancel={onClose}
-      width={900}
+      // Responsive sizing: full viewport on phones, capped at 900 on
+      // desktop. Without this, the AntD modal stays at 900px and gets
+      // clamped by the viewport on mobile, squeezing the table columns
+      // until the description text wraps one letter per line.
+      width="min(900px, 100vw)"
       centered
       footer={null}
       closable={false}
@@ -432,8 +392,13 @@ const CustomerBillModal = ({
 
                   {/* table-fixed + colgroup locks every body cell to the same
                       column width as its header, so "QTY" and the "1" beneath
-                      it line up regardless of how long the description is. */}
-                  <table className="w-full text-xs table-fixed">
+                      it line up regardless of how long the description is.
+                      The outer overflow-x wrapper kicks in on phones — the
+                      table keeps its min-width and the user scrolls
+                      horizontally instead of having the description column
+                      collapse into vertically-stacked letters. */}
+                  <div className="ukc-bill-table-scroll overflow-x-auto">
+                  <table className="w-full text-xs table-fixed" style={{ minWidth: 600 }}>
                     <colgroup>
                       <col style={{ width: '92px' }} />
                       <col />
@@ -523,6 +488,7 @@ const CustomerBillModal = ({
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </section>
               );
             })}
@@ -600,16 +566,14 @@ const CustomerBillModal = ({
         <div className="ukc-bill-no-print px-8 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
           <Button onClick={onClose} icon={<CloseOutlined />}>Close</Button>
           <Button onClick={handlePrint} icon={<PrinterOutlined />}>Print</Button>
-          <Tooltip title='Opens the print dialog — pick "Save as PDF" as the destination for a one-click PDF.'>
-            <Button
-              type="primary"
-              onClick={handlePdf}
-              icon={<DownloadOutlined />}
-              style={{ background: BRAND_TEAL, borderColor: BRAND_TEAL }}
-            >
-              Save as PDF
-            </Button>
-          </Tooltip>
+          <Button
+            type="primary"
+            onClick={handlePdf}
+            icon={<DownloadOutlined />}
+            style={{ background: BRAND_TEAL, borderColor: BRAND_TEAL }}
+          >
+            Download PDF
+          </Button>
         </div>
       </div>
     </Modal>

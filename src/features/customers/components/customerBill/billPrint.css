@@ -1,3 +1,24 @@
+/* On-screen rules for the bill modal on small viewports. The bill is
+   designed for a roughly A4 layout — on a phone the wide horizontal
+   padding and tall letterhead push every section off the visible area,
+   and the table columns shrink past readability. These tighten the
+   spacing on phones without affecting the desktop view or the printed
+   PDF (the html2canvas capture happens at the modal's actual rendered
+   width, so what looks right on the device looks right in the PDF). */
+@media (max-width: 640px) {
+  .ukc-bill-printable .px-8 { padding-left: 12px !important; padding-right: 12px !important; }
+  .ukc-bill-printable .py-6 { padding-top: 14px !important; padding-bottom: 14px !important; }
+  .ukc-bill-printable .py-7 { padding-top: 14px !important; padding-bottom: 14px !important; }
+  .ukc-bill-printable .pt-7 { padding-top: 14px !important; }
+  .ukc-bill-printable .pb-5 { padding-bottom: 10px !important; }
+  /* Shrink the giant Duotone wordmark so it doesn't dominate the
+     viewport on a phone. */
+  .ukc-bill-printable img[alt*="Duotone"] { max-width: 80vw !important; }
+  /* Each section (table) gets its own horizontal scroll. Lock the table
+     to its content width so columns stay readable. */
+  .ukc-bill-table-scroll { -webkit-overflow-scrolling: touch; }
+}
+
 /* Print rules for the Customer Bill modal.
    Strategy: hide everything outside the bill root, drop the bill into normal
    page flow (NOT position:fixed — that breaks multi-page pagination, the

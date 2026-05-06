@@ -101,6 +101,29 @@ async function calculateUserBalance(userId, currency = 'EUR') {
   }
 }
 
+// SQL fragment that excludes ledger entries we don't want in customer-facing
+// finance reports: staff payouts (manager/instructor commissions + salary),
+// transactions tied to a soft-deleted booking, and transactions tied to a
+// hard-deleted rental. Inline-only — uses no parameters — so it composes
+// cleanly with parameterized WHERE clauses.
+//
+// Pass the table alias when the query aliases wallet_transactions (`wt`),
+// otherwise the default fully-qualified column references work for unaliased
+// queries.
+function activeFinanceTxnFilter(alias = 'wallet_transactions') {
+  return `
+    (${alias}.entity_type IS NULL OR ${alias}.entity_type NOT IN ('manager_payment','instructor_payment'))
+    AND (${alias}.booking_id IS NULL OR NOT EXISTS (
+      SELECT 1 FROM bookings b
+       WHERE b.id = ${alias}.booking_id
+         AND b.deleted_at IS NOT NULL
+    ))
+    AND (${alias}.rental_id IS NULL OR EXISTS (
+      SELECT 1 FROM rentals r WHERE r.id = ${alias}.rental_id
+    ))
+  `;
+}
+
 function mapTransactionRow(row) {
   if (!row) {
     return null;
@@ -593,6 +616,11 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       currency
     } = req.query;
 
+    // Staff payouts (manager/instructor salary + commission) live in the same
+    // wallet_transactions table but should never appear in customer-facing
+    // payment history. They have their own dedicated views.
+    const STAFF_PAYOUT_ENTITY_TYPES = ['manager_payment', 'instructor_payment'];
+
     const options = {
       limit: Number.parseInt(limit, 10) || 50,
       offset: Number.parseInt(offset, 10) || 0,
@@ -601,7 +629,9 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       endDate: end_date || undefined,
       status: status || undefined,
       direction: direction || undefined,
-      currency: currency || undefined
+      currency: currency || undefined,
+      excludeEntityTypes: STAFF_PAYOUT_ENTITY_TYPES,
+      excludeOrphanedRelatedEntities: true
     };
 
     const rows = await fetchWalletTransactions(user_id || undefined, options);
@@ -636,6 +666,20 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     if (options.endDate) { statsParams.push(new Date(options.endDate)); statsFilters.push(`transaction_date <= $${++sIdx}`); }
     if (options.transactionType) { statsParams.push(options.transactionType); statsFilters.push(`transaction_type = $${++sIdx}`); }
     if (user_id) { statsParams.push(user_id); statsFilters.push(`user_id = $${++sIdx}`); }
+    statsParams.push(STAFF_PAYOUT_ENTITY_TYPES);
+    statsFilters.push(`(entity_type IS NULL OR entity_type <> ALL($${++sIdx}))`);
+    statsFilters.push(`(
+      booking_id IS NULL OR NOT EXISTS (
+        SELECT 1 FROM bookings b
+         WHERE b.id = wallet_transactions.booking_id
+           AND b.deleted_at IS NOT NULL
+      )
+    )`);
+    statsFilters.push(`(
+      rental_id IS NULL OR EXISTS (
+        SELECT 1 FROM rentals r WHERE r.id = wallet_transactions.rental_id
+      )
+    )`);
     const statsWhere = statsFilters.length > 0 ? `WHERE ${statsFilters.join(' AND ')}` : '';
     const [statsResult, breakdownResult, trendResult] = await Promise.all([
       pool.query(`
@@ -2049,6 +2093,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         WHERE transaction_date >= $1::date AND transaction_date <= $2::date
           AND status = 'completed'
           AND NOT (transaction_type = ANY($5))
+          AND ${activeFinanceTxnFilter()}
       `, [dateStart, dateEnd, PAYMENT_TYPES, REFUND_TYPES, EXCLUDED_REVENUE_TYPES]),
 
       // 2. Rental revenue
@@ -2186,6 +2231,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         FROM wallet_transactions
         WHERE transaction_date >= $1::date AND transaction_date <= $2::date
           AND status = 'completed'
+          AND ${activeFinanceTxnFilter()}
       `, [dateStart, dateEnd]),
 
       // 8. Membership revenue
@@ -2219,6 +2265,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
             OR (transaction_type = 'payment' AND description ILIKE '%shop order%')
             OR (related_entity_type = 'shop_order')
           )
+          AND ${activeFinanceTxnFilter()}
       `, [dateStart, dateEnd]),
 
       // commission_amount is stored in EUR at calculation time, so read stored values
@@ -2973,6 +3020,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       FROM wallet_transactions
       WHERE status = 'completed'
         AND created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter()}
     `, [startDate, endDate]);
 
     const h = headlineResult.rows[0];
@@ -2991,6 +3039,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       FROM wallet_transactions
       WHERE status = 'completed'
         AND created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter()}
     `, [startDate, endDate]);
 
     const sb = serviceBreakdownResult.rows[0];
@@ -3004,6 +3053,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       FROM wallet_transactions
       WHERE status = 'completed'
         AND created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter()}
       GROUP BY TO_CHAR(created_at, 'YYYY-MM')
       ORDER BY month
     `, [startDate, endDate]);
@@ -3047,6 +3097,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       WHERE status = 'completed'
         AND direction = 'debit'
         AND created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter()}
       GROUP BY transaction_type
       ORDER BY total DESC
     `, [startDate, endDate]);
@@ -3330,6 +3381,7 @@ router.get('/revenue-analytics', authenticateJWT, authorizeRoles(['admin', 'mana
         WHERE transaction_date >= $1::date AND transaction_date <= $2::date
           AND status = 'completed'
           AND NOT (transaction_type = ANY($4))
+          AND ${activeFinanceTxnFilter()}
         GROUP BY TO_CHAR(transaction_date, '${dateFormat}')
         ORDER BY period
       `;
@@ -3698,21 +3750,23 @@ router.get('/reports/:type', authenticateJWT, authorizeRoles(['admin', 'manager'
         const dateStart = startDate || '1900-01-01';
         const dateEnd = endDate || '2100-01-01';
         const plQuery = `
-          SELECT 
+          SELECT
             'Revenue' as category,
             COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN amount ELSE 0 END), 0) as amount
           FROM wallet_transactions
           WHERE transaction_date >= $1::date
             AND transaction_date <= $2::date
             AND status = 'completed'
+            AND ${activeFinanceTxnFilter()}
           UNION ALL
-          SELECT 
+          SELECT
             'Refunds' as category,
             COALESCE(SUM(CASE WHEN transaction_type = ANY($4) THEN -amount ELSE 0 END), 0) as amount
           FROM wallet_transactions
           WHERE transaction_date >= $1::date
             AND transaction_date <= $2::date
             AND status = 'completed'
+            AND ${activeFinanceTxnFilter()}
         `;
         const plResult = await pool.query(plQuery, [dateStart, dateEnd, PAYMENT_TYPES, REFUND_TYPES]);
         reportData = { type: 'Profit & Loss', data: plResult.rows };
@@ -3886,7 +3940,7 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
     } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         wt.id,
         wt.amount,
         wt.transaction_type,
@@ -3900,6 +3954,7 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
       FROM wallet_transactions wt
       LEFT JOIN users u ON wt.user_id = u.id
       WHERE wt.amount < 0
+        AND ${activeFinanceTxnFilter('wt')}
     `;
 
     const params = [];
@@ -3939,12 +3994,13 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 
     // Get expense categories summary
     const categoriesQuery = `
-      SELECT 
+      SELECT
         transaction_type,
         COUNT(*) as count,
         SUM(ABS(amount)) as total
       FROM wallet_transactions
       WHERE amount < 0
+        AND ${activeFinanceTxnFilter()}
       ${start_date ? `AND created_at >= $1` : ''}
       ${end_date ? `AND created_at <= $${start_date ? '2' : '1'}` : ''}
       GROUP BY transaction_type

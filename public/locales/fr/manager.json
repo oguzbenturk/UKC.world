@@ -1778,7 +1778,15 @@
       "package_refund": "Remboursement de forfait",
       "wallet_lock": "Blocage du portefeuille",
       "service_payment": "Paiement de service",
-      "rental_payment": "Paiement de location"
+      "rental_payment": "Paiement de location",
+      "deduction": "Deduction",
+      "discount_adjustment": "Ajustement de remise",
+      "discount_adjustment_reversal": "Annulation de remise",
+      "booking_charge_adjustment": "Ajustement du prix de reservation",
+      "accommodation_charge_adjustment": "Ajustement du prix d'hebergement",
+      "package_price_adjustment": "Ajustement du prix de forfait",
+      "booking_cancelled_refund": "Remboursement annulation reservation",
+      "rental_cancelled_refund": "Remboursement annulation location"
     }
   },
   "outstandingBalances": {

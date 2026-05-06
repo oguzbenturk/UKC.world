@@ -24,11 +24,38 @@ export async function exportBillPdfFromElement(element, filename = 'DPC-Statemen
     import('jspdf'),
   ]);
 
-  // Wait for any <img> elements inside the bill to finish loading. html2canvas
-  // captures synchronously, so an SVG/PNG that hasn't decoded yet shows up as
-  // an empty space (which is what made the Duotone Pro Center logo disappear
-  // from the first capture if the user hit Download immediately on open).
-  const imgs = Array.from(element.querySelectorAll('img'));
+  // Always capture at desktop layout (900px wide) regardless of the user's
+  // device viewport. On mobile the bill renders inside a ~380px-wide modal
+  // with mobile-specific CSS — capturing that produces a phone-shaped PDF
+  // with squashed columns. We clone the bill into an offscreen wrapper at
+  // a fixed desktop width and capture from there. Tailwind / billPrint.css
+  // mobile media queries are also neutralized via html2canvas's
+  // `windowWidth` option so any `@media (max-width: 640px)` rules don't
+  // fire during capture.
+  const DESKTOP_CAPTURE_WIDTH = 900;
+  const clone = element.cloneNode(true);
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = [
+    'position:fixed',
+    'top:0',
+    // Keep the wrapper visible to layout but invisible to the user.
+    // Hard-offscreen via left:-10000px caused html2canvas to miscompute
+    // some inline-block widths in Safari; opacity:0 keeps it laid out
+    // normally without flashing the user.
+    'left:0',
+    'opacity:0',
+    'pointer-events:none',
+    'z-index:-1',
+    `width:${DESKTOP_CAPTURE_WIDTH}px`,
+    'background:#ffffff',
+  ].join(';');
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  // Use the CLONE's images for loading / SVG rasterization so the live
+  // on-screen bill is never modified. (The user could still see flicker
+  // on the live element if we touched its <img> sources.)
+  const imgs = Array.from(clone.querySelectorAll('img'));
   await Promise.all(imgs.map(img => {
     if (img.complete && img.naturalWidth > 0) return Promise.resolve();
     return new Promise(resolve => {
@@ -100,28 +127,38 @@ export async function exportBillPdfFromElement(element, filename = 'DPC-Statemen
   }
 
   // Render at 2× device scale for print-quality crispness without ballooning
-  // the resulting PDF size.
+  // the resulting PDF size. `windowWidth` simulates a desktop viewport so
+  // mobile-only @media queries don't apply during capture even when the
+  // user is on a phone.
   let canvas;
   try {
-    canvas = await html2canvas(element, {
+    canvas = await html2canvas(clone, {
       scale: 2,
       backgroundColor: '#ffffff',
       useCORS: true,
       allowTaint: true, // tolerate the SVG even if CORS headers aren't set
       logging: false,
       imageTimeout: 5000,
+      width: DESKTOP_CAPTURE_WIDTH,
+      windowWidth: DESKTOP_CAPTURE_WIDTH,
       // Drop the on-screen-only action bar (Close/Print/Download buttons) and
       // anything else flagged as "no-print" so the captured image matches
       // what a printed page would show.
       ignoreElements: (el) => !!(el.classList && el.classList.contains('ukc-bill-no-print')),
     });
   } finally {
-    // Always restore original SVG src values and the onerror handler, even
-    // if html2canvas threw, so the live on-screen bill isn't left with
-    // embedded data-URLs or a stripped error handler.
+    // The clone wrapper isn't part of the live UI, so we can drop it
+    // unconditionally — no need to restore image src on the original.
+    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+    // Defensive: if the live element somehow had its src touched (shouldn't
+    // happen now that we operate on the clone), the restoreImgSrcs list is
+    // populated against `img` references that point INTO the clone DOM,
+    // which we just removed, so iterating is harmless / a no-op.
     for (const { img, originalSrc, originalOnError } of restoreImgSrcs) {
-      img.setAttribute('src', originalSrc);
-      if (originalOnError !== undefined) img.onerror = originalOnError;
+      try {
+        img.setAttribute('src', originalSrc);
+        if (originalOnError !== undefined) img.onerror = originalOnError;
+      } catch { /* clone is detached, nothing to restore */ }
     }
   }
 

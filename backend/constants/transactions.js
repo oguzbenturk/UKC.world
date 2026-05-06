@@ -38,6 +38,7 @@ export const TRANSACTION_TYPE = Object.freeze({
   PACKAGE_PURCHASE: 'package_purchase',
   PACKAGE_PRICE_ADJUSTMENT: 'package_price_adjustment',
   ACCOMMODATION_CHARGE_ADJUSTMENT: 'accommodation_charge_adjustment',
+  BOOKING_CHARGE_ADJUSTMENT: 'booking_charge_adjustment',
   DISCOUNT_ADJUSTMENT: 'discount_adjustment',
 });
 

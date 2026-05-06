@@ -1002,7 +1002,9 @@ export async function fetchTransactions(userId, {
   transactionType,
   startDate,
   endDate,
-  direction
+  direction,
+  excludeEntityTypes,
+  excludeOrphanedRelatedEntities = false
 } = {}) {
   const filters = [];
   const params = [];
@@ -1054,6 +1056,30 @@ export async function fetchTransactions(userId, {
     index += 1;
     params.push(new Date(endDate));
     filters.push(`transaction_date <= $${index}`);
+  }
+
+  if (Array.isArray(excludeEntityTypes) && excludeEntityTypes.length > 0) {
+    index += 1;
+    params.push(excludeEntityTypes);
+    filters.push(`(entity_type IS NULL OR entity_type <> ALL($${index}))`);
+  }
+
+  if (excludeOrphanedRelatedEntities) {
+    // Hide ledger entries whose related booking has been soft-deleted, or whose
+    // related rental was hard-deleted. The entity is gone from the user's view,
+    // so its money flows shouldn't bloat customer-facing totals.
+    filters.push(`(
+      booking_id IS NULL OR NOT EXISTS (
+        SELECT 1 FROM bookings b
+         WHERE b.id = wallet_transactions.booking_id
+           AND b.deleted_at IS NOT NULL
+      )
+    )`);
+    filters.push(`(
+      rental_id IS NULL OR EXISTS (
+        SELECT 1 FROM rentals r WHERE r.id = wallet_transactions.rental_id
+      )
+    )`);
   }
 
   index += 1;

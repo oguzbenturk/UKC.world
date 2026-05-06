@@ -1778,7 +1778,15 @@
       "package_refund": "Reembolso de paquete",
       "wallet_lock": "Bloqueo de monedero",
       "service_payment": "Pago de servicio",
-      "rental_payment": "Pago de alquiler"
+      "rental_payment": "Pago de alquiler",
+      "deduction": "Deduccion",
+      "discount_adjustment": "Ajuste de descuento",
+      "discount_adjustment_reversal": "Reversion de descuento",
+      "booking_charge_adjustment": "Ajuste de precio de reserva",
+      "accommodation_charge_adjustment": "Ajuste de precio de alojamiento",
+      "package_price_adjustment": "Ajuste de precio de paquete",
+      "booking_cancelled_refund": "Reembolso por cancelacion de reserva",
+      "rental_cancelled_refund": "Reembolso por cancelacion de alquiler"
     }
   },
   "outstandingBalances": {

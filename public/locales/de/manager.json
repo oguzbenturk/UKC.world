@@ -1778,7 +1778,15 @@
       "package_refund": "Paketruckerstattung",
       "wallet_lock": "Geldborsensperrung",
       "service_payment": "Dienstleistungszahlung",
-      "rental_payment": "Mietzahlung"
+      "rental_payment": "Mietzahlung",
+      "deduction": "Abzug",
+      "discount_adjustment": "Rabattanpassung",
+      "discount_adjustment_reversal": "Rabattstornierung",
+      "booking_charge_adjustment": "Buchungspreisanpassung",
+      "accommodation_charge_adjustment": "Unterkunftspreisanpassung",
+      "package_price_adjustment": "Paketpreisanpassung",
+      "booking_cancelled_refund": "Stornoruckerstattung Buchung",
+      "rental_cancelled_refund": "Stornoruckerstattung Miete"
     }
   },
   "outstandingBalances": {

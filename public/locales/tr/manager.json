@@ -1778,7 +1778,15 @@
       "package_refund": "Paket Iadesi",
       "wallet_lock": "Cuzdaan Kilidi",
       "service_payment": "Hizmet Odemesi",
-      "rental_payment": "Kiralama Odemesi"
+      "rental_payment": "Kiralama Odemesi",
+      "deduction": "Kesinti",
+      "discount_adjustment": "Indirim Duzeltmesi",
+      "discount_adjustment_reversal": "Indirim Iptali",
+      "booking_charge_adjustment": "Rezervasyon Fiyat Duzeltmesi",
+      "accommodation_charge_adjustment": "Konaklama Fiyat Duzeltmesi",
+      "package_price_adjustment": "Paket Fiyat Duzeltmesi",
+      "booking_cancelled_refund": "Rezervasyon Iptal Iadesi",
+      "rental_cancelled_refund": "Kiralama Iptal Iadesi"
     }
   },
   "outstandingBalances": {

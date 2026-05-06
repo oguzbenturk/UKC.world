@@ -1780,7 +1780,15 @@
       "package_refund": "Package Refund",
       "wallet_lock": "Wallet Lock",
       "service_payment": "Service Payment",
-      "rental_payment": "Rental Payment"
+      "rental_payment": "Rental Payment",
+      "deduction": "Deduction",
+      "discount_adjustment": "Discount Adjustment",
+      "discount_adjustment_reversal": "Discount Reversal",
+      "booking_charge_adjustment": "Booking Price Adjustment",
+      "accommodation_charge_adjustment": "Accommodation Price Adjustment",
+      "package_price_adjustment": "Package Price Adjustment",
+      "booking_cancelled_refund": "Booking Cancellation Refund",
+      "rental_cancelled_refund": "Rental Cancellation Refund"
     }
   },
   "outstandingBalances": {

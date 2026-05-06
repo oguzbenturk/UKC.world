@@ -1778,7 +1778,15 @@
       "package_refund": "Возврат за пакет",
       "wallet_lock": "Блокировка кошелька",
       "service_payment": "Оплата услуги",
-      "rental_payment": "Оплата аренды"
+      "rental_payment": "Оплата аренды",
+      "deduction": "Вычет",
+      "discount_adjustment": "Корректировка скидки",
+      "discount_adjustment_reversal": "Отмена скидки",
+      "booking_charge_adjustment": "Корректировка цены бронирования",
+      "accommodation_charge_adjustment": "Корректировка цены проживания",
+      "package_price_adjustment": "Корректировка цены пакета",
+      "booking_cancelled_refund": "Возврат за отмену бронирования",
+      "rental_cancelled_refund": "Возврат за отмену аренды"
     }
   },
   "outstandingBalances": {

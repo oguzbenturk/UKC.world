@@ -10,7 +10,13 @@ import { logger } from '../middlewares/errorHandler.js';
 import { writeLessonSnapshot } from './revenueSnapshotService.js';
 import { deriveLessonAmount } from '../utils/instructorEarnings.js';
 import { getActiveDiscountAmount } from '../utils/discountAmounts.js';
-import { WALLET_ENTITY_TYPE } from '../constants/transactions.js';
+import { recordTransaction as recordWalletTransaction } from './walletService.js';
+import {
+  TRANSACTION_TYPE,
+  TX_DIRECTION,
+  WALLET_ENTITY_TYPE,
+  WALLET_TX_STATUS,
+} from '../constants/transactions.js';
 
 class BookingUpdateCascadeService {
   /**
@@ -684,6 +690,61 @@ class BookingUpdateCascadeService {
             amountDifference.abs().toNumber(),
             `Booking price adjustment: ${amountDifference.gt(0) ? 'increase' : 'decrease'} €${amountDifference.abs().toDecimalPlaces(2).toNumber()}`
           ]);
+
+          // Mirror the price edit into the wallet ledger so the Financial
+          // History view (which reads wallet_transactions) shows the new
+          // price instead of the original booking_charge. Skips when the
+          // booking was paid outside the wallet (cash / gateway) so we
+          // don't post a phantom credit/debit.
+          const { rows: chargeRows } = await client.query(
+            `SELECT 1 FROM wallet_transactions
+              WHERE booking_id = $1
+                AND transaction_type IN ('booking_charge', 'charge')
+                AND status = 'completed'
+                AND amount < 0
+              LIMIT 1`,
+            [booking.id]
+          );
+          if (chargeRows.length) {
+            const isCredit = amountDifference.lt(0);
+            const absAmount = amountDifference.abs().toDecimalPlaces(2).toNumber();
+            await recordWalletTransaction({
+              client,
+              userId: booking.student_user_id,
+              amount: isCredit ? absAmount : -absAmount,
+              availableDelta: isCredit ? absAmount : -absAmount,
+              transactionType: TRANSACTION_TYPE.BOOKING_CHARGE_ADJUSTMENT,
+              status: WALLET_TX_STATUS.COMPLETED,
+              direction: isCredit ? TX_DIRECTION.CREDIT : TX_DIRECTION.DEBIT,
+              currency: booking.currency || 'EUR',
+              description: isCredit
+                ? `Booking price reduced: €${absAmount}`
+                : `Booking price increased: €${absAmount}`,
+              entityType: WALLET_ENTITY_TYPE.BOOKING,
+              relatedEntityType: WALLET_ENTITY_TYPE.BOOKING,
+              relatedEntityId: booking.id,
+              bookingId: booking.id,
+              metadata: {
+                bookingId: booking.id,
+                oldAmount: oldAmount.toNumber(),
+                newAmount: newAmount.toNumber(),
+                delta: amountDifference.toNumber(),
+              },
+              allowNegative: true,
+            });
+          }
+
+          // Rebase any % discount layered on this booking against the new
+          // base price. Mirrors the accommodation/package flows. Dynamic
+          // import because discountService already imports this module
+          // (avoids the static cycle).
+          const { recomputeDiscountForBooking } = await import('./discountService.js');
+          await recomputeDiscountForBooking(client, {
+            bookingId: booking.id,
+            newBasePrice: newAmount.toNumber(),
+            currency: booking.currency || 'EUR',
+            createdBy: booking.updated_by || null,
+          });
         }
       }
       
