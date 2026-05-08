@@ -36,6 +36,13 @@ const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
 
 const CREDIT_TRANSACTION_TYPES = new Set(['credit', 'manual_credit', 'wallet_deposit', 'refund', 'booking_deleted_refund', 'booking_cancelled_refund', 'rental_cancelled_refund', 'package_refund']);
 const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'payment', 'service_payment', 'rental_payment', 'rental_charge', 'booking_charge', 'package_purchase']);
+
+// Customer cash-in types — the only thing that should count as "Total Income"
+// in payment-history headlines. Refunds, discounts, edit credits, vouchers and
+// manual credits are credit-direction but do NOT represent money received from
+// the customer (refunds flow out; discounts/credits are bookkeeping). Anything
+// not in this set, when credit-direction, is treated as a charge reduction.
+const INCOME_TX_TYPES = ['wallet_deposit', 'deposit', 'payment'];
 const PACKAGE_CASCADE_STRATEGIES = new Set(['delete-all-lessons', 'charge-used']);
 const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
 
@@ -112,7 +119,7 @@ async function calculateUserBalance(userId, currency = 'EUR') {
 // queries.
 function activeFinanceTxnFilter(alias = 'wallet_transactions') {
   return `
-    (${alias}.entity_type IS NULL OR ${alias}.entity_type NOT IN ('manager_payment','instructor_payment'))
+    (${alias}.entity_type IS NULL OR ${alias}.entity_type NOT IN ('manager_payment','instructor_payment','manager','instructor'))
     AND (${alias}.booking_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM bookings b
        WHERE b.id = ${alias}.booking_id
@@ -121,6 +128,12 @@ function activeFinanceTxnFilter(alias = 'wallet_transactions') {
     AND (${alias}.rental_id IS NULL OR EXISTS (
       SELECT 1 FROM rentals r WHERE r.id = ${alias}.rental_id
     ))
+    AND (${alias}.related_entity_type IS NULL
+      OR ${alias}.related_entity_type <> 'customer_package'
+      OR EXISTS (SELECT 1 FROM customer_packages cp WHERE cp.id = ${alias}.related_entity_id))
+    AND (${alias}.related_entity_type IS NULL
+      OR ${alias}.related_entity_type <> 'accommodation_booking'
+      OR EXISTS (SELECT 1 FROM accommodation_bookings ab WHERE ab.id = ${alias}.related_entity_id))
   `;
 }
 
@@ -619,7 +632,9 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     // Staff payouts (manager/instructor salary + commission) live in the same
     // wallet_transactions table but should never appear in customer-facing
     // payment history. They have their own dedicated views.
-    const STAFF_PAYOUT_ENTITY_TYPES = ['manager_payment', 'instructor_payment'];
+    // Includes the singular 'manager'/'instructor' values used by some reversal
+    // entries — without them, payout reversals leak into customer totals.
+    const STAFF_PAYOUT_ENTITY_TYPES = ['manager_payment', 'instructor_payment', 'manager', 'instructor'];
 
     const options = {
       limit: Number.parseInt(limit, 10) || 50,
@@ -663,7 +678,14 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     statsFilters.push(`status != 'cancelled'`);
     statsFilters.push(`NOT (status = 'pending' AND available_delta = 0 AND payment_method = 'credit_card')`);
     if (options.startDate) { statsParams.push(new Date(options.startDate)); statsFilters.push(`transaction_date >= $${++sIdx}`); }
-    if (options.endDate) { statsParams.push(new Date(options.endDate)); statsFilters.push(`transaction_date <= $${++sIdx}`); }
+    if (options.endDate) {
+      // Inclusive end-of-day: bump to next midnight UTC and use `<` so transactions
+      // recorded after 00:00 UTC on the end date aren't silently excluded.
+      const endExclusive = new Date(options.endDate);
+      endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+      statsParams.push(endExclusive);
+      statsFilters.push(`transaction_date < $${++sIdx}`);
+    }
     if (options.transactionType) { statsParams.push(options.transactionType); statsFilters.push(`transaction_type = $${++sIdx}`); }
     if (user_id) { statsParams.push(user_id); statsFilters.push(`user_id = $${++sIdx}`); }
     statsParams.push(STAFF_PAYOUT_ENTITY_TYPES);
@@ -680,16 +702,42 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
         SELECT 1 FROM rentals r WHERE r.id = wallet_transactions.rental_id
       )
     )`);
+    statsFilters.push(`(
+      related_entity_type IS NULL
+      OR related_entity_type <> 'customer_package'
+      OR EXISTS (SELECT 1 FROM customer_packages cp WHERE cp.id = wallet_transactions.related_entity_id)
+    )`);
+    statsFilters.push(`(
+      related_entity_type IS NULL
+      OR related_entity_type <> 'accommodation_booking'
+      OR EXISTS (SELECT 1 FROM accommodation_bookings ab WHERE ab.id = wallet_transactions.related_entity_id)
+    )`);
     const statsWhere = statsFilters.length > 0 ? `WHERE ${statsFilters.join(' AND ')}` : '';
+    const incomeTypesIdx = sIdx + 1;
+    const statsParamsWithIncome = [...statsParams, INCOME_TX_TYPES];
+    // total_income: only customer cash-in events.
+    // total_charges: net billed = debit charges minus credit-direction reductions
+    //   (refunds, discounts, edit credits, vouchers, manual credits).
     const [statsResult, breakdownResult, trendResult] = await Promise.all([
       pool.query(`
         SELECT
-          count(*) as total_count,
-          COALESCE(sum(CASE WHEN direction = 'credit' THEN abs(amount) ELSE 0 END), 0) as total_income,
-          COALESCE(sum(CASE WHEN direction = 'debit' THEN abs(amount) ELSE 0 END), 0) as total_charges
+          count(*) FILTER (WHERE transaction_type NOT IN (
+            'discount_adjustment', 'discount_adjustment_reversal',
+            'booking_charge_adjustment', 'accommodation_charge_adjustment',
+            'package_price_adjustment'
+          )) as total_count,
+          COALESCE(sum(CASE
+            WHEN direction = 'credit' AND transaction_type = ANY($${incomeTypesIdx}) THEN abs(amount)
+            ELSE 0
+          END), 0) as total_income,
+          COALESCE(sum(CASE
+            WHEN direction = 'debit' THEN abs(amount)
+            WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -abs(amount)
+            ELSE 0
+          END), 0) as total_charges
         FROM wallet_transactions
         ${statsWhere}
-      `, statsParams),
+      `, statsParamsWithIncome),
       pool.query(`
         SELECT transaction_type, direction, count(*)::int as count, COALESCE(sum(abs(amount)), 0) as total
         FROM wallet_transactions
@@ -700,13 +748,20 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       pool.query(`
         SELECT
           to_char(transaction_date, 'YYYY-MM') as month,
-          COALESCE(sum(CASE WHEN direction = 'credit' THEN abs(amount) ELSE 0 END), 0) as income,
-          COALESCE(sum(CASE WHEN direction = 'debit' THEN abs(amount) ELSE 0 END), 0) as charges
+          COALESCE(sum(CASE
+            WHEN direction = 'credit' AND transaction_type = ANY($${incomeTypesIdx}) THEN abs(amount)
+            ELSE 0
+          END), 0) as income,
+          COALESCE(sum(CASE
+            WHEN direction = 'debit' THEN abs(amount)
+            WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -abs(amount)
+            ELSE 0
+          END), 0) as charges
         FROM wallet_transactions
         ${statsWhere}
         GROUP BY to_char(transaction_date, 'YYYY-MM')
         ORDER BY month
-      `, statsParams)
+      `, statsParamsWithIncome)
     ]);
     const statsRow = statsResult.rows[0];
     const totalIncome = parseFloat(statsRow.total_income) || 0;

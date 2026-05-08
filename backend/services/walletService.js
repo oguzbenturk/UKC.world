@@ -1053,9 +1053,14 @@ export async function fetchTransactions(userId, {
   }
 
   if (endDate) {
+    // Treat endDate as inclusive of the entire selected day. `new Date('YYYY-MM-DD')`
+    // parses to midnight UTC, so without this we'd silently drop any transaction
+    // recorded after 00:00 UTC on that day (e.g. business hours in UTC+3).
+    const endDateExclusive = new Date(endDate);
+    endDateExclusive.setUTCDate(endDateExclusive.getUTCDate() + 1);
     index += 1;
-    params.push(new Date(endDate));
-    filters.push(`transaction_date <= $${index}`);
+    params.push(endDateExclusive);
+    filters.push(`transaction_date < $${index}`);
   }
 
   if (Array.isArray(excludeEntityTypes) && excludeEntityTypes.length > 0) {
@@ -1065,9 +1070,10 @@ export async function fetchTransactions(userId, {
   }
 
   if (excludeOrphanedRelatedEntities) {
-    // Hide ledger entries whose related booking has been soft-deleted, or whose
-    // related rental was hard-deleted. The entity is gone from the user's view,
-    // so its money flows shouldn't bloat customer-facing totals.
+    // Hide ledger entries whose related entity is gone — soft-deleted bookings,
+    // hard-deleted rentals, force-deleted customer packages, hard-deleted
+    // accommodation bookings. The entity is gone from the user's view, so its
+    // money flows shouldn't bloat customer-facing totals.
     filters.push(`(
       booking_id IS NULL OR NOT EXISTS (
         SELECT 1 FROM bookings b
@@ -1079,6 +1085,16 @@ export async function fetchTransactions(userId, {
       rental_id IS NULL OR EXISTS (
         SELECT 1 FROM rentals r WHERE r.id = wallet_transactions.rental_id
       )
+    )`);
+    filters.push(`(
+      related_entity_type IS NULL
+      OR related_entity_type <> 'customer_package'
+      OR EXISTS (SELECT 1 FROM customer_packages cp WHERE cp.id = wallet_transactions.related_entity_id)
+    )`);
+    filters.push(`(
+      related_entity_type IS NULL
+      OR related_entity_type <> 'accommodation_booking'
+      OR EXISTS (SELECT 1 FROM accommodation_bookings ab WHERE ab.id = wallet_transactions.related_entity_id)
     )`);
   }
 

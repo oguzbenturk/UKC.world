@@ -9,6 +9,32 @@ import { formatCurrency } from '@/shared/utils/formatters';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
 
 const AVATAR_COLORS = ['#1677ff', '#52c41a', '#faad14', '#eb2f96', '#722ed1', '#13c2c2', '#fa541c', '#2f54eb'];
+
+// Top Spenders = net amount each customer was billed: original charges minus
+// discounts, edit-adjustments, and refunds. Wallet ledger already records each
+// as a separate signed entry, so we sum signed amounts of charge-related types
+// and negate (charges are debits with negative amounts; refunds/discounts are
+// credits with positive amounts). Customer wallet topups and goodwill credits
+// (wallet_deposit, deposit, credit, manual_credit) are excluded — those aren't
+// charges or charge offsets.
+const CHARGE_RELATED_TYPES = new Set([
+  // Debit-direction: charges to the customer
+  'charge', 'booking_charge', 'rental_charge', 'accommodation_charge', 'debit',
+  'service_payment', 'rental_payment', 'accommodation_payment',
+  'package_purchase', 'deduction',
+  'payment', 'payment_reversal', // group-lesson / shop-order debits + reversals
+  // Credit-direction: refunds, discounts, edit reductions
+  'refund', 'package_refund', 'booking_deleted_refund', 'booking_cancelled_refund',
+  'rental_cancelled_refund', 'rental_refund', 'iyzico_refund',
+  'discount_adjustment', 'discount_adjustment_reversal',
+  'booking_charge_adjustment', 'accommodation_charge_adjustment', 'package_price_adjustment'
+]);
+const ORIGINAL_CHARGE_TYPES = new Set([
+  'charge', 'booking_charge', 'rental_charge', 'accommodation_charge', 'debit',
+  'service_payment', 'rental_payment', 'accommodation_payment',
+  'package_purchase', 'deduction', 'payment'
+]);
+
 export default function PaymentHistoryCharts({ trend = [], transactions = [] }) {
   // --- Monthly Trend ---
   const trendData = useMemo(() => {
@@ -16,8 +42,7 @@ export default function PaymentHistoryCharts({ trend = [], transactions = [] }) 
       month: t.month,
       label: new Date(t.month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
       income: t.income,
-      charges: t.charges,
-      net: t.income - t.charges
+      charges: t.charges
     }));
   }, [trend]);
 
@@ -25,9 +50,9 @@ export default function PaymentHistoryCharts({ trend = [], transactions = [] }) 
   const topSpenders = useMemo(() => {
     const map = {};
     for (const t of transactions) {
-      if (t.amount >= 0) continue;
       const uid = t.user_id;
       if (!uid) continue;
+      if (!CHARGE_RELATED_TYPES.has(t.type)) continue;
       if (!map[uid]) {
         map[uid] = {
           user_id: uid,
@@ -36,11 +61,18 @@ export default function PaymentHistoryCharts({ trend = [], transactions = [] }) 
           totalSpent: 0,
           count: 0
         };
+      } else if (map[uid].name === 'Unknown' && t.user?.name) {
+        // First-seen txn for this user had no enrichment; later one does — upgrade.
+        map[uid].name = t.user.name;
+        if (!map[uid].email && t.user?.email) map[uid].email = t.user.email;
       }
-      map[uid].totalSpent += Math.abs(t.amount);
-      map[uid].count += 1;
+      map[uid].totalSpent += -Number(t.amount || 0);
+      if (ORIGINAL_CHARGE_TYPES.has(t.type)) map[uid].count += 1;
     }
-    return Object.values(map).sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
+    return Object.values(map)
+      .filter(u => u.totalSpent > 0)
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 10);
   }, [transactions]);
 
   const topSpenderColumns = [
@@ -54,11 +86,12 @@ export default function PaymentHistoryCharts({ trend = [], transactions = [] }) 
       title: 'Customer',
       key: 'customer',
       render: (_, r) => {
-        const color = AVATAR_COLORS[r.name.charCodeAt(0) % AVATAR_COLORS.length];
+        const seed = r.name?.charCodeAt(0);
+        const color = AVATAR_COLORS[(Number.isFinite(seed) ? seed : 0) % AVATAR_COLORS.length];
         return (
           <div className="flex items-center gap-2 min-w-0">
             <Avatar size={28} style={{ backgroundColor: color, flexShrink: 0 }}>
-              {r.name[0]?.toUpperCase() || <UserOutlined />}
+              {r.name?.[0]?.toUpperCase() || <UserOutlined />}
             </Avatar>
             <div className="min-w-0">
               <div className="font-medium text-slate-900 truncate text-sm">{r.name}</div>
@@ -116,7 +149,7 @@ export default function PaymentHistoryCharts({ trend = [], transactions = [] }) 
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
+              <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={v => Math.abs(v) >= 1000 ? `€${(v / 1000).toFixed(1)}k` : `€${Math.round(v)}`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Area type="monotone" dataKey="income" name="Income" stroke="#10b981" fill="url(#incomeGrad)" strokeWidth={2} />

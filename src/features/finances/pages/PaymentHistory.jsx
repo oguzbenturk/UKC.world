@@ -28,6 +28,16 @@ const QUICK_RANGES = [
   { key: 'allHistory', label: 'All History', start: () => dayjs('2020-01-01'), end: () => dayjs().endOf('year') }
 ];
 
+// Ledger-internal entries that adjust other transactions rather than represent
+// a standalone customer event. Hidden from the transactions table for clarity.
+const LEDGER_NOISE_TYPES = new Set([
+  'discount_adjustment',
+  'discount_adjustment_reversal',
+  'booking_charge_adjustment',
+  'accommodation_charge_adjustment',
+  'package_price_adjustment'
+]);
+
 const PaymentHistory = () => {
   const { t } = useTranslation(['manager']);
   const screens = useBreakpoint();
@@ -83,7 +93,17 @@ const PaymentHistory = () => {
   };
 
   const handleMobileDateChange = (field, value) => {
-    setDateRange(prev => ({ ...prev, [field]: value }));
+    if (!value) return;
+    setDateRange(prev => {
+      const next = { ...prev, [field]: value };
+      // Keep range valid: if the user pushed start past end (or vice versa),
+      // collapse the other field so we never fire a fetch with an inverted range.
+      if (next.startDate > next.endDate) {
+        if (field === 'startDate') next.endDate = value;
+        else next.startDate = value;
+      }
+      return next;
+    });
     setActiveQuickRange(null);
   };
 
@@ -103,6 +123,14 @@ const PaymentHistory = () => {
     const end = dayjs(dateRange.endDate);
     return `${start.format('MMM D, YYYY')} – ${end.format('MMM D, YYYY')}`;
   }, [dateRange]);
+
+  // Hide ledger-internal bookkeeping (discount and price-edit adjustments)
+  // from the user-facing transactions table. They're still passed to the
+  // charts so Top Spenders / net charges remain correct.
+  const displayTransactions = useMemo(
+    () => transactions.filter(t => !LEDGER_NOISE_TYPES.has(t.type)),
+    [transactions]
+  );
 
   const stats = useMemo(() => {
     if (serverStats) {
@@ -224,7 +252,7 @@ const PaymentHistory = () => {
           </Button>
         </div>
         <TransactionHistory
-          transactions={transactions}
+          transactions={displayTransactions}
           customerDirectory={{}}
         />
       </Card>
