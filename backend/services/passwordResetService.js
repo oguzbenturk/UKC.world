@@ -9,7 +9,7 @@
  */
 
 import crypto from 'crypto';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
 import { sendEmail } from './emailService.js';
 import { logger } from '../middlewares/errorHandler.js';

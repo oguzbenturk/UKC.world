@@ -1,7 +1,7 @@
 import express from 'express';
 import pg from 'pg';
 import { pool } from '../db.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import twoFactorService from '../services/twoFactorService.js';

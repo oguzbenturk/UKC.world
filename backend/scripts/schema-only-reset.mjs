@@ -12,7 +12,7 @@
  *   SCHEMA_RESET_ADMIN_PASSWORD
  */
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import path from 'path';
 import pg from 'pg';

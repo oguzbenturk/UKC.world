@@ -1,44 +1,25 @@
 FROM node:20-alpine
 
-# Create app directory
 WORKDIR /app
 
-# Update npm to latest version
 RUN npm install -g npm@11.5.1
 
-# Copy package files and install dependencies as root (for proper permissions)
 COPY package*.json ./
 
-# Install build tools needed for bcrypt (Alpine uses musl, no prebuilt binaries).
-# Split into separate steps so intermediate memory pressure is released between
-# stages — combining them into one RUN was OOM-killing on small servers.
-RUN apk add --no-cache python3 make g++
+RUN npm ci --omit=dev --no-audit --no-fund \
+ && npm cache clean --force
 
-# Cap heap and parallelism for the install command only (not the runtime image).
-# Inline NODE_OPTIONS so it does NOT persist into the container's environment.
-RUN NODE_OPTIONS=--max-old-space-size=512 \
-    npm ci --omit=dev --silent --maxsockets=2 --no-audit --no-fund
-
-RUN npm cache clean --force \
- && apk del python3 make g++
-
-# Copy application code
 COPY . .
 
-# Add non-root user for security and change ownership
 RUN addgroup -g 1001 -S nodejs \
   && adduser -S backend -u 1001 \
   && chown -R backend:nodejs /app
 
-# Switch to non-root user
 USER backend
 
-# Expose port
 EXPOSE 4000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:4000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start the application
 CMD ["npm", "start"]

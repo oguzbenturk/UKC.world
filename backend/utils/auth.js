@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { logger } from '../middlewares/errorHandler.js';
 
 if (!process.env.JWT_SECRET) {

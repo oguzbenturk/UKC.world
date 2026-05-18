@@ -163,6 +163,13 @@ function mapTransactionRow(row) {
   const referenceNumber = row.reference_number ?? metadata.referenceNumber ?? null;
   const entityType = row.entity_type ?? row.related_entity_type ?? metadata.entityType ?? null;
 
+  // Total discount applied to the underlying entity, summed via LATERAL JOIN
+  // in fetchTransactions. Positive number; null/0 when no discount exists.
+  // Used by the UI to render the net amount (original + discount credit) on
+  // the purchase row, with the original shown strikethrough.
+  const discountAmount = toNumber(row.discount_amount);
+  const discountPercent = toNumber(row.discount_percent);
+
   return {
     id: row.id,
     user_id: row.user_id,
@@ -184,6 +191,8 @@ function mapTransactionRow(row) {
     direction: row.direction,
     balance_available_after: toNumber(row.balance_available_after),
     available_delta: toNumber(row.available_delta),
+    discount_amount: discountAmount && discountAmount > 0 ? discountAmount : null,
+    discount_percent: discountPercent && discountPercent > 0 ? discountPercent : null,
     metadata
   };
 }

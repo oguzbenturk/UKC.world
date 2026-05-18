@@ -1,7 +1,7 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import crypto from 'crypto';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { dispatchToStaff } from './notificationDispatcherUnified.js';
 
 /**

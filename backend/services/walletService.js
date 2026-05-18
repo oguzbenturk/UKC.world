@@ -1107,11 +1107,24 @@ export async function fetchTransactions(userId, {
 
   const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
+  // LEFT JOIN sums any matching `discounts` rows for the transaction's related
+  // entity. Sum (not single row) handles group bookings that can have multiple
+  // per-participant discounts on the same booking_id. entity_id in `discounts`
+  // is TEXT (mixed UUID/INT source ids), so cast.
   const query = `
-    SELECT *
-    FROM wallet_transactions
+    SELECT wallet_transactions.*,
+           COALESCE(disc.total_discount, 0)::numeric(18,4) AS discount_amount,
+           disc.max_percent AS discount_percent
+      FROM wallet_transactions
+      LEFT JOIN LATERAL (
+        SELECT SUM(d.amount) AS total_discount,
+               MAX(d.percent) AS max_percent
+          FROM discounts d
+         WHERE d.entity_type = wallet_transactions.related_entity_type
+           AND d.entity_id   = wallet_transactions.related_entity_id::text
+      ) disc ON true
     ${whereClause}
-    ORDER BY transaction_date DESC, created_at DESC
+    ORDER BY wallet_transactions.transaction_date DESC, wallet_transactions.created_at DESC
     LIMIT ${limitPlaceholder}
     OFFSET ${offsetPlaceholder}
   `;

@@ -3,7 +3,7 @@
  * Run: npm run dev:reset-passwords
  */
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
