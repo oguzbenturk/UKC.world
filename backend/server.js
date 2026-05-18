@@ -56,6 +56,7 @@ import sparePartsRouter from './routes/spareParts.js';
 import teamSettingsRouter from './routes/teamSettings.js';
 import weatherRouter from './routes/weather.js';
 import googleReviewsRouter from './routes/googleReviews.js';
+import publicLegalDocumentsRouter from './routes/publicLegalDocuments.js';
 import adminReconciliationRouter from './routes/admin-reconciliation.js';
 import dashboardRouter from './routes/dashboard.js';
 import notificationRealtimeService from './services/notificationRealtimeService.js';
@@ -1463,6 +1464,8 @@ app.use('/api/manager/commissions', authenticateJWT, managerCommissionsRouter);
 app.use('/api/weather', weatherRouter);
 // Public Google Reviews route (no auth) - cached 1h, no key exposed to frontend
 app.use('/api/google-reviews', googleReviewsRouter);
+// Public legal documents (no auth) — serves Terms / Privacy / KVKK for public pages
+app.use('/api/public/legal-documents', publicLegalDocumentsRouter);
 app.use('/api/feedback', authenticateJWT, feedbackRouter);
 app.use('/api/chat', authenticateJWT, chatRouter);
 

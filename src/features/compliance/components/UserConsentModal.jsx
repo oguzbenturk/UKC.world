@@ -235,36 +235,45 @@ const UserConsentModal = ({
             <Title level={5} style={{ marginBottom: 8 }}>Required Consents</Title>
             <Text type="secondary" className="block mb-4">Please read and accept all statements below to continue.</Text>
             
-            <Checkbox 
-              checked={acceptTerms} 
+            <Checkbox
+              checked={acceptTerms}
               onChange={(e) => setAcceptTerms(e.target.checked)}
               className="w-full"
             >
-              I have read and agree to the Terms of Service
+              I have read and agree to the{' '}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-700 underline">
+                Terms of Service
+              </a>
             </Checkbox>
 
-            <Checkbox 
-              checked={acceptPrivacy} 
+            <Checkbox
+              checked={acceptPrivacy}
               onChange={(e) => setAcceptPrivacy(e.target.checked)}
               className="w-full"
             >
-              I have read and agree to the Privacy Policy
+              I have read and agree to the{' '}
+              <a href="/gizlilik" target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-700 underline">
+                Privacy Policy / KVKK
+              </a>
             </Checkbox>
 
-            <Checkbox 
-              checked={acceptMarketing} 
+            <Checkbox
+              checked={acceptMarketing}
               onChange={(e) => setAcceptMarketing(e.target.checked)}
               className="w-full"
             >
               I consent to receive marketing communications (you can change this anytime)
             </Checkbox>
 
-            <Checkbox 
-              checked={acceptDataProcessing} 
+            <Checkbox
+              checked={acceptDataProcessing}
               onChange={(e) => setAcceptDataProcessing(e.target.checked)}
               className="w-full"
             >
-              I consent to the processing of my personal data as described in the Privacy Policy
+              I consent to the processing of my personal data as described in the{' '}
+              <a href="/gizlilik" target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:text-sky-700 underline">
+                Privacy Policy
+              </a>
             </Checkbox>
 
             <Alert

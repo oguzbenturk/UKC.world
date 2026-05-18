@@ -94,6 +94,7 @@ const StudentBookEquipmentPage = lazyWithRetry(() => import('../features/student
 
 const NotificationCenter = lazyWithRetry(() => import('../features/notifications/pages/NotificationCenter'));
 const PrivacyGdprPage = lazyWithRetry(() => import('../features/compliance/components/PrivacyGdprPage'));
+const PublicLegalPage = lazyWithRetry(() => import('../features/compliance/components/PublicLegalPage'));
 // OutsiderBookingPage removed - /book now redirects to /guest
 const GuestLandingPage = lazyWithRetry(() => import('../features/outsider/pages/GuestLandingPage'));
 const PublicHome = lazyWithRetry(() => import('../features/public/PublicHome'));
@@ -346,6 +347,12 @@ const AppRoutes = () => {
   {/* Public route for custom forms (short URL: /f/CODE) */}
   <Route path="/f/success/:linkCode" element={<FormSuccessPage />} />
   <Route path="/f/:linkCode" element={<PublicFormPage />} />
+
+  {/* Public legal pages — KVKK / Gizlilik / Hizmet Koşulları (no auth required) */}
+  <Route path="/kvkk" element={<PublicLegalPage slug="kvkk" />} />
+  <Route path="/gizlilik" element={<PublicLegalPage slug="gizlilik" />} />
+  <Route path="/privacy" element={<PublicLegalPage slug="privacy" />} />
+  <Route path="/terms" element={<PublicLegalPage slug="terms" />} />
 
   {/* Form preview - rendered outside layout but requires auth (handled in component) */}
   <Route path="/forms/preview/:id" element={<FormPreviewPage />} />
