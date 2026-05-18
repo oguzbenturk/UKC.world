@@ -272,6 +272,12 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     return transactions.filter((transaction) => {
+      // Standalone discount adjustment rows are now visualized on the linked
+      // purchase row (net amount + strikethrough original). Hiding them here
+      // keeps the visible list and the displayed sums consistent.
+      if (transaction.type === 'discount_adjustment' || transaction.type === 'discount_adjustment_reversal') {
+        return false;
+      }
       if (!matchesSearchTerm(transaction, normalizedSearch, resolveCustomerName)) return false;
       if (!matchesTypeSelection(transaction, selectedTypes)) return false;
       return true;
@@ -344,13 +350,27 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
     {
        title: t('manager:transactionHistory.columns.amount'),
        key: 'amount',
-       width: 130,
+       width: 150,
        sorter: createTransactionComparator('amount', 'asc', resolveCustomerName),
-       render: (_, record) => (
-         <span className={`font-semibold text-sm ${record.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-            {formatCurrency(record.amount)}
-         </span>
-       )
+       render: (_, record) => {
+         const hasDiscount = Number(record.discount_amount) > 0 && record.amount < 0;
+         const netAmount = hasDiscount ? record.amount + Number(record.discount_amount) : record.amount;
+         return (
+           <div className="flex flex-col">
+             <span className={`font-semibold text-sm ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {formatCurrency(netAmount)}
+             </span>
+             {hasDiscount && (
+               <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                 <span className="line-through">{formatCurrency(record.amount)}</span>
+                 <Tag color="green" className="m-0 px-1.5 py-0 text-[10px] leading-tight">
+                   -{Math.round(Number(record.discount_percent) || 0)}%
+                 </Tag>
+               </span>
+             )}
+           </div>
+         );
+       }
     },
     {
         title: t('manager:transactionHistory.columns.createdBy'),
@@ -363,6 +383,8 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
   const TransactionMobileCard = ({ record, onClick }) => {
     const name = resolveCustomerName(record);
     const color = name !== '—' ? AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length] : '#94a3b8';
+    const hasDiscount = Number(record.discount_amount) > 0 && record.amount < 0;
+    const netAmount = hasDiscount ? record.amount + Number(record.discount_amount) : record.amount;
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-4 mb-3 shadow-sm cursor-pointer hover:border-blue-300 transition-colors" onClick={onClick}>
         <div className="flex justify-between items-start mb-2">
@@ -370,9 +392,19 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
             <span className="text-sm font-medium text-slate-700">{safeFormatDate(deriveTransactionDate(record), 'MMM d, yyyy')}</span>
             {getTypeTag(getTransactionCategory(record))}
           </div>
-          <span className={`font-bold text-sm ${record.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-            {formatCurrency(record.amount)}
-          </span>
+          <div className="flex flex-col items-end">
+            <span className={`font-bold text-sm ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+              {formatCurrency(netAmount)}
+            </span>
+            {hasDiscount && (
+              <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                <span className="line-through">{formatCurrency(record.amount)}</span>
+                <Tag color="green" className="m-0 px-1 py-0 text-[9px] leading-tight">
+                  -{Math.round(Number(record.discount_percent) || 0)}%
+                </Tag>
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-sm text-slate-600 mb-2 line-clamp-2">{record.description}</div>
         <div className="flex justify-between items-center border-t border-slate-100 pt-2">
@@ -468,9 +500,25 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.amount')}</p>
-                <p className={`text-lg font-semibold ${selectedTransaction.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {formatCurrency(selectedTransaction.amount)}
-                </p>
+                {(() => {
+                  const hasDiscount = Number(selectedTransaction.discount_amount) > 0 && selectedTransaction.amount < 0;
+                  const netAmount = hasDiscount ? selectedTransaction.amount + Number(selectedTransaction.discount_amount) : selectedTransaction.amount;
+                  return (
+                    <>
+                      <p className={`text-lg font-semibold ${netAmount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {formatCurrency(netAmount)}
+                      </p>
+                      {hasDiscount && (
+                        <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                          <span className="line-through">{formatCurrency(selectedTransaction.amount)}</span>
+                          <Tag color="green" className="m-0 px-1.5 py-0 text-[10px]">
+                            -{Math.round(Number(selectedTransaction.discount_percent) || 0)}% indirim
+                          </Tag>
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{t('manager:transactionHistory.detail.customer')}</p>
