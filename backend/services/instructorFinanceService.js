@@ -1,5 +1,6 @@
 import { pool } from '../db.js';
 import { deriveLessonAmount, deriveTotalEarnings, toNumber } from '../utils/instructorEarnings.js';
+import { discountSumLateral } from '../utils/discountAmounts.js';
 
 const mapEarningRow = (row) => {
   const lessonDuration = toNumber(row.lesson_duration);
@@ -107,7 +108,7 @@ export async function getInstructorEarningsData(
         b.date as lesson_date,
         b.start_hour,
         b.duration as lesson_duration,
-        COALESCE(b.final_amount, b.amount, 0) as base_amount,
+        GREATEST(COALESCE(b.final_amount, b.amount, 0) - bk_disc.amt, 0) as base_amount,
         b.final_amount,
         b.payment_status,
         b.status as booking_status,
@@ -131,8 +132,8 @@ export async function getInstructorEarningsData(
         cp.package_name,
         CASE
           WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
-          THEN ROUND(cp.purchase_price / cs_pkg.exchange_rate, 2)
-          ELSE COALESCE(cp.purchase_price, gb_sp.price)
+          THEN ROUND(GREATEST(cp.purchase_price - cp_disc.amt, 0) / cs_pkg.exchange_rate, 2)
+          ELSE COALESCE(cp.purchase_price - cp_disc.amt, gb_sp.price)
         END as package_price,
         COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
         cp.remaining_hours as package_remaining_hours,
@@ -173,6 +174,8 @@ export async function getInstructorEarningsData(
         END
       )
       LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
+      ${discountSumLateral('bk_disc', 'booking', 'b.id')}
+      ${discountSumLateral('cp_disc', 'customer_package', 'cp.id')}
       WHERE b.instructor_user_id = $1
         AND b.deleted_at IS NULL
     `;
@@ -301,13 +304,13 @@ export async function getAllInstructorBalances() {
       b.instructor_user_id,
       b.id as booking_id,
       b.duration as lesson_duration,
-      COALESCE(b.final_amount, b.amount, 0) as base_amount,
+      GREATEST(COALESCE(b.final_amount, b.amount, 0) - bk_disc.amt, 0) as base_amount,
       b.payment_status,
       b.group_size,
       CASE
         WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
-        THEN ROUND(cp.purchase_price / cs_pkg.exchange_rate, 2)
-        ELSE COALESCE(cp.purchase_price, gb_sp.price)
+        THEN ROUND(GREATEST(cp.purchase_price - cp_disc.amt, 0) / cs_pkg.exchange_rate, 2)
+        ELSE COALESCE(cp.purchase_price - cp_disc.amt, gb_sp.price)
       END as package_price,
       COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
       cp.remaining_hours as package_remaining_hours,
@@ -344,6 +347,8 @@ export async function getAllInstructorBalances() {
       END
     )
     LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
+    ${discountSumLateral('bk_disc', 'booking', 'b.id')}
+    ${discountSumLateral('cp_disc', 'customer_package', 'cp.id')}
     WHERE b.deleted_at IS NULL AND b.status = 'completed'
       AND u.deleted_at IS NULL
   `;

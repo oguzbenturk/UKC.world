@@ -1,6 +1,7 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { resolveAccrualSettings, pickPaymentFee as pickFee } from './financialSettingsService.js';
+import { getActiveDiscountAmount } from '../utils/discountAmounts.js';
 
 // Simple feature flag via env
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
@@ -31,7 +32,10 @@ export async function writeLessonSnapshot(booking, _options = {}) {
       return { skipped: true, reason: 'no_settings' };
     }
 
-    const gross = Number(booking.final_amount || booking.amount || 0);
+    // Discounts live in a separate table — subtract them so gross is the
+    // real post-discount amount before tax/insurance/fee/net are derived.
+    const bookingDiscount = await getActiveDiscountAmount(client, 'booking', booking.id);
+    const gross = Math.max(0, Number(booking.final_amount || booking.amount || 0) - bookingDiscount);
 
     // Commission: use instructor_earnings if present; else 50% default
     let commissionAmount = 0;
@@ -165,7 +169,8 @@ export async function writeRentalSnapshot(rental) {
       return { skipped: true, reason: 'no_settings' };
     }
 
-    const gross = Number(rental.total_price || 0);
+    const rentalDiscount = await getActiveDiscountAmount(client, 'rental', rental.id);
+    const gross = Math.max(0, Number(rental.total_price || 0) - rentalDiscount);
     // Rentals: no instructor commission by default
     const commissionAmount = 0;
     const tax = gross * (Number(settings.tax_rate_pct) / 100);
@@ -286,7 +291,8 @@ export async function writeAccommodationSnapshot(accommodation) {
       return { skipped: true, reason: 'no_settings' };
     }
 
-  const gross = _num(accommodation.total_price || accommodation.amount);
+  const accommodationDiscount = await getActiveDiscountAmount(client, 'accommodation_booking', accommodation.id);
+  const gross = Math.max(0, _num(accommodation.total_price || accommodation.amount) - accommodationDiscount);
   const commissionAmount = 0; // default no instructor commission for accommodation
   const tax = gross * (_num(settings.tax_rate_pct) / 100);
   const insurance = gross * (_num(settings.insurance_rate_pct) / 100);

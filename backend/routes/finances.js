@@ -30,6 +30,7 @@ import {
 } from '../services/serviceRevenueLedger.js';
 import { initiateDeposit, verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
 import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from '../services/managerCommissionService.js';
+import { discountSumLateral } from '../utils/discountAmounts.js';
 
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
@@ -2307,10 +2308,11 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           AND payment_status = 'completed'
       `, [dateStart, dateEnd]),
 
-      // 9. Package revenue
+      // 9. Package revenue (net of applied package discounts)
       pool.query(`
-        SELECT COALESCE(SUM(purchase_price), 0) AS package_revenue
+        SELECT COALESCE(SUM(GREATEST(COALESCE(purchase_price, 0) - cp_disc.amt, 0)), 0) AS package_revenue
         FROM customer_packages
+        ${discountSumLateral('cp_disc', 'customer_package', 'customer_packages.id')}
         WHERE purchase_date >= $1::date AND purchase_date <= $2::date
           AND status IN ('active', 'completed', 'expired')
       `, [dateStart, dateEnd]),
@@ -3454,18 +3456,19 @@ router.get('/revenue-analytics', authenticateJWT, authorizeRoles(['admin', 'mana
     
     // Service performance analytics
   const serviceQuery = `
-      SELECT 
+      SELECT
         s.name as service_name,
         s.category,
         COUNT(b.id) as booking_count,
-        COALESCE(SUM(b.final_amount), 0) as total_revenue,
-        COALESCE(AVG(b.final_amount), 0) as average_price
+        COALESCE(SUM(GREATEST(COALESCE(b.final_amount, 0) - bk_disc.amt, 0)), 0) as total_revenue,
+        COALESCE(AVG(GREATEST(COALESCE(b.final_amount, 0) - bk_disc.amt, 0)), 0) as average_price
       FROM services s
-      LEFT JOIN bookings b ON s.id = b.service_id 
+      LEFT JOIN bookings b ON s.id = b.service_id
         AND b.date >= $1::date
         AND b.date <= $2::date
     AND b.status = 'completed'
     AND b.deleted_at IS NULL
+      ${discountSumLateral('bk_disc', 'booking', 'b.id')}
       GROUP BY s.id, s.name, s.category
       ORDER BY total_revenue DESC
     `;
@@ -3524,9 +3527,10 @@ router.get('/outstanding-balances', authenticateJWT, authorizeRoles(['admin', 'm
         u.created_at as customer_since,
         COUNT(b.id) as total_bookings,
         COUNT(CASE WHEN b.payment_status = 'unpaid' THEN 1 END) as unpaid_bookings,
-        COALESCE(SUM(CASE WHEN b.payment_status = 'unpaid' THEN b.final_amount ELSE 0 END), 0) as unpaid_amount
+        COALESCE(SUM(CASE WHEN b.payment_status = 'unpaid' THEN GREATEST(COALESCE(b.final_amount, 0) - bk_disc.amt, 0) ELSE 0 END), 0) as unpaid_amount
       FROM users u
       LEFT JOIN bookings b ON u.id = b.student_user_id AND b.deleted_at IS NULL
+      ${discountSumLateral('bk_disc', 'booking', 'b.id')}
       WHERE u.role_id IN (SELECT id FROM roles WHERE name IN ('student', 'outsider'))
         AND u.deleted_at IS NULL
         AND ABS(u.balance) >= $1

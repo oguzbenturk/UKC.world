@@ -20,3 +20,18 @@ export async function getActiveDiscountAmount(client, entityType, entityId) {
   );
   return rows.length ? toNumber(rows[0].total) : 0;
 }
+
+// SQL fragment helper for aggregate report queries that sum price columns.
+// Returns a `LEFT JOIN LATERAL ( ... ) <alias> ON TRUE` clause exposing
+// `<alias>.amt` — the active discount total for the given entity. Use it so
+// reports subtract discounts the same way the cascade services do, instead of
+// summing raw price columns. `entityIdExpr` is the SQL expression for the row's
+// id (e.g. 'b.id', 'cp.id'); it is cast to text to match discounts.entity_id.
+export function discountSumLateral(alias, entityType, entityIdExpr) {
+  return `LEFT JOIN LATERAL (
+      SELECT COALESCE(SUM(amount), 0) AS amt
+        FROM discounts
+       WHERE entity_type = '${entityType}'
+         AND entity_id = (${entityIdExpr})::text
+    ) ${alias} ON TRUE`;
+}

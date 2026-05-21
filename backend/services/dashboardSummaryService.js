@@ -1,6 +1,7 @@
 import { pool } from '../db.js';
 import { cacheService } from './cacheService.js';
 import { deriveLessonAmount, deriveTotalEarnings, toNumber as toNum } from '../utils/instructorEarnings.js';
+import { discountSumLateral } from '../utils/discountAmounts.js';
 import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from './managerCommissionService.js';
 
 const UPCOMING_LESSON_STATUSES = ['pending', 'scheduled', 'confirmed', 'in_progress'];
@@ -90,8 +91,9 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(CANCELLED_LESSON_STATUSES)}]) THEN 1 ELSE 0 END)::int AS cancelled,
       COALESCE(SUM(duration), 0)::numeric AS total_hours,
       COALESCE(SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_LESSON_STATUSES)}]) THEN duration ELSE 0 END), 0)::numeric AS completed_hours,
-      COALESCE(SUM(final_amount), 0)::numeric AS total_revenue
+      COALESCE(SUM(GREATEST(COALESCE(final_amount, 0) - bk_disc.amt, 0)), 0)::numeric AS total_revenue
     FROM bookings
+    ${discountSumLateral('bk_disc', 'booking', 'bookings.id')}
     ${bookingConditions.length ? `WHERE ${bookingConditions.join(' AND ')}` : ''}
   `;
 
@@ -115,9 +117,10 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(ACTIVE_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS active,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS upcoming,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS completed,
-      COALESCE(SUM(total_price), 0)::numeric AS total_revenue,
-      COALESCE(SUM(CASE WHEN payment_status = ANY(ARRAY['paid', 'completed']) THEN total_price ELSE 0 END), 0)::numeric AS paid_revenue
+      COALESCE(SUM(GREATEST(COALESCE(total_price, 0) - rt_disc.amt, 0)), 0)::numeric AS total_revenue,
+      COALESCE(SUM(CASE WHEN payment_status = ANY(ARRAY['paid', 'completed']) THEN GREATEST(COALESCE(total_price, 0) - rt_disc.amt, 0) ELSE 0 END), 0)::numeric AS paid_revenue
     FROM rentals
+    ${discountSumLateral('rt_disc', 'rental', 'rentals.id')}
     ${rentalConditions.length ? `WHERE ${rentalConditions.join(' AND ')}` : ''}
   `;
 
@@ -295,13 +298,13 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
   const instructorCommQuery = `
     SELECT
       b.duration as lesson_duration,
-      COALESCE(b.final_amount, b.amount, 0) as base_amount,
+      GREATEST(COALESCE(b.final_amount, b.amount, 0) - bk_disc.amt, 0) as base_amount,
       b.payment_status,
       b.group_size,
       CASE
         WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
-        THEN ROUND(cp.purchase_price / cs_pkg.exchange_rate, 2)
-        ELSE cp.purchase_price
+        THEN ROUND(GREATEST(cp.purchase_price - cp_disc.amt, 0) / cs_pkg.exchange_rate, 2)
+        ELSE cp.purchase_price - cp_disc.amt
       END as package_price,
       cp.total_hours as package_total_hours,
       cp.remaining_hours as package_remaining_hours,
@@ -333,6 +336,8 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       END
     )
     LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
+    ${discountSumLateral('bk_disc', 'booking', 'b.id')}
+    ${discountSumLateral('cp_disc', 'customer_package', 'cp.id')}
     WHERE b.instructor_user_id IS NOT NULL AND ${instructorCommConditions.join(' AND ')}
   `;
 
