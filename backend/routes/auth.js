@@ -19,7 +19,6 @@ import {
   verifyEmailToken,
   resendVerification
 } from '../services/emailVerificationService.js';
-import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { ERROR_CODES } from '../shared/errorCodes.js';
@@ -763,11 +762,10 @@ router.post('/register', authRateLimit, async (req, res) => {
       });
     }
 
-    sendWelcomeEmailWithResetLink({
-      user: newUser,
-      req,
-      context: 'welcome email after registration'
-    });
+    // Note: self-registered users already chose their own password during
+    // registration, so we deliberately do NOT send the "Set your password"
+    // welcome email here — only the verification email above. Sending both
+    // confused users into clicking the reset link instead of verifying.
 
     res.status(201).json({
       message: 'Registration successful. Please check your email to verify your account before logging in.',

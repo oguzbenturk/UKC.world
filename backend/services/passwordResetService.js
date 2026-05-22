@@ -14,8 +14,12 @@ import { pool } from '../db.js';
 import { sendEmail } from './emailService.js';
 import { logger } from '../middlewares/errorHandler.js';
 
-// Token expires in 1 hour
+// Self-service "forgot password" tokens expire in 1 hour — short-lived on purpose,
+// since a genuine reset is acted on immediately.
 const TOKEN_EXPIRY_HOURS = 1;
+// Admin-onboarding "set your password" tokens (welcome email) get a longer 24h
+// window — the recipient didn't request it and may not see the email right away.
+const SETUP_TOKEN_EXPIRY_HOURS = 24;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://ukc.plannivo.com';
 
 /**
@@ -52,7 +56,7 @@ export async function issuePasswordResetTokenForUser({ userId, email, ipAddress 
 
   const token = generateSecureToken();
   const tokenHash = hashToken(token);
-  const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + SETUP_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 
   await pool.query(`
     INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, ip_address, user_agent)
@@ -61,7 +65,7 @@ export async function issuePasswordResetTokenForUser({ userId, email, ipAddress 
 
   const resetUrl = `${FRONTEND_URL.replace(/\/$/, '')}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
-  return { resetUrl, expiresAt, expiryHours: TOKEN_EXPIRY_HOURS };
+  return { resetUrl, expiresAt, expiryHours: SETUP_TOKEN_EXPIRY_HOURS };
 }
 
 /**
@@ -244,14 +248,23 @@ export async function resetPassword(token, email, newPassword, ipAddress) {
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user password
+    // Update user password.
+    // Completing a reset proves the user controls the email the link was sent to,
+    // so this also activates the account (email_verified). This is what makes the
+    // "Set your password" welcome email function as an activation link for
+    // admin-created users — without it they would set a password but still be
+    // blocked at login by the email-verification gate.
     await client.query(`
-      UPDATE users 
-      SET password_hash = $1, 
+      UPDATE users
+      SET password_hash = $1,
           updated_at = NOW(),
           failed_login_attempts = 0,
           account_locked = false,
-          account_locked_at = NULL
+          account_locked_at = NULL,
+          email_verified = TRUE,
+          email_verified_at = COALESCE(email_verified_at, NOW()),
+          email_verification_token_hash = NULL,
+          email_verification_token_expires_at = NULL
       WHERE id = $2
     `, [hashedPassword, userId]);
 

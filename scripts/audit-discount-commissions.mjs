@@ -16,11 +16,19 @@
  *               so the package discount never reaches the commission at all.
  *               This is a behaviour question, not a stale row.
  *
- * Usage:  node scripts/audit-discount-commissions.mjs
- * Runs against whatever backend/.env points at (local dev DB by default).
+ * Usage:
+ *   node scripts/audit-discount-commissions.mjs          # read-only audit
+ *   node scripts/audit-discount-commissions.mjs --fix    # also recompute STALE rows
+ *
+ * --fix recomputes every STALE instructor_earnings row through the same cascade
+ * the discount UI uses (BookingUpdateCascadeService) — payroll-locked rows are
+ * skipped automatically. Runs against whatever backend/.env points at.
  */
 import { pool } from '../backend/db.js';
 import { deriveLessonAmount, toNumber as num } from '../backend/utils/instructorEarnings.js';
+import BookingUpdateCascadeService from '../backend/services/bookingUpdateCascadeService.js';
+
+const FIX = process.argv.includes('--fix');
 
 const round2 = (n) => Number.parseFloat((Number(n) || 0).toFixed(2));
 const eur = (n) => `${round2(n).toFixed(2)}`;
@@ -137,7 +145,15 @@ const SQL = `
     ie.lesson_amount           AS stored_lesson_amount,
     ie.base_rate               AS stored_base_rate,
     ie.lesson_duration         AS stored_duration,
-    ie.payroll_id
+    ie.payroll_id,
+    -- Authoritative commission type, resolved from the config tables the same
+    -- way getCommissionRate does (self-student > booking > service > category
+    -- > default). Fixed-rate instructors are price-independent: a discount
+    -- never changes their pay.
+    COALESCE(
+      CASE WHEN us.self_student_of_instructor_id = b.instructor_user_id THEN 'percentage' END,
+      bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+    )                          AS resolved_commission_type
   FROM bookings b
   JOIN instructor_earnings ie       ON ie.booking_id = b.id
   LEFT JOIN users ui                ON ui.id = b.instructor_user_id
@@ -147,6 +163,16 @@ const SQL = `
   LEFT JOIN services srv            ON srv.id = b.service_id
   LEFT JOIN services rental_srv     ON rental_srv.id = sp.rental_service_id
   LEFT JOIN accommodation_units accom_unit ON accom_unit.id = sp.accommodation_unit_id
+  LEFT JOIN booking_custom_commissions bcc      ON bcc.booking_id = b.id
+  LEFT JOIN instructor_service_commissions isc  ON isc.instructor_id = b.instructor_user_id
+                                               AND isc.service_id = b.service_id
+  LEFT JOIN instructor_category_rates icr       ON icr.instructor_id = b.instructor_user_id
+    AND icr.lesson_category = CASE
+      WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+        THEN 'semi-private-supervision'
+      ELSE srv.lesson_category_tag
+    END
+  LEFT JOIN instructor_default_commissions idc  ON idc.instructor_id = b.instructor_user_id
   LEFT JOIN LATERAL (
     SELECT COALESCE(SUM(amount), 0) AS amt, MAX(percent) AS pct
       FROM discounts WHERE entity_type = 'customer_package' AND entity_id = cp.id::text
@@ -183,12 +209,11 @@ async function main() {
     const storedLesson = num(row.stored_lesson_amount);
     const storedDuration = num(row.stored_duration) || num(row.duration) || 1;
 
-    // Commission type, inferred from the stored row's own numbers:
-    //   fixed       -> total_earnings = base_rate * lesson_duration
-    //   percentage  -> total_earnings = lesson_amount * base_rate / 100
-    const asFixed = round2(baseRate * storedDuration);
-    const asPct = round2((storedLesson * baseRate) / 100);
-    const isFixed = Math.abs(storedEarnings - asFixed) <= Math.abs(storedEarnings - asPct);
+    // Commission type comes straight from the config tables (resolved in SQL).
+    // Fixed-rate instructors are paid rate * hours, so a discount cannot change
+    // their earnings — only percentage commissions are discount-sensitive.
+    const isFixed = row.resolved_commission_type === 'fixed';
+    void baseRate; // retained in SELECT for reference / future use
 
     // Recompute the lesson total with and without the discount, using the same
     // logic the cascade used to write the row.
@@ -290,6 +315,53 @@ async function main() {
     console.log('      in EITHER the cascade or the report — a separate behaviour decision.');
   }
   console.log('');
+
+  // ---- Fix mode ----
+  if (FIX && stale.length) {
+    console.log('=== --fix : recomputing STALE instructor_earnings rows ===\n');
+    const fixedIds = [];
+    for (const f of stale) {
+      const r = f.row;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        // updateInstructorEarnings (called by both paths) subtracts package AND
+        // booking discounts, so either entry point fully corrects the row.
+        const result = (num(r.cp_discount) > 0 && r.customer_package_id)
+          ? await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, r.customer_package_id)
+          : await BookingUpdateCascadeService.recomputeInstructorEarningsForEntity(client, 'booking', r.booking_id);
+        await client.query('COMMIT');
+        fixedIds.push(r.booking_id);
+        console.log(`  ✓ ${r.instructor_name} — ${r.student_name} ${String(r.booking_date).slice(0, 10)}`,
+          JSON.stringify(result));
+      } catch (e) {
+        await client.query('ROLLBACK');
+        console.error(`  ✗ ${r.instructor_name} — ${r.student_name}: ${e.message}`);
+      } finally {
+        client.release();
+      }
+    }
+
+    // Re-read the affected rows to confirm the new stored values.
+    if (fixedIds.length) {
+      const { rows: after } = await pool.query(
+        `SELECT ie.booking_id, ie.total_earnings, ie.lesson_amount,
+                COALESCE(us.name, '?') AS student
+           FROM instructor_earnings ie
+           JOIN bookings b ON b.id = ie.booking_id
+           LEFT JOIN users us ON us.id = b.student_user_id
+          WHERE ie.booking_id = ANY($1::uuid[])`,
+        [fixedIds]
+      );
+      console.log('\n  After recompute:');
+      for (const a of after) {
+        console.log(`    ${a.student}: lesson ${eur(a.lesson_amount)}  →  commission ${eur(a.total_earnings)}`);
+      }
+    }
+    console.log('');
+  } else if (FIX) {
+    console.log('--fix: no STALE rows to recompute.\n');
+  }
 
   await pool.end();
 }

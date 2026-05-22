@@ -21,7 +21,7 @@ function buildSmtpTransport() {
   const secureFromEnv = (process.env.SMTP_SECURE || '').toLowerCase();
   const secure = secureFromEnv === 'true' || secureFromEnv === '1' || port === 465;
 
-  return nodemailer.createTransport({
+  const transportOptions = {
     host,
     port,
     secure,
@@ -29,7 +29,29 @@ function buildSmtpTransport() {
       user,
       pass
     }
-  });
+  };
+
+  // DKIM signing — the single biggest code-level lever for staying out of spam.
+  // No-op unless all three env vars are set. The private key can be supplied
+  // inline or with literal "\n" sequences (e.g. from a single-line env value).
+  const dkimDomain = process.env.DKIM_DOMAIN;
+  const dkimSelector = process.env.DKIM_SELECTOR;
+  const dkimPrivateKey = process.env.DKIM_PRIVATE_KEY;
+  if (dkimDomain && dkimSelector && dkimPrivateKey) {
+    transportOptions.dkim = {
+      domainName: dkimDomain,
+      keySelector: dkimSelector,
+      privateKey: dkimPrivateKey.replace(/\\n/g, '\n')
+    };
+    logger.info('DKIM signing enabled for outbound email', { dkimDomain, dkimSelector });
+  } else {
+    logger.warn(
+      'DKIM signing not configured (DKIM_DOMAIN / DKIM_SELECTOR / DKIM_PRIVATE_KEY) — ' +
+      'emails rely on the provider\'s own DKIM, if any. See SPF/DKIM/DMARC DNS setup.'
+    );
+  }
+
+  return nodemailer.createTransport(transportOptions);
 }
 
 function buildStreamTransport() {
