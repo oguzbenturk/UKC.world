@@ -481,7 +481,7 @@ router.get('/:id', publicApiLimiter, async (req, res) => {
 });
 
 // Create new product
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'services:write'), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const {
       name,

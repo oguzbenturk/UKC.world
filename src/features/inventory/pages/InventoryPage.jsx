@@ -141,7 +141,12 @@ const InventoryPage = () => {
     label: t(`common:inventory.${STATUS_KEYS[status] || 'statusAvailable'}`),
   });
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'owner';
+  const canManageEquipment =
+    user?.role === 'admin' ||
+    user?.role === 'manager' ||
+    user?.role === 'owner' ||
+    user?.role === 'receptionist' ||
+    user?.permissions?.['equipment:write'] === true;
   const watchType = Form.useWatch('type', form);
 
   // Filter equipment
@@ -332,7 +337,7 @@ const InventoryPage = () => {
               onClick={() => handleViewDetails(record)}
             />
           </Tooltip>
-          {isAdmin && (
+          {canManageEquipment && (
             <>
               <Tooltip title={t('common:inventory.editTooltip')}>
                 <Button
@@ -376,7 +381,7 @@ const InventoryPage = () => {
               className="h-full"
               actions={[
                 <EyeOutlined key="view" onClick={() => handleViewDetails(item)} />,
-                isAdmin && <EditOutlined key="edit" onClick={() => handleEdit(item)} />,
+                canManageEquipment && <EditOutlined key="edit" onClick={() => handleEdit(item)} />,
               ].filter(Boolean)}
             >
               <div className="text-center mb-4">
@@ -442,7 +447,7 @@ const InventoryPage = () => {
             >
               {t('common:inventory.refresh')}
             </Button>
-            {isAdmin && (
+            {canManageEquipment && (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -583,7 +588,7 @@ const InventoryPage = () => {
         onClose={() => setDetailDrawerOpen(false)}
         open={detailDrawerOpen}
         extra={
-          isAdmin && selectedItem && (
+          canManageEquipment && selectedItem && (
             <Button type="primary" icon={<EditOutlined />} onClick={() => {
               setDetailDrawerOpen(false);
               handleEdit(selectedItem);

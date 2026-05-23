@@ -9,6 +9,15 @@ const rolePermissionsCache = new Map();
 let cacheLastUpdated = Date.now();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+export function invalidateRolePermissionsCache(roleName) {
+  if (roleName) {
+    rolePermissionsCache.delete(roleName);
+    rolePermissionsCache.delete(roleName.toLowerCase());
+  } else {
+    rolePermissionsCache.clear();
+  }
+}
+
 async function getRolePermissions(roleName) {
   const now = Date.now();
   

@@ -1,7 +1,8 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
-import { authorizeRoles } from '../middlewares/authorize.js';
+import { authorizeRoles, invalidateRolePermissionsCache } from '../middlewares/authorize.js';
+import permissionService from '../services/permissionService.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
 
 const router = express.Router();
@@ -105,6 +106,11 @@ router.patch('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, res
        RETURNING id, name, description, permissions, created_at, updated_at`,
       [newName, newDesc, newPerms, req.params.id]
     );
+
+    invalidateRolePermissionsCache(role.name);
+    if (newName !== role.name) invalidateRolePermissionsCache(newName);
+    permissionService.clearAllCache();
+
     res.json(update.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update role', details: err.message });
@@ -127,6 +133,8 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
     }
 
     await pool.query('DELETE FROM roles WHERE id = $1', [req.params.id]);
+    invalidateRolePermissionsCache(name);
+    permissionService.clearAllCache();
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete role', details: err.message });

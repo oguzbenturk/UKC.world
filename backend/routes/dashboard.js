@@ -11,7 +11,7 @@ const MANAGEMENT_ROLES = ['admin', 'manager', 'owner', 'developer'];
 const dashboardCacheKey = (req) =>
   `api:dashboard:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`;
 
-router.get('/summary', authenticateJWT, authorizeRoles(MANAGEMENT_ROLES), cacheMiddleware(60, dashboardCacheKey), async (req, res) => {
+router.get('/summary', authenticateJWT, authorizeRoles(MANAGEMENT_ROLES, 'reports:read'), cacheMiddleware(60, dashboardCacheKey), async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     const summary = await getDashboardSummary({ startDate, endDate });

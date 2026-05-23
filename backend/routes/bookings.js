@@ -1535,7 +1535,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
 // POST /bookings - Create booking with proper package/individual lesson logic
 router.post('/', 
   authenticateJWT, 
-  authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student', 'outsider']),
+  authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student', 'outsider'], 'bookings:write'),
   async (req, res) => {
   const client = await pool.connect();
   
@@ -2614,7 +2614,7 @@ router.post('/',
 // POST /bookings/group - Create group booking with multiple participants
 router.post('/group', 
   authenticateJWT, 
-  authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student']),
+  authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student'], 'bookings:write'),
   async (req, res) => {
   const client = await pool.connect();
   

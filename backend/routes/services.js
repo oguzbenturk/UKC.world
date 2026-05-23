@@ -3195,7 +3195,7 @@ router.get('/customer-packages/:customerId/rental', authenticateJWT, authorize([
 
 // Create/Purchase a package for a customer
 // eslint-disable-next-line complexity
-router.post('/customer-packages', authorize(['admin', 'manager']), async (req, res) => {
+router.post('/customer-packages', authorize(['admin', 'manager'], 'services:write'), async (req, res) => {
   try {
     const {
       customerId,

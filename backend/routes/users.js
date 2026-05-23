@@ -51,7 +51,7 @@ function getAllowedFieldsByRole(roleName) {
 }
 
 // === CREATE USER ===
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(USER_LIST_CACHE_PATTERNS), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:write'), cacheInvalidationMiddleware(USER_LIST_CACHE_PATTERNS), async (req, res) => {
   const { password, role_id } = req.body;
   
   if (!password || !role_id) {

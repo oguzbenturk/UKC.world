@@ -867,7 +867,7 @@ router.get('/my-orders/unread-counts', authenticateJWT, async (req, res) => {
 });
 
 // Admin: Get specific user's orders (must be before /:id to avoid route conflict in Express 5)
-router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
+router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:read'), async (req, res) => {
   try {
     const { userId } = req.params;
     const pageNum = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -1544,7 +1544,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
 });
 
 // Admin/Staff: Create order on behalf of customer (Quick Sale from Front Desk)
-router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk']), async (req, res) => {
+router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:write'), async (req, res) => {
   const client = await pool.connect();
 
   try {

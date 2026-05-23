@@ -8,7 +8,7 @@ import { logger } from '../middlewares/errorHandler.js';
 const router = express.Router();
 
 // GET all students and outsiders (customers)
-router.get('/', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
+router.get('/', authorizeRoles(['admin', 'manager', 'instructor'], 'users:read'), async (req, res) => {
   try {
     const query = `
       SELECT u.*, r.name as role_name
