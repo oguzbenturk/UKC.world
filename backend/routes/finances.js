@@ -333,39 +333,13 @@ async function resolveTransactionDependencies(client, transactionRow) {
  * Custom middleware to allow users to view their own financial data
  * OR allow admin/managers to view anyone's financial data
  */
-const authorizeFinancialAccess = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const currentUserId = req.user?.id;
-    
-    // Allow if user is viewing their own data
-    if (currentUserId === id) {
-      return next();
-    }
-    
-    // Otherwise, check if user has admin/manager role
-    const roleResult = await pool.query(
-      `SELECT r.name as role_name 
-       FROM users u 
-       JOIN roles r ON u.role_id = r.id 
-       WHERE u.id = $1`,
-      [currentUserId]
-    );
-
-    const userRole = roleResult.rows[0]?.role_name;
-    
-    if (userRole && ['admin', 'manager'].includes(userRole)) {
-      return next();
-    }
-    
-    return res.status(403).json({ 
-      error: 'Access denied. You can only view your own financial data.' 
-    });
-    
-  } catch (error) {
-  logger.error('Authorization error:', error);
-    return res.status(500).json({ error: 'Authorization check failed' });
-  }
+const authorizeFinancialAccess = (req, res, next) => {
+  const { id } = req.params;
+  if (req.user?.id === id) return next();
+  if (['admin', 'manager', 'receptionist'].includes(req.user?.role)) return next();
+  return res.status(403).json({
+    error: 'Access denied. You can only view your own financial data.'
+  });
 };
 
 /**
@@ -598,31 +572,11 @@ router.get('/transactions/payments', authenticateJWT, authorizeRoles(['admin', '
   }
 });
 
-const authorizeTransactionAccess = async (req, res, next) => {
-  try {
-    const requestedUserId = req.query.user_id;
-    const currentUserId = req.user?.id;
-
-    // Allow if user is fetching their own transactions
-    if (requestedUserId && requestedUserId === currentUserId) {
-      return next();
-    }
-
-    // Otherwise require admin/manager
-    const roleResult = await pool.query(
-      `SELECT r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = $1`,
-      [currentUserId]
-    );
-    const userRole = roleResult.rows[0]?.role_name;
-    if (userRole && ['admin', 'manager'].includes(userRole)) {
-      return next();
-    }
-
-    return res.status(403).json({ error: 'Access denied. You can only view your own financial data.' });
-  } catch (error) {
-    logger.error('Authorization error:', error);
-    return res.status(500).json({ error: 'Authorization check failed' });
-  }
+const authorizeTransactionAccess = (req, res, next) => {
+  const requestedUserId = req.query.user_id;
+  if (requestedUserId && requestedUserId === req.user?.id) return next();
+  if (['admin', 'manager', 'receptionist'].includes(req.user?.role)) return next();
+  return res.status(403).json({ error: 'Access denied. You can only view your own financial data.' });
 };
 
 router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (req, res) => {

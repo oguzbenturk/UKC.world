@@ -562,9 +562,9 @@ router.get('/:id', authenticateJWT, async (req, res) => {
     const currentUserId = req.user.id;
     const currentUserRole = req.user.role;
     
-    // Users can only view their own profile unless they are admin/manager
-    if (requestedUserId !== String(currentUserId) && 
-        !['admin', 'manager'].includes(currentUserRole)) {
+    // Users can only view their own profile unless they are staff
+    if (requestedUserId !== String(currentUserId) &&
+        !['admin', 'manager', 'receptionist'].includes(currentUserRole)) {
       return res.status(403).json({ error: 'Access denied. You can only view your own profile.' });
     }
     
