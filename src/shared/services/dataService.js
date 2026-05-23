@@ -421,9 +421,10 @@ class DataService {
    * @param {string} id - Booking ID
    * @returns {Promise<Object>} - Response message
    */
-  static async deleteBooking(id) {
+  static async deleteBooking(id, reason) {
     try {
-      const response = await apiClient.delete(`/bookings/${id}`); // Corrected path from /api/bookings to /bookings
+      const config = reason ? { data: { reason } } : undefined;
+      const response = await apiClient.delete(`/bookings/${id}`, config);
       return response.data;
     } catch (error) {
   dbg(`Error deleting booking ${id}:`, error?.message || error);

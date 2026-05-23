@@ -20,6 +20,7 @@ import { useBookingForm } from '../../hooks/useBookingForm';
 import { computeBookingPrice } from '@/shared/utils/pricing';
 import { filterServicesByCapacity, isGroupService } from '@/shared/utils/serviceCapacityFilter';
 import apiClient from '@/shared/services/apiClient';
+import DataService from '@/shared/services/dataService';
 import UserForm from '@/shared/components/ui/UserForm';
 import CustomerPackageManager from '@/features/customers/components/CustomerPackageManager';
 
@@ -75,6 +76,12 @@ const buildRequiredSlotTimes = (startTime, durationMinutes) => {
   if (startMin === null) return [];
   const steps = Math.max(1, Math.round(durationMinutes / HALF_HOUR_MINUTES));
   return Array.from({ length: steps }, (_, i) => minutesToTimeString(startMin + i * HALF_HOUR_MINUTES));
+};
+
+const lessonDurationMin = (lesson, fallback) => {
+  const s = timeStringToMinutes(lesson.startTime);
+  const e = timeStringToMinutes(lesson.endTime);
+  return (s !== null && e !== null && e > s) ? (e - s) : fallback;
 };
 
 const extractInstructorSlots = (availability, date, instructorId) => {
@@ -374,8 +381,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const [showReview, setShowReview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Schedule
-  const [availableSlots, setAvailableSlots] = useState([]);
+  // Schedule. slotsByDate keyed by `${date}|${instructorId}`.
+  const [slotsByDate, setSlotsByDate] = useState({});
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState(120);
   const [bookingDefaults, setBookingDefaults] = useState(null);
@@ -488,7 +495,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       setAllUserPackages({});
       setIsSubmitting(false);
       setServiceSearch('');
-      setAvailableSlots([]);
+      setSlotsByDate({});
       setScheduleSectionExpanded(true);
       // Load recent customers from localStorage
       try {
@@ -502,7 +509,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       setServiceSearch('');
       setInstructorSearch('');
       setConflictWarning(null);
-      setAvailableSlots([]);
+      setSlotsByDate({});
       setUserPackages({});
       setUserBalances({});
     }
@@ -520,31 +527,49 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     });
   }, []);
 
-  // ── Load available slots when date/instructor changes ───────────
+  // Stable string key so the effect doesn't refire on every extraLessons array reference change.
+  const lessonDatesKey = useMemo(() => {
+    const dates = new Set();
+    if (formData.date) dates.add(formData.date);
+    for (const l of (formData.extraLessons || [])) {
+      if (l.date) dates.add(l.date);
+    }
+    return [...dates].sort().join(',');
+  }, [formData.date, formData.extraLessons]);
+
   useEffect(() => {
-    const loadSlots = async () => {
-      if (!formData.date || !formData.instructorId) { setAvailableSlots([]); return; }
-      setLoadingSlots(true);
+    const instructorId = formData.instructorId;
+    if (!instructorId || !lessonDatesKey) {
+      setSlotsByDate({});
+      return;
+    }
+    const dates = lessonDatesKey.split(',');
+    let cancelled = false;
+    setLoadingSlots(true);
+    Promise.all(dates.map(async (date) => {
       try {
-        const slots = await getAvailableSlots(formData.date, formData.date, { instructorIds: [formData.instructorId] });
-        if (slots?.length > 0) {
-          const dayData = slots.find(d => d.date === formData.date);
-          if (dayData?.slots) {
-            setAvailableSlots(dayData.slots.filter(s => String(s.instructorId) === String(formData.instructorId)));
-          } else {
-            setAvailableSlots([]);
-          }
-        } else {
-          setAvailableSlots([]);
-        }
+        const slots = await getAvailableSlots(date, date, { instructorIds: [instructorId] });
+        const dayData = Array.isArray(slots) ? slots.find(d => d.date === date) : null;
+        const instructorSlots = dayData?.slots
+          ? dayData.slots.filter(s => String(s.instructorId) === String(instructorId))
+          : [];
+        return [`${date}|${instructorId}`, instructorSlots];
       } catch {
-        setAvailableSlots([]);
-      } finally {
-        setLoadingSlots(false);
+        return [`${date}|${instructorId}`, []];
       }
-    };
-    loadSlots();
-  }, [formData.date, formData.instructorId, formData.slotRefreshKey]);
+    })).then(entries => {
+      if (cancelled) return;
+      setSlotsByDate(Object.fromEntries(entries));
+    }).finally(() => {
+      if (!cancelled) setLoadingSlots(false);
+    });
+    return () => { cancelled = true; };
+  }, [lessonDatesKey, formData.instructorId, formData.slotRefreshKey]);
+
+  const availableSlots = useMemo(
+    () => slotsByDate[`${formData.date}|${formData.instructorId}`] || [],
+    [slotsByDate, formData.date, formData.instructorId]
+  );
 
   // ── Fetch ALL packages per participant (for package indicators) ──
   useEffect(() => {
@@ -998,6 +1023,13 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       return;
     }
     setIsSubmitting(true);
+    // Hoisted so the catch block can roll back partial successes (all-or-nothing).
+    const responses = [];
+    const rollback = () => Promise.allSettled(responses
+      .map(r => r?.id || r?.bookingId || r?.booking?.id)
+      .filter(Boolean)
+      .map(id => DataService.deleteBooking(id, 'Multi-lesson booking partial failure — rollback'))
+    );
     try {
       const selectedService = (services || []).find(s => s.id === formData.serviceId);
       if (!selectedService) throw new Error('Selected service not found.');
@@ -1013,6 +1045,48 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
       if (lessons.length === 0) throw new Error('At least one lesson is required.');
 
+      // Preflight all lessons before committing any so a stale time on an
+      // extra lesson doesn't leave earlier lessons already saved.
+      const durations = lessons.map(l => lessonDurationMin(l, selectedDuration));
+      const localOverlaps = lessons.map((l, i) => {
+        const claimed = new Set();
+        lessons.forEach((o, j) => {
+          if (j !== i && o.date === l.date) {
+            buildRequiredSlotTimes(o.startTime, durations[j]).forEach(t => claimed.add(t));
+          }
+        });
+        return buildRequiredSlotTimes(l.startTime, durations[i]).some(t => claimed.has(t));
+      });
+      const backendChecks = await Promise.all(lessons.map((l, i) => localOverlaps[i]
+        ? Promise.resolve({ ok: false, suggestions: [] })
+        : preflightCheckGroupSlot({
+            date: l.date,
+            instructorId: formData.instructorId,
+            startTime: l.startTime,
+            durationHours: durations[i] / 60,
+          })
+      ));
+      const preflightFailures = lessons.flatMap((l, i) => {
+        if (localOverlaps[i]) return [{ index: i, lesson: l, reason: 'overlaps another lesson in this booking' }];
+        if (!backendChecks[i].ok) return [{ index: i, lesson: l, suggestions: backendChecks[i].suggestions || [] }];
+        return [];
+      });
+      if (preflightFailures.length > 0) {
+        const first = preflightFailures[0];
+        const lessonLabel = first.index === 0 ? 'Primary lesson' : `Lesson ${first.index + 1}`;
+        setConflictWarning({
+          message: `${lessonLabel} (${first.lesson.date} ${first.lesson.startTime}) is no longer available${first.reason ? ` — ${first.reason}` : ''}.${preflightFailures.length > 1 ? ` ${preflightFailures.length - 1} other lesson(s) also conflict.` : ''}`,
+          suggestions: first.suggestions || [],
+        });
+        setShowReview(false);
+        if (first.index === 0) {
+          updateFormData({ startTime: '', endTime: '', slotRefreshKey: Date.now() });
+        } else {
+          updateFormData({ slotRefreshKey: Date.now() });
+        }
+        return;
+      }
+
       // Track package remaining hours per (participantId, packageId) so each lesson sees fresh availability
       const pkgRemaining = {};
       for (const p of formData.participants || []) {
@@ -1022,14 +1096,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         }
       }
 
-      const responses = [];
       for (let i = 0; i < lessons.length; i++) {
         const lesson = lessons[i];
         const lessonStart = lesson.startTime;
         const lessonEnd = lesson.endTime;
-        const sMin = timeStringToMinutes(lessonStart);
-        const eMin = timeStringToMinutes(lessonEnd);
-        const lessonDuration = (sMin !== null && eMin !== null && eMin > sMin) ? (eMin - sMin) / 60 : selectedDuration / 60;
+        const lessonDuration = durations[i] / 60;
 
         let resp;
         if (formData.participants?.length > 1) {
@@ -1070,17 +1141,6 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             participants: processedParticipants,
             allowNegativeBalance: formData.allowNegativeBalance === true
           };
-
-          // Preflight on first lesson only (others rely on backend conflict detection)
-          if (i === 0) {
-            const pf = await preflightCheckGroupSlot({ date: groupData.date, instructorId: groupData.instructor_user_id, startTime: lessonStart, durationHours: lessonDuration });
-            if (!pf.ok) {
-              setConflictWarning({ message: 'The selected time is no longer available.', suggestions: pf.suggestions || [] });
-              setShowReview(false);
-              updateFormData({ startTime: '', endTime: '', slotRefreshKey: Date.now() });
-              return;
-            }
-          }
 
           const token = localStorage.getItem('token');
           const apiResp = await fetch('/api/bookings/group', {
@@ -1169,9 +1229,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       onBookingCreated?.(response);
       handleClose(true);
     } catch (error) {
+      if (responses.length > 0) {
+        await rollback();
+      }
       if (error.status === 400 || error.message?.includes('conflict')) {
-        setConflictWarning({ message: error.details?.message || error.message || 'Time slot conflict detected', suggestions: error.details?.suggestedSlots || [] });
+        setConflictWarning({
+          message: error.details?.message || error.message || 'Time slot conflict detected',
+          suggestions: error.details?.suggestedSlots || [],
+        });
         setShowReview(false);
+        updateFormData({ slotRefreshKey: Date.now() });
         return;
       }
       if (error.message?.includes('wallet')) {
@@ -1292,16 +1359,48 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     return (instructors || []).filter(i => (i.name || '').toLowerCase().includes(q));
   }, [instructors, instructorSearch]);
 
-  // ── Slot availability helpers ───────────────────────────────────
-  const isSlotAvailable = useCallback((time) => {
-    if (!availableSlots.length) return true;
-    // Check that the full duration fits from this start time
-    const required = buildRequiredSlotTimes(time, selectedDuration);
+  // Set of 30-min slot times claimed by every lesson EXCEPT the one at excludeIdx
+  // (excludeIdx === -1 means we're checking the primary itself).
+  const getReservedTimesForDate = useCallback((date, excludeIdx) => {
+    const reserved = new Set();
+    const addLesson = (lesson, fallback) => {
+      buildRequiredSlotTimes(lesson.startTime, lessonDurationMin(lesson, fallback)).forEach(t => reserved.add(t));
+    };
+    if (excludeIdx !== -1 && formData.date === date && formData.startTime) {
+      addLesson({ startTime: formData.startTime, endTime: formData.endTime }, selectedDuration);
+    }
+    (formData.extraLessons || []).forEach((l, i) => {
+      if (i === excludeIdx) return;
+      if (l.date !== date || !l.startTime) return;
+      addLesson(l, l.duration || selectedDuration);
+    });
+    return reserved;
+  }, [formData.date, formData.startTime, formData.endTime, formData.extraLessons, selectedDuration]);
+
+  // Single availability check for any lesson row. excludeIdx: -1 for the primary
+  // lesson, otherwise the extra-lesson index.
+  const isSlotAvailableFor = useCallback((date, time, durationMin, excludeIdx) => {
+    const slots = slotsByDate[`${date}|${formData.instructorId}`] || [];
+    const required = buildRequiredSlotTimes(time, durationMin);
+    const reserved = getReservedTimesForDate(date, excludeIdx);
     return required.every(t => {
-      const match = availableSlots.find(s => s.time === t);
+      if (reserved.has(t)) return false;
+      if (!slots.length) return true;
+      const match = slots.find(s => s.time === t);
       return match ? match.status === 'available' : true;
     });
-  }, [availableSlots, selectedDuration]);
+  }, [slotsByDate, formData.instructorId, getReservedTimesForDate]);
+
+  const isPrimarySlotAvailable = useCallback(
+    (time) => isSlotAvailableFor(formData.date, time, selectedDuration, -1),
+    [isSlotAvailableFor, formData.date, selectedDuration]
+  );
+
+  const isExtraLessonSlotAvailable = useCallback((idx, time) => {
+    const lesson = (formData.extraLessons || [])[idx];
+    if (!lesson) return false;
+    return isSlotAvailableFor(lesson.date, time, lesson.duration || selectedDuration, idx);
+  }, [isSlotAvailableFor, formData.extraLessons, selectedDuration]);
 
   // ── Allowed durations ───────────────────────────────────────────
   const allowedDurations = bookingDefaults?.allowedDurations || [60, 90, 120, 150, 180, 240];
@@ -1533,7 +1632,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                           ) : (
                             <select value={formData.startTime || ''} onChange={e => handleStartTimeSelect(e.target.value)} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
                               <option value="">Select time…</option>
-                              {ALL_TIME_SLOTS.map(t => { const avail = isSlotAvailable(t); return <option key={t} value={t} disabled={!avail}>{t}{!avail ? ' ✗' : ''}</option>; })}
+                              {ALL_TIME_SLOTS.map(t => { const avail = isPrimarySlotAvailable(t); return <option key={t} value={t} disabled={!avail}>{t}{!avail ? ' ✗' : ''}</option>; })}
                             </select>
                           )
                         ) : (
@@ -1584,9 +1683,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Time</label>
-                            <select value={lesson.startTime || ''} onChange={e => updateExtraLesson(idx, { startTime: e.target.value })} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
-                              <option value="">Select time…</option>
-                              {ALL_TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+                            <select value={lesson.startTime || ''} onChange={e => updateExtraLesson(idx, { startTime: e.target.value })} disabled={!lesson.date} className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
+                              <option value="">{lesson.date ? 'Select time…' : 'Pick date first'}</option>
+                              {lesson.date && ALL_TIME_SLOTS.map(t => {
+                                const avail = isExtraLessonSlotAvailable(idx, t);
+                                return <option key={t} value={t} disabled={!avail}>{t}{!avail ? ' ✗' : ''}</option>;
+                              })}
                             </select>
                           </div>
                         </div>

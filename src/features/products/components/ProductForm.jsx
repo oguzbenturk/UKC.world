@@ -59,6 +59,20 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
+// JSONB columns can arrive as arrays, JSON-encoded strings, or null depending
+// on the pg client config. Normalize to an array so callers don't silently
+// drop data on format mismatch.
+const safeParseArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+};
+
 const PRODUCT_STATUS = [
   { value: 'active', label: 'Active', color: 'success' },
   { value: 'inactive', label: 'Inactive', color: 'warning' },
@@ -336,16 +350,20 @@ const ProductForm = ({
       setSelectedCurrency(product.currency || businessCurrency);
       setSelectedCategory(product.category || null);
 
-      // Distribute colors + images into per-color state
-      const rawColors = product.colors || [];
-      const allImages = Array.isArray(product.images) ? product.images : [];
-      if (rawColors.length > 0 && typeof rawColors[0] === 'object') {
+      // colors may be {name,imageCount} objects (current) or strings (legacy).
+      const rawColors = safeParseArray(product.colors);
+      const allImages = safeParseArray(product.images);
+      const firstIsObject = rawColors.length > 0
+        && rawColors[0] !== null
+        && typeof rawColors[0] === 'object'
+        && !Array.isArray(rawColors[0]);
+      if (firstIsObject) {
         // Object format [{name, imageCount}] — slice images per color
         const names = [];
         const map = {};
         let idx = 0;
         for (const c of rawColors) {
-          const name = c.name || c.code || '';
+          const name = (c && (c.name || c.code)) || '';
           if (!name) continue;
           names.push(name);
           map[name] = allImages.slice(idx, idx + (c.imageCount || 0));
@@ -356,7 +374,9 @@ const ProductForm = ({
         setImages(allImages.slice(idx)); // any leftover without a color
       } else {
         // Simple strings or empty — no images distributed yet
-        const names = rawColors.map(c => typeof c === 'string' ? c : (c.name || '')).filter(Boolean);
+        const names = rawColors
+          .map(c => typeof c === 'string' ? c : (c && (c.name || c.code)) || '')
+          .filter(Boolean);
         setColorNames(names);
         setColorImagesMap(Object.fromEntries(names.map(n => [n, []])));
         setImages(allImages);
@@ -389,25 +409,28 @@ const ProductForm = ({
 
   const handleSubmit = async (values) => {
     try {
-      // Build colors [{name, imageCount}] and flat images array from per-color state
+      // Always send an array (even empty) — backend PUT uses COALESCE,
+      // so null would preserve the OLD value and silently no-op a clear.
       const hasColors = colorNames.length > 0;
-      const finalColors = hasColors
-        ? colorNames.map(name => ({ name, imageCount: (colorImagesMap[name] || []).length }))
-        : null;
+      const finalColors = colorNames.map(name => ({
+        name,
+        imageCount: (colorImagesMap[name] || []).length,
+      }));
       const finalImages = hasColors
         ? colorNames.flatMap(name => colorImagesMap[name] || [])
         : images;
 
-      // Derive product-level price/cost from variant entries
       const variantList = values.variants || [];
       const variantPrices = variantList.map(v => v.price).filter(p => p != null && p > 0);
+      const formPrice = values.price != null && values.price !== '' ? parseFloat(values.price) : null;
       const derivedPrice = variantPrices.length > 0
         ? Math.min(...variantPrices)
-        : (product?.price ? parseFloat(product.price) : 0);
+        : (formPrice ?? (product?.price ? parseFloat(product.price) : 0));
       const variantCosts = variantList.map(v => v.cost_price).filter(p => p != null && p > 0);
+      const formCost = values.cost_price != null && values.cost_price !== '' ? parseFloat(values.cost_price) : null;
       const derivedCostPrice = variantCosts.length > 0
         ? Math.min(...variantCosts)
-        : (product?.cost_price ? parseFloat(product.cost_price) : null);
+        : (formCost ?? (product?.cost_price ? parseFloat(product.cost_price) : null));
 
       const formattedValues = {
         ...values,
@@ -577,18 +600,36 @@ const ProductForm = ({
   // ── Compute live variant stock for tab badge ────────────────────
   const watchedVariants = Form.useWatch('variants', form) || [];
   const liveStockSummary = useMemo(() => {
-    const total = watchedVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
-    const withStock = watchedVariants.filter(v => (v.quantity || 0) > 0);
-    return { total, sizeCount: withStock.length, variantCount: watchedVariants.length };
+    let total = 0, sizeCount = 0, minPrice = null, minCost = null, pricedVariantCount = 0;
+    for (const v of watchedVariants) {
+      const q = v.quantity || 0;
+      total += q;
+      if (q > 0) sizeCount++;
+      if (v.price != null && v.price > 0) {
+        pricedVariantCount++;
+        if (minPrice === null || v.price < minPrice) minPrice = v.price;
+      }
+      if (v.cost_price != null && v.cost_price > 0) {
+        if (minCost === null || v.cost_price < minCost) minCost = v.cost_price;
+      }
+    }
+    return { total, sizeCount, variantCount: watchedVariants.length, pricedVariantCount, minPrice, minCost };
   }, [watchedVariants]);
 
-  // Auto-sync stock_quantity from variant totals
+  // Keep the disabled top-level inputs in sync with what will actually be saved.
+  // Guard each write — AntD doesn't dedupe setFieldValue, so unguarded writes
+  // cause a render loop via Form.useWatch.
   useEffect(() => {
-    if (watchedVariants.length > 0) {
-      const total = watchedVariants.reduce((sum, v) => sum + (v.quantity || 0), 0);
-      form.setFieldValue('stock_quantity', total);
-    }
-  }, [watchedVariants, form]);
+    if (watchedVariants.length === 0) return;
+    const setIfChanged = (field, value) => {
+      if (value !== null && form.getFieldValue(field) !== value) {
+        form.setFieldValue(field, value);
+      }
+    };
+    setIfChanged('stock_quantity', liveStockSummary.total);
+    setIfChanged('price', liveStockSummary.minPrice);
+    setIfChanged('cost_price', liveStockSummary.minCost);
+  }, [watchedVariants.length, liveStockSummary, form]);
 
   // Tab items — Product | Stock & Pricing
   const tabItems = [
@@ -771,6 +812,46 @@ const ProductForm = ({
               </Form.Item>
             </>
           )}
+
+          <div className="h-px bg-slate-100" />
+
+          {/* ── Price ── */}
+          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><DollarOutlined /> Price</p>
+          <Row gutter={[8, 0]}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="price"
+                label="Selling Price"
+                rules={[{ required: liveStockSummary.pricedVariantCount === 0, message: 'Set a price or add a variant with a price' }, { type: 'number', min: 0 }]}
+                extra={liveStockSummary.pricedVariantCount > 0
+                  ? 'Derived from the lowest variant price below. Edit variant rows to change it.'
+                  : 'Used when no variant has a price set.'}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  placeholder="0.00"
+                  prefix="€"
+                  disabled={liveStockSummary.pricedVariantCount > 0}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="cost_price" label="Cost Price">
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  placeholder="0.00"
+                  prefix="€"
+                  disabled={liveStockSummary.pricedVariantCount > 0}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <div className="h-px bg-slate-100" />
 
