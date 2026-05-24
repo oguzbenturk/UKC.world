@@ -9,50 +9,16 @@ import { logger } from '../middlewares/errorHandler.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  IMAGE_MIME_TO_EXT,
+  DOC_MIME_TO_EXT,
+  AUDIO_MIME_TO_EXT,
+  normalizeSafeExtension,
+  validateMimeAndExtension,
+} from '../utils/uploadValidation.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const IMAGE_MIME_TO_EXT = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/gif': '.gif',
-  'image/webp': '.webp'
-};
-
-const DOC_MIME_TO_EXT = {
-  'application/pdf': '.pdf',
-  'application/msword': '.doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-  'text/plain': '.txt'
-};
-
-const AUDIO_MIME_TO_EXT = {
-  'audio/webm': '.webm',
-  'audio/ogg': '.ogg',
-  'audio/mp4': '.mp4',
-  'audio/mpeg': '.mp3',
-  'audio/x-m4a': '.m4a'
-};
-
-const normalizeSafeExtension = (originalName = '', fallback = '.bin') => {
-  const ext = path.extname((originalName || '').toLowerCase());
-  return /^[a-z0-9.]+$/.test(ext) && ext.length <= 8 ? ext : fallback;
-};
-
-const validateMimeAndExtension = (file, allowedMap) => {
-  const mime = (file.mimetype || '').toLowerCase();
-  const ext = normalizeSafeExtension(file.originalname || '', '');
-  const expectedExt = allowedMap[mime];
-  if (!expectedExt) {
-    return false;
-  }
-  // Accept jpg/jpeg interchangeably
-  if ((expectedExt === '.jpg' && (ext === '.jpg' || ext === '.jpeg')) || expectedExt === ext) {
-    return true;
-  }
-  return false;
-};
 
 const requirePublicUploadToken = (req, res, next) => {
   const configuredToken = process.env.FORM_UPLOAD_TOKEN;
@@ -130,16 +96,51 @@ const fileFilter = function (_req, file, cb) {
   }
 };
 
-const imageUpload = multer({ 
-  storage: imageStorage, 
-  fileFilter, 
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+const imageUpload = multer({
+  storage: imageStorage,
+  fileFilter,
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB — modern phone photos routinely exceed 5MB
 });
 
-const serviceImageUpload = multer({ 
-  storage: serviceImageStorage, 
-  fileFilter, 
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+// Wrap multer so size/mime rejections surface as JSON 400/413 instead of
+// bubbling to the generic express error handler (which surfaces in the SPA
+// as a vague "upload failed" toast). Also enforces a non-empty upload when
+// `requireFile` is set.
+const handleMulterError = (uploader, { requireFile = true } = {}) => (req, res, next) => {
+  uploader(req, res, (err) => {
+    if (err) {
+      logger.warn('Upload rejected', {
+        code: err.code,
+        message: err.message,
+        field: err.field,
+        path: req.originalUrl
+      });
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          error: 'File too large. Maximum size is 15 MB per image.',
+          code: 'LIMIT_FILE_SIZE'
+        });
+      }
+      return res.status(400).json({
+        error: err.message || 'File upload rejected.',
+        code: err.code || 'UPLOAD_REJECTED'
+      });
+    }
+    if (requireFile) {
+      const hasOne = !!req.file;
+      const hasMany = Array.isArray(req.files) && req.files.length > 0;
+      if (!hasOne && !hasMany) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+    }
+    return next();
+  });
+};
+
+const serviceImageUpload = multer({
+  storage: serviceImageStorage,
+  fileFilter,
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB
 });
 
 // Configure multer for form backgrounds (larger file size for high-res images)
@@ -181,12 +182,8 @@ const formLogoUpload = multer({
 });
 
 // For service image uploads
-router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager']), serviceImageUpload.single('image'), (req, res) => {
+router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(serviceImageUpload.single('image')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/service-images/${req.file.filename}`;
     res.json({ imageUrl: relativePath });
   } catch (error) {
@@ -196,12 +193,8 @@ router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager
 });
 
 // Form background image upload
-router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manager']), formBackgroundUpload.single('image'), (req, res) => {
+router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(formBackgroundUpload.single('image')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/form-backgrounds/${req.file.filename}`;
     res.json({ url: relativePath, imageUrl: relativePath });
   } catch (error) {
@@ -211,12 +204,8 @@ router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manag
 });
 
 // Form logo upload
-router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']), formLogoUpload.single('image'), (req, res) => {
+router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(formLogoUpload.single('image')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/form-logos/${req.file.filename}`;
     res.json({ url: relativePath, imageUrl: relativePath });
   } catch (error) {
@@ -226,12 +215,8 @@ router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']),
 });
 
 // General image upload endpoint for products, etc.
-router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager']), imageUpload.single('image'), (req, res) => {
+router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.single('image')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
   } catch (error) {
@@ -240,13 +225,8 @@ router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager']), ima
   }
 });
 
-// Multiple images upload endpoint for products with multiple photos
-router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager']), imageUpload.array('images', 20), (req, res) => {
+router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.array('images', 20)), (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' });
-    }
-    
     const uploadedImages = req.files.map(file => ({
       url: `/uploads/images/${file.filename}`,
       filename: file.filename,
@@ -264,13 +244,9 @@ router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager']), im
   }
 });
 
-// Repair photo upload endpoint - accessible to all authenticated users
-router.post('/repair-image', authenticateJWT, imageUpload.single('image'), (req, res) => {
+// Repair photo upload — accessible to all authenticated users.
+router.post('/repair-image', authenticateJWT, handleMulterError(imageUpload.single('image')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
   } catch (error) {
@@ -315,18 +291,9 @@ const receiptUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
-router.post('/wallet-deposit', authenticateJWT, (req, res) => {
-  receiptUpload.single('image')(req, res, (err) => {
-    if (err) {
-      // Multer validation error — return clean 400 instead of crashing connection
-      return res.status(400).json({ error: err.message || 'File upload rejected.' });
-    }
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    const relativePath = `/uploads/receipts/${req.file.filename}`;
-    res.json({ url: relativePath });
-  });
+router.post('/wallet-deposit', authenticateJWT, handleMulterError(receiptUpload.single('image')), (req, res) => {
+  const relativePath = `/uploads/receipts/${req.file.filename}`;
+  res.json({ url: relativePath });
 });
 
 
@@ -361,12 +328,8 @@ const chatImageUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
-router.post('/chat-image', authenticateJWT, chatImageUpload.single('file'), (req, res) => {
+router.post('/chat-image', authenticateJWT, handleMulterError(chatImageUpload.single('file')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `chat-images/${req.file.filename}`;
     res.json({
       url: relativePath,
@@ -407,12 +370,8 @@ const chatFileUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB
 });
 
-router.post('/chat-file', authenticateJWT, chatFileUpload.single('file'), (req, res) => {
+router.post('/chat-file', authenticateJWT, handleMulterError(chatFileUpload.single('file')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `chat-files/${req.file.filename}`;
     res.json({
       url: relativePath,
@@ -449,12 +408,8 @@ const voiceMessageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
-router.post('/voice-message', authenticateJWT, voiceMessageUpload.single('file'), (req, res) => {
+router.post('/voice-message', authenticateJWT, handleMulterError(voiceMessageUpload.single('file')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     // Validate duration if provided (client should enforce 2-minute limit)
     const duration = parseInt(req.body.duration);
     if (duration && duration > 120) {
@@ -477,12 +432,8 @@ router.post('/voice-message', authenticateJWT, voiceMessageUpload.single('file')
 });
 
 // Equipment photo upload endpoint
-router.post('/equipment-image', authenticateJWT, authorizeRoles(['admin', 'manager']), imageUpload.single('image'), (req, res) => {
+router.post('/equipment-image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.single('image')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
   } catch (error) {
@@ -528,12 +479,8 @@ const formSubmissionUpload = multer({
  * No authentication required but rate limited
  * Used for profile photos, CV uploads, etc. in public forms
  */
-router.post('/form-submission', formSubmissionRateLimit, requirePublicUploadToken, formSubmissionUpload.single('file'), (req, res) => {
+router.post('/form-submission', formSubmissionRateLimit, requirePublicUploadToken, handleMulterError(formSubmissionUpload.single('file')), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
     const relativePath = `/uploads/form-submissions/${req.file.filename}`;
 
     res.json({
@@ -552,12 +499,8 @@ router.post('/form-submission', formSubmissionRateLimit, requirePublicUploadToke
  * PUBLIC endpoint for multiple form submission file uploads
  * For forms that need multiple file uploads
  */
-router.post('/form-submission-multiple', formSubmissionRateLimit, requirePublicUploadToken, formSubmissionUpload.array('files', 5), (req, res) => {
+router.post('/form-submission-multiple', formSubmissionRateLimit, requirePublicUploadToken, handleMulterError(formSubmissionUpload.array('files', 5)), (req, res) => {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' });
-    }
-    
     const uploadedFiles = req.files.map(file => ({
       url: `/uploads/form-submissions/${file.filename}`,
       filename: file.originalname,

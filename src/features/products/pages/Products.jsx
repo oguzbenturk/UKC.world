@@ -41,8 +41,10 @@ import {
   StopOutlined
 } from '@ant-design/icons';
 import { productApi } from '@/shared/services/productApi';
+import { getErrorMessage } from '@/shared/utils/apiError';
 import ProductForm from '../components/ProductForm';
 import ProductCard from '../components/ProductCard';
+import ProductPreviewModal from '@/features/dashboard/components/ProductPreviewModal';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
@@ -104,6 +106,7 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [previewProduct, setPreviewProduct] = useState(null);
   
   // View mode: 'grid' or 'list'
   const [viewMode, setViewMode] = useState('grid');
@@ -403,23 +406,22 @@ const Products = () => {
     setPagination(newPagination);
   };
 
-  // Handle product creation
   const handleProductCreate = async (productData) => {
     setFormLoading(true);
     try {
       await productApi.createProduct(productData);
       setFormDrawerVisible(false);
-      loadProducts(); // Reload products
+      loadProducts();
       message.success(t('manager:products.messages.created'));
     } catch (error) {
-      message.error(t('manager:products.messages.createError'));
+      console.error('Product create failed —', error?.response?.status, error?.response?.data ?? error);
+      message.error(getErrorMessage(error, t('manager:products.messages.createError')));
       throw error;
     } finally {
       setFormLoading(false);
     }
   };
 
-  // Handle product update
   const handleProductUpdate = async (productData) => {
     setFormLoading(true);
     try {
@@ -427,10 +429,11 @@ const Products = () => {
       setFormDrawerVisible(false);
       setEditMode(false);
       setSelectedProduct(null);
-      loadProducts(); // Reload products
+      loadProducts();
       message.success(t('manager:products.messages.updated'));
     } catch (error) {
-      message.error(t('manager:products.messages.updateError'));
+      console.error('Product update failed —', error?.response?.status, error?.response?.data ?? error);
+      message.error(getErrorMessage(error, t('manager:products.messages.updateError')));
       throw error;
     } finally {
       setFormLoading(false);
@@ -464,17 +467,22 @@ const Products = () => {
     setFormDrawerVisible(true);
   };
 
-  // Handle product view (could open a detail modal in the future)
   const handleProductView = (product) => {
-    // For now, just edit
-    handleProductEdit(product);
+    setPreviewProduct(product);
   };
 
-  // Close form drawer
   const handleFormCancel = () => {
     setFormDrawerVisible(false);
     setEditMode(false);
     setSelectedProduct(null);
+  };
+
+  // Reset edit state so a stale selection from a previous edit doesn't bleed
+  // into the new-product form.
+  const handleAddNewClick = () => {
+    setEditMode(false);
+    setSelectedProduct(null);
+    setFormDrawerVisible(true);
   };
 
   const columns = [
@@ -682,7 +690,7 @@ const Products = () => {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => setFormDrawerVisible(true)}
+            onClick={handleAddNewClick}
             size="small"
           >
             <span className="hidden sm:inline">{t('manager:products.addProduct')}</span>
@@ -918,10 +926,10 @@ const Products = () => {
                 </span>
               }
             >
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<PlusOutlined />}
-                onClick={() => setFormDrawerVisible(true)}
+                onClick={handleAddNewClick}
               >
                 {t('manager:products.empty.addFirst')}
               </Button>
@@ -936,15 +944,24 @@ const Products = () => {
         width={720}
         onClose={handleFormCancel}
         open={formDrawerVisible}
+        destroyOnClose
         styles={{ body: { paddingBottom: 80 } }}
       >
         <ProductForm
+          key={editMode ? (selectedProduct?.id || 'edit') : 'create'}
           product={editMode ? selectedProduct : null}
           onSubmit={editMode ? handleProductUpdate : handleProductCreate}
           onCancel={handleFormCancel}
           loading={formLoading}
         />
       </Drawer>
+
+      <ProductPreviewModal
+        product={previewProduct}
+        isOpen={!!previewProduct}
+        onClose={() => setPreviewProduct(null)}
+        previewMode
+      />
     </div>
   );
 };

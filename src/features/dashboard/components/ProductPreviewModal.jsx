@@ -19,13 +19,18 @@ const resolveImageUrl = (url) => {
     const duotoneRegular = 'font-duotone-regular';
     const duotoneBold = 'font-duotone-bold';
 
-const ProductPreviewModal = ({ 
-    product, 
+const ProductPreviewModal = ({
+    product,
     isOpen,
-    onClose, 
-    onAddToCart, 
-    onWishlistToggle, 
-    isInWishlist 
+    onClose,
+    onAddToCart,
+    onWishlistToggle,
+    isInWishlist,
+    // When true, the modal renders exactly like the customer-facing view but
+    // the cart/wishlist buttons are replaced with a "Manager preview only"
+    // notice. Used from the manager Products page so staff can verify how a
+    // product looks to customers without needing a working cart context.
+    previewMode = false,
 }) => {
     const { formatCurrency, convertCurrency, userCurrency } = useCurrency();
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -618,42 +623,59 @@ const ProductPreviewModal = ({
                     )}
 
                     {/* Action Buttons */}
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        <Button
-                            size="large"
-                            icon={isInWishlist(product.id) ? <HeartFilled /> : <HeartOutlined />}
-                            onClick={() => onWishlistToggle(product)}
-                            className={`rounded-xl h-13 w-13 flex items-center justify-center border-2 border-[#4b4f54] text-[#00a8c4] bg-[#23272a] ${duotoneBold}`}
-                            style={{ padding: 0 }}
-                        />
-                        <Button
-                            type="primary"
-                            size="large"
-                            icon={<ShoppingCartOutlined style={{ fontSize: 20 }} />}
-                            onClick={() => {
-                                // Include variant information when adding to cart
-                                const productWithVariant = {
-                                    ...product,
-                                    price: displayPrice // Use the dynamic price
-                                };
-                                onAddToCart(productWithVariant, {
-                                    selectedSize,
-                                    selectedColor,
-                                    selectedVariant
-                                });
-                                onClose();
+                    {previewMode ? (
+                        <div
+                            className={`rounded-xl flex items-center justify-center gap-2 ${duotoneBold}`}
+                            style={{
+                                padding: '14px 16px',
+                                background: '#23272a',
+                                border: '2px dashed #4b4f54',
+                                color: '#00a8c4',
+                                fontSize: 13,
+                                letterSpacing: '0.04em',
                             }}
-                            disabled={
-                                // Disable if product has variants but none selected
-                                (uniqueSizes.length > 0 && !selectedSize) ||
-                                (uniqueColors.length > 0 && !selectedColor)
-                            }
-                            className={`flex-1 rounded-xl h-13 flex items-center justify-center bg-[#23272a] text-[#00a8c4] border-none shadow-lg ${duotoneBold}`}
-                            style={{ fontWeight: 700, fontSize: 16 }}
                         >
-                            Add to Cart
-                        </Button>
-                    </div>
+                            <InfoCircleOutlined />
+                            Manager preview — cart and wishlist are disabled
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <Button
+                                size="large"
+                                icon={isInWishlist?.(product.id) ? <HeartFilled /> : <HeartOutlined />}
+                                onClick={() => onWishlistToggle?.(product)}
+                                className={`rounded-xl h-13 w-13 flex items-center justify-center border-2 border-[#4b4f54] text-[#00a8c4] bg-[#23272a] ${duotoneBold}`}
+                                style={{ padding: 0 }}
+                            />
+                            <Button
+                                type="primary"
+                                size="large"
+                                icon={<ShoppingCartOutlined style={{ fontSize: 20 }} />}
+                                onClick={() => {
+                                    // Include variant information when adding to cart
+                                    const productWithVariant = {
+                                        ...product,
+                                        price: displayPrice // Use the dynamic price
+                                    };
+                                    onAddToCart?.(productWithVariant, {
+                                        selectedSize,
+                                        selectedColor,
+                                        selectedVariant
+                                    });
+                                    onClose();
+                                }}
+                                disabled={
+                                    // Disable if product has variants but none selected
+                                    (uniqueSizes.length > 0 && !selectedSize) ||
+                                    (uniqueColors.length > 0 && !selectedColor)
+                                }
+                                className={`flex-1 rounded-xl h-13 flex items-center justify-center bg-[#23272a] text-[#00a8c4] border-none shadow-lg ${duotoneBold}`}
+                                style={{ fontWeight: 700, fontSize: 16 }}
+                            >
+                                Add to Cart
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
         </Modal>

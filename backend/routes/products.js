@@ -646,9 +646,14 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
       });
     }
 
+    // Image fields bypass COALESCE so callers can explicitly clear them.
+    const hasImageUrl = Object.prototype.hasOwnProperty.call(req.body, 'image_url');
+    const hasImages = Object.prototype.hasOwnProperty.call(req.body, 'images');
+    const hasColors = Object.prototype.hasOwnProperty.call(req.body, 'colors');
+
     const query = `
-      UPDATE products 
-      SET 
+      UPDATE products
+      SET
         name = COALESCE($2, name),
         description = COALESCE($3, description),
         sku = COALESCE($4, sku),
@@ -662,15 +667,15 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
         min_stock_level = COALESCE($12, min_stock_level),
         weight = COALESCE($13, weight),
         dimensions = COALESCE($14, dimensions),
-        image_url = COALESCE($15, image_url),
-        images = COALESCE($16, images),
+        image_url = CASE WHEN $28::boolean THEN $15 ELSE image_url END,
+        images = CASE WHEN $29::boolean THEN $16::jsonb ELSE images END,
         status = COALESCE($17, status),
         is_featured = COALESCE($18, is_featured),
         tags = COALESCE($19, tags),
         supplier_info = COALESCE($20, supplier_info),
         updated_by = $21,
         variants = COALESCE($22, variants),
-        colors = COALESCE($23, colors),
+        colors = CASE WHEN $30::boolean THEN $23::jsonb ELSE colors END,
         gender = COALESCE($24, gender),
         sizes = COALESCE($25, sizes),
         source_url = COALESCE($26, source_url),
@@ -683,18 +688,21 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
       id, name, description, sku, category, subcategory, brand, price, cost_price, currency,
       stock_quantity, min_stock_level, weight,
       dimensions ? JSON.stringify(dimensions) : null,
-      image_url,
-      images ? JSON.stringify(images) : null,
+      image_url ?? null,
+      images != null ? JSON.stringify(images) : null,
       status, is_featured,
       tags ? JSON.stringify(tags) : null,
       supplier_info ? JSON.stringify(supplier_info) : null,
       req.user.id,
       variants ? JSON.stringify(variants) : null,
-      colors ? JSON.stringify(colors) : null,
+      colors != null ? JSON.stringify(colors) : null,
       gender,
       sizes ? JSON.stringify(sizes) : null,
       source_url,
-      original_price != null ? parseFloat(original_price) : null
+      original_price != null ? parseFloat(original_price) : null,
+      hasImageUrl,
+      hasImages,
+      hasColors
     ];
 
     const result = await pool.query(query, values);

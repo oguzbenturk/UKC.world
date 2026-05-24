@@ -11,53 +11,40 @@ import {
   Button,
   Select,
   Switch,
-  Upload,
   Row,
   Col,
   Tag,
-  Image,
-  Card,
   Tabs,
-  Space,
-  Typography,
   Badge,
   Tooltip,
-  Alert
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useTranslation } from 'react-i18next';
-import { 
-  PlusOutlined, 
-  LoadingOutlined, 
-  DeleteOutlined,
+import {
+  PlusOutlined,
   InfoCircleOutlined,
   TagsOutlined,
   DollarOutlined,
   AppstoreOutlined,
-  PictureOutlined,
   BgColorsOutlined,
   LinkOutlined,
-  StarOutlined,
   CheckCircleOutlined,
-  InboxOutlined
+  InboxOutlined,
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import CurrencySelector from '@/shared/components/ui/CurrencySelector';
-import apiClient from '@/shared/services/apiClient';
 import { productApi } from '@/shared/services/productApi';
 import VariantTable from './VariantTable';
-import ColorTable from './ColorTable';
 import CreatableSelect from './CreatableSelect';
-import { 
-  getHierarchicalSubcategories, 
-  hasSubcategories, 
+import GallerySection from './GallerySection';
+import {
+  getHierarchicalSubcategories,
+  hasSubcategories,
   CATEGORY_OPTIONS,
-  PRODUCT_CATEGORIES as CATEGORIES_MAP
 } from '@/shared/constants/productCategories';
+import { buildImagePayload } from '../utils/productImagePayload';
 
 const { Option } = Select;
 const { TextArea } = Input;
-const { Title, Text } = Typography;
 
 // JSONB columns can arrive as arrays, JSON-encoded strings, or null depending
 // on the pg client config. Normalize to an array so callers don't silently
@@ -158,6 +145,44 @@ const CATEGORY_FIELD_CONFIG = {
 const getFieldConfig = (category) =>
   CATEGORY_FIELD_CONFIG[category] || CATEGORY_FIELD_CONFIG._default;
 
+// `colors` JSONB is either `[{name, imageCount}, ...]` (current — slice
+// `images` per imageCount) or plain strings (legacy — all images stay in
+// the unbucketed gallery).
+const hydrateGalleryFromProduct = (product) => {
+  const empty = { colorNames: [], colorImagesMap: {}, gallery: [] };
+  if (!product) return empty;
+
+  const rawColors = safeParseArray(product.colors);
+  const allImages = safeParseArray(product.images);
+  const firstIsObject = rawColors.length > 0
+    && rawColors[0] !== null
+    && typeof rawColors[0] === 'object'
+    && !Array.isArray(rawColors[0]);
+
+  if (firstIsObject) {
+    const names = [];
+    const map = {};
+    let idx = 0;
+    for (const c of rawColors) {
+      const name = (c && (c.name || c.code)) || '';
+      if (!name) continue;
+      names.push(name);
+      map[name] = allImages.slice(idx, idx + (c.imageCount || 0));
+      idx += (c.imageCount || 0);
+    }
+    return { colorNames: names, colorImagesMap: map, gallery: allImages.slice(idx) };
+  }
+
+  const names = rawColors
+    .map(c => typeof c === 'string' ? c : (c && (c.name || c.code)) || '')
+    .filter(Boolean);
+  return {
+    colorNames: names,
+    colorImagesMap: Object.fromEntries(names.map(n => [n, []])),
+    gallery: allImages,
+  };
+};
+
 /** Avoid spreading raw API/ORM `product` into Form initialValues — nested refs cause antd deepEqual "circular references" warnings. */
 const pickPlainProductForForm = (p) => {
   if (!p || typeof p !== 'object') return {};
@@ -226,19 +251,21 @@ const ProductForm = ({
 }) => {
   const { t } = useTranslation(['manager']);
   const [form] = Form.useForm();
+  // Parent remounts the form via `key` whenever `product` changes, so a
+  // one-shot lazy init covers reloads.
+  const [initialGallery] = useState(() => hydrateGalleryFromProduct(product));
+
   const [imageUrl, setImageUrl] = useState(product?.image_url || null);
-  const [images, setImages] = useState(product?.images || []);
+  const [images, setImages] = useState(initialGallery.gallery);
   const [imageLoading, setImageLoading] = useState(false);
-  const { getCurrencySymbol, businessCurrency } = useCurrency();
+  const { businessCurrency } = useCurrency();
   const [selectedCurrency, setSelectedCurrency] = useState(product?.currency || businessCurrency || 'EUR');
   const [activeTab, setActiveTab] = useState('product');
-  const [profitMargin, setProfitMargin] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(product?.category || null);
   const [extraSubcategories, setExtraSubcategories] = useState([]);
-  const [colorNames, setColorNames] = useState([]);
-  const [colorImagesMap, setColorImagesMap] = useState({});
+  const [colorNames, setColorNames] = useState(initialGallery.colorNames);
+  const [colorImagesMap, setColorImagesMap] = useState(initialGallery.colorImagesMap);
   const [colorInputVal, setColorInputVal] = useState('');
-  const [colorUploading, setColorUploading] = useState(null);
   const isEditing = !!product;
 
   const watchedCategory = Form.useWatch('category', form);
@@ -333,73 +360,7 @@ const ProductForm = ({
     return () => { cancelled = true; };
   }, [selectedCategory]);
 
-  // Calculate profit margin
-  const calculateMargin = () => {
-    const price = form.getFieldValue('price');
-    const costPrice = form.getFieldValue('cost_price');
-    if (price && costPrice && costPrice > 0) {
-      const margin = ((price - costPrice) / costPrice * 100).toFixed(1);
-      setProfitMargin(margin);
-    } else {
-      setProfitMargin(null);
-    }
-  };
-
-  useEffect(() => {
-    if (product) {
-      setSelectedCurrency(product.currency || businessCurrency);
-      setSelectedCategory(product.category || null);
-
-      // colors may be {name,imageCount} objects (current) or strings (legacy).
-      const rawColors = safeParseArray(product.colors);
-      const allImages = safeParseArray(product.images);
-      const firstIsObject = rawColors.length > 0
-        && rawColors[0] !== null
-        && typeof rawColors[0] === 'object'
-        && !Array.isArray(rawColors[0]);
-      if (firstIsObject) {
-        // Object format [{name, imageCount}] — slice images per color
-        const names = [];
-        const map = {};
-        let idx = 0;
-        for (const c of rawColors) {
-          const name = (c && (c.name || c.code)) || '';
-          if (!name) continue;
-          names.push(name);
-          map[name] = allImages.slice(idx, idx + (c.imageCount || 0));
-          idx += (c.imageCount || 0);
-        }
-        setColorNames(names);
-        setColorImagesMap(map);
-        setImages(allImages.slice(idx)); // any leftover without a color
-      } else {
-        // Simple strings or empty — no images distributed yet
-        const names = rawColors
-          .map(c => typeof c === 'string' ? c : (c && (c.name || c.code)) || '')
-          .filter(Boolean);
-        setColorNames(names);
-        setColorImagesMap(Object.fromEntries(names.map(n => [n, []])));
-        setImages(allImages);
-      }
-
-      const plain = pickPlainProductForForm(product);
-      const formValues = {
-        ...plain,
-        price: product.price != null ? parseFloat(product.price) : undefined,
-        cost_price: product.cost_price != null ? parseFloat(product.cost_price) : undefined,
-        original_price: product.original_price != null ? parseFloat(product.original_price) : undefined,
-        stock_quantity: product.stock_quantity != null ? parseInt(product.stock_quantity, 10) : 0,
-        min_stock_level: product.min_stock_level != null ? parseInt(product.min_stock_level, 10) : 0,
-        weight: product.weight != null ? parseFloat(product.weight) : undefined,
-      };
-
-      setTimeout(() => {
-        form.setFieldsValue(formValues);
-        calculateMargin();
-      }, 50);
-    }
-  }, [product, form, businessCurrency]);
-
+  // businessCurrency may resolve async after mount; pick it up for new products.
   useEffect(() => {
     if (!isEditing && !product?.currency && businessCurrency) {
       setSelectedCurrency(businessCurrency);
@@ -409,16 +370,11 @@ const ProductForm = ({
 
   const handleSubmit = async (values) => {
     try {
-      // Always send an array (even empty) — backend PUT uses COALESCE,
-      // so null would preserve the OLD value and silently no-op a clear.
-      const hasColors = colorNames.length > 0;
-      const finalColors = colorNames.map(name => ({
-        name,
-        imageCount: (colorImagesMap[name] || []).length,
-      }));
-      const finalImages = hasColors
-        ? colorNames.flatMap(name => colorImagesMap[name] || [])
-        : images;
+      const { colors: finalColors, images: finalImages } = buildImagePayload({
+        colorNames,
+        colorImagesMap,
+        gallery: images,
+      });
 
       const variantList = values.variants || [];
       const variantPrices = variantList.map(v => v.price).filter(p => p != null && p > 0);
@@ -460,10 +416,8 @@ const ProductForm = ({
         setColorImagesMap({});
         setColorInputVal('');
       }
-
-      message.success(isEditing ? t('manager:products.messages.updated') : t('manager:products.messages.created'));
     } catch {
-      message.error(isEditing ? t('manager:products.messages.updateError') : t('manager:products.messages.createError'));
+      // Parent (Products.jsx) owns success/error toasts.
     }
   };
 
@@ -477,32 +431,6 @@ const ProductForm = ({
   const removeColor = useCallback((name) => {
     setColorNames(prev => prev.filter(n => n !== name));
     setColorImagesMap(prev => { const copy = { ...prev }; delete copy[name]; return copy; });
-  }, []);
-
-  const handleColorImageUpload = useCallback(async (colorName, fileList) => {
-    if (!fileList.length) return;
-    setColorUploading(colorName);
-    try {
-      const formData = new FormData();
-      fileList.forEach(f => formData.append('images', f));
-      const response = await apiClient.post('/upload/images', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const urls = response.data.images.map(img => img.url);
-      setColorImagesMap(prev => ({ ...prev, [colorName]: [...(prev[colorName] || []), ...urls] }));
-      message.success(t('manager:products.form.colorPhotosAdded', { count: urls.length, color: colorName }));
-    } catch {
-      message.error(t('manager:products.form.colorPhotoUploadError'));
-    } finally {
-      setColorUploading(null);
-    }
-  }, []);
-
-  const removeColorImage = useCallback((colorName, index) => {
-    setColorImagesMap(prev => ({
-      ...prev,
-      [colorName]: (prev[colorName] || []).filter((_, i) => i !== index),
-    }));
   }, []);
 
   const handleCreateSubcategory = useCallback(async (slug, label, parentValue) => {
@@ -538,73 +466,12 @@ const ProductForm = ({
     }
   }, [selectedCategory]);
 
-  const handleImageUpload = async (info) => {
-    if (info.file.status === 'uploading') {
-      setImageLoading(true);
-      return;
-    }
-    if (info.file.status === 'done') {
-      setImageLoading(false);
-      setImageUrl(info.file.response.url);
-      message.success(t('manager:products.form.imageUploaded'));
-    } else if (info.file.status === 'error') {
-      setImageLoading(false);
-      message.error(t('manager:products.form.imageUploadError'));
-    }
-  };
-
-  // Ref to prevent duplicate uploads when beforeUpload is called per file
-  const uploadInProgressRef = useRef(false);
-
-  const handleMultipleImagesUpload = async (fileList) => {
-    // Prevent duplicate calls - beforeUpload fires for each file with full list
-    if (uploadInProgressRef.current) return;
-    if (fileList.length === 0) return;
-    
-    uploadInProgressRef.current = true;
-    setImageLoading(true);
-    
-    try {
-      const formData = new FormData();
-      fileList.forEach(file => formData.append('images', file));
-      const response = await apiClient.post('/upload/images', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const newImages = response.data.images.map(img => img.url);
-      setImages(prev => [...prev, ...newImages]);
-      message.success(t('manager:products.form.imagesUploaded', { count: response.data.count }));
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      message.error(t('manager:products.form.imagesUploadError'));
-    } finally {
-      setImageLoading(false);
-      // Reset after a short delay to allow for next batch
-      setTimeout(() => {
-        uploadInProgressRef.current = false;
-      }, 100);
-    }
-  };
-
-  const removeImage = (indexToRemove) => {
-    setImages(prev => prev.filter((_, i) => i !== indexToRemove));
-    message.success(t('manager:products.form.imageRemoved'));
-  };
-
-  const uploadButton = (
-    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      {imageLoading ? <LoadingOutlined style={{ fontSize: 24 }} /> : <PlusOutlined style={{ fontSize: 24 }} />}
-      <div style={{ marginTop: 8, fontSize: 14 }}>Upload</div>
-    </div>
-  );
-
   // ── Compute live variant stock for tab badge ────────────────────
   const watchedVariants = Form.useWatch('variants', form) || [];
   const liveStockSummary = useMemo(() => {
-    let total = 0, sizeCount = 0, minPrice = null, minCost = null, pricedVariantCount = 0;
+    let total = 0, minPrice = null, minCost = null, pricedVariantCount = 0;
     for (const v of watchedVariants) {
-      const q = v.quantity || 0;
-      total += q;
-      if (q > 0) sizeCount++;
+      total += v.quantity || 0;
       if (v.price != null && v.price > 0) {
         pricedVariantCount++;
         if (minPrice === null || v.price < minPrice) minPrice = v.price;
@@ -613,14 +480,12 @@ const ProductForm = ({
         if (minCost === null || v.cost_price < minCost) minCost = v.cost_price;
       }
     }
-    return { total, sizeCount, variantCount: watchedVariants.length, pricedVariantCount, minPrice, minCost };
+    return { total, variantCount: watchedVariants.length, pricedVariantCount, minPrice, minCost };
   }, [watchedVariants]);
 
-  // Keep the disabled top-level inputs in sync with what will actually be saved.
-  // Guard each write — AntD doesn't dedupe setFieldValue, so unguarded writes
-  // cause a render loop via Form.useWatch.
+  // Guarded write — unguarded `setFieldValue` causes a render loop via `Form.useWatch`.
   useEffect(() => {
-    if (watchedVariants.length === 0) return;
+    if (liveStockSummary.variantCount === 0) return;
     const setIfChanged = (field, value) => {
       if (value !== null && form.getFieldValue(field) !== value) {
         form.setFieldValue(field, value);
@@ -629,7 +494,13 @@ const ProductForm = ({
     setIfChanged('stock_quantity', liveStockSummary.total);
     setIfChanged('price', liveStockSummary.minPrice);
     setIfChanged('cost_price', liveStockSummary.minCost);
-  }, [watchedVariants.length, liveStockSummary, form]);
+  }, [
+    liveStockSummary.variantCount,
+    liveStockSummary.total,
+    liveStockSummary.minPrice,
+    liveStockSummary.minCost,
+    form,
+  ]);
 
   // Tab items — Product | Stock & Pricing
   const tabItems = [
@@ -694,7 +565,7 @@ const ProductForm = ({
             {fieldConfig.showGender && (
               <Col xs={12} md={8}>
                 <Form.Item name="gender" label="Gender">
-                  <Select placeholder={t('manager:products.columns.product')} allowClear>
+                  <Select placeholder="Select gender" allowClear>
                     <Option value="Men">{t('manager:products.form.genderMen')}</Option>
                     <Option value="Women">{t('manager:products.form.genderWomen')}</Option>
                     <Option value="Unisex">{t('manager:products.form.genderUnisex')}</Option>
@@ -714,7 +585,7 @@ const ProductForm = ({
               </Form.Item>
             </Col>
             <Col xs={12} md={8}>
-              <Form.Item name="is_featured" label={<span>{t('manager:products.columns.product')} <Tooltip title={t('manager:products.form.featuredTooltip')}><InfoCircleOutlined className="text-slate-300" /></Tooltip></span>} valuePropName="checked">
+              <Form.Item name="is_featured" label={<span>Featured <Tooltip title={t('manager:products.form.featuredTooltip')}><InfoCircleOutlined className="text-slate-300" /></Tooltip></span>} valuePropName="checked">
                 <Switch checkedChildren={t('manager:products.form.featuredYes')} unCheckedChildren={t('manager:products.form.featuredNo')} />
               </Form.Item>
             </Col>
@@ -862,7 +733,7 @@ const ProductForm = ({
               <Form.Item
                 name="stock_quantity"
                 label={t('manager:products.form.totalStock')}
-                rules={[{ required: true, message: t('manager:products.form.identity') }, { type: 'number', min: 0 }]}
+                rules={[{ required: true, message: 'Required' }, { type: 'number', min: 0 }]}
                 extra={liveStockSummary.variantCount > 0 ? t('manager:products.form.syncedFromVariants', { count: liveStockSummary.total }) : undefined}
               >
                 <InputNumber style={{ width: '100%' }} min={0} placeholder="0" disabled={liveStockSummary.variantCount > 0} />
@@ -906,128 +777,17 @@ const ProductForm = ({
 
           <div className="h-px bg-slate-100" />
 
-          {/* ── Main Image ── */}
-          <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><PictureOutlined /> {t('manager:products.form.mainImage')} <span className="normal-case tracking-normal font-normal text-slate-300">— {t('manager:products.form.mainImageHint')}</span></p>
-          <div className="flex items-center gap-3">
-            <Upload
-              name="image"
-              listType="picture-card"
-              showUploadList={false}
-              onChange={handleImageUpload}
-              customRequest={async ({ file, onSuccess, onError, onProgress }) => {
-                try {
-                  const formData = new FormData();
-                  formData.append('image', file);
-                  const response = await apiClient.post('/upload/image', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                    onUploadProgress: ({ total, loaded }) => {
-                      if (total) onProgress?.({ percent: Math.round((loaded / total) * 100) });
-                    },
-                  });
-                  onSuccess?.(response.data);
-                } catch (err) { onError?.(err); }
-              }}
-            >
-              {imageUrl ? (
-                <div className="w-20 h-20 overflow-hidden rounded-lg">
-                  <img src={imageUrl} alt="main" className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg">
-                  {imageLoading ? <LoadingOutlined className="text-slate-400" /> : <PlusOutlined className="text-slate-400" />}
-                  <span className="text-xs text-slate-400 mt-1">{t('manager:products.form.uploadButton')}</span>
-                </div>
-              )}
-            </Upload>
-            <p className="text-xs text-slate-400">800×800px · max 5 MB</p>
-          </div>
-
-          {/* ── Gallery / Color Images ── */}
-          {colorNames.length > 0 ? (
-            <>
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                <BgColorsOutlined /> {t('manager:products.form.photosPerColor')}
-              </p>
-              <div className="space-y-3">
-                {colorNames.map(colorName => {
-                  const colorImgs = colorImagesMap[colorName] || [];
-                  const isUploading = colorUploading === colorName;
-                  return (
-                    <div key={colorName} className="rounded-lg border border-slate-100 bg-slate-50/40 p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-semibold text-slate-700">{colorName}</span>
-                        <span className="text-xs text-slate-400">({colorImgs.length} photo{colorImgs.length !== 1 ? 's' : ''})</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Upload
-                          multiple
-                          listType="picture-card"
-                          showUploadList={false}
-                          beforeUpload={(file, fileList) => { if (file === fileList[fileList.length - 1]) handleColorImageUpload(colorName, fileList); return false; }}
-                          disabled={isUploading}
-                        >
-                          <div className="flex flex-col items-center justify-center w-14 h-14">
-                            {isUploading ? <LoadingOutlined /> : <PlusOutlined />}
-                            <span className="text-[10px] mt-1">Add</span>
-                          </div>
-                        </Upload>
-                        {colorImgs.map((url, i) => (
-                          <div key={i} className="relative w-14 h-14 flex-shrink-0">
-                            <img src={url} alt={`${colorName}-${i + 1}`} className="w-full h-full object-cover rounded-lg border border-slate-100" />
-                            <button
-                              type="button"
-                              onClick={() => removeColorImage(colorName, i)}
-                              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                              style={{ fontSize: 9 }}
-                            >✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                <AppstoreOutlined /> Gallery <span className="ml-1 font-normal normal-case text-slate-300">{images.length}/10</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Upload
-                  multiple
-                  listType="picture-card"
-                  showUploadList={false}
-                  beforeUpload={(file, fileList) => {
-                    if (images.length + fileList.length > 10) { message.error(t('manager:products.form.maxImagesError')); return false; }
-                    handleMultipleImagesUpload(fileList);
-                    return false;
-                  }}
-                  disabled={imageLoading || images.length >= 10}
-                >
-                  {images.length < 10 && (
-                    <div className="flex flex-col items-center justify-center w-16 h-16">
-                      {imageLoading ? <LoadingOutlined /> : <PlusOutlined />}
-                      <span className="text-xs mt-1">Add</span>
-                    </div>
-                  )}
-                </Upload>
-                {images.map((imgUrl, index) => (
-                  <div key={index} className="relative w-16 h-16 flex-shrink-0">
-                    <div className="w-full h-full overflow-hidden rounded-lg border border-slate-100">
-                      <Image src={imgUrl} alt={`${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={{ mask: false }} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                      style={{ fontSize: 9 }}
-                    >✕</button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          <GallerySection
+            imageUrl={imageUrl}
+            setImageUrl={setImageUrl}
+            imageLoading={imageLoading}
+            setImageLoading={setImageLoading}
+            images={images}
+            setImages={setImages}
+            colorNames={colorNames}
+            colorImagesMap={colorImagesMap}
+            setColorImagesMap={setColorImagesMap}
+          />
         </div>
       ),
     },
@@ -1048,11 +808,13 @@ const ProductForm = ({
         colors: [],
         sizes: [],
         ...pickPlainProductForForm(product),
-        price: product?.price ? parseFloat(product.price) : undefined,
-        cost_price: product?.cost_price ? parseFloat(product.cost_price) : undefined,
-        weight: product?.weight ? parseFloat(product.weight) : undefined,
-        stock_quantity: product?.stock_quantity ? parseInt(product.stock_quantity, 10) : 0,
-        min_stock_level: product?.min_stock_level ? parseInt(product.min_stock_level, 10) : 5,
+        // `!= null` (not truthy): 0 is a legitimate saved value here.
+        price: product?.price != null ? parseFloat(product.price) : undefined,
+        cost_price: product?.cost_price != null ? parseFloat(product.cost_price) : undefined,
+        original_price: product?.original_price != null ? parseFloat(product.original_price) : undefined,
+        weight: product?.weight != null ? parseFloat(product.weight) : undefined,
+        stock_quantity: product?.stock_quantity != null ? parseInt(product.stock_quantity, 10) : 0,
+        min_stock_level: product?.min_stock_level != null ? parseInt(product.min_stock_level, 10) : 5,
       }}
     >
       <Tabs

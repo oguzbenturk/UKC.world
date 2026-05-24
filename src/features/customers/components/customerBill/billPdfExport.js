@@ -126,70 +126,113 @@ export async function exportBillPdfFromElement(element, filename = 'DPC-Statemen
     }
   }
 
-  // Render at 2× device scale for print-quality crispness without ballooning
-  // the resulting PDF size. `windowWidth` simulates a desktop viewport so
-  // mobile-only @media queries don't apply during capture even when the
-  // user is on a phone.
-  let canvas;
+  // 2× scale for print crispness; `windowWidth` forces a desktop viewport so
+  // mobile-only @media queries don't apply during capture.
+  let fullCanvas;
+  let cloneRect;
+  let sectionRects;
   try {
-    canvas = await html2canvas(clone, {
+    fullCanvas = await html2canvas(clone, {
       scale: 2,
       backgroundColor: '#ffffff',
       useCORS: true,
-      allowTaint: true, // tolerate the SVG even if CORS headers aren't set
+      allowTaint: true,
       logging: false,
       imageTimeout: 5000,
       width: DESKTOP_CAPTURE_WIDTH,
       windowWidth: DESKTOP_CAPTURE_WIDTH,
-      // Drop the on-screen-only action bar (Close/Print/Download buttons) and
-      // anything else flagged as "no-print" so the captured image matches
-      // what a printed page would show.
       ignoreElements: (el) => !!(el.classList && el.classList.contains('ukc-bill-no-print')),
     });
+    // Bounding rects become unreliable once the element is detached.
+    cloneRect = clone.getBoundingClientRect();
+    sectionRects = Array.from(clone.querySelectorAll('.ukc-bill-section'))
+      .map(s => s.getBoundingClientRect());
   } finally {
-    // The clone wrapper isn't part of the live UI, so we can drop it
-    // unconditionally — no need to restore image src on the original.
     if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-    // Defensive: if the live element somehow had its src touched (shouldn't
-    // happen now that we operate on the clone), the restoreImgSrcs list is
-    // populated against `img` references that point INTO the clone DOM,
-    // which we just removed, so iterating is harmless / a no-op.
-    for (const { img, originalSrc, originalOnError } of restoreImgSrcs) {
-      try {
-        img.setAttribute('src', originalSrc);
-        if (originalOnError !== undefined) img.onerror = originalOnError;
-      } catch { /* clone is detached, nothing to restore */ }
-    }
   }
 
-  // Always emit a single-page PDF. The page width is fixed at A4 portrait
-  // (595pt) so the document still prints cleanly to a standard A4 sheet
-  // when needed; the page height is sized to fit the entire bill content
-  // exactly. This eliminates the previous "content cut at page boundary"
-  // problem (the bill would slice mid-section across pages, even with the
-  // blank-row gap detector). Long bills produce a tall single page —
-  // browsers render it as one continuous page on screen, and when the user
-  // prints, the browser handles its own pagination cleanly.
-  const A4_WIDTH_PT = 595.28;
-  const margin = 18;
-  const contentWidthPt = A4_WIDTH_PT - margin * 2;
-  const ptPerCanvasPx = contentWidthPt / canvas.width;
-  const contentHeightPt = canvas.height * ptPerCanvasPx;
-  const pageHeightPt = contentHeightPt + margin * 2;
+  // Cut on `.ukc-bill-section` boundaries so categories and totals never
+  // straddle an A4 page break.
+  const yScale = fullCanvas.height / cloneRect.height;
+  const blocks = [];
+  if (sectionRects.length > 0) {
+    const firstSectionTopPx = (sectionRects[0].top - cloneRect.top) * yScale;
+    if (firstSectionTopPx > 0) {
+      blocks.push({ topPx: 0, heightPx: firstSectionTopPx });
+    }
+    for (const rect of sectionRects) {
+      blocks.push({
+        topPx: (rect.top - cloneRect.top) * yScale,
+        heightPx: rect.height * yScale,
+      });
+    }
+  } else {
+    blocks.push({ topPx: 0, heightPx: fullCanvas.height });
+  }
 
-  const pdf = new jsPDF({
-    unit: 'pt',
-    format: [A4_WIDTH_PT, pageHeightPt],
-    orientation: 'portrait',
-  });
-  pdf.addImage(
-    canvas.toDataURL('image/png'),
-    'PNG',
-    margin,
-    margin,
-    contentWidthPt,
-    contentHeightPt,
-  );
+  // jsPDF's addImage takes no source rectangle, so each slice needs its own
+  // canvas before encoding.
+  const sliceCanvas = ({ topPx, heightPx }) => {
+    const out = document.createElement('canvas');
+    out.width = fullCanvas.width;
+    out.height = Math.max(1, Math.round(heightPx));
+    out.getContext('2d').drawImage(
+      fullCanvas,
+      0, Math.round(topPx),
+      fullCanvas.width, out.height,
+      0, 0,
+      fullCanvas.width, out.height,
+    );
+    return out;
+  };
+
+  const A4_WIDTH_PT = 595.28;
+  const A4_HEIGHT_PT = 841.89;
+  const margin = 24;
+  const contentWidthPt = A4_WIDTH_PT - margin * 2;
+  const usableHeightPt = A4_HEIGHT_PT - margin * 2;
+  const blockGapPt = 10;
+
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  let cursorY = margin;
+  let isFirstOnPage = true;
+
+  for (const slice of blocks) {
+    const blockCanvas = sliceCanvas(slice);
+    const naturalHeightPt = (blockCanvas.height / blockCanvas.width) * contentWidthPt;
+
+    if (!isFirstOnPage && cursorY + naturalHeightPt > margin + usableHeightPt) {
+      pdf.addPage();
+      cursorY = margin;
+      isFirstOnPage = true;
+    }
+
+    let renderHeightPt = naturalHeightPt;
+    let renderWidthPt = contentWidthPt;
+    if (renderHeightPt > usableHeightPt) {
+      renderHeightPt = usableHeightPt;
+      renderWidthPt = (blockCanvas.width / blockCanvas.height) * renderHeightPt;
+    }
+
+    const xOffset = margin + (contentWidthPt - renderWidthPt) / 2;
+    // JPEG (q=0.92) keeps a long bill's peak memory in check vs PNG with no
+    // visible quality loss on screenshot-style content.
+    pdf.addImage(
+      blockCanvas.toDataURL('image/jpeg', 0.92),
+      'JPEG',
+      xOffset,
+      cursorY,
+      renderWidthPt,
+      renderHeightPt,
+    );
+
+    // Release the slice bitmap immediately rather than waiting for GC.
+    blockCanvas.width = 0;
+    blockCanvas.height = 0;
+
+    cursorY += renderHeightPt + blockGapPt;
+    isFirstOnPage = false;
+  }
 
   pdf.save(filename);
 }

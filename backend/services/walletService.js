@@ -1111,10 +1111,17 @@ export async function fetchTransactions(userId, {
   // entity. Sum (not single row) handles group bookings that can have multiple
   // per-participant discounts on the same booking_id. entity_id in `discounts`
   // is TEXT (mixed UUID/INT source ids), so cast.
+  //
+  // `adj` folds any subsequent `booking_charge_adjustment` rows (written by
+  // bookingUpdateCascadeService when a booking price is edited) back into the
+  // original `booking_charge` row's displayed amount. Without this, the
+  // Payment History view shows the frozen original price because the UI
+  // filters adjustment rows out as ledger noise.
   const query = `
     SELECT wallet_transactions.*,
            COALESCE(disc.total_discount, 0)::numeric(18,4) AS discount_amount,
-           disc.max_percent AS discount_percent
+           disc.max_percent AS discount_percent,
+           COALESCE(adj.total_adjustment, 0)::numeric(18,4) AS booking_adjustment_amount
       FROM wallet_transactions
       LEFT JOIN LATERAL (
         SELECT SUM(d.amount) AS total_discount,
@@ -1123,6 +1130,14 @@ export async function fetchTransactions(userId, {
          WHERE d.entity_type = wallet_transactions.related_entity_type
            AND d.entity_id   = wallet_transactions.related_entity_id::text
       ) disc ON true
+      LEFT JOIN LATERAL (
+        SELECT SUM(a.amount) AS total_adjustment
+          FROM wallet_transactions a
+         WHERE a.transaction_type = 'booking_charge_adjustment'
+           AND a.status = 'completed'
+           AND a.booking_id = wallet_transactions.booking_id
+      ) adj ON wallet_transactions.transaction_type = 'booking_charge'
+           AND wallet_transactions.booking_id IS NOT NULL
     ${whereClause}
     ORDER BY wallet_transactions.transaction_date DESC, wallet_transactions.created_at DESC
     LIMIT ${limitPlaceholder}
@@ -1130,6 +1145,15 @@ export async function fetchTransactions(userId, {
   `;
 
   const { rows } = await pool.query(query, params);
+
+  for (const row of rows) {
+    const adjustment = Number.parseFloat(row.booking_adjustment_amount);
+    if (adjustment) {
+      row.amount = (Number.parseFloat(row.amount) + adjustment).toFixed(4);
+    }
+    delete row.booking_adjustment_amount;
+  }
+
   return rows;
 }
 

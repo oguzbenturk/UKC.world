@@ -394,11 +394,15 @@ const CustomerBillModal = ({
                       column width as its header, so "QTY" and the "1" beneath
                       it line up regardless of how long the description is.
                       The outer overflow-x wrapper kicks in on phones — the
-                      table keeps its min-width and the user scrolls
-                      horizontally instead of having the description column
-                      collapse into vertically-stacked letters. */}
+                      inner div carries the min-width so the table is forced
+                      to render at ≥600px and the user scrolls horizontally
+                      instead of having the description column collapse into
+                      vertically-stacked letters. (min-width directly on the
+                      <table> is unreliable with `table-layout: fixed`; block
+                      elements honour it consistently across browsers.) */}
                   <div className="ukc-bill-table-scroll overflow-x-auto">
-                  <table className="w-full text-xs table-fixed" style={{ minWidth: 600 }}>
+                  <div style={{ minWidth: 600 }}>
+                  <table className="w-full text-xs table-fixed">
                     <colgroup>
                       <col style={{ width: '92px' }} />
                       <col />
@@ -488,6 +492,7 @@ const CustomerBillModal = ({
                       })}
                     </tbody>
                   </table>
+                  </div>
                   </div>
                 </section>
               );

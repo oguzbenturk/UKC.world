@@ -218,14 +218,17 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
     });
   }, [customers]);
 
-  // AntD can't search through nested JSX children, so match against the
-  // flat `data-search` string we attach to each Option. Tokenise the input
-  // on whitespace so "alper g" matches "Güralp Alper" regardless of order.
-  const customerFilterOption = useCallback((input, option) => {
+  // AntD can't search through nested JSX children; we match against the flat
+  // `data-search` we stash on each Option. Tokenised on whitespace so
+  // "alper g" matches "Güralp Alper" regardless of order.
+  const tokenisedFilterOption = useCallback((input, option) => {
     if (!input) return true;
     const haystack = String(option?.['data-search'] || option?.label || '').toLowerCase();
-    const tokens = input.toLowerCase().split(/\s+/).filter(Boolean);
-    return tokens.every((t) => haystack.includes(t));
+    return input
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .every((tok) => haystack.includes(tok));
   }, []);
 
   const renderEquipmentOptions = useCallback(() => {
@@ -236,8 +239,9 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
       if (item.price != null) meta.push(formatCurrency(item.price, item.currency || businessCurrency || 'EUR'));
       const dur = formatRentalDuration(item.duration);
       if (dur) meta.push(dur);
+      const searchText = `${item.name || ''} ${item.category || ''} ${item.description || ''}`.toLowerCase();
       return (
-        <Option key={item.id} value={item.id}>
+        <Option key={item.id} value={item.id} label={item.name} data-search={searchText}>
           <div className="flex flex-col">
             <span className="font-medium text-slate-900">{item.name}</span>
             {meta.length > 0 && <span className="text-xs text-slate-500">{meta.join(' • ')}</span>}
@@ -245,7 +249,8 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
         </Option>
       );
     });
-  }, [equipment, formatCurrency, businessCurrency]);
+  }, [equipment, formatCurrency, businessCurrency, t]);
+
 
   // Handlers
   const handleClose = useCallback(() => {
@@ -366,7 +371,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                   placeholder={t('manager:newRentalDrawer.searchCustomer')}
                   showSearch
                   size="large"
-                  filterOption={customerFilterOption}
+                  filterOption={tokenisedFilterOption}
                   optionLabelProp="label"
                   className="w-full"
                 >
@@ -384,7 +389,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                   placeholder={t('manager:newRentalDrawer.selectCustomers')}
                   showSearch
                   size="large"
-                  filterOption={customerFilterOption}
+                  filterOption={tokenisedFilterOption}
                   optionLabelProp="label"
                   className="w-full"
                   maxTagCount="responsive"
@@ -406,7 +411,8 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
                 placeholder={t('manager:newRentalDrawer.addEquipment')}
                 showSearch
                 size="large"
-                optionFilterProp="children"
+                filterOption={tokenisedFilterOption}
+                optionLabelProp="label"
                 className="w-full"
                 maxTagCount="responsive"
                 open={equipmentDropdownOpen}
