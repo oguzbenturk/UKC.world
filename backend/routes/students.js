@@ -116,9 +116,9 @@ router.post('/import', authenticateJWT, authorizeRoles(['admin', 'manager']), as
       const values = lines[i].split(',').map(v => v.trim());
       const student = {};
       headers.forEach((h, idx) => student[h] = values[idx] || null);
-      // Upsert by email
-      const query = `INSERT INTO users (name, email, phone, role_id)
-        VALUES ($1, $2, $3, $4)
+      // Upsert by email — staff CSV import is pre-verified.
+      const query = `INSERT INTO users (name, email, phone, role_id, email_verified, email_verified_at)
+        VALUES ($1, $2, $3, $4, TRUE, NOW())
         ON CONFLICT (email) DO NOTHING
         RETURNING *`;
       const params = [student.name, student.email, student.phone, studentRoleId];

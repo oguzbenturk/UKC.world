@@ -31,7 +31,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 const { Option } = Select;
 const { Text } = Typography;
 
-function QuickShopSaleModal({ open, onClose, onSuccess }) {
+function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = null }) {
   const [form] = Form.useForm();
   const { formatCurrency } = useCurrency();
   
@@ -49,6 +49,13 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
       fetchProducts();
     }
   }, [open]);
+
+  // Pre-fill customer when opened from a customer profile
+  useEffect(() => {
+    if (open && prefilledCustomerId) {
+      form.setFieldsValue({ customer_id: prefilledCustomerId });
+    }
+  }, [open, prefilledCustomerId, form]);
 
   const fetchCustomers = async () => {
     try {
@@ -190,19 +197,25 @@ function QuickShopSaleModal({ open, onClose, onSuccess }) {
             >
               <Select
                 showSearch
-                placeholder="Search for customer..."
-                optionFilterProp="children"
-                filterOption={(input, option) =>
-                  option.children.toLowerCase().includes(input.toLowerCase())
-                }
+                placeholder="Search by name, email or phone..."
+                optionFilterProp="label"
+                filterOption={(input, option) => {
+                  const haystack = (option?.searchText || option?.label || '').toString().toLowerCase();
+                  return haystack.includes(input.toLowerCase());
+                }}
                 size="large"
-              >
-                {customers.map((customer) => (
-                  <Option key={customer.id} value={customer.id}>
-                    {customer.first_name} {customer.last_name} ({customer.email})
-                  </Option>
-                ))}
-              </Select>
+                allowClear
+                options={(customers || []).map((customer) => {
+                  const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed';
+                  const email = customer.email || '';
+                  const phone = customer.phone || '';
+                  return {
+                    value: customer.id,
+                    label: email ? `${fullName} (${email})` : fullName,
+                    searchText: `${fullName} ${email} ${phone}`,
+                  };
+                })}
+              />
             </Form.Item>
           </Card>
 

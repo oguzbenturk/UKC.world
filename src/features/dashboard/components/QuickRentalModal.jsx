@@ -50,7 +50,7 @@ function QuickRentalModal({ open, onClose, onSuccess }) {
 
         // Filter customers only (not staff - admin, manager, instructor, front_desk)
         const users = Array.isArray(usersRes.data) ? usersRes.data : [];
-        const staffRoles = ['admin', 'manager', 'instructor', 'front_desk', 'developer'];
+        const staffRoles = ['admin', 'manager', 'instructor', 'front_desk', 'receptionist', 'developer'];
         const customersOnly = users.filter((user) => {
           const role = (user.user_role || user.role || '').toLowerCase();
           return !staffRoles.includes(role);

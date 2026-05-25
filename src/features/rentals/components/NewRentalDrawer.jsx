@@ -40,7 +40,7 @@ const formatRentalDuration = (duration) => {
 const toArray = (value) => (Array.isArray(value) ? value : []);
 
 // eslint-disable-next-line complexity
-function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
+function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledCustomerId = null }) {
   const { t } = useTranslation(['manager']);
   const { apiClient } = useData();
   const { user } = useAuth();
@@ -67,7 +67,12 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
       const users = Array.isArray(response.data) ? response.data : [];
       setCustomers(
         users.filter(
-          (u) => !u.user_role || u.user_role === 'student' || u.user_role === 'customer'
+          (u) =>
+            !u.user_role ||
+            u.user_role === 'student' ||
+            u.user_role === 'customer' ||
+            u.user_role === 'trusted_customer' ||
+            u.user_role === 'outsider'
         )
       );
     } catch {
@@ -135,9 +140,13 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental }) {
     } else {
       form.resetFields();
       setParticipantMode('single');
-      form.setFieldsValue({ status: 'active', rental_date: dayjs() });
+      form.setFieldsValue({
+        status: 'active',
+        rental_date: dayjs(),
+        ...(prefilledCustomerId ? { customer_id: prefilledCustomerId } : {}),
+      });
     }
-  }, [isOpen, editingRental, form]);
+  }, [isOpen, editingRental, prefilledCustomerId, form]);
 
   // Sync participant mode → clear unused customer field
   useEffect(() => {
@@ -560,6 +569,7 @@ NewRentalDrawer.propTypes = {
   onClose: PropTypes.func.isRequired,
   onSuccess: PropTypes.func,
   editingRental: PropTypes.object,
+  prefilledCustomerId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 export default NewRentalDrawer;

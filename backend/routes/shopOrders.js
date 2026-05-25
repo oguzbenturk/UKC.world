@@ -108,8 +108,16 @@ router.post('/', authenticateJWT, async (req, res) => {
       userId = overrideUserId;
     }
 
-    // allowNegativeBalance is restricted to admin/manager only
-    const canGoNegative = allowNegativeBalance === true && isAdmin;
+    // Check the buyer's role — trusted_customer is always allowed to go negative
+    const { rows: buyerRoleRows } = await client.query(
+      `SELECT r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`,
+      [userId]
+    );
+    const buyerRole = buyerRoleRows[0]?.role_name || null;
+    const buyerIsTrusted = buyerRole === 'trusted_customer';
+
+    // allowNegativeBalance: admin override OR buyer is trusted_customer
+    const canGoNegative = (allowNegativeBalance === true && isAdmin) || buyerIsTrusted;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Order must contain at least one item' });
@@ -1544,7 +1552,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
 });
 
 // Admin/Staff: Create order on behalf of customer (Quick Sale from Front Desk)
-router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:write'), async (req, res) => {
+router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:write'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1617,11 +1625,18 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
     if (payment_method === 'wallet' && user_id) {
       const walletBalance = await getBalance(user_id, 'EUR');
       const balance = walletBalance.available || 0;
-      
-      if (balance < totalAmount) {
+
+      // trusted_customer is allowed to go negative
+      const { rows: buyerRoleRows } = await client.query(
+        `SELECT r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`,
+        [user_id]
+      );
+      const buyerIsTrusted = buyerRoleRows[0]?.role_name === 'trusted_customer';
+
+      if (balance < totalAmount && !buyerIsTrusted) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Insufficient wallet balance. Required: €${totalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}` 
+        return res.status(400).json({
+          error: `Insufficient wallet balance. Required: €${totalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}`
         });
       }
     }

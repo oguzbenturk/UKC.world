@@ -198,7 +198,9 @@ function Rentals() {
         (user) =>
           !user.user_role ||
           user.user_role === 'student' ||
-          user.user_role === 'customer'
+          user.user_role === 'customer' ||
+          user.user_role === 'trusted_customer' ||
+          user.user_role === 'outsider'
       );
       setCustomers(customersOnly);
     } catch (error) {

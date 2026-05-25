@@ -549,10 +549,13 @@ router.post(
         return res.status(409).json({ error: 'A user with this email already exists' });
       }
 
-      // Insert with a temporary password (user must reset on first login)
+      // Insert with a temporary password (user must reset on first login).
+      // Staff-created customers are pre-verified so they aren't blocked by the
+      // email_verified login gate from migration 242 — verification only applies
+      // to self-registration via /auth/register.
       const { rows } = await pool.query(
-        `INSERT INTO users (name, email, phone, role_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), NOW())
+        `INSERT INTO users (name, email, phone, role_id, email_verified, email_verified_at, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW(), NOW())
          RETURNING id, name, email, phone`,
         [name.trim(), email.toLowerCase().trim(), phone || null, studentRoleId],
       );
@@ -861,7 +864,13 @@ router.post(
           [studentUserId],
         );
         const balance = toNum(walletRows[0]?.available_amount) || 0;
-        if (balance < amount) {
+        // trusted_customer is allowed to go negative
+        const { rows: studentRoleRows } = await client.query(
+          `SELECT r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`,
+          [studentUserId],
+        );
+        const studentIsTrusted = studentRoleRows[0]?.role_name === 'trusted_customer';
+        if (balance < amount && !studentIsTrusted) {
           await client.query('ROLLBACK');
           return res.status(400).json({
             error: `Insufficient wallet balance. Available: €${balance}, Required: €${amount}`,

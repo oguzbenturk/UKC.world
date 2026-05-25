@@ -611,7 +611,13 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 			// Deduct from guest's wallet (lock funds)
 			try {
 				const balance = await getBalance(guest_id, 'EUR');
-				if ((balance?.available || 0) < total_price) {
+				// trusted_customer is allowed to go negative
+				const { rows: guestRoleRows } = await client.query(
+					`SELECT r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`,
+					[guest_id]
+				);
+				const guestIsTrusted = guestRoleRows[0]?.role_name === 'trusted_customer';
+				if ((balance?.available || 0) < total_price && !guestIsTrusted) {
 					await client.query('ROLLBACK');
 					return res.status(400).json({ error: `Insufficient wallet balance. Required: €${total_price.toFixed(2)}, Available: €${(balance?.available || 0).toFixed(2)}` });
 				}
@@ -622,7 +628,8 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 					bookingId,
 					currency: 'EUR',
 					client,
-					description: `Accommodation booking: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`
+					description: `Accommodation booking: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`,
+					allowNegative: guestIsTrusted
 				});
 				walletTxId = lockResult?.id || null;
 				paymentStatus = PAYMENT_STATUS.PAID;

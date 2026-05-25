@@ -1569,14 +1569,14 @@ router.post('/',
     const walletTransactionCurrency = DEFAULT_CURRENCY;
     
     // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
-    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
+    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'receptionist', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
-    // trusted_customer with pay_later: allow negative balance so debt is tracked in wallet
-    const isTrustedCustomerPayLater = req.user?.role === 'trusted_customer' && requestedPaymentMethod === 'pay_later';
-    const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker || isTrustedCustomerPayLater;
-    
+    // trusted_customer: always allowed to book with insufficient balance — debt is tracked in wallet
+    const isTrustedCustomer = req.user?.role === 'trusted_customer';
+    const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker || isTrustedCustomer;
+
     // Staff roles automatically confirm bookings (admin, manager, front_desk)
-    const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk'];
+    const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk', 'receptionist'];
     const shouldAutoConfirm = staffRolesForAutoConfirm.includes(req.user?.role);
     let finalStatus = shouldAutoConfirm ? 'confirmed' : (status || 'pending');
     
@@ -3447,11 +3447,11 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
     const walletCurrencyRaw = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || req.body.paymentMethod || null;
     // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
-    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
+    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'receptionist', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
-    // trusted_customer with pay_later: allow negative balance so debt is tracked in wallet
-    const isTrustedCustomerPayLater = req.user?.role === 'trusted_customer' && requestedPaymentMethod === 'pay_later';
-    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker || isTrustedCustomerPayLater;
+    // trusted_customer: always allowed to book with insufficient balance — debt is tracked in wallet
+    const isTrustedCustomer = req.user?.role === 'trusted_customer';
+    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker || isTrustedCustomer;
     
     // Currency will be resolved later after we know the user ID
     let resolvedWalletCurrency = walletCurrencyRaw?.trim()?.toUpperCase() || null;
@@ -3508,9 +3508,11 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         }
         
         const studentRoleId = roleQuery.rows[0].id;
+          // Staff-created (calendar flow) — pre-verified so the email_verified
+          // login gate doesn't block staff-onboarded customers.
           const newUser = await client.query(
-          `INSERT INTO users (name, email, phone, role_id, password_hash, created_at, updated_at) 
-           VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) 
+          `INSERT INTO users (name, email, phone, role_id, password_hash, email_verified, email_verified_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW(), NOW())
            RETURNING id`,
           [user.name, user.email, user.phone, studentRoleId, 'calendar_user_no_password']
         );
@@ -3789,6 +3791,23 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
             // If servicePrice was not found, fall back to provided amount as hourly
             const hourly = servicePrice || (parseFloat(amount) || 0);
             finalFinalAmount = parseFloat((hourly * cashHours).toFixed(2));
+            individualChargeEntry = {
+              userId,
+              amount: -Math.abs(finalFinalAmount),
+              transactionType: 'booking_charge',
+              currency: walletTransactionCurrency,
+              status: 'completed',
+              description: `Partial lesson cash leg (${cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
+              metadata: {
+                bookingDate: normalizedDate,
+                startHour: time,
+                cashHours,
+                packageHours: consumeFromPackage,
+                durationHours: serviceDuration,
+                paymentMethod: requestedPaymentMethod || 'wallet',
+                source: 'calendar_partial_cash_leg'
+              }
+            };
           } else {
             finalPaymentStatus = 'package';
             finalFinalAmount = 0;
@@ -3853,6 +3872,23 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
             finalPaymentStatus = 'partial';
             const hourly = servicePrice || (parseFloat(amount) || 0);
             finalFinalAmount = parseFloat((hourly * cashHours).toFixed(2));
+            individualChargeEntry = {
+              userId,
+              amount: -Math.abs(finalFinalAmount),
+              transactionType: 'booking_charge',
+              currency: walletTransactionCurrency,
+              status: 'completed',
+              description: `Partial lesson cash leg (${cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
+              metadata: {
+                bookingDate: normalizedDate,
+                startHour: time,
+                cashHours,
+                packageHours: consumeFromPackage,
+                durationHours: serviceDuration,
+                paymentMethod: requestedPaymentMethod || 'wallet',
+                source: 'calendar_partial_cash_leg'
+              }
+            };
           } else {
             finalPaymentStatus = 'package';
             finalFinalAmount = 0;

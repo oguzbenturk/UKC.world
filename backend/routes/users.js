@@ -68,10 +68,15 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:wr
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Dynamically collect insert data
+    // Dynamically collect insert data.
+    // Staff-created accounts (admin/manager/receptionist via this endpoint) are pre-verified —
+    // identity is vetted in person, so they should not be gated by the /auth/register email
+    // verification flow added in migration 242.
     const insertData = {
       password_hash: hashedPassword,
-      role_id
+      role_id,
+      email_verified: true,
+      email_verified_at: new Date()
     };
 
     // Generate name field from first_name and last_name if they exist
@@ -140,7 +145,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:wr
 });
 
 // === READ ALL (optional ?role=student) ===
-router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist']), async (req, res) => {
   const { role } = req.query;
 
   let query = `
@@ -1350,9 +1355,9 @@ router.post('/import-students', authenticateJWT, async (req, res) => {
       const values = lines[i].split(',').map(v => v.trim());
       const userData = {};
       headers.forEach((h, idx) => userData[h] = values[idx] || null);
-      // Upsert by email
-      const query = `INSERT INTO users (first_name, last_name, email, phone, role_id)
-        VALUES ($1, $2, $3, $4, $5)
+      // Upsert by email — staff CSV import is pre-verified.
+      const query = `INSERT INTO users (first_name, last_name, email, phone, role_id, email_verified, email_verified_at)
+        VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
         ON CONFLICT (email) DO NOTHING
         RETURNING *`;
       const params = [userData.first_name || userData.name, userData.last_name || '', userData.email, userData.phone, studentRoleId];

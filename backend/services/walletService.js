@@ -1563,7 +1563,7 @@ export async function calculateAvailableBalance(userId, currency = DEFAULT_CURRE
   return balance.available;
 }
 
-export async function lockFundsForBooking({ userId, amount, bookingId, currency = DEFAULT_CURRENCY, client, originalAmount: providedOriginalAmount = null, originalCurrency: providedOriginalCurrency = null, transactionExchangeRate = null, description = null }) {
+export async function lockFundsForBooking({ userId, amount, bookingId, currency = DEFAULT_CURRENCY, client, originalAmount: providedOriginalAmount = null, originalCurrency: providedOriginalCurrency = null, transactionExchangeRate = null, description = null, allowNegative = false }) {
   const absolute = Math.abs(toNumeric(amount));
   if (absolute === 0) {
     return null;
@@ -1585,7 +1585,7 @@ export async function lockFundsForBooking({ userId, amount, bookingId, currency 
     metadata: { bookingId },
     relatedEntityType: 'booking',
     relatedEntityId: bookingId || null,
-    allowNegative: false,
+    allowNegative,
     client,
     // Transaction transparency fields
     originalAmount,

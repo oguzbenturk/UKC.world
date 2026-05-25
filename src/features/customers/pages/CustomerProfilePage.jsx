@@ -11,8 +11,8 @@ import {
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { 
-  UserOutlined, ArrowLeftOutlined, EditOutlined, 
-  CalendarOutlined, ShoppingOutlined, ClockCircleOutlined,
+  UserOutlined, ArrowLeftOutlined, EditOutlined,
+  CalendarOutlined, ShoppingOutlined, ShoppingCartOutlined, ClockCircleOutlined,
   PlusCircleOutlined, MinusCircleOutlined, DollarOutlined,
   GiftOutlined, PlusOutlined, CreditCardOutlined, AppstoreOutlined,
   MailOutlined, PhoneOutlined, HomeOutlined, LineChartOutlined,
@@ -31,6 +31,8 @@ const RentalDetailModal = lazy(() => import('../components/RentalDetailModal'));
 const TransactionDetailModal = lazy(() => import('../components/TransactionDetailModal'));
 const MemberPurchasesSection = lazy(() => import('../../members/components/MemberPurchasesSection'));
 const CustomerShopHistory = lazy(() => import('../components/CustomerShopHistory'));
+const NewRentalDrawer = lazy(() => import('../../rentals/components/NewRentalDrawer'));
+const QuickShopSaleModal = lazy(() => import('../../dashboard/components/QuickShopSaleModal'));
 import UserForm from '@/shared/components/ui/UserForm';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -242,6 +244,8 @@ function CustomerProfilePage() {
   const [packageManagerVisible, setPackageManagerVisible] = useState(false);
   const [startAssignFlow, setStartAssignFlow] = useState(false);
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
+  const [newRentalDrawerVisible, setNewRentalDrawerVisible] = useState(false);
+  const [quickSaleModalVisible, setQuickSaleModalVisible] = useState(false);
 
   const [bookingDetailModalVisible, setBookingDetailModalVisible] = useState(false);
   const [rentalDetailModalVisible, setRentalDetailModalVisible] = useState(false);
@@ -402,6 +406,22 @@ function CustomerProfilePage() {
         icon: CalendarOutlined,
         iconClassName: 'text-sky-500',
         onClick: () => setBookingModalVisible(true)
+      },
+      {
+        key: 'new-rental',
+        label: 'New rental',
+        description: 'Assign equipment rental',
+        icon: ShoppingOutlined,
+        iconClassName: 'text-teal-500',
+        onClick: () => setNewRentalDrawerVisible(true)
+      },
+      {
+        key: 'quick-sale',
+        label: 'Quick sale',
+        description: 'Sell shop product to this customer',
+        icon: ShoppingCartOutlined,
+        iconClassName: 'text-pink-500',
+        onClick: () => setQuickSaleModalVisible(true)
       },
       {
         key: 'assign-package',
@@ -3302,6 +3322,36 @@ function CustomerProfilePage() {
           />
         )}
       </Suspense>
+
+      {/* New Rental Drawer (pre-filled with this customer) */}
+      {newRentalDrawerVisible && (
+        <Suspense fallback={<Spin size="small" />}>
+          <NewRentalDrawer
+            isOpen={newRentalDrawerVisible}
+            onClose={() => setNewRentalDrawerVisible(false)}
+            prefilledCustomerId={customer?.id || id}
+            onSuccess={async () => {
+              await refreshAllCustomerData();
+              message.success('Rental created successfully!');
+              setNewRentalDrawerVisible(false);
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Quick Shop Sale Modal (pre-filled with this customer) */}
+      {quickSaleModalVisible && (
+        <Suspense fallback={<Spin size="small" />}>
+          <QuickShopSaleModal
+            open={quickSaleModalVisible}
+            onClose={() => setQuickSaleModalVisible(false)}
+            prefilledCustomerId={customer?.id || id}
+            onSuccess={async () => {
+              await refreshAllCustomerData();
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Customer Step Booking Modal */}
       {bookingModalVisible && (

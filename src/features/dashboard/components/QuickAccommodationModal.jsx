@@ -64,6 +64,7 @@ function QuickAccommodationModal({ open, onClose, onSuccess, editBooking = null 
             !u.user_role ||
             u.user_role === 'student' ||
             u.user_role === 'customer' ||
+            u.user_role === 'trusted_customer' ||
             u.user_role === 'outsider' ||
             (editGuestId && u.id === editGuestId)
         ));
