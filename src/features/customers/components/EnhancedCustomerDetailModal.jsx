@@ -464,6 +464,28 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     } finally { setPaymentProcessing(false); }
   };
 
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const handleResendVerification = useCallback(async () => {
+    if (!customerId) return;
+    setResendingVerification(true);
+    try {
+      const res = await fetch(`/api/users/${customerId}/resend-verification`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        message.error(body.message || 'Failed to send verification email');
+        return;
+      }
+      message.success(body.message || 'Verification email sent');
+    } catch (err) {
+      message.error('Failed to send verification email: ' + (err.message || 'Unknown error'));
+    } finally {
+      setResendingVerification(false);
+    }
+  }, [customerId, buildAuthHeaders]);
+
   const handleSelfStudentChange = async (instructorId) => {
     if (!customerId) return;
     const previous = customer?.self_student_of_instructor_id ?? null;
@@ -1061,6 +1083,27 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           {renderInfoCell(<ClockCircleOutlined />, 'Since', customer?.created_at ? new Date(customer.created_at).toLocaleDateString() : null)}
         </div>
       </div>
+
+      {/* Email-not-verified notice (staff only, customers with an email) */}
+      {isAdmin && !readOnly && customer?.email && customer?.email_verified === false && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-amber-900">Account not activated</div>
+            <div className="text-[11px] text-amber-700/90 mt-0.5 truncate">
+              The customer hasn't verified their email yet. Send them a fresh activation link.
+            </div>
+          </div>
+          <Button
+            type="primary"
+            size="small"
+            icon={<MailOutlined />}
+            loading={resendingVerification}
+            onClick={handleResendVerification}
+          >
+            Send activation link
+          </Button>
+        </div>
+      )}
 
       {/* Self-student linkage (admin/manager only) */}
       {isAdmin && (() => {

@@ -10,6 +10,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import { sanitizeUser } from '../utils/sanitizeUser.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
+import { sendVerificationEmail } from '../services/emailVerificationService.js';
 
 // Any user create/update must bust the /students and /for-booking caches so
 // freshly-added customers show up in booking/rental search immediately.
@@ -1462,6 +1463,36 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
   } catch (err) {
     logger.error('Role promotion failed', err);
     res.status(500).json({ error: 'Role promotion failed', details: err.message });
+  }
+});
+
+// === RESEND VERIFICATION EMAIL (admin-triggered) ===
+// POST /users/:id/resend-verification — staff sends a fresh verification link
+// to an unverified customer. Different from /auth/resend-verification (public,
+// rate-limited, anti-enumeration generic response): this one is staff-only
+// and returns concrete success/failure so the UI can show actual feedback.
+router.post('/:id/resend-verification', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, email, first_name, name, email_verified FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const user = result.rows[0];
+    if (user.email_verified) {
+      return res.status(409).json({ error: 'already_verified', message: 'This account is already activated.' });
+    }
+    if (!user.email) {
+      return res.status(400).json({ error: 'no_email', message: 'User has no email on file.' });
+    }
+    await sendVerificationEmail(user.id, user.email, user.first_name || user.name || null);
+    return res.json({ success: true, message: 'Verification email sent.' });
+  } catch (err) {
+    logger.error('Admin resend-verification failed', { userId: id, error: err.message });
+    return res.status(500).json({ error: 'send_failed', message: 'Could not send verification email.' });
   }
 });
 
