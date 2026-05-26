@@ -1007,8 +1007,13 @@ function CalendarProvider({ children }) {
       
       logger.debug('Single participant booking, using regular booking flow');
 
-      // For single bookings, extract package information from multiple sources
-      let usePackage = bookingData.usePackageHours === true && (bookingData.customerPackageId || bookingData.selectedPackage?.id);
+      // For single bookings, extract package information from multiple sources.
+      // Coerce to boolean — `true && "<uuid>"` evaluates to the uuid string,
+      // which the backend strict-compares (`use_package === true`) and fails,
+      // leaving customerPackageId attached without consuming hours or going
+      // partial.
+      let usePackage = bookingData.usePackageHours === true
+        && Boolean(bookingData.customerPackageId || bookingData.selectedPackage?.id);
       let packageId = bookingData.customerPackageId || bookingData.selectedPackage?.id || null;
       
   logger.debug('Package extraction from booking data', {

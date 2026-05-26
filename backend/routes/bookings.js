@@ -4047,7 +4047,23 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       }
         // Commit transaction
       await client.query('COMMIT');
-      
+
+      // Create the instructor_earnings snapshot now so payroll / commission
+      // views see a non-zero value immediately. Without this, the cascade
+      // only fires on a subsequent edit and the booking sits with NULL
+      // earnings (displays as 0) until then.
+      try {
+        await BookingUpdateCascadeService.cascadeBookingUpdate(
+          booking.rows[0],
+          { _custom_commission_changed: true }
+        );
+      } catch (cascadeError) {
+        logger.warn('Failed to cascade instructor earnings after calendar booking creation', {
+          bookingId: booking.rows[0].id,
+          error: cascadeError?.message
+        });
+      }
+
       // Calculate startTime and endTime for response
       const hours = Math.floor(start_hour);
       const minutes = Math.round((start_hour - hours) * 60);
