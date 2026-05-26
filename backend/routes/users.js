@@ -1466,6 +1466,43 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
   }
 });
 
+// === DIRECTLY ACTIVATE EMAIL (admin-triggered) ===
+// POST /users/:id/activate-email — staff trusts the customer and flips
+// email_verified to true without sending an email. Useful when the customer
+// can't receive the verification email (typo, mailbox issues, already
+// confirmed by phone, etc.). Same pattern as the calendar-booking flow
+// that pre-verifies staff-created customers.
+router.post('/:id/activate-email', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, email_verified FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (result.rows[0].email_verified) {
+      return res.status(409).json({ error: 'already_verified', message: 'This account is already activated.' });
+    }
+    await pool.query(
+      `UPDATE users
+          SET email_verified = TRUE,
+              email_verified_at = NOW(),
+              email_verification_token_hash = NULL,
+              email_verification_token_expires_at = NULL,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [id]
+    );
+    logger.info('Admin directly activated account', { userId: id, actorId: req.user?.id });
+    return res.json({ success: true, message: 'Account activated.' });
+  } catch (err) {
+    logger.error('Admin activate-email failed', { userId: id, error: err.message });
+    return res.status(500).json({ error: 'activate_failed', message: 'Could not activate account.' });
+  }
+});
+
 // === RESEND VERIFICATION EMAIL (admin-triggered) ===
 // POST /users/:id/resend-verification — staff sends a fresh verification link
 // to an unverified customer. Different from /auth/resend-verification (public,

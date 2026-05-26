@@ -465,6 +465,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   };
 
   const [resendingVerification, setResendingVerification] = useState(false);
+  const [activatingDirectly, setActivatingDirectly] = useState(false);
   const handleResendVerification = useCallback(async () => {
     if (!customerId) return;
     setResendingVerification(true);
@@ -485,6 +486,29 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       setResendingVerification(false);
     }
   }, [customerId, buildAuthHeaders]);
+
+  const handleActivateDirectly = useCallback(async () => {
+    if (!customerId) return;
+    setActivatingDirectly(true);
+    try {
+      const res = await fetch(`/api/users/${customerId}/activate-email`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        message.error(body.message || 'Failed to activate account');
+        return;
+      }
+      message.success(body.message || 'Account activated');
+      setCustomer(prev => prev ? { ...prev, email_verified: true, email_verified_at: new Date().toISOString() } : prev);
+      onUpdate();
+    } catch (err) {
+      message.error('Failed to activate account: ' + (err.message || 'Unknown error'));
+    } finally {
+      setActivatingDirectly(false);
+    }
+  }, [customerId, buildAuthHeaders, onUpdate]);
 
   const handleSelfStudentChange = async (instructorId) => {
     if (!customerId) return;
@@ -1086,22 +1110,33 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
 
       {/* Email-not-verified notice (staff only, customers with an email) */}
       {isAdmin && !readOnly && customer?.email && customer?.email_verified === false && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 flex items-center justify-between gap-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-amber-900">Account not activated</div>
-            <div className="text-[11px] text-amber-700/90 mt-0.5 truncate">
-              The customer hasn't verified their email yet. Send them a fresh activation link.
+            <div className="text-[11px] text-amber-700/90 mt-0.5">
+              Send the customer an activation link, or activate directly if you've confirmed their identity another way.
             </div>
           </div>
-          <Button
-            type="primary"
-            size="small"
-            icon={<MailOutlined />}
-            loading={resendingVerification}
-            onClick={handleResendVerification}
-          >
-            Send activation link
-          </Button>
+          <Space size="small" className="flex-shrink-0">
+            <Button
+              size="small"
+              icon={<MailOutlined />}
+              loading={resendingVerification}
+              disabled={activatingDirectly}
+              onClick={handleResendVerification}
+            >
+              Send link
+            </Button>
+            <Button
+              type="primary"
+              size="small"
+              loading={activatingDirectly}
+              disabled={resendingVerification}
+              onClick={handleActivateDirectly}
+            >
+              Activate now
+            </Button>
+          </Space>
         </div>
       )}
 

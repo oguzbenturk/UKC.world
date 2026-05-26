@@ -660,6 +660,7 @@ export async function getInstructorDashboard(instructorId) {
       FROM bookings b
       LEFT JOIN users s ON s.id = b.student_user_id
       WHERE b.instructor_user_id = $1
+        AND b.deleted_at IS NULL
         AND (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()
         AND (b.status IS NULL OR b.status NOT IN ('cancelled'))
       ORDER BY b.date ASC, b.start_hour ASC
