@@ -664,13 +664,26 @@ class BookingUpdateCascadeService {
    */
   static async updateCustomerBalance(client, booking, changes) {
     if (!booking.student_user_id) return;
-    
+
     try {
       const oldAmount = new Decimal(changes._previous?.final_amount || changes._previous?.amount || 0);
       const newAmount = new Decimal(booking.final_amount || booking.amount || 0);
       const amountDifference = newAmount.sub(oldAmount);
 
       if (amountDifference.abs().gt(0.01)) {
+        // Multi-participant bookings: the per-head share fan-out in
+        // routes/bookings.js (`Price decrease/increase reconciliation for
+        // shared booking`) already settles each participant's wallet. Posting
+        // a second whole-booking adjustment here would double-credit the
+        // primary participant for the entire delta.
+        const { rows: pcRows } = await client.query(
+          `SELECT COUNT(*)::int AS n FROM booking_participants WHERE booking_id = $1`,
+          [booking.id]
+        );
+        if ((pcRows[0]?.n || 0) > 1) {
+          return;
+        }
+
         // For individual bookings (not packages), update customer balance
         if (booking.payment_status !== 'package') {
           await client.query(`
