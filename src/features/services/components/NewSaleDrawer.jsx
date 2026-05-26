@@ -426,11 +426,14 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           className="!mb-4"
         >
           <Select
-            placeholder="Search customer name or email"
+            placeholder="Search customer name, email or phone"
             showSearch
             size="large"
-            optionFilterProp="children"
             optionLabelProp="label"
+            filterOption={(input, option) => {
+              const q = (input || '').toLowerCase();
+              return (option?.searchText || '').toLowerCase().includes(q);
+            }}
             className="w-full"
             loading={loadingCustomers}
             notFoundContent={loadingCustomers ? <Spin size="small" /> : 'No customers found'}
@@ -438,8 +441,9 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
             {customers.map(c => {
               const name = c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim();
               const label = name || c.email || 'Customer';
+              const searchText = `${label} ${c.email || ''} ${c.phone || ''}`;
               return (
-                <Select.Option key={c.id} value={c.id} label={label}>
+                <Select.Option key={c.id} value={c.id} label={label} searchText={searchText}>
                   <div className="flex flex-col">
                     <span className="font-medium text-slate-900">{label}</span>
                     {c.email && c.email !== label && (
