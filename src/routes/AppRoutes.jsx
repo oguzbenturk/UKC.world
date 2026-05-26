@@ -154,6 +154,10 @@ const EventsPage = lazyWithRetry(() => import('../features/events/pages/EventsPa
 // Repairs
 const RepairsPage = lazyWithRetry(() => import('../features/repairs/pages/RepairsPage'));
 const CareLandingPage = lazyWithRetry(() => import('../features/outsider/pages/CareLandingPage'));
+const WarrantySubmitPage = lazyWithRetry(() => import('../features/warranty/pages/WarrantySubmitPage'));
+const WarrantyTrackPage = lazyWithRetry(() => import('../features/warranty/pages/WarrantyTrackPage'));
+const WarrantyStaffPage = lazyWithRetry(() => import('../features/warranty/pages/WarrantyStaffPage'));
+const AdminWarrantyListPage = lazyWithRetry(() => import('../features/warranty/pages/AdminWarrantyListPage'));
 
 // Marketing
 const MarketingPage = lazyWithRetry(() => import('../features/marketing/pages/MarketingPage'));
@@ -394,6 +398,11 @@ const AppRoutes = () => {
       {/* .Care public page – submit & track repair requests without an account */}
       <Route path="/care" element={<CareLandingPage />} />
 
+      {/* UKC.Care — Warranty (public submit, customer & staff tracking) */}
+      <Route path="/care/warranty" element={<WarrantySubmitPage />} />
+      <Route path="/care/track/:code" element={<WarrantyTrackPage />} />
+      <Route path="/care/staff/:code" element={<WarrantyStaffPage />} />
+
       <Route path="/stay" element={<StayLandingPage />} />
       {/* Stay pages - explore accommodation */}
       <Route path="/stay/book-accommodation" element={<StayBookingPage />} />
@@ -540,6 +549,12 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
         <Route path="/admin/deleted-bookings" element={<Navigate to="/settings?tab=deleted-bookings" replace />} />
   <Route path="/admin/spare-parts" element={<SparePartsOrders />} />
+      </Route>
+
+      {/* UKC.Care warranty admin — managers and above */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.MANAGER, ROLES.ADMIN]} />}>
+        <Route path="/admin/warranty" element={<AdminWarrantyListPage />} />
+        <Route path="/admin/warranty/:id" element={<AdminWarrantyListPage />} />
       </Route>
         {/* Routes for operations staff (instructors and above) */}
       <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN]} requiredPermissions={['bookings:read', 'equipment:read', 'services:read']} />}>

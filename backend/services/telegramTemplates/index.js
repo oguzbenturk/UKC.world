@@ -1,4 +1,5 @@
 import { logger } from '../../middlewares/errorHandler.js';
+import { buildWarrantyClaimSubmitted } from './warranty.js';
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://ukc.plannivo.com').replace(/\/$/, '');
 
@@ -391,6 +392,8 @@ export function buildTelegramMessageForType(type, data) {
         return buildLessonRatingInstructor(data);
       case 'rental_customer':
         return buildRentalCustomer(data);
+      case 'warranty_claim_submitted':
+        return buildWarrantyClaimSubmitted(data);
       default:
         return null;
     }

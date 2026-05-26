@@ -165,6 +165,21 @@ export const formSubmissionRateLimit = rateLimit({
   skipSuccessfulRequests: false // Count all attempts
 });
 
+// Warranty tracking lookups — looser than form submission so a customer
+// refreshing their /care/track/:code page isn't blocked, but tight enough that
+// brute-forcing the 8-char token space is throttled.
+export const warrantyLookupRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'development' ? 1000 : 60,
+  message: {
+    error: 'Too many warranty tracking requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: shouldSkipRateLimit
+});
+
 // Rate limiting for payment callbacks (Iyzico, etc.) - prevents brute force attacks
 export const paymentCallbackRateLimit = rateLimit({
   windowMs: parsePositiveInt(process.env.PAYMENT_CALLBACK_RATE_LIMIT_WINDOW_MS, 60 * 1000), // 1 minute
@@ -382,6 +397,7 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/agent/',                  // Server-to-server from n8n; protected by X-Kai-Agent-Secret header
   '/api/assistant',               // Public AI chat widget — no session cookie to steal
   '/api/telegram/webhook',        // Telegram webhook; protected by X-Telegram-Bot-Api-Secret-Token header
+  '/api/public/warranty',         // UKC.Care public warranty submit + staff portal; rate limited, no session
 ];
 
 /**

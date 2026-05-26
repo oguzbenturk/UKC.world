@@ -391,6 +391,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/admin/vouchers', label: 'Vouchers', labelKey: 'common:nav.vouchers', icon: 'SparklesIcon' }
         ]
       }),
+      item('/admin/warranty', 'Warranty', 'ShieldCheckIcon', {
+        labelKey: 'common:nav.warranty',
+        customStyle: { textColor: '#10b981' }
+      }),
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
         labelKey: 'common:nav.ratingAnalytics',
         customStyle: { textColor: '#f59e0b' }
@@ -475,6 +479,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/quick-links', label: 'Links & Forms', labelKey: 'common:nav.linksAndForms', icon: 'LinkIcon' },
           { to: '/admin/vouchers', label: 'Vouchers', labelKey: 'common:nav.vouchers', icon: 'SparklesIcon' }
         ]
+      }),
+      item('/admin/warranty', 'Warranty', 'ShieldCheckIcon', {
+        labelKey: 'common:nav.warranty',
+        customStyle: { textColor: '#10b981' }
       }),
       item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
         labelKey: 'common:nav.ratingAnalytics',
@@ -584,6 +592,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
         { to: '/quick-links', label: 'Links & Forms', labelKey: 'common:nav.linksAndForms', icon: 'LinkIcon' },
         { to: '/admin/vouchers', label: 'Vouchers', labelKey: 'common:nav.vouchers', icon: 'SparklesIcon' }
       ]
+    }),
+    item('/admin/warranty', 'Warranty', 'ShieldCheckIcon', {
+      labelKey: 'common:nav.warranty',
+      customStyle: { textColor: '#10b981' }
     }),
     item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
       labelKey: 'common:nav.ratingAnalytics',

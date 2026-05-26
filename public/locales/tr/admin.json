@@ -1315,5 +1315,101 @@
         "special": "Bir özel karakter (@$!%*?&)"
       }
     }
+  },
+  "warranty": {
+    "list": {
+      "title": "Garanti talepleri",
+      "searchPlaceholder": "İsim, e-posta, kod, ürün ile ara…",
+      "statusFilter": "Tüm durumlar",
+      "empty": "Henüz garanti talebi yok.",
+      "columns": {
+        "code": "Kod",
+        "customer": "Müşteri",
+        "product": "Ürün",
+        "status": "Durum",
+        "media": "Medya",
+        "submitted": "Gönderildi"
+      }
+    },
+    "stats": {
+      "open": "Açık talepler",
+      "last7": "Son 7 gün",
+      "awaitingCustomer": "Müşteri bekleniyor",
+      "withManufacturer": "Üreticide"
+    },
+    "detail": {
+      "loading": "Garanti talebi",
+      "internalNote": "Not ekle",
+      "notePlaceholder": "Bir not yazın…",
+      "noteSubmit": "Notu ekle",
+      "noteVisible": "Müşteri görebilsin",
+      "customerUpdate": "Müşteriye mesaj gönder",
+      "customerUpdatePlaceholder": "Bir mesaj yazın — müşteri takip sayfasında görür ve e-posta alır.",
+      "customerUpdateSend": "Müşteriye gönder",
+      "activeStaff": "Aktif ekip bağlantıları",
+      "noStaffLinks": "Henüz aktif ekip bağlantısı yok.",
+      "inviteStaff": "Garanti ekibinden birini davet et",
+      "staffName": "Ad",
+      "staffEmail": "E-posta",
+      "sendStaffInvite": "Daveti gönder",
+      "sentAt": "{{when}} gönderildi",
+      "revokedHidden": "İptal edilmiş bağlantılar denetim izi için zaman çizelgesinde tutulur.",
+      "openTracking": "Takip sayfasını aç",
+      "tabs": {
+        "overview": "Genel",
+        "timeline": "Zaman çizelgesi",
+        "media": "Medya ({{n}})",
+        "staff": "Ekip bağlantıları",
+        "notes": "Notlar ve mesajlar",
+        "danger": "Tehlikeli bölge"
+      },
+      "fields": {
+        "customer": "Müşteri",
+        "phone": "Telefon",
+        "product": "Ürün",
+        "model": "Model / Seri",
+        "purchase": "Satın alma",
+        "mfrClaim": "Üretici talep #",
+        "submitted": "Gönderildi",
+        "closed": "Kapatma zamanı",
+        "issue": "Sorun açıklaması"
+      }
+    },
+    "media": {
+      "deletePrompt": "Bu dosya kalıcı olarak silinsin mi?"
+    },
+    "actions": {
+      "open": "Aç",
+      "refresh": "Yenile",
+      "changeStatus": "Durumu değiştir",
+      "statusNote": "Müşteriye iletilecek isteğe bağlı not",
+      "statusNotePlaceholder": "Örn. \"Üretici onayı bekleniyor…\"",
+      "apply": "Uygula",
+      "resendLink": "Müşteri bağlantısını yeniden gönder",
+      "linkResent": "Takip bağlantısı yeniden gönderildi.",
+      "copied": "Bağlantı kopyalandı.",
+      "copyLink": "Bağlantıyı kopyala",
+      "revoke": "İptal et",
+      "revokeConfirm": "Bu ekip bağlantısı iptal edilsin mi?",
+      "cancel": "Vazgeç",
+      "delete": "Sil",
+      "statusUpdated": "Durum güncellendi. Müşteri bilgilendirildi.",
+      "noteSaved": "Not kaydedildi.",
+      "customerUpdated": "Güncelleme müşteriye gönderildi.",
+      "staffInvited": "Ekip daveti gönderildi.",
+      "staffRevoked": "Ekip bağlantısı iptal edildi.",
+      "mediaDeleted": "Medya silindi.",
+      "closed": "Talep kapatıldı.",
+      "deleted": "Talep silindi."
+    },
+    "danger": {
+      "headsUp": "Bu işlemler kalıcıdır.",
+      "description": "Talebi kapatmak müşteriyi bilgilendirir ve dosyayı bitirdikten sonra yüklenen fotoğraf ve videoları diskten siler. Talebi silmek paneldeki görünümünü kaldırır ve medyayı hemen temizler. Denetim izi korunur.",
+      "close": "Talebi kapat",
+      "closeConfirm": "Talep kapatılsın ve müşteri bilgilendirilsin mi?",
+      "delete": "Talebi sil",
+      "deleteConfirm": "Bu talep kalıcı olarak silinsin ve tüm yüklenen medya temizlensin mi?",
+      "copyCustomer": "Müşteri bağlantısını kopyala"
+    }
   }
 }

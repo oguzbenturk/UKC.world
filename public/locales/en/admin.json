@@ -1315,5 +1315,101 @@
         "special": "One special character (@$!%*?&)"
       }
     }
+  },
+  "warranty": {
+    "list": {
+      "title": "Warranty claims",
+      "searchPlaceholder": "Search by name, email, code, product…",
+      "statusFilter": "All statuses",
+      "empty": "No warranty claims yet.",
+      "columns": {
+        "code": "Code",
+        "customer": "Customer",
+        "product": "Product",
+        "status": "Status",
+        "media": "Media",
+        "submitted": "Submitted"
+      }
+    },
+    "stats": {
+      "open": "Open claims",
+      "last7": "Last 7 days",
+      "awaitingCustomer": "Awaiting customer",
+      "withManufacturer": "With manufacturer"
+    },
+    "detail": {
+      "loading": "Warranty claim",
+      "internalNote": "Add a note",
+      "notePlaceholder": "Write a note…",
+      "noteSubmit": "Add note",
+      "noteVisible": "Visible to customer",
+      "customerUpdate": "Send a message to the customer",
+      "customerUpdatePlaceholder": "Type a message — the customer will see it on their tracking page and get an email.",
+      "customerUpdateSend": "Send to customer",
+      "activeStaff": "Active staff links",
+      "noStaffLinks": "No active staff links yet.",
+      "inviteStaff": "Invite a warranty team member",
+      "staffName": "Name",
+      "staffEmail": "Email",
+      "sendStaffInvite": "Send invite",
+      "sentAt": "Sent {{when}}",
+      "revokedHidden": "Revoked links are kept in the timeline for the audit trail.",
+      "openTracking": "Open tracking page",
+      "tabs": {
+        "overview": "Overview",
+        "timeline": "Timeline",
+        "media": "Media ({{n}})",
+        "staff": "Staff links",
+        "notes": "Notes & messages",
+        "danger": "Danger zone"
+      },
+      "fields": {
+        "customer": "Customer",
+        "phone": "Phone",
+        "product": "Product",
+        "model": "Model / Serial",
+        "purchase": "Purchase",
+        "mfrClaim": "Manufacturer claim #",
+        "submitted": "Submitted",
+        "closed": "Closed at",
+        "issue": "Issue description"
+      }
+    },
+    "media": {
+      "deletePrompt": "Delete this file permanently?"
+    },
+    "actions": {
+      "open": "Open",
+      "refresh": "Refresh",
+      "changeStatus": "Change status",
+      "statusNote": "Optional note to customer",
+      "statusNotePlaceholder": "E.g. \"Waiting on the manufacturer to confirm…\"",
+      "apply": "Apply",
+      "resendLink": "Resend customer link",
+      "linkResent": "Tracking link resent.",
+      "copied": "Link copied.",
+      "copyLink": "Copy link",
+      "revoke": "Revoke",
+      "revokeConfirm": "Revoke this staff link?",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "statusUpdated": "Status updated. Customer notified.",
+      "noteSaved": "Note saved.",
+      "customerUpdated": "Update sent to customer.",
+      "staffInvited": "Staff invite sent.",
+      "staffRevoked": "Staff link revoked.",
+      "mediaDeleted": "Media deleted.",
+      "closed": "Claim closed.",
+      "deleted": "Claim deleted."
+    },
+    "danger": {
+      "headsUp": "These actions are permanent.",
+      "description": "Closing a claim notifies the customer and deletes uploaded photos and videos from disk after we finish the case. Deleting a claim hides it from the dashboard and purges the media now. The audit trail is preserved.",
+      "close": "Close claim",
+      "closeConfirm": "Close this claim and email the customer?",
+      "delete": "Delete claim",
+      "deleteConfirm": "Permanently delete this claim and remove all uploaded media?",
+      "copyCustomer": "Copy customer link"
+    }
   }
 }

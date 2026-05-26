@@ -15,7 +15,8 @@ import {
   HomeOutlined, BookOutlined, CloseOutlined,
   PlusCircleOutlined, MinusCircleOutlined,
   FieldTimeOutlined, DashboardOutlined, CrownOutlined,
-  LineChartOutlined, FileTextOutlined, TeamOutlined
+  LineChartOutlined, FileTextOutlined, TeamOutlined,
+  CheckCircleFilled
 } from '@ant-design/icons';
 import DataService from '@/shared/services/dataService';
 import FinancialService from '../../finances/services/financialService';
@@ -1091,6 +1092,13 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               {customer?.status && <Tag color={customer.status === 'active' ? 'green' : 'default'} bordered={false} className="rounded-full text-[10px] leading-none px-1.5 py-0 m-0">{customer.status.toUpperCase()}</Tag>}
               {customer?.role && <Tag color={customer.role === 'outsider' ? 'orange' : 'blue'} bordered={false} className="rounded-full text-[10px] leading-none px-1.5 py-0 m-0">{customer.role === 'outsider' ? 'Outsider' : 'Student'}</Tag>}
+              {customer?.email && (
+                customer.email_verified === true ? (
+                  <Tag icon={<CheckCircleFilled />} color="green" bordered={false} className="rounded-full text-[10px] leading-none px-1.5 py-0 m-0">ACTIVATED</Tag>
+                ) : customer.email_verified === false ? (
+                  <Tag color="orange" bordered={false} className="rounded-full text-[10px] leading-none px-1.5 py-0 m-0">NOT ACTIVATED</Tag>
+                ) : null
+              )}
             </div>
           </div>
         </div>

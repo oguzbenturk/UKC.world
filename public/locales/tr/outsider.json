@@ -1009,6 +1009,11 @@
     "adminCta": {
       "text": "Giriş yaptınız — tüm taleplerinizi tek bir yerde görün",
       "button": "Tamir Panosuna Git"
+    },
+    "warrantyCta": {
+      "eyebrow": "Garanti",
+      "title": "Üretici hatasından kaynaklı bir sorun mu var?",
+      "subtitle": "Fotoğraf ve videolarla bir garanti talebi oluşturun — takip bağlantısı e-postanıza gelir."
     }
   },
   "shop": {

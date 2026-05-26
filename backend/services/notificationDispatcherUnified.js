@@ -105,6 +105,9 @@ const NOTIFICATION_TYPES = new Set([
   'promotion',
   'announcement',
   'warning',
+
+  // Warranty (UKC.Care)
+  'warranty_claim_submitted',
 ]);
 
 // ─── Preference mapping ───────────────────────────────────────────────────────

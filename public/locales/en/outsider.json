@@ -1005,6 +1005,11 @@
     "adminCta": {
       "text": "You're logged in — see all your requests in one place",
       "button": "Go to Repair Dashboard"
+    },
+    "warrantyCta": {
+      "eyebrow": "Warranty",
+      "title": "Manufacturing defect under warranty?",
+      "subtitle": "Open a warranty claim with photos & videos — get a tracking link in your email."
     }
   },
   "shop": {

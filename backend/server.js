@@ -91,6 +91,8 @@ import businessExpensesRouter from './routes/businessExpenses.js';
 import formTemplatesRouter from './routes/formTemplates.js';
 import formSubmissionsRouter from './routes/formSubmissions.js';
 import publicFormsRouter from './routes/publicForms.js';
+import publicWarrantyRouter from './routes/publicWarranty.js';
+import warrantyAdminRouter from './routes/warrantyAdmin.js';
 import adminRouter from './routes/admin.js';
 import assistantRouter from './routes/assistant.js';
 import agentRouter from './routes/agent.js';
@@ -1359,6 +1361,8 @@ app.use('/api/quick-links', authenticateJWT, quickLinksRouter);
 app.use('/api/form-templates', authenticateJWT, formTemplatesRouter);
 app.use('/api/form-submissions', authenticateJWT, formSubmissionsRouter);
 app.use('/api/public/forms', publicFormsRouter); // Public form access
+app.use('/api/public/warranty', publicWarrantyRouter); // UKC.Care warranty (public form, customer tracking, staff portal)
+app.use('/api/warranty/admin', warrantyAdminRouter); // UKC.Care warranty admin panel
 
 // Public accommodation units endpoint for guest browsing (showroom)
 app.get('/api/accommodation/units/public', async (req, res) => {

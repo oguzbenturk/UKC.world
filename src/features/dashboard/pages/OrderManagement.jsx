@@ -38,6 +38,7 @@ import {
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import apiClient from '@/shared/services/apiClient';
+import { realTimeService } from '@/shared/services/realTimeService';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -166,6 +167,23 @@ const OrderManagement = ({ embedded = false }) => {
   useEffect(() => {
     fetchLowStock();
   }, []);
+
+  useEffect(() => {
+    const handleOrderChange = () => {
+      fetchOrders();
+      fetchLowStock();
+    };
+    realTimeService.on('shop:newOrder', handleOrderChange);
+    realTimeService.on('shop:orderStatusChanged', handleOrderChange);
+    realTimeService.on('shop:orderDeleted', handleOrderChange);
+    realTimeService.on('shop:lowStock', fetchLowStock);
+    return () => {
+      realTimeService.off('shop:newOrder', handleOrderChange);
+      realTimeService.off('shop:orderStatusChanged', handleOrderChange);
+      realTimeService.off('shop:orderDeleted', handleOrderChange);
+      realTimeService.off('shop:lowStock', fetchLowStock);
+    };
+  }, [fetchOrders]);
 
   const handleViewOrder = async (order) => {
     try {

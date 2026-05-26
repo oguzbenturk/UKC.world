@@ -14,6 +14,7 @@ import {
   UserOutlined,
   MailOutlined,
   PhoneOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -283,6 +284,33 @@ const CareLandingPage = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Warranty entry point — links to dedicated warranty form ── */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 mb-6">
+        <button
+          type="button"
+          onClick={() => navigate('/care/warranty')}
+          className="group w-full flex items-center justify-between gap-4 rounded-2xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent px-5 py-4 text-left transition hover:border-emerald-400/60 hover:from-emerald-500/15"
+        >
+          <div className="flex items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300">
+              <SafetyCertificateOutlined style={{ fontSize: 22 }} />
+            </span>
+            <div className="leading-tight">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-300">
+                {t('outsider:care.warrantyCta.eyebrow', 'Warranty')}
+              </p>
+              <h3 className="text-base font-semibold text-white sm:text-lg">
+                {t('outsider:care.warrantyCta.title', 'Manufacturing defect under warranty?')}
+              </h3>
+              <p className="text-xs text-white/60 sm:text-sm">
+                {t('outsider:care.warrantyCta.subtitle', 'Open a warranty claim with photos & videos — get a tracking link in your email.')}
+              </p>
+            </div>
+          </div>
+          <ArrowRightOutlined className="shrink-0 text-emerald-300 transition group-hover:translate-x-1" />
+        </button>
       </div>
 
       {/* ── Tab switcher ── */}

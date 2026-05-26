@@ -81,7 +81,7 @@ async function getOrderWithItems(orderId, client = pool) {
 }
 
 // Create a new order (customer checkout)
-router.post('/', authenticateJWT, async (req, res) => {
+router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1096,7 +1096,7 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
 });
 
 // Admin: Update order status
-router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1347,7 +1347,7 @@ router.get('/admin/stats', authenticateJWT, authorizeRoles(['admin', 'manager'])
 });
 
 // Cancel order (customer can cancel pending orders)
-router.post('/:id/cancel', authenticateJWT, async (req, res) => {
+router.post('/:id/cancel', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1458,6 +1458,14 @@ router.post('/:id/cancel', authenticateJWT, async (req, res) => {
       cancelCommission('shop', orderId, 'order_cancelled').catch(() => {});
     } catch { /* ignore */ }
 
+    emitSocketEvent('shop:orderStatusChanged', {
+      orderId,
+      orderNumber: updatedOrder.order_number,
+      previousStatus: order.status,
+      newStatus: 'cancelled',
+      customerId: updatedOrder.user_id
+    });
+
     logger.info(`Order ${orderId} cancelled by customer ${userId}`);
 
     res.json({
@@ -1539,6 +1547,11 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
       cancelCommission('shop', orderId, 'order_deleted').catch(() => {});
     } catch { /* ignore */ }
 
+    emitSocketEvent('shop:orderDeleted', {
+      orderId,
+      orderNumber: order.order_number
+    });
+
     logger.info(`Order ${orderId} (${order.order_number}) deleted by admin ${req.user.id}`);
 
     res.json({ success: true, message: 'Order deleted', stockRestored: !stockAlreadyReturned });
@@ -1552,7 +1565,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
 });
 
 // Admin/Staff: Create order on behalf of customer (Quick Sale from Front Desk)
-router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:write'), async (req, res) => {
+router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:write'), cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1707,6 +1720,14 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
     await client.query('COMMIT');
 
     const completeOrder = await getOrderWithItems(order.id);
+
+    emitSocketEvent('shop:newOrder', {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      totalAmount: completeOrder.total_amount,
+      itemCount: (completeOrder.items || []).length,
+      source: 'quick_sale'
+    });
 
     logger.info(`Quick sale #${order.order_number} created by staff ${staffUserId} for customer ${user_id || 'walk-in'}`);
 
