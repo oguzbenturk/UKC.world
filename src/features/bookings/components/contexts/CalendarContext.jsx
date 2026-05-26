@@ -1019,10 +1019,15 @@ function CalendarProvider({ children }) {
         extractedUsePackage: usePackage
       });
       
-      // Check if participant has package information (fallback)
-      if (bookingData.participants && bookingData.participants.length > 0) {
+      // Only fall back to the participant's package data when the caller didn't make
+      // an explicit choice. BookingDrawer multi-lesson submits set customerPackageId
+      // per-lesson (including explicit null for "wallet" overrides); honour that
+      // instead of silently flipping it back to the participant default.
+      const callerSetPackageChoice =
+        Object.prototype.hasOwnProperty.call(bookingData, 'customerPackageId') ||
+        Object.prototype.hasOwnProperty.call(bookingData, 'usePackageHours');
+      if (!callerSetPackageChoice && bookingData.participants && bookingData.participants.length > 0) {
         const primaryParticipant = bookingData.participants.find(p => p.isPrimary) || bookingData.participants[0];
-        // Only use participant package if both usePackage is true AND they have a selected package
         if (primaryParticipant.usePackage === true && primaryParticipant.selectedPackageId) {
           usePackage = true;
           packageId = primaryParticipant.selectedPackageId || packageId;

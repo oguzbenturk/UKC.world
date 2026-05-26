@@ -5,7 +5,7 @@ import {
   getWalletAccountSummary
 } from './walletService.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { recomputeDiscountForCustomerPackage } from './discountService.js';
+import { recomputeDiscountForCustomerPackage, deleteDiscount } from './discountService.js';
 import { recomputeManagerCommissionsForPackage } from './managerCommissionService.js';
 import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
 import {
@@ -187,6 +187,19 @@ export async function forceDeleteCustomerPackage({
         packageId, error: rateErr.message
       });
     }
+  }
+
+  // Reverse any open discount adjustments on this package and remove the
+  // discount rows. Without this, the refund below would return the full
+  // purchase_price while the original discount credit stays on the wallet —
+  // double-counting the discount and leaving a phantom balance the customer
+  // never paid for.
+  const { rows: pkgDiscounts } = await client.query(
+    `SELECT id FROM discounts WHERE entity_type = 'customer_package' AND entity_id = $1`,
+    [String(packageId)]
+  );
+  for (const d of pkgDiscounts) {
+    await deleteDiscount(client, d.id, { createdBy: actorId });
   }
 
   const { rows: participantUpdates } = await client.query(

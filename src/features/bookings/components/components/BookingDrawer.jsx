@@ -1109,10 +1109,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             const pkgId = getLessonParticipantPackage(i, p.userId);
             const pkgs = allUserPackages[p.userId] || [];
             const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
-            const usePackage = !!pkg;
-            // Deduct (so subsequent lessons see updated remaining)
+            // Only treat as a package payment if there are hours left in this lesson's
+            // budget; otherwise the previous lessons in this submit already drained it
+            // and the backend would reject the now-used_up package.
+            const avail = pkg ? (pkgRemaining[p.userId]?.[pkgId] ?? 0) : 0;
+            const usePackage = !!pkg && avail > 0;
             if (usePackage) {
-              const avail = pkgRemaining[p.userId]?.[pkgId] ?? 0;
               pkgRemaining[p.userId][pkgId] = Math.max(0, avail - lessonDuration);
             }
             return {
@@ -1163,8 +1165,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           const pkgId = participant ? getLessonParticipantPackage(i, participant.userId) : null;
           const pkgs = participant ? (allUserPackages[participant.userId] || []) : [];
           const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
-          const usePackage = !!pkg;
-          const pkgAvailNow = (usePackage && pkgRemaining[participant.userId]?.[pkgId] != null) ? pkgRemaining[participant.userId][pkgId] : 0;
+          // Treat package as usable only when hours remain after prior lessons in this
+          // submit have been deducted — otherwise the backend's status='active' check
+          // fails on a now-depleted package and the whole multi-booking aborts.
+          const pkgAvailNow = (pkg && pkgRemaining[participant.userId]?.[pkgId] != null) ? pkgRemaining[participant.userId][pkgId] : 0;
+          const usePackage = !!pkg && pkgAvailNow > 0;
           const finalPrice = computeBookingPrice({ plannedHours: lessonDuration, hourlyRate, packageHoursAvailable: pkgAvailNow, step: 0.25, participants: pCount });
           if (usePackage) pkgRemaining[participant.userId][pkgId] = Math.max(0, pkgAvailNow - lessonDuration);
 

@@ -3751,66 +3751,102 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
             LIMIT 1
           `;
           const specific = await client.query(sql, params);
-          if (specific.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({
-              error: 'Selected package cannot be used',
-              message: svcName
-                ? `Selected package doesn\'t match ${svcName} or is expired.`
-                : 'Selected package is expired or not active.'
+          const fallbackToCash = () => {
+            // Mirror /bookings/group's graceful fallback. Earlier lessons in a multi-submit
+            // can deplete the package (status → used_up); rejecting here would abort the
+            // whole multi-booking instead of charging the wallet for the remaining lessons.
+            logger.info('Calendar booking: selected package not usable, falling back to wallet', {
+              customerPackageId, userId, date: normalizedDate, serviceName: svcName
             });
-          }
-          const pkg = specific.rows[0];
-          const rh = pkg.remaining_hours, uh = pkg.used_hours, th = pkg.total_hours;
-          const currentUsed = parseFloat(uh) || 0;
-          const totalHours = parseFloat(th) || 0;
-          const currentRemaining = rh !== null && rh !== undefined ? parseFloat(rh) || 0 : Math.max(0, totalHours - currentUsed);
-          const consumeFromPackage = Math.min(serviceDuration, Math.max(0, currentRemaining));
-          const cashHours = Math.max(0, serviceDuration - consumeFromPackage);
-          const newRemaining = currentRemaining - consumeFromPackage;
-          const newUsed = currentUsed + consumeFromPackage;
-          await client.query(`
-            UPDATE customer_packages
-            SET used_hours = $1::numeric,
-                remaining_hours = $2::numeric,
-                last_used_date = $3,
-                updated_at = CURRENT_TIMESTAMP,
-                status = CASE
-                  WHEN $2::numeric <= 0
-                    AND COALESCE(rental_days_remaining, 0) <= 0
-                    AND COALESCE(accommodation_nights_remaining, 0) <= 0
-                  THEN 'used_up' ELSE 'active' END
-            WHERE id = $4 AND status = 'active'
-              AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
-              AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
-          `, [newUsed, newRemaining, normalizedDate, customerPackageId, consumeFromPackage]);
-          chosenPackageId = customerPackageId;
+            chosenPackageId = null;
+            finalPaymentStatus = 'paid';
+            if (servicePrice > 0) {
+              const dur = bookingDuration || 1;
+              finalFinalAmount = serviceDurationHours > 0
+                ? parseFloat(((servicePrice / serviceDurationHours) * dur).toFixed(2))
+                : servicePrice;
+            }
+            if (finalFinalAmount > 0) {
+              individualChargeEntry = {
+                userId,
+                amount: -Math.abs(finalFinalAmount),
+                transactionType: 'booking_charge',
+                currency: walletTransactionCurrency,
+                status: 'completed',
+                description: `Lesson charge (package unavailable): ${normalizedDate} ${time} (${serviceDuration}h)`,
+                metadata: {
+                  bookingDate: normalizedDate,
+                  startHour: time,
+                  durationHours: serviceDuration,
+                  paymentMethod: requestedPaymentMethod || 'wallet',
+                  source: 'calendar_booking_charge_pkg_fallback'
+                }
+              };
+            }
+          };
 
-          if (cashHours > 0) {
-            finalPaymentStatus = 'partial';
-            // If servicePrice was not found, fall back to provided amount as hourly
-            const hourly = servicePrice || (parseFloat(amount) || 0);
-            finalFinalAmount = parseFloat((hourly * cashHours).toFixed(2));
-            individualChargeEntry = {
-              userId,
-              amount: -Math.abs(finalFinalAmount),
-              transactionType: 'booking_charge',
-              currency: walletTransactionCurrency,
-              status: 'completed',
-              description: `Partial lesson cash leg (${cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
-              metadata: {
-                bookingDate: normalizedDate,
-                startHour: time,
-                cashHours,
-                packageHours: consumeFromPackage,
-                durationHours: serviceDuration,
-                paymentMethod: requestedPaymentMethod || 'wallet',
-                source: 'calendar_partial_cash_leg'
-              }
-            };
+          if (specific.rows.length === 0) {
+            fallbackToCash();
           } else {
-            finalPaymentStatus = 'package';
-            finalFinalAmount = 0;
+            const pkg = specific.rows[0];
+            const rh = pkg.remaining_hours, uh = pkg.used_hours, th = pkg.total_hours;
+            const currentUsed = parseFloat(uh) || 0;
+            const totalHours = parseFloat(th) || 0;
+            const currentRemaining = rh !== null && rh !== undefined ? parseFloat(rh) || 0 : Math.max(0, totalHours - currentUsed);
+            const consumeFromPackage = Math.min(serviceDuration, Math.max(0, currentRemaining));
+            const cashHours = Math.max(0, serviceDuration - consumeFromPackage);
+            const newRemaining = currentRemaining - consumeFromPackage;
+            const newUsed = currentUsed + consumeFromPackage;
+            const updateRes = await client.query(`
+              UPDATE customer_packages
+              SET used_hours = $1::numeric,
+                  remaining_hours = $2::numeric,
+                  last_used_date = $3,
+                  updated_at = CURRENT_TIMESTAMP,
+                  status = CASE
+                    WHEN $2::numeric <= 0
+                      AND COALESCE(rental_days_remaining, 0) <= 0
+                      AND COALESCE(accommodation_nights_remaining, 0) <= 0
+                    THEN 'used_up' ELSE 'active' END
+              WHERE id = $4 AND status = 'active'
+                AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
+                AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
+            `, [newUsed, newRemaining, normalizedDate, customerPackageId, consumeFromPackage]);
+
+            if (updateRes.rowCount === 0) {
+              // Package row matched the SELECT but the UPDATE guard rejected it
+              // (race with a concurrent booking or remaining_hours already <= 0).
+              // Without this fallback the booking would silently link to a package
+              // whose hours we never actually deducted.
+              fallbackToCash();
+            } else {
+              chosenPackageId = customerPackageId;
+              if (cashHours > 0) {
+                finalPaymentStatus = 'partial';
+                const hourly = servicePrice || (parseFloat(amount) || 0);
+                finalFinalAmount = parseFloat((hourly * cashHours).toFixed(2));
+                individualChargeEntry = {
+                  userId,
+                  amount: -Math.abs(finalFinalAmount),
+                  transactionType: 'booking_charge',
+                  currency: walletTransactionCurrency,
+                  status: 'completed',
+                  description: `Partial lesson cash leg (${cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
+                  metadata: {
+                    bookingDate: normalizedDate,
+                    startHour: time,
+                    cashHours,
+                    packageHours: consumeFromPackage,
+                    durationHours: serviceDuration,
+                    paymentMethod: requestedPaymentMethod || 'wallet',
+                    source: 'calendar_partial_cash_leg'
+                  }
+                };
+              } else {
+                finalPaymentStatus = 'package';
+                finalFinalAmount = 0;
+              }
+            }
           }
         } else {
           // Pick earliest active matching package with any remaining hours
