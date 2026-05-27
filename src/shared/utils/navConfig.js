@@ -353,6 +353,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/calendars/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
           { to: '/calendars/members', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
           { to: '/repairs', label: 'Care', labelKey: 'common:nav.care', dotColor: '#14b8a6' },
+          { to: '/inventory', label: 'Inventory', labelKey: 'common:nav.inventory', dotColor: '#a78bfa' },
           { to: '/calendars/stay', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
           { to: '/calendars/events', label: 'Community (Events)', labelKey: 'common:nav.communityEvents', dotColor: '#0ea5e9' }
         ]
@@ -438,6 +439,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/calendars/rentals', label: 'Rental', labelKey: 'common:nav.rental', dotColor: '#fb923c' },
           { to: '/calendars/members', label: 'Member', labelKey: 'common:nav.member', dotColor: '#93c47d' },
           { to: '/repairs', label: 'Care', labelKey: 'common:nav.care', dotColor: '#14b8a6' },
+          { to: '/inventory', label: 'Inventory', labelKey: 'common:nav.inventory', dotColor: '#a78bfa' },
           { to: '/calendars/stay', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
           { to: '/calendars/events', label: 'Community (Events)', labelKey: 'common:nav.communityEvents', dotColor: '#0ea5e9' }
         ]

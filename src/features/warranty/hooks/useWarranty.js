@@ -160,6 +160,18 @@ export function useSubmitWarrantyClaim() {
   });
 }
 
+export function useAdminCreateClaim() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ formData, onUploadProgress }) =>
+      api.adminCreateClaim(formData, { onUploadProgress }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['warrantyAdminList'] });
+      qc.invalidateQueries({ queryKey: KEYS.adminStats });
+    }
+  });
+}
+
 export function useStaffUpload(code) {
   const qc = useQueryClient();
   return useMutation({

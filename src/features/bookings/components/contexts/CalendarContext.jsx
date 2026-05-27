@@ -153,6 +153,18 @@ const standardizeBookingData = (rawBooking) => {
     participants: rawBooking.participants || [], // Preserve participants array from backend
     createdAt: rawBooking.createdAt || rawBooking.created_at,
     updatedAt: rawBooking.updatedAt || rawBooking.updated_at,
+    createdBy: rawBooking.createdBy ?? rawBooking.created_by ?? null,
+    createdByName: rawBooking.createdByName ?? rawBooking.created_by_name ?? null,
+    createdByEmail: rawBooking.createdByEmail ?? rawBooking.created_by_email ?? null,
+    created_by: rawBooking.created_by ?? rawBooking.createdBy ?? null,
+    created_by_name: rawBooking.created_by_name ?? rawBooking.createdByName ?? null,
+    created_by_email: rawBooking.created_by_email ?? rawBooking.createdByEmail ?? null,
+    updatedBy: rawBooking.updatedBy ?? rawBooking.updated_by ?? null,
+    updatedByName: rawBooking.updatedByName ?? rawBooking.updated_by_name ?? null,
+    updatedByEmail: rawBooking.updatedByEmail ?? rawBooking.updated_by_email ?? null,
+    updated_by: rawBooking.updated_by ?? rawBooking.updatedBy ?? null,
+    updated_by_name: rawBooking.updated_by_name ?? rawBooking.updatedByName ?? null,
+    updated_by_email: rawBooking.updated_by_email ?? rawBooking.updatedByEmail ?? null,
     _standardized: true // Mark as standardized to avoid re-processing
   };
   

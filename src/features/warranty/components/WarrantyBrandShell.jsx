@@ -69,7 +69,7 @@ export default function WarrantyBrandShell({ children, showLogo = true }) {
             <Link
               to="/care"
               aria-label="Duotone Pro Center Urla"
-              className="block mx-auto w-[180px] sm:w-[220px] opacity-90 transition hover:opacity-100"
+              className="block mx-auto w-[95vw] sm:w-[65vw] md:w-[48rem] max-w-[850px] opacity-90 transition hover:opacity-100"
             >
               <img
                 src={dpsLogo}

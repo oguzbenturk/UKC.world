@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, DatePicker, message } from 'antd';
+import { Form, Input, Button, DatePicker, Select, message } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import {
@@ -22,13 +22,37 @@ const { TextArea } = Input;
 const FORM_STYLE = `
   .warranty-ledger .ant-input,
   .warranty-ledger .ant-input-affix-wrapper,
-  .warranty-ledger .ant-picker {
+  .warranty-ledger .ant-picker,
+  .warranty-ledger .ant-select .ant-select-selector {
     background: rgba(255,255,255,0.03) !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
     color: #ffffff !important;
-    height: 52px;
-    border-radius: 6px;
+    height: 52px !important;
+    border-radius: 6px !important;
     transition: all 0.2s ease;
+  }
+  .warranty-ledger .ant-select .ant-select-selector {
+    display: flex;
+    align-items: center;
+    padding: 0 16px !important;
+  }
+  .warranty-ledger .ant-select-single .ant-select-selection-item,
+  .warranty-ledger .ant-select-single .ant-select-selection-placeholder {
+    line-height: 50px !important;
+    color: #ffffff !important;
+  }
+  .warranty-ledger .ant-select-single .ant-select-selection-placeholder {
+    color: rgba(255,255,255,0.22) !important;
+  }
+  .warranty-ledger .ant-select-arrow { color: rgba(255,255,255,0.3) !important; }
+  .warranty-ledger .ant-select:hover .ant-select-selector {
+    border-color: rgba(0,168,196,0.45) !important;
+    background: rgba(255,255,255,0.04) !important;
+  }
+  .warranty-ledger .ant-select-focused .ant-select-selector {
+    border-color: #00a8c4 !important;
+    box-shadow: 0 0 0 3px rgba(0,168,196,0.12), 0 0 24px rgba(0,168,196,0.18) !important;
+    background: rgba(255,255,255,0.05) !important;
   }
   .warranty-ledger .ant-input-affix-wrapper > .ant-input { background: transparent !important; height: auto !important; border: none !important; }
   .warranty-ledger textarea.ant-input {
@@ -144,18 +168,22 @@ export default function WarrantySubmitPage() {
   const lang = i18n.language?.startsWith('tr') ? 'tr' : 'en';
   const submitting = submitMutation.isPending;
 
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2, currentYear - 3]
+    .map((y) => ({ value: String(y), label: String(y) }));
+
   const handleSubmit = async (values) => {
     setProgress(0);
     const formData = new FormData();
     formData.append('customer_name', values.customer_name);
     formData.append('customer_email', values.customer_email);
-    if (values.customer_phone) formData.append('customer_phone', values.customer_phone);
+    formData.append('customer_phone', values.customer_phone);
     formData.append('product_name', values.product_name);
-    if (values.product_brand)   formData.append('product_brand', values.product_brand);
-    if (values.product_model)   formData.append('product_model', values.product_model);
-    if (values.product_serial)  formData.append('product_serial', values.product_serial);
-    if (values.purchase_date)   formData.append('purchase_date', dayjs(values.purchase_date).format('YYYY-MM-DD'));
-    if (values.purchase_location) formData.append('purchase_location', values.purchase_location);
+    formData.append('product_brand', values.product_brand);
+    formData.append('product_model', `${values.product_model} ${values.product_year}`);
+    formData.append('product_serial', values.product_serial);
+    formData.append('purchase_date', dayjs(values.purchase_date).format('YYYY-MM-DD'));
+    formData.append('purchase_location', values.purchase_location);
     formData.append('issue_description', values.issue_description);
     formData.append('preferred_language', lang);
     files.forEach((f) => formData.append('files', f, f.name));
@@ -298,8 +326,8 @@ export default function WarrantySubmitPage() {
               </Form.Item>
               <Form.Item
                 name="customer_phone"
-                label={<FieldLabel hint={t('public:warranty.submit.optional', 'Optional')}>{t('public:warranty.submit.fields.phone', 'Phone')}</FieldLabel>}
-                rules={[{ max: 50 }]}
+                label={<FieldLabel required>{t('public:warranty.submit.fields.phone', 'Phone')}</FieldLabel>}
+                rules={[{ required: true, max: 50 }]}
               >
                 <Input placeholder="+90 ..." />
               </Form.Item>
@@ -322,40 +350,64 @@ export default function WarrantySubmitPage() {
             >
               <Input placeholder={t('public:warranty.submit.placeholders.product', 'e.g. Duotone Juice 11m')} />
             </Form.Item>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5">
               <Form.Item
                 name="product_brand"
-                label={<FieldLabel hint={t('public:warranty.submit.optional', 'Optional')}>{t('public:warranty.submit.fields.brand', 'Brand')}</FieldLabel>}
-                rules={[{ max: 120 }]}
+                label={<FieldLabel required>{t('public:warranty.submit.fields.brand', 'Brand')}</FieldLabel>}
+                rules={[{ required: true }]}
               >
-                <Input placeholder="Duotone" />
+                <Select
+                  placeholder={t('public:warranty.submit.placeholders.brand', 'Select brand')}
+                  options={[
+                    { value: 'Duotone', label: 'Duotone' },
+                    { value: 'ION', label: 'ION' }
+                  ]}
+                />
               </Form.Item>
               <Form.Item
                 name="product_model"
-                label={<FieldLabel hint={t('public:warranty.submit.optional', 'Optional')}>{t('public:warranty.submit.fields.model', 'Model')}</FieldLabel>}
-                rules={[{ max: 120 }]}
+                label={<FieldLabel required>{t('public:warranty.submit.fields.model', 'Model')}</FieldLabel>}
+                rules={[{ required: true }]}
               >
-                <Input placeholder="2024 / SLS" />
+                <Select
+                  placeholder={t('public:warranty.submit.placeholders.model', 'Select model')}
+                  options={[
+                    { value: 'Standard', label: 'Standard' },
+                    { value: 'SLS', label: 'SLS' },
+                    { value: 'D/LAB', label: 'D/LAB' }
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item
+                name="product_year"
+                label={<FieldLabel required>{t('public:warranty.submit.fields.year', 'Model year')}</FieldLabel>}
+                rules={[{ required: true }]}
+              >
+                <Select
+                  placeholder={t('public:warranty.submit.placeholders.year', 'Year')}
+                  options={yearOptions}
+                />
               </Form.Item>
             </div>
             <Form.Item
               name="product_serial"
-              label={<FieldLabel hint={t('public:warranty.submit.optional', 'Optional')}>{t('public:warranty.submit.fields.serial', 'Serial number')}</FieldLabel>}
-              rules={[{ max: 120 }]}
+              label={<FieldLabel required>{t('public:warranty.submit.fields.serial', 'Serial number')}</FieldLabel>}
+              rules={[{ required: true, max: 120 }]}
             >
               <Input placeholder="DT-2024-XXXXXX" />
             </Form.Item>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
               <Form.Item
                 name="purchase_date"
-                label={<FieldLabel hint={t('public:warranty.submit.optional', 'Optional')}>{t('public:warranty.submit.fields.purchaseDate', 'Purchase date')}</FieldLabel>}
+                label={<FieldLabel required>{t('public:warranty.submit.fields.purchaseDate', 'Purchase date')}</FieldLabel>}
+                rules={[{ required: true }]}
               >
                 <DatePicker style={{ width: '100%' }} placeholder="YYYY-MM-DD" />
               </Form.Item>
               <Form.Item
                 name="purchase_location"
-                label={<FieldLabel hint={t('public:warranty.submit.optional', 'Optional')}>{t('public:warranty.submit.fields.purchaseLocation', 'Bought from')}</FieldLabel>}
-                rules={[{ max: 200 }]}
+                label={<FieldLabel required>{t('public:warranty.submit.fields.purchaseLocation', 'Bought from')}</FieldLabel>}
+                rules={[{ required: true, max: 200 }]}
               >
                 <Input placeholder={t('public:warranty.submit.placeholders.purchase', 'Shop or order #')} />
               </Form.Item>

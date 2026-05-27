@@ -36,6 +36,129 @@ function audit(action, claimId, req, metadata = {}) {
   });
 }
 
+// ─── Admin-initiated claim creation ──────────────────────────────────────────
+//
+// Lets an admin log a warranty claim on behalf of a customer (e.g. when the
+// customer walks in or rings the shop). Accepts the same fields as the public
+// route plus an optional external_claim_number that staff may already have
+// from the manufacturer. Files can be attached the same way as the public
+// submit. The customer still receives the standard tracking-link email so
+// they can follow the case online.
+
+const adminCreateUpload = (req, res, next) =>
+  media.handleMulterError(
+    media.claimMediaUpload.array('files', media.MAX_FILES_PER_REQUEST),
+    { requireFile: false }
+  )(req, res, next);
+
+router.post(
+  '/',
+  adminCreateUpload,
+  [
+    body('customer_name').isString().trim().isLength({ min: 2, max: 120 }),
+    body('customer_email').isString().trim().isEmail().isLength({ max: 200 }),
+    body('customer_phone').optional({ checkFalsy: true }).isString().isLength({ max: 50 }),
+    body('product_name').isString().trim().isLength({ min: 1, max: 200 }),
+    body('product_brand').optional({ checkFalsy: true }).isString().isLength({ max: 120 }),
+    body('product_model').optional({ checkFalsy: true }).isString().isLength({ max: 120 }),
+    body('product_serial').optional({ checkFalsy: true }).isString().isLength({ max: 120 }),
+    body('purchase_location').optional({ checkFalsy: true }).isString().isLength({ max: 200 }),
+    body('issue_description').isString().trim().isLength({ min: 5, max: 5000 }),
+    body('preferred_language').optional().isIn(['tr', 'en']),
+    body('external_claim_number').optional({ checkFalsy: true }).isString().isLength({ max: 120 }),
+    body('notify_customer').optional().isIn(['true', 'false', '0', '1'])
+  ],
+  async (req, res) => {
+    if (sendValidationErrors(req, res)) {
+      await media.purgePendingFiles(req.files || []);
+      return;
+    }
+
+    const uploadedFiles = req.files || [];
+    const fileCheck = media.validateUploadedFiles(uploadedFiles);
+    if (!fileCheck.ok) {
+      await media.purgePendingFiles(uploadedFiles);
+      return res.status(fileCheck.status).json({ error: fileCheck.error, code: fileCheck.code });
+    }
+
+    const parseDateOrNull = (value) => {
+      if (!value) return null;
+      const trimmed = String(value).trim();
+      if (!trimmed) return null;
+      const date = new Date(trimmed);
+      return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+    };
+
+    let claim;
+    try {
+      claim = await warrantyService.createClaim({
+        customer_name: req.body.customer_name.trim(),
+        customer_email: req.body.customer_email.trim().toLowerCase(),
+        customer_phone: req.body.customer_phone?.trim() || null,
+        product_name: req.body.product_name.trim(),
+        product_brand: req.body.product_brand?.trim() || null,
+        product_model: req.body.product_model?.trim() || null,
+        product_serial: req.body.product_serial?.trim() || null,
+        purchase_date: parseDateOrNull(req.body.purchase_date),
+        purchase_location: req.body.purchase_location?.trim() || null,
+        issue_description: req.body.issue_description.trim(),
+        preferred_language: req.body.preferred_language === 'tr' ? 'tr' : 'en',
+        external_claim_number: req.body.external_claim_number?.trim() || null,
+        source: 'admin',
+        actor_user_id: req.user.id,
+        submitted_ip: req.ip || null,
+        submitted_user_agent: req.get('User-Agent') || null
+      });
+    } catch (err) {
+      logger.error('Warranty: admin createClaim failed', { error: err.message });
+      await media.purgePendingFiles(uploadedFiles);
+      return res.status(500).json({ error: 'Could not create warranty claim.' });
+    }
+
+    if (uploadedFiles.length > 0) {
+      try {
+        const moved = await media.relocatePendingFilesToClaim(uploadedFiles, claim.id);
+        for (const m of moved) {
+          await warrantyService.attachMediaRecord({
+            claimId: claim.id,
+            kind: m.kind,
+            filename: m.filename,
+            originalName: m.originalName,
+            sizeBytes: m.sizeBytes,
+            mimeType: m.mimeType,
+            storagePath: m.storagePath,
+            uploadedByKind: 'admin',
+            uploadedByUserId: req.user.id
+          });
+        }
+      } catch (err) {
+        logger.error('Warranty: admin upload attach failed', {
+          claimId: claim.id, error: err.message
+        });
+        await media.purgePendingFiles(uploadedFiles);
+      }
+    }
+
+    const refreshed = await warrantyService.getClaimById(claim.id);
+
+    audit('claim_created_by_admin', refreshed.id, req, {
+      external_claim_number: refreshed.external_claim_number || null,
+      file_count: uploadedFiles.length
+    });
+
+    // Default: notify customer with tracking link. Admin may suppress by
+    // passing notify_customer=false (e.g. recording a closed historical case).
+    const notifyCustomer = !(req.body.notify_customer === 'false' || req.body.notify_customer === '0');
+    if (notifyCustomer) {
+      notify.notifyClaimSubmittedToCustomer(refreshed).catch((err) =>
+        logger.warn('Warranty: customer email failed (admin create)', { error: err.message })
+      );
+    }
+
+    return res.status(201).json(refreshed);
+  }
+);
+
 // ─── List & stats ────────────────────────────────────────────────────────────
 
 router.get(

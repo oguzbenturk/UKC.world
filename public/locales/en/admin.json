@@ -1378,8 +1378,32 @@
     "media": {
       "deletePrompt": "Delete this file permanently?"
     },
+    "create": {
+      "eyebrow": "UKC.Care",
+      "title": "New warranty claim",
+      "subtitle": "Log a claim on behalf of a customer. The customer will receive a tracking link by email.",
+      "submit": "Create claim",
+      "success": "Warranty claim created.",
+      "errorGeneric": "Could not create the claim.",
+      "section": {
+        "customer": "Customer",
+        "product": "Product",
+        "case": "Case",
+        "media": "Media (optional)"
+      },
+      "fields": {
+        "externalClaim": "Manufacturer claim #",
+        "externalClaimHint": "if you already have one",
+        "language": "Customer's language"
+      },
+      "notify": {
+        "title": "Email the customer the tracking link",
+        "body": "Recommended. They will receive a UKC.Care branded email with the tracking link."
+      }
+    },
     "actions": {
       "open": "Open",
+      "newClaim": "New claim",
       "refresh": "Refresh",
       "changeStatus": "Change status",
       "statusNote": "Optional note to customer",

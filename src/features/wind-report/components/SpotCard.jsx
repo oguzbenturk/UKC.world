@@ -13,6 +13,13 @@ const REGION_META = {
   canakkale: { label: 'Çanakkale', accent: 'text-amber-700', dot: 'bg-amber-500', glow: 'bg-amber-300' },
 };
 
+const WATER_META = {
+  flat:     { chip: 'bg-sky-50 text-sky-700 ring-sky-200' },
+  choppy:   { chip: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
+  wave:     { chip: 'bg-teal-50 text-teal-700 ring-teal-200' },
+  flatWave: { chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+};
+
 const SpotCard = ({ report, weight, index = 0 }) => {
   const { t, i18n } = useTranslation('common');
   const locale = (i18n.resolvedLanguage || i18n.language || 'en').slice(0, 2);
@@ -84,7 +91,7 @@ const SpotCard = ({ report, weight, index = 0 }) => {
         <div className="relative flex items-start justify-between gap-6">
           {/* Left: region + name + verdict */}
           <div className="min-w-0 flex-1">
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-gotham-medium uppercase tracking-[0.3em]">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-gotham-medium uppercase tracking-[0.3em]">
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${region.dot}`} />
               <span className={region.accent}>{region.label}</span>
               <span className="text-slate-300">·</span>
@@ -92,6 +99,16 @@ const SpotCard = ({ report, weight, index = 0 }) => {
                 <MapPinIcon className="h-3 w-3" />
                 {spot.lat.toFixed(2)}°N
               </span>
+              {spot.water && WATER_META[spot.water] && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] tracking-[0.2em] ring-1 ${WATER_META[spot.water].chip}`}
+                  >
+                    {t(`windReport.water.${spot.water}`)}
+                  </span>
+                </>
+              )}
             </div>
             <h2 className="font-duotone-bold-extended text-[30px] leading-[0.95] tracking-tight text-slate-900 sm:text-[34px]">
               {t(spot.nameKey)}

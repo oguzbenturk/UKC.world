@@ -464,7 +464,17 @@
     "selectSize": "Выберите размер",
     "enterSize": "Введите размер",
     "selectCondition": "Выберите состояние",
-    "selectStatus": "Выберите статус"
+    "selectStatus": "Выберите статус",
+    "unitsLabel": "шт.",
+    "unitLabel": "шт.",
+    "viewUnits": "Показать единицы",
+    "addUnit": "Добавить единицу",
+    "availShort": "дост.",
+    "inUseShort": "в исп.",
+    "maintShort": "обсл.",
+    "retiredShort": "спис.",
+    "serialNumber": "Серийный",
+    "location": "Расположение"
   },
   "auth": {
     "signedIn": "Вход выполнен успешно!",
@@ -789,6 +799,13 @@
       "pirlanta": "Пляж Пырланта",
       "gulbahce": "Урла – Гюльбахче",
       "gokceada": "Гёкчеада"
+    },
+    "water": {
+      "label": "Вода",
+      "flat": "Гладкая",
+      "choppy": "Чоппи",
+      "wave": "Волна",
+      "flatWave": "Гладкая / Волна"
     },
     "metrics": {
       "wind": "Ветер",

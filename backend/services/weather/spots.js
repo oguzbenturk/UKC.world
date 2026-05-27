@@ -10,6 +10,7 @@ export const SPOTS = {
     region: 'izmir',
     timezone: 'Europe/Istanbul',
     windguruSpotId: '574666',
+    water: 'flat',
   },
   alacati: {
     id: 'alacati',
@@ -19,6 +20,7 @@ export const SPOTS = {
     region: 'izmir',
     timezone: 'Europe/Istanbul',
     windguruSpotId: '30910',
+    water: 'choppy',
   },
   pirlanta: {
     id: 'pirlanta',
@@ -28,6 +30,7 @@ export const SPOTS = {
     region: 'izmir',
     timezone: 'Europe/Istanbul',
     windguruSpotId: '24929',
+    water: 'wave',
   },
   gokceada: {
     id: 'gokceada',
@@ -37,6 +40,7 @@ export const SPOTS = {
     region: 'canakkale',
     timezone: 'Europe/Istanbul',
     windguruSpotId: '1289863',
+    water: 'flatWave',
   },
 };
 

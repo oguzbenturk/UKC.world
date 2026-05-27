@@ -2,12 +2,14 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Table, Input, Select, Button, Tag, Space, Tooltip, Empty } from 'antd';
 import {
-  ReloadOutlined, EyeOutlined, SearchOutlined, SafetyOutlined, ClockCircleOutlined
+  ReloadOutlined, EyeOutlined, SearchOutlined, SafetyOutlined, ClockCircleOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import WarrantyStatusBadge from '../components/WarrantyStatusBadge';
 import AdminWarrantyDetailModal from '../components/AdminWarrantyDetailModal';
+import AdminWarrantyCreateModal from '../components/AdminWarrantyCreateModal';
 import { useAdminWarrantyList, useAdminWarrantyStats } from '../hooks/useWarranty';
 import { STATUSES, formatBytes } from '../constants';
 
@@ -22,6 +24,7 @@ export default function AdminWarrantyListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [openClaimId, setOpenClaimId] = useState(routeId || null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => { setOpenClaimId(routeId || null); }, [routeId]);
 
@@ -141,12 +144,21 @@ export default function AdminWarrantyListPage() {
             {t('admin:warranty.list.title', 'Warranty claims')}
           </h1>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => { listQuery.refetch(); statsQuery.refetch(); }}
-        >
-          {t('admin:warranty.actions.refresh', 'Refresh')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => { listQuery.refetch(); statsQuery.refetch(); }}
+          >
+            {t('admin:warranty.actions.refresh', 'Refresh')}
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateOpen(true)}
+          >
+            {t('admin:warranty.actions.newClaim', 'New claim')}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -230,6 +242,16 @@ export default function AdminWarrantyListPage() {
           onClose={handleCloseModal}
         />
       )}
+
+      <AdminWarrantyCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(claim) => {
+          listQuery.refetch();
+          statsQuery.refetch();
+          if (claim?.id) handleOpenClaim(claim.id);
+        }}
+      />
     </div>
   );
 }

@@ -1378,8 +1378,32 @@
     "media": {
       "deletePrompt": "Bu dosya kalıcı olarak silinsin mi?"
     },
+    "create": {
+      "eyebrow": "UKC.Care",
+      "title": "Yeni garanti talebi",
+      "subtitle": "Bir müşteri adına talep oluşturun. Müşteriye e-posta ile takip bağlantısı gönderilir.",
+      "submit": "Talebi oluştur",
+      "success": "Garanti talebi oluşturuldu.",
+      "errorGeneric": "Talep oluşturulamadı.",
+      "section": {
+        "customer": "Müşteri",
+        "product": "Ürün",
+        "case": "Dosya",
+        "media": "Medya (isteğe bağlı)"
+      },
+      "fields": {
+        "externalClaim": "Üretici talep #",
+        "externalClaimHint": "zaten elinizde varsa",
+        "language": "Müşteri dili"
+      },
+      "notify": {
+        "title": "Müşteriye takip bağlantısını e-posta ile gönder",
+        "body": "Önerilir. Müşteri, UKC.Care markalı bir e-postayla takip bağlantısını alır."
+      }
+    },
     "actions": {
       "open": "Aç",
+      "newClaim": "Yeni talep",
       "refresh": "Yenile",
       "changeStatus": "Durumu değiştir",
       "statusNote": "Müşteriye iletilecek isteğe bağlı not",

@@ -84,7 +84,10 @@ export async function createClaim({
   issue_description,
   preferred_language = 'tr',
   submitted_ip = null,
-  submitted_user_agent = null
+  submitted_user_agent = null,
+  external_claim_number = null,
+  source = 'public_form',     // 'public_form' | 'admin'
+  actor_user_id = null        // set when admin creates on behalf of customer
 }) {
   const client = await pool.connect();
   try {
@@ -97,26 +100,30 @@ export async function createClaim({
         customer_token, customer_name, customer_email, customer_phone,
         product_name, product_brand, product_model, product_serial,
         purchase_date, purchase_location, issue_description,
-        preferred_language, submitted_ip, submitted_user_agent
+        preferred_language, submitted_ip, submitted_user_agent,
+        external_claim_number
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
       )
       RETURNING ${CLAIM_COLUMNS}`,
       [
         customerToken, customer_name, customer_email, customer_phone,
         product_name, product_brand, product_model, product_serial,
         purchase_date, purchase_location, issue_description,
-        preferred_language, submitted_ip, submitted_user_agent
+        preferred_language, submitted_ip, submitted_user_agent,
+        external_claim_number
       ]
     );
 
     const claim = claimRows[0];
 
+    const actorKind = source === 'admin' ? 'admin' : 'customer';
     await client.query(
       `INSERT INTO warranty_claim_events
-        (claim_id, event_type, actor_kind, visible_to_customer, body, metadata)
-       VALUES ($1, 'submitted', 'customer', TRUE, NULL, $2::jsonb)`,
-      [claim.id, JSON.stringify({ source: 'public_form' })]
+        (claim_id, event_type, actor_kind, actor_user_id, visible_to_customer, body, metadata)
+       VALUES ($1, 'submitted', $2, $3, TRUE, NULL, $4::jsonb)`,
+      [claim.id, actorKind, actor_user_id,
+       JSON.stringify({ source, ...(external_claim_number ? { external_claim_number } : {}) })]
     );
 
     await client.query('COMMIT');

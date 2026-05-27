@@ -124,6 +124,7 @@ const InventoryPage = () => {
   const [filterType, setFilterType] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -174,9 +175,86 @@ const InventoryPage = () => {
     };
   }, [equipment]);
 
+  // Group equipment by model (type + brand + name + size). Items missing brand/name/size
+  // remain ungrouped (isSolo) and behave like single-row entries.
+  const groupedEquipment = useMemo(() => {
+    const groups = new Map();
+    for (const u of filteredEquipment) {
+      const b = u.brand?.trim().toLowerCase();
+      const n = u.name?.trim().toLowerCase();
+      const s = u.size?.trim().toLowerCase();
+      const ty = u.type?.trim().toLowerCase();
+      const isSolo = !b || !n || !s;
+      const key = isSolo ? `__solo__:${u.id}` : `${ty}|${b}|${n}|${s}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          key,
+          isSolo,
+          brand: u.brand,
+          name: u.name,
+          size: u.size,
+          type: u.type,
+          image_url: u.image_url || u.imageUrl,
+          units: [],
+          count: 0,
+          available_count: 0,
+          in_use_count: 0,
+          maintenance_count: 0,
+          retired_count: 0,
+        };
+        groups.set(key, g);
+      }
+      g.units.push(u);
+      g.count++;
+      if (u.status === 'available') g.available_count++;
+      else if (u.status === 'in-use') g.in_use_count++;
+      else if (u.status === 'maintenance') g.maintenance_count++;
+      else if (u.status === 'retired') g.retired_count++;
+    }
+    return Array.from(groups.values());
+  }, [filteredEquipment]);
+
+  const StatusBreakdown = ({ group }) => {
+    const items = [];
+    if (group.available_count > 0) items.push({ color: 'success', count: group.available_count, label: t('common:inventory.availShort') });
+    if (group.in_use_count > 0) items.push({ color: 'processing', count: group.in_use_count, label: t('common:inventory.inUseShort') });
+    if (group.maintenance_count > 0) items.push({ color: 'warning', count: group.maintenance_count, label: t('common:inventory.maintShort') });
+    if (group.retired_count > 0) items.push({ color: 'default', count: group.retired_count, label: t('common:inventory.retiredShort') });
+    return (
+      <Space size={4} wrap>
+        {items.map((it, i) => (
+          <Tag key={i} color={it.color}>{it.count} {it.label}</Tag>
+        ))}
+      </Space>
+    );
+  };
+
   const handleViewDetails = (record) => {
     setSelectedItem(record);
+    setSelectedGroup(null);
     setDetailDrawerOpen(true);
+  };
+
+  const handleViewGroup = (group) => {
+    setSelectedItem(null);
+    setSelectedGroup(group);
+    setDetailDrawerOpen(true);
+  };
+
+  const handleAddUnit = (group) => {
+    setIsEditing(false);
+    setSelectedItem(null);
+    setImageUrl(null);
+    form.resetFields();
+    form.setFieldsValue({
+      status: 'available',
+      type: group.type,
+      name: group.name,
+      brand: group.brand,
+      size: group.size,
+    });
+    setFormModalOpen(true);
   };
 
   const handleAddNew = () => {
@@ -248,29 +326,106 @@ const InventoryPage = () => {
     }
   };
 
-  const columns = [
+  const renderConditionTag = (condition) => {
+    const colors = {
+      new: 'green',
+      excellent: 'cyan',
+      good: 'blue',
+      fair: 'orange',
+      poor: 'red',
+    };
+    return condition ? (
+      <Tag color={colors[condition] || 'default'}>
+        {condition.charAt(0).toUpperCase() + condition.slice(1)}
+      </Tag>
+    ) : null;
+  };
+
+  const renderUnitActions = (u) => (
+    <Space size="small">
+      <Tooltip title={t('common:inventory.viewDetails')}>
+        <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetails(u)} />
+      </Tooltip>
+      {canManageEquipment && (
+        <>
+          <Tooltip title={t('common:inventory.editTooltip')}>
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(u)} />
+          </Tooltip>
+          <Popconfirm
+            title={t('common:inventory.deleteConfirmTitle')}
+            description={t('common:inventory.deleteConfirmDesc')}
+            onConfirm={() => handleDelete(u.id)}
+            okText={t('common:buttons.delete')}
+            cancelText={t('common:buttons.cancel')}
+            okButtonProps={{ danger: true }}
+          >
+            <Tooltip title={t('common:inventory.deleteTooltip')}>
+              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+            </Tooltip>
+          </Popconfirm>
+        </>
+      )}
+    </Space>
+  );
+
+  const unitSubColumns = [
+    {
+      title: t('common:inventory.serialNumber'),
+      key: 'serial',
+      render: (_, u) => u.serialNumber || u.serial_number || <Text type="secondary">—</Text>,
+    },
+    {
+      title: t('common:inventory.condition'),
+      dataIndex: 'condition',
+      key: 'condition',
+      render: renderConditionTag,
+    },
+    {
+      title: t('common:inventory.statusField'),
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const config = getStatusConfig(status);
+        return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
+      },
+    },
+    {
+      title: t('common:inventory.location'),
+      dataIndex: 'location',
+      key: 'location',
+      render: (loc) => loc || <Text type="secondary">—</Text>,
+    },
+    {
+      title: t('common:table.actions'),
+      key: 'actions',
+      width: 140,
+      render: (_, u) => renderUnitActions(u),
+    },
+  ];
+
+  const groupColumns = [
     {
       title: t('common:inventory.title'),
       key: 'equipment',
-      render: (_, record) => (
+      render: (_, group) => (
         <div className="flex items-center gap-3">
-          {record.image_url || record.imageUrl ? (
+          {group.image_url ? (
             <div className="w-10 h-10 rounded-lg overflow-hidden">
-              <img 
-                src={record.image_url || record.imageUrl} 
-                alt={record.name} 
+              <img
+                src={group.image_url}
+                alt={group.name}
                 className="w-full h-full object-cover"
               />
             </div>
           ) : (
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">
-              {record.name?.charAt(0)?.toUpperCase() || '?'}
+              {group.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
           )}
           <div>
-            <Text strong>{record.name}</Text>
+            <Text strong>{group.name}</Text>
             <div>
-              <Text type="secondary" className="text-xs">{record.brand}</Text>
+              <Text type="secondary" className="text-xs">{group.brand}</Text>
             </div>
           </div>
         </div>
@@ -280,9 +435,7 @@ const InventoryPage = () => {
       title: t('common:inventory.equipmentType'),
       dataIndex: 'type',
       key: 'type',
-      render: (type) => (
-        <Tag>{type?.charAt(0).toUpperCase() + type?.slice(1)}</Tag>
-      ),
+      render: (type) => (type ? <Tag>{type.charAt(0).toUpperCase() + type.slice(1)}</Tag> : null),
       responsive: ['md'],
     },
     {
@@ -292,131 +445,99 @@ const InventoryPage = () => {
       responsive: ['lg'],
     },
     {
-      title: t('common:inventory.condition'),
-      dataIndex: 'condition',
-      key: 'condition',
-      render: (condition) => {
-        const colors = {
-          new: 'green',
-          excellent: 'cyan',
-          good: 'blue',
-          fair: 'orange',
-          poor: 'red',
-        };
-        return condition ? (
-          <Tag color={colors[condition] || 'default'}>
-            {condition.charAt(0).toUpperCase() + condition.slice(1)}
-          </Tag>
-        ) : null;
-      },
-      responsive: ['lg'],
+      title: t('common:inventory.unitsLabel'),
+      key: 'units',
+      render: (_, group) => (
+        <Tag color="purple">
+          {group.count} {group.count === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
+        </Tag>
+      ),
     },
     {
       title: t('common:inventory.statusField'),
-      dataIndex: 'status',
       key: 'status',
-      render: (status) => {
-        const config = getStatusConfig(status);
-        return (
-          <Tag color={config.color} icon={config.icon}>
-            {config.label}
-          </Tag>
-        );
+      render: (_, group) => {
+        if (group.isSolo) {
+          const u = group.units[0];
+          const config = getStatusConfig(u.status);
+          return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
+        }
+        return <StatusBreakdown group={group} />;
       },
     },
     {
       title: t('common:table.actions'),
       key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title={t('common:inventory.viewDetails')}>
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewDetails(record)}
-            />
-          </Tooltip>
-          {canManageEquipment && (
-            <>
-              <Tooltip title={t('common:inventory.editTooltip')}>
-                <Button
-                  type="text"
-                  icon={<EditOutlined />}
-                  onClick={() => handleEdit(record)}
-                />
+      width: 160,
+      render: (_, group) => {
+        if (group.isSolo) {
+          return renderUnitActions(group.units[0]);
+        }
+        return (
+          <Space size="small">
+            <Tooltip title={t('common:inventory.viewUnits')}>
+              <Button type="text" icon={<EyeOutlined />} onClick={() => handleViewGroup(group)} />
+            </Tooltip>
+            {canManageEquipment && (
+              <Tooltip title={t('common:inventory.addUnit')}>
+                <Button type="text" icon={<PlusOutlined />} onClick={() => handleAddUnit(group)} />
               </Tooltip>
-              <Popconfirm
-                title={t('common:inventory.deleteConfirmTitle')}
-                description={t('common:inventory.deleteConfirmDesc')}
-                onConfirm={() => handleDelete(record.id)}
-                okText={t('common:buttons.delete')}
-                cancelText={t('common:buttons.cancel')}
-                okButtonProps={{ danger: true }}
-              >
-                <Tooltip title={t('common:inventory.deleteTooltip')}>
-                  <Button
-                    type="text"
-                    icon={<DeleteOutlined />}
-                    danger
-                  />
-                </Tooltip>
-              </Popconfirm>
-            </>
-          )}
-        </Space>
-      ),
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
-  // Card view renderer
+  // Card view renderer — one card per group
   const renderCardView = () => (
     <Row gutter={[16, 16]}>
-      {filteredEquipment.map((item) => {
-        const config = getStatusConfig(item.status);
+      {groupedEquipment.map((group) => {
+        const onCardClick = group.isSolo
+          ? () => handleViewDetails(group.units[0])
+          : () => handleViewGroup(group);
+        const soloConfig = group.isSolo ? getStatusConfig(group.units[0].status) : null;
         return (
-          <Col xs={24} sm={12} md={8} lg={6} key={item.id}>
-            <Card
-              hoverable
-              className="h-full"
-              actions={[
-                <EyeOutlined key="view" onClick={() => handleViewDetails(item)} />,
-                canManageEquipment && <EditOutlined key="edit" onClick={() => handleEdit(item)} />,
-              ].filter(Boolean)}
-            >
+          <Col xs={24} sm={12} md={8} lg={6} key={group.key}>
+            <Card hoverable onClick={onCardClick} className="h-full cursor-pointer">
               <div className="text-center mb-4">
-                {item.image_url || item.imageUrl ? (
+                {group.image_url ? (
                   <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden">
-                    <img 
-                      src={item.image_url || item.imageUrl} 
-                      alt={item.name} 
+                    <img
+                      src={group.image_url}
+                      alt={group.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
                 ) : (
                   <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold">
-                    {item.name?.charAt(0)?.toUpperCase() || '?'}
+                    {group.name?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
               </div>
               <div className="text-center">
-                <Text strong className="text-lg block">{item.name}</Text>
-                <Text type="secondary" className="block">{item.brand}</Text>
-                <div className="mt-2">
-                  <Tag>{item.type}</Tag>
-                  {item.size && <Tag color="blue">{item.size}</Tag>}
-                </div>
-                <div className="mt-3">
-                  <Tag color={config.color} icon={config.icon}>
-                    {config.label}
+                <Text strong className="text-lg block">{group.name}</Text>
+                <Text type="secondary" className="block">{group.brand}</Text>
+                <div className="mt-2 flex flex-wrap justify-center gap-1">
+                  {group.type && <Tag>{group.type}</Tag>}
+                  {group.size && <Tag color="blue">{group.size}</Tag>}
+                  <Tag color="purple">
+                    {group.count} {group.count === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
                   </Tag>
+                </div>
+                <div className="mt-3 flex justify-center">
+                  {group.isSolo ? (
+                    <Tag color={soloConfig.color} icon={soloConfig.icon}>{soloConfig.label}</Tag>
+                  ) : (
+                    <StatusBreakdown group={group} />
+                  )}
                 </div>
               </div>
             </Card>
           </Col>
         );
       })}
-      {filteredEquipment.length === 0 && (
+      {groupedEquipment.length === 0 && (
         <Col span={24}>
           <Empty description={t('common:inventory.noEquipment')} />
         </Col>
@@ -569,11 +690,23 @@ const InventoryPage = () => {
           </div>
         ) : viewMode === 'table' ? (
           <Table
-            columns={columns}
-            dataSource={filteredEquipment}
-            rowKey="id"
+            columns={groupColumns}
+            dataSource={groupedEquipment}
+            rowKey="key"
             pagination={{ pageSize: 15, showSizeChanger: true }}
             scroll={{ x: 800 }}
+            expandable={{
+              rowExpandable: (g) => !g.isSolo,
+              expandedRowRender: (g) => (
+                <Table
+                  size="small"
+                  columns={unitSubColumns}
+                  dataSource={g.units}
+                  rowKey="id"
+                  pagination={false}
+                />
+              ),
+            }}
           />
         ) : (
           renderCardView()
@@ -584,28 +717,86 @@ const InventoryPage = () => {
       <Drawer
         title={t('common:inventory.details')}
         placement="right"
-        width={450}
-        onClose={() => setDetailDrawerOpen(false)}
+        width={selectedGroup ? 640 : 450}
+        onClose={() => {
+          setDetailDrawerOpen(false);
+          setSelectedGroup(null);
+          setSelectedItem(null);
+        }}
         open={detailDrawerOpen}
         extra={
-          canManageEquipment && selectedItem && (
-            <Button type="primary" icon={<EditOutlined />} onClick={() => {
-              setDetailDrawerOpen(false);
-              handleEdit(selectedItem);
-            }}>
-              {t('common:inventory.edit')}
-            </Button>
+          canManageEquipment && (
+            selectedGroup ? (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+                setDetailDrawerOpen(false);
+                handleAddUnit(selectedGroup);
+              }}>
+                {t('common:inventory.addUnit')}
+              </Button>
+            ) : selectedItem ? (
+              <Button type="primary" icon={<EditOutlined />} onClick={() => {
+                setDetailDrawerOpen(false);
+                handleEdit(selectedItem);
+              }}>
+                {t('common:inventory.edit')}
+              </Button>
+            ) : null
           )
         }
       >
-        {selectedItem && (
+        {selectedGroup && (
+          <div className="space-y-6">
+            <div className="text-center">
+              {selectedGroup.image_url ? (
+                <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden">
+                  <img
+                    src={selectedGroup.image_url}
+                    alt={selectedGroup.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-3xl font-bold">
+                  {selectedGroup.name?.charAt(0)?.toUpperCase() || '?'}
+                </div>
+              )}
+              <Title level={4} className="mt-4 mb-0">{selectedGroup.name}</Title>
+              <Text type="secondary">{selectedGroup.brand}</Text>
+            </div>
+
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label={t('common:inventory.equipmentType')}>
+                {selectedGroup.type?.charAt(0).toUpperCase() + selectedGroup.type?.slice(1)}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('common:inventory.size')}>{selectedGroup.size || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label={t('common:inventory.statusField')}>
+                <StatusBreakdown group={selectedGroup} />
+              </Descriptions.Item>
+            </Descriptions>
+
+            <div>
+              <Text strong>
+                {selectedGroup.count} {selectedGroup.count === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
+              </Text>
+              <Table
+                size="small"
+                columns={unitSubColumns}
+                dataSource={selectedGroup.units}
+                rowKey="id"
+                pagination={false}
+                className="mt-2"
+              />
+            </div>
+          </div>
+        )}
+        {!selectedGroup && selectedItem && (
           <div className="space-y-6">
             <div className="text-center">
               {selectedItem.image_url || selectedItem.imageUrl ? (
                 <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden">
-                  <img 
-                    src={selectedItem.image_url || selectedItem.imageUrl} 
-                    alt={selectedItem.name} 
+                  <img
+                    src={selectedItem.image_url || selectedItem.imageUrl}
+                    alt={selectedItem.name}
                     className="w-full h-full object-cover"
                   />
                 </div>

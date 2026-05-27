@@ -74,6 +74,15 @@ export async function setStaffStatus(code, { status, note }) {
 
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
+export async function adminCreateClaim(formData, { onUploadProgress } = {}) {
+  const { data } = await apiClient.post('/warranty/admin', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT_MS,
+    onUploadProgress
+  });
+  return data;
+}
+
 export async function listClaims(params = {}) {
   const { data } = await apiClient.get('/warranty/admin', { params });
   return data;

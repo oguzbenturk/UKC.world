@@ -461,7 +461,17 @@
     "selectSize": "Select size",
     "enterSize": "Enter size",
     "selectCondition": "Select condition",
-    "selectStatus": "Select status"
+    "selectStatus": "Select status",
+    "unitsLabel": "units",
+    "unitLabel": "unit",
+    "viewUnits": "View units",
+    "addUnit": "Add unit",
+    "availShort": "avail",
+    "inUseShort": "in use",
+    "maintShort": "maint",
+    "retiredShort": "retired",
+    "serialNumber": "Serial",
+    "location": "Location"
   },
   "auth": {
     "signedIn": "Successfully signed in!",
@@ -786,6 +796,13 @@
       "pirlanta": "Pırlanta Kitesurf Beach",
       "gulbahce": "Urla – Gülbahçe",
       "gokceada": "Gökçeada"
+    },
+    "water": {
+      "label": "Water",
+      "flat": "Flat",
+      "choppy": "Choppy",
+      "wave": "Wave",
+      "flatWave": "Flat / Wave"
     },
     "metrics": {
       "wind": "Wind",

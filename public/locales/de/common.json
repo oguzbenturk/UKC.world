@@ -460,7 +460,17 @@
     "selectSize": "Größe auswählen",
     "enterSize": "Größe eingeben",
     "selectCondition": "Zustand auswählen",
-    "selectStatus": "Status auswählen"
+    "selectStatus": "Status auswählen",
+    "unitsLabel": "Stück",
+    "unitLabel": "Stück",
+    "viewUnits": "Einheiten anzeigen",
+    "addUnit": "Einheit hinzufügen",
+    "availShort": "verf.",
+    "inUseShort": "in Geb.",
+    "maintShort": "Wart.",
+    "retiredShort": "ausg.",
+    "serialNumber": "Seriennr.",
+    "location": "Standort"
   },
   "auth": {
     "signedIn": "Erfolgreich angemeldet!",
@@ -785,6 +795,13 @@
       "pirlanta": "Pırlanta Kitesurf-Strand",
       "gulbahce": "Urla – Gülbahçe",
       "gokceada": "Gökçeada"
+    },
+    "water": {
+      "label": "Wasser",
+      "flat": "Flach",
+      "choppy": "Kabbelig",
+      "wave": "Welle",
+      "flatWave": "Flach / Welle"
     },
     "metrics": {
       "wind": "Wind",

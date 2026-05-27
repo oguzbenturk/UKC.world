@@ -465,7 +465,17 @@
     "selectSize": "Boyut seçin",
     "enterSize": "Boyut girin",
     "selectCondition": "Durum seçin",
-    "selectStatus": "Durum seçin"
+    "selectStatus": "Durum seçin",
+    "unitsLabel": "adet",
+    "unitLabel": "adet",
+    "viewUnits": "Birimleri Gör",
+    "addUnit": "Birim Ekle",
+    "availShort": "mevcut",
+    "inUseShort": "kullanım",
+    "maintShort": "bakım",
+    "retiredShort": "emekli",
+    "serialNumber": "Seri No",
+    "location": "Konum"
   },
   "auth": {
     "signedIn": "Başarıyla giriş yapıldı!",
@@ -790,6 +800,13 @@
       "pirlanta": "Pırlanta Kitesurf Plajı",
       "gulbahce": "Urla – Gülbahçe",
       "gokceada": "Gökçeada"
+    },
+    "water": {
+      "label": "Su",
+      "flat": "Düz",
+      "choppy": "Dalgalı",
+      "wave": "Dalga",
+      "flatWave": "Düz / Dalga"
     },
     "metrics": {
       "wind": "Rüzgar",
