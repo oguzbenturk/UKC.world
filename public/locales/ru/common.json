@@ -474,7 +474,8 @@
     "maintShort": "обсл.",
     "retiredShort": "спис.",
     "serialNumber": "Серийный",
-    "location": "Расположение"
+    "location": "Расположение",
+    "sizesLabel": "Размеры"
   },
   "auth": {
     "signedIn": "Вход выполнен успешно!",

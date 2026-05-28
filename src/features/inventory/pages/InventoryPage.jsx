@@ -23,6 +23,7 @@ import {
   Tooltip,
   Popconfirm,
   Upload,
+  Collapse,
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -175,17 +176,17 @@ const InventoryPage = () => {
     };
   }, [equipment]);
 
-  // Group equipment by model (type + brand + name + size). Items missing brand/name/size
-  // remain ungrouped (isSolo) and behave like single-row entries.
+  // Group equipment by model (type + brand + name). Sizes are aggregated into a size
+  // breakdown so 6 Mystic Marshalls across sizes M/L/XL collapse into a single row.
+  // Items missing brand or name remain ungrouped (isSolo).
   const groupedEquipment = useMemo(() => {
     const groups = new Map();
     for (const u of filteredEquipment) {
       const b = u.brand?.trim().toLowerCase();
       const n = u.name?.trim().toLowerCase();
-      const s = u.size?.trim().toLowerCase();
       const ty = u.type?.trim().toLowerCase();
-      const isSolo = !b || !n || !s;
-      const key = isSolo ? `__solo__:${u.id}` : `${ty}|${b}|${n}|${s}`;
+      const isSolo = !b || !n;
+      const key = isSolo ? `__solo__:${u.id}` : `${ty}|${b}|${n}`;
       let g = groups.get(key);
       if (!g) {
         g = {
@@ -193,11 +194,11 @@ const InventoryPage = () => {
           isSolo,
           brand: u.brand,
           name: u.name,
-          size: u.size,
           type: u.type,
           image_url: u.image_url || u.imageUrl,
           units: [],
           count: 0,
+          sizes: {},
           available_count: 0,
           in_use_count: 0,
           maintenance_count: 0,
@@ -207,6 +208,8 @@ const InventoryPage = () => {
       }
       g.units.push(u);
       g.count++;
+      const sz = (u.size && String(u.size).trim()) || '—';
+      g.sizes[sz] = (g.sizes[sz] || 0) + 1;
       if (u.status === 'available') g.available_count++;
       else if (u.status === 'in-use') g.in_use_count++;
       else if (u.status === 'maintenance') g.maintenance_count++;
@@ -214,6 +217,39 @@ const InventoryPage = () => {
     }
     return Array.from(groups.values());
   }, [filteredEquipment]);
+
+  // Section the grouped models by equipment type, preserving the order of equipmentTypes.
+  const sectionedEquipment = useMemo(() => {
+    const byType = new Map();
+    for (const g of groupedEquipment) {
+      const ty = (g.type || '').toLowerCase().trim() || 'other';
+      if (!byType.has(ty)) byType.set(ty, []);
+      byType.get(ty).push(g);
+    }
+    const ordered = [];
+    for (const tDef of equipmentTypes) {
+      if (byType.has(tDef.value)) {
+        const groups = byType.get(tDef.value);
+        ordered.push({
+          key: tDef.value,
+          label: tDef.label,
+          groups,
+          unitCount: groups.reduce((acc, g) => acc + g.count, 0),
+        });
+        byType.delete(tDef.value);
+      }
+    }
+    // Trailing unknown types
+    for (const [key, groups] of byType) {
+      ordered.push({
+        key,
+        label: key.charAt(0).toUpperCase() + key.slice(1),
+        groups,
+        unitCount: groups.reduce((acc, g) => acc + g.count, 0),
+      });
+    }
+    return ordered;
+  }, [groupedEquipment]);
 
   const StatusBreakdown = ({ group }) => {
     const items = [];
@@ -225,6 +261,19 @@ const InventoryPage = () => {
       <Space size={4} wrap>
         {items.map((it, i) => (
           <Tag key={i} color={it.color}>{it.count} {it.label}</Tag>
+        ))}
+      </Space>
+    );
+  };
+
+  const SizeBreakdown = ({ sizes }) => {
+    const entries = Object.entries(sizes || {});
+    entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    if (entries.length === 0) return <Text type="secondary">—</Text>;
+    return (
+      <Space size={4} wrap>
+        {entries.map(([sz, cnt]) => (
+          <Tag key={sz} color="blue">{sz}: {cnt}</Tag>
         ))}
       </Space>
     );
@@ -252,7 +301,6 @@ const InventoryPage = () => {
       type: group.type,
       name: group.name,
       brand: group.brand,
-      size: group.size,
     });
     setFormModalOpen(true);
   };
@@ -375,6 +423,12 @@ const InventoryPage = () => {
       render: (_, u) => u.serialNumber || u.serial_number || <Text type="secondary">—</Text>,
     },
     {
+      title: t('common:inventory.size'),
+      dataIndex: 'size',
+      key: 'size',
+      render: (sz) => (sz ? <Tag color="blue">{sz}</Tag> : <Text type="secondary">—</Text>),
+    },
+    {
       title: t('common:inventory.condition'),
       dataIndex: 'condition',
       key: 'condition',
@@ -432,17 +486,9 @@ const InventoryPage = () => {
       ),
     },
     {
-      title: t('common:inventory.equipmentType'),
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => (type ? <Tag>{type.charAt(0).toUpperCase() + type.slice(1)}</Tag> : null),
-      responsive: ['md'],
-    },
-    {
-      title: t('common:inventory.size'),
-      dataIndex: 'size',
-      key: 'size',
-      responsive: ['lg'],
+      title: t('common:inventory.sizesLabel'),
+      key: 'sizes',
+      render: (_, group) => <SizeBreakdown sizes={group.sizes} />,
     },
     {
       title: t('common:inventory.unitsLabel'),
@@ -489,61 +535,52 @@ const InventoryPage = () => {
     },
   ];
 
-  // Card view renderer — one card per group
-  const renderCardView = () => (
-    <Row gutter={[16, 16]}>
-      {groupedEquipment.map((group) => {
-        const onCardClick = group.isSolo
-          ? () => handleViewDetails(group.units[0])
-          : () => handleViewGroup(group);
-        const soloConfig = group.isSolo ? getStatusConfig(group.units[0].status) : null;
-        return (
-          <Col xs={24} sm={12} md={8} lg={6} key={group.key}>
-            <Card hoverable onClick={onCardClick} className="h-full cursor-pointer">
-              <div className="text-center mb-4">
-                {group.image_url ? (
-                  <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden">
-                    <img
-                      src={group.image_url}
-                      alt={group.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold">
-                    {group.name?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                )}
+  const renderGroupCard = (group) => {
+    const onCardClick = group.isSolo
+      ? () => handleViewDetails(group.units[0])
+      : () => handleViewGroup(group);
+    const soloConfig = group.isSolo ? getStatusConfig(group.units[0].status) : null;
+    return (
+      <Col xs={24} sm={12} md={8} lg={6} key={group.key}>
+        <Card hoverable onClick={onCardClick} className="h-full cursor-pointer">
+          <div className="text-center mb-4">
+            {group.image_url ? (
+              <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden">
+                <img
+                  src={group.image_url}
+                  alt={group.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <div className="text-center">
-                <Text strong className="text-lg block">{group.name}</Text>
-                <Text type="secondary" className="block">{group.brand}</Text>
-                <div className="mt-2 flex flex-wrap justify-center gap-1">
-                  {group.type && <Tag>{group.type}</Tag>}
-                  {group.size && <Tag color="blue">{group.size}</Tag>}
-                  <Tag color="purple">
-                    {group.count} {group.count === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
-                  </Tag>
-                </div>
-                <div className="mt-3 flex justify-center">
-                  {group.isSolo ? (
-                    <Tag color={soloConfig.color} icon={soloConfig.icon}>{soloConfig.label}</Tag>
-                  ) : (
-                    <StatusBreakdown group={group} />
-                  )}
-                </div>
+            ) : (
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-2xl font-bold">
+                {group.name?.charAt(0)?.toUpperCase() || '?'}
               </div>
-            </Card>
-          </Col>
-        );
-      })}
-      {groupedEquipment.length === 0 && (
-        <Col span={24}>
-          <Empty description={t('common:inventory.noEquipment')} />
-        </Col>
-      )}
-    </Row>
-  );
+            )}
+          </div>
+          <div className="text-center">
+            <Text strong className="text-lg block">{group.name}</Text>
+            <Text type="secondary" className="block">{group.brand}</Text>
+            <div className="mt-2 flex justify-center">
+              <SizeBreakdown sizes={group.sizes} />
+            </div>
+            <div className="mt-2 flex justify-center">
+              <Tag color="purple">
+                {group.count} {group.count === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
+              </Tag>
+            </div>
+            <div className="mt-3 flex justify-center">
+              {group.isSolo ? (
+                <Tag color={soloConfig.color} icon={soloConfig.icon}>{soloConfig.label}</Tag>
+              ) : (
+                <StatusBreakdown group={group} />
+              )}
+            </div>
+          </div>
+        </Card>
+      </Col>
+    );
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -688,28 +725,47 @@ const InventoryPage = () => {
             <p className="mt-4 text-red-500">{error}</p>
             <Button onClick={refreshData} className="mt-4">{t('common:inventory.tryAgain')}</Button>
           </div>
-        ) : viewMode === 'table' ? (
-          <Table
-            columns={groupColumns}
-            dataSource={groupedEquipment}
-            rowKey="key"
-            pagination={{ pageSize: 15, showSizeChanger: true }}
-            scroll={{ x: 800 }}
-            expandable={{
-              rowExpandable: (g) => !g.isSolo,
-              expandedRowRender: (g) => (
-                <Table
-                  size="small"
-                  columns={unitSubColumns}
-                  dataSource={g.units}
-                  rowKey="id"
-                  pagination={false}
-                />
-              ),
-            }}
-          />
+        ) : sectionedEquipment.length === 0 ? (
+          <Empty description={t('common:inventory.noEquipment')} />
         ) : (
-          renderCardView()
+          <Collapse
+            defaultActiveKey={sectionedEquipment.map((s) => s.key)}
+            items={sectionedEquipment.map((section) => ({
+              key: section.key,
+              label: (
+                <Space>
+                  <Text strong>{section.label}</Text>
+                  <Tag color="purple">
+                    {section.unitCount} {section.unitCount === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
+                  </Tag>
+                </Space>
+              ),
+              children:
+                viewMode === 'table' ? (
+                  <Table
+                    columns={groupColumns}
+                    dataSource={section.groups}
+                    rowKey="key"
+                    pagination={false}
+                    scroll={{ x: 800 }}
+                    expandable={{
+                      rowExpandable: (g) => !g.isSolo,
+                      expandedRowRender: (g) => (
+                        <Table
+                          size="small"
+                          columns={unitSubColumns}
+                          dataSource={g.units}
+                          rowKey="id"
+                          pagination={false}
+                        />
+                      ),
+                    }}
+                  />
+                ) : (
+                  <Row gutter={[16, 16]}>{section.groups.map(renderGroupCard)}</Row>
+                ),
+            }))}
+          />
         )}
       </Card>
 
@@ -768,7 +824,9 @@ const InventoryPage = () => {
               <Descriptions.Item label={t('common:inventory.equipmentType')}>
                 {selectedGroup.type?.charAt(0).toUpperCase() + selectedGroup.type?.slice(1)}
               </Descriptions.Item>
-              <Descriptions.Item label={t('common:inventory.size')}>{selectedGroup.size || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label={t('common:inventory.sizesLabel')}>
+                <SizeBreakdown sizes={selectedGroup.sizes} />
+              </Descriptions.Item>
               <Descriptions.Item label={t('common:inventory.statusField')}>
                 <StatusBreakdown group={selectedGroup} />
               </Descriptions.Item>

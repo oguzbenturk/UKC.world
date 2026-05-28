@@ -471,7 +471,8 @@
     "maintShort": "maint",
     "retiredShort": "retired",
     "serialNumber": "Serial",
-    "location": "Location"
+    "location": "Location",
+    "sizesLabel": "Sizes"
   },
   "auth": {
     "signedIn": "Successfully signed in!",

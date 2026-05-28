@@ -475,7 +475,8 @@
     "maintShort": "bakım",
     "retiredShort": "emekli",
     "serialNumber": "Seri No",
-    "location": "Konum"
+    "location": "Konum",
+    "sizesLabel": "Boyutlar"
   },
   "auth": {
     "signedIn": "Başarıyla giriş yapıldı!",

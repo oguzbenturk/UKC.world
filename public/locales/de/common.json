@@ -470,7 +470,8 @@
     "maintShort": "Wart.",
     "retiredShort": "ausg.",
     "serialNumber": "Seriennr.",
-    "location": "Standort"
+    "location": "Standort",
+    "sizesLabel": "Größen"
   },
   "auth": {
     "signedIn": "Erfolgreich angemeldet!",

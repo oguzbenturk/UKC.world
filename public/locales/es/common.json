@@ -474,7 +474,8 @@
     "maintShort": "mant.",
     "retiredShort": "ret.",
     "serialNumber": "Serie",
-    "location": "Ubicación"
+    "location": "Ubicación",
+    "sizesLabel": "Tallas"
   },
   "auth": {
     "signedIn": "¡Sesión iniciada correctamente!",
