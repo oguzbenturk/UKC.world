@@ -37,7 +37,7 @@ export default function SparePartsOrders() {
   const [q, setQ] = useState('');
   const [form] = Form.useForm();
 
-  const isAuthorized = user && ['admin', 'manager'].includes(user.role);
+  const isAuthorized = user && ['admin', 'manager', 'front_desk', 'receptionist', 'owner'].includes(user.role?.toLowerCase());
 
   const load = useCallback(async () => {
     // Skip loading if not authorized

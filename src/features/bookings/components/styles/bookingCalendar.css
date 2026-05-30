@@ -58,6 +58,63 @@
   --status-unavailable: #94A3B8;
   --status-pending: #F59E0B;
   --status-completed: #10B981;
+
+  /* Booking-card status palette — translucent colored seaglass tiles.
+     fill = card body (rgba so the calendar bg shows through)
+     fill-hover = warmer on hover
+     edge = saturated border at the rim of the tile
+     dot = saturated dot for the inline status indicator
+     ink = dark text color that reads on top of the tinted fill */
+  --booking-confirmed-fill:       rgba(14, 165, 233, 0.16);
+  --booking-confirmed-fill-hover: rgba(14, 165, 233, 0.26);
+  --booking-confirmed-edge:       rgba(14, 165, 233, 0.45);
+  --booking-confirmed-border:     #0ea5e9;
+  --booking-confirmed-dot:        #0ea5e9;
+  --booking-confirmed-ink:        #0c4a6e;
+  --booking-confirmed-pill-bg:    rgba(255, 255, 255, 0.55);
+  --booking-confirmed-pill-text:  #0c4a6e;
+  --booking-confirmed-pill-dot:   #0ea5e9;
+
+  --booking-pending-fill:       rgba(245, 158, 11, 0.22);
+  --booking-pending-fill-hover: rgba(245, 158, 11, 0.32);
+  --booking-pending-edge:       rgba(245, 158, 11, 0.50);
+  --booking-pending-border:     #f59e0b;
+  --booking-pending-dot:        #f59e0b;
+  --booking-pending-ink:        #78350f;
+  --booking-pending-pill-bg:    rgba(255, 255, 255, 0.55);
+  --booking-pending-pill-text:  #78350f;
+  --booking-pending-pill-dot:   #f97316;
+
+  --booking-checked-in-fill:       rgba(59, 130, 246, 0.18);
+  --booking-checked-in-fill-hover: rgba(59, 130, 246, 0.28);
+  --booking-checked-in-edge:       rgba(59, 130, 246, 0.45);
+  --booking-checked-in-border:     #3b82f6;
+  --booking-checked-in-dot:        #3b82f6;
+  --booking-checked-in-ink:        #1e3a8a;
+  --booking-checked-in-pill-bg:    rgba(255, 255, 255, 0.55);
+  --booking-checked-in-pill-text:  #1e3a8a;
+  --booking-checked-in-pill-dot:   #3b82f6;
+
+  --booking-completed-fill:       rgba(34, 197, 94, 0.22);
+  --booking-completed-fill-hover: rgba(34, 197, 94, 0.32);
+  --booking-completed-edge:       rgba(34, 197, 94, 0.50);
+  --booking-completed-border:     #22c55e;
+  --booking-completed-dot:        #22c55e;
+  --booking-completed-ink:        #14532d;
+  --booking-completed-pill-bg:    rgba(255, 255, 255, 0.55);
+  --booking-completed-pill-text:  #14532d;
+  --booking-completed-pill-dot:   #22c55e;
+
+  /* Cancelled — faintest of all, ghosted but still recognizably rose */
+  --booking-cancelled-fill:       rgba(244, 63, 94, 0.12);
+  --booking-cancelled-fill-hover: rgba(244, 63, 94, 0.18);
+  --booking-cancelled-edge:       rgba(244, 63, 94, 0.38);
+  --booking-cancelled-border:     #fb7185;
+  --booking-cancelled-dot:        #f43f5e;
+  --booking-cancelled-ink:        #9f1239;
+  --booking-cancelled-pill-bg:    rgba(255, 255, 255, 0.55);
+  --booking-cancelled-pill-text:  #9f1239;
+  --booking-cancelled-pill-dot:   #f43f5e;
   
   /* Font sizes */
   --text-xs: 0.75rem;
@@ -1109,25 +1166,88 @@
 }
 
 /* New, fully data-driven booking card styles */
+/* Lesson card — colored glass tile with diagonal desaturation, a brand-aware
+   watermark, and an editorial entrance. The status fill lives in the top-left
+   and fades toward the bottom-right so tall cards stop reading as a wall of
+   color; the wind-streak sigil quietly inhabits the faded corner. */
+@keyframes bookingCardEnter {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
 .booking-card {
   position: absolute;
   left: 4px;
   right: 4px;
-  border-radius: 8px;
-  padding: 5px 8px;
+  border-radius: 12px;
+  padding: 8px 10px;
   cursor: pointer;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  border: 1px solid transparent;
-  border-left-width: 3px;
+  isolation: isolate;
+  background-color: rgba(148, 163, 184, 0.18);
+  /* Diagonal desaturation — saturated color stays at top-left, the bottom-right
+     fades toward translucent white so tall cards breathe. */
+  background-image: linear-gradient(135deg, transparent 0%, transparent 42%, rgba(255, 255, 255, 0.42) 100%);
+  -webkit-backdrop-filter: blur(8px) saturate(160%);
+  backdrop-filter: blur(8px) saturate(160%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.05),
+    0 1px 2px rgba(15, 23, 42, 0.04);
+  color: var(--text-primary);
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: bookingCardEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--card-index, 0) * 35ms);
+}
+
+/* Wind-streak watermark — three soft strokes evoking wind, anchored at the
+   bottom-right of every card. Inherits the card's ink color so it's tonally
+   matched to its status. */
+.booking-card::after {
+  content: '';
+  position: absolute;
+  bottom: -8%;
+  right: -8%;
+  width: 70%;
+  height: 70%;
+  background-color: currentColor;
+  opacity: 0.085;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='black' stroke-width='8' stroke-linecap='round'><path d='M12 30 Q42 22 88 32'/><path d='M8 52 Q42 44 78 56' opacity='0.78'/><path d='M22 76 Q52 68 70 80' opacity='0.55'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='black' stroke-width='8' stroke-linecap='round'><path d='M12 30 Q42 22 88 32'/><path d='M8 52 Q42 44 78 56' opacity='0.78'/><path d='M22 76 Q52 68 70 80' opacity='0.55'/></svg>");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: bottom right;
+  mask-position: bottom right;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+}
+
+.booking-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .booking-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.06),
+    0 10px 26px -8px rgba(15, 23, 42, 0.22),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+}
+.booking-card:hover::after {
+  opacity: 0.14;
+  transform: translate(-4%, -4%) rotate(-6deg) scale(1.05);
 }
 
 /* Unified daily view root */
@@ -1151,7 +1271,7 @@
   cursor: pointer;
 }
 
-/* Top row: status pill + time side by side */
+/* Legacy — kept for any non-daily-view callers; daily view now stacks pill above time */
 .booking-card-toprow {
   display: flex;
   align-items: center;
@@ -1162,38 +1282,46 @@
 
 .booking-card-time-label {
   font-size: 11px;
-  color: #111827;
+  color: currentColor;
   font-weight: 700;
-  font-family: 'Duotone Bold', sans-serif;
+  font-family: 'Gotham Medium', 'Duotone Bold', sans-serif;
   white-space: nowrap;
   flex-shrink: 0;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 
-/* Participant name — wraps for groups */
+/* Participant name — display-weight type, the visual lead */
 .booking-card-name {
-  font-size: 12px;
-  font-weight: 700;
-  font-family: 'Duotone Bold', sans-serif;
-  color: #111827;
-  line-height: 1.25;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: 'Duotone Bold Extended', 'Gotham Bold', sans-serif;
+  color: currentColor;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   -webkit-font-smoothing: antialiased;
+  margin-top: 2px;
 }
 
-/* Service label */
+/* Service label — tracked-out small-caps, magazine treatment */
 .booking-card-service-label {
-  font-size: 10px;
-  font-family: 'Duotone Regular', sans-serif;
-  color: #6b7280;
-  font-weight: 400;
+  font-size: 9px;
+  font-family: 'Gotham Medium', 'Duotone Regular', sans-serif;
+  color: currentColor;
+  opacity: 0.62;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   -webkit-font-smoothing: antialiased;
+  margin-top: 2px;
 }
 
 .booking-card-service {
@@ -1230,50 +1358,76 @@
   border: 1px solid rgba(0,0,0,0.1);
 }
 
-/* Status-based colors — clean minimal left-border accent */
+/* Per-status fills set only background-color so the .booking-card diagonal
+   desaturation gradient (background-image) stays intact. */
 .booking-card-confirmed {
-  background-color: #eff6ff;
-  border-color: rgba(59, 130, 246, 0.15);
-  border-left-color: #0ea5e9;
+  background-color: var(--booking-confirmed-fill);
+  border-color: var(--booking-confirmed-edge);
+  color: var(--booking-confirmed-ink);
+}
+.booking-card-confirmed:hover {
+  background-color: var(--booking-confirmed-fill-hover);
 }
 .booking-card-confirmed .booking-card-status-dot {
-  background-color: #0ea5e9;
+  background-color: var(--booking-confirmed-dot);
 }
 
 .booking-card-pending {
-  background-color: #fffbeb;
-  border-color: rgba(245, 158, 11, 0.15);
-  border-left-color: #f59e0b;
+  background-color: var(--booking-pending-fill);
+  border-color: var(--booking-pending-edge);
+  color: var(--booking-pending-ink);
+}
+.booking-card-pending:hover {
+  background-color: var(--booking-pending-fill-hover);
 }
 .booking-card-pending .booking-card-status-dot {
-  background-color: #f59e0b;
+  background-color: var(--booking-pending-dot);
 }
 
 .booking-card-checked-in {
-  background-color: #eff6ff;
-  border-color: rgba(59, 130, 246, 0.15);
-  border-left-color: #3b82f6;
+  background-color: var(--booking-checked-in-fill);
+  border-color: var(--booking-checked-in-edge);
+  color: var(--booking-checked-in-ink);
+}
+.booking-card-checked-in:hover {
+  background-color: var(--booking-checked-in-fill-hover);
 }
 .booking-card-checked-in .booking-card-status-dot {
-  background-color: #3b82f6;
+  background-color: var(--booking-checked-in-dot);
 }
 
 .booking-card-completed {
-  background-color: #f0fdf4;
-  border-color: rgba(34, 197, 94, 0.15);
-  border-left-color: #22c55e;
+  background-color: var(--booking-completed-fill);
+  border-color: var(--booking-completed-edge);
+  color: var(--booking-completed-ink);
+}
+.booking-card-completed:hover {
+  background-color: var(--booking-completed-fill-hover);
 }
 .booking-card-completed .booking-card-status-dot {
-  background-color: #22c55e;
+  background-color: var(--booking-completed-dot);
 }
 
 .booking-card-cancelled {
-  background-color: #f8fafc;
-  border-color: rgba(148, 163, 184, 0.15);
-  border-left-color: #94a3b8;
+  background-color: var(--booking-cancelled-fill);
+  border-color: var(--booking-cancelled-edge);
+  color: var(--booking-cancelled-ink);
+  opacity: 0.72;
+}
+.booking-card-cancelled:hover {
+  background-color: var(--booking-cancelled-fill-hover);
+  opacity: 0.85;
 }
 .booking-card-cancelled .booking-card-status-dot {
-  background-color: #94a3b8;
+  background-color: var(--booking-cancelled-dot);
+}
+/* Cancelled stays readable but struck through */
+.booking-card-cancelled .booking-card-name,
+.booking-card-cancelled .booking-card-service-label,
+.booking-card-cancelled .booking-card-time-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: currentColor;
 }
 
 /* Status pill on booking cards */
@@ -1291,6 +1445,10 @@
   white-space: nowrap;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  /* Daily-view stacks the pill above the time in a flex column; without this
+     the pill would stretch to full card width because flex-column children
+     default to align-items: stretch. */
+  align-self: flex-start;
 }
 .booking-status-dot-small {
   display: inline-block;
@@ -1299,42 +1457,157 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
-/* Pending — orange tint */
+/* Initials inside the status pill when card is very compact (< 30px) */
+.booking-status-initials {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+/* First-name-only row used at 30–50px heights */
+.booking-card-name-compact {
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Calendar header date-jump picker (antd DatePicker) — match adjacent button heights */
+.calendar-date-jump.ant-picker {
+  height: 32px;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+.calendar-date-jump.ant-picker:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+.calendar-date-jump.ant-picker .ant-picker-input > input {
+  text-align: center;
+  font-weight: 500;
+  font-size: 12px;
+  color: #111827;
+}
+@media (min-width: 640px) {
+  .calendar-date-jump.ant-picker {
+    height: 36px;
+  }
+  .calendar-date-jump.ant-picker .ant-picker-input > input {
+    font-size: 14px;
+  }
+}
+
+/* Overlap badge — pinned to top-right of the front card in a stack */
+.booking-overlap-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 5;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+}
+.booking-overlap-badge:hover {
+  background: #1e293b;
+}
+
+/* Popover list of stacked bookings */
+.booking-overlap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  max-width: 280px;
+}
+.booking-overlap-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text-primary);
+  transition: background-color 120ms ease;
+}
+.booking-overlap-item:hover {
+  background: var(--bg-primary);
+  border-color: var(--border);
+}
+.booking-overlap-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--gray-400);
+}
+.booking-overlap-dot.booking-overlap-dot-confirmed   { background: var(--booking-confirmed-border); }
+.booking-overlap-dot.booking-overlap-dot-pending     { background: var(--booking-pending-border); }
+.booking-overlap-dot.booking-overlap-dot-checked-in  { background: var(--booking-checked-in-border); }
+.booking-overlap-dot.booking-overlap-dot-completed   { background: var(--booking-completed-border); }
+.booking-overlap-dot.booking-overlap-dot-cancelled   { background: var(--booking-cancelled-border); }
+.booking-overlap-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.booking-overlap-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .booking-status-pill-pending {
-  background: #ffedd5;
-  color: #9a3412;
+  background: var(--booking-pending-pill-bg);
+  color: var(--booking-pending-pill-text);
 }
 .booking-status-pill-pending .booking-status-dot-small {
-  background: #f97316;
+  background: var(--booking-pending-pill-dot);
 }
-/* Confirmed — amber/yellow tint */
 .booking-status-pill-confirmed {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--booking-confirmed-pill-bg);
+  color: var(--booking-confirmed-pill-text);
 }
 .booking-status-pill-confirmed .booking-status-dot-small {
-  background: #f59e0b;
+  background: var(--booking-confirmed-pill-dot);
 }
 .booking-status-pill-checked-in {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--booking-checked-in-pill-bg);
+  color: var(--booking-checked-in-pill-text);
 }
 .booking-status-pill-checked-in .booking-status-dot-small {
-  background: #3b82f6;
+  background: var(--booking-checked-in-pill-dot);
 }
 .booking-status-pill-completed {
-  background: #dcfce7;
-  color: #14532d;
+  background: var(--booking-completed-pill-bg);
+  color: var(--booking-completed-pill-text);
 }
 .booking-status-pill-completed .booking-status-dot-small {
-  background: #22c55e;
+  background: var(--booking-completed-pill-dot);
 }
 .booking-status-pill-cancelled {
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--booking-cancelled-pill-bg);
+  color: var(--booking-cancelled-pill-text);
 }
 .booking-status-pill-cancelled .booking-status-dot-small {
-  background: #94a3b8;
+  background: var(--booking-cancelled-pill-dot);
 }
 
 /* In Week/Month views, ensure consistent rounded design */
@@ -1419,16 +1692,10 @@
 
 /* Fixed layout card for consistent information display */
 .booking-card.fixed-layout-card {
-  padding: 5px 8px;
+  /* Inherit padding/transition from .booking-card base so the editorial spacing
+     and curve survive the cascade. */
   line-height: 1.2;
   overflow: hidden;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-/* Enhanced hover effect for better interaction */
-.booking-card.fixed-layout-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
 }
 
 .booking-card.fixed-layout-card .booking-card-content {
@@ -1458,20 +1725,17 @@
   line-height: 1.0;
 }
 
-/* Tooltip-like enhancement for very small cards */
+/* Lift very small cards slightly more so users can read the content on hover,
+   but keep it subtle — no scale-up bounce. */
 .booking-card[style*="height: 30px"]:hover,
 .booking-card[style*="height: 40px"]:hover,
 .booking-card[style*="height: 50px"]:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+  transform: translateY(-2px);
   z-index: 20;
-  transition: all 0.3s ease;
 }
 
 .booking-card-default {
-  background-color: #f1f5f9; /* slate-100 */
-  border: 1px solid rgba(148, 163, 184, 0.4); /* slate-400 with opacity */
-  border-radius: 0.75rem; /* rounded-xl */
+  border-bottom-color: rgba(148, 163, 184, 0.55); /* slate-400 muted */
 }
 .booking-card-default .booking-card-status-dot {
   background-color: #94a3b8; /* slate-400 */

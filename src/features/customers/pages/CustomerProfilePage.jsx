@@ -153,8 +153,8 @@ function CustomerProfilePage() {
     return customerPreferredCurrency; // Customers see their preferred currency
   }, [isStaffViewing, storageCurrency, customerPreferredCurrency]);
 
-  // For admin, we can show a secondary converted value in base currency
-  const isAdminViewing = currentUser && ['admin', 'manager'].includes(currentUser.role);
+  // For admin / manager / front_desk / receptionist, show a secondary converted value in base currency.
+  const isAdminViewing = currentUser && ['admin', 'manager', 'front_desk', 'receptionist', 'owner'].includes(currentUser.role?.toLowerCase());
   const adminBaseCurrency = businessCurrency || 'EUR';
   
   // Format helper - formats amounts for display
@@ -2550,20 +2550,24 @@ function CustomerProfilePage() {
                       ),
                       children: (
                         <div>
-                          {/* Reset Wallet Button - Admin only */}
+                          {/* Reset Wallet Button - Admin / manager / owner only (destructive).
+                              Receptionist + front_desk MUST NOT see this even though they have
+                              read access to the financial tab. */}
                           <div className="mb-4 flex justify-between items-center">
                             <div>
                               <Text type="secondary">
                                 {transactions?.length || 0} transaction(s) found
                               </Text>
                             </div>
-                            <Button 
-                              danger
-                              onClick={handleResetWalletBalance}
-                              icon={<DeleteOutlined />}
-                            >
-                              Reset Wallet / Clear All Data
-                            </Button>
+                            {['admin', 'manager', 'owner'].includes(currentUser?.role?.toLowerCase()) && (
+                              <Button
+                                danger
+                                onClick={handleResetWalletBalance}
+                                icon={<DeleteOutlined />}
+                              >
+                                Reset Wallet / Clear All Data
+                              </Button>
+                            )}
                           </div>
                           
                           <UnifiedResponsiveTable 

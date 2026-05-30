@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Empty, Tag, Button, Spin, Modal, Avatar } from 'antd';
+import { Empty, Tag, Button, Spin, Modal, Avatar, Space } from 'antd';
 import { EyeOutlined, CloseCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
-import { useData } from '@/shared/hooks/useData';
+import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 
-const ADMIN_ROLES = new Set(['admin', 'manager', 'front_desk', 'developer', 'owner']);
+const ADMIN_ROLES = new Set(['admin', 'manager', 'front_desk', 'receptionist', 'developer', 'owner']);
 
 const statusStyles = {
   pending:    { bg: 'bg-amber-50',   text: 'text-amber-700',  border: 'border-amber-200' },
@@ -29,8 +29,7 @@ function StatusBadge({ status }) {
   );
 }
 
-const CustomerShopHistory = ({ userId }) => {
-  const { apiClient } = useData();
+const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => {
   const { formatCurrency } = useCurrency();
   const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -70,7 +69,10 @@ const CustomerShopHistory = ({ userId }) => {
     if (userId) {
       fetchOrders();
     }
-  }, [userId]);
+    // Also refetch when a discount is added/removed at the parent level — otherwise the
+    // Total column keeps showing pre-discount prices until a manual reload.
+    // `discountsByEntity?.size` is a stable proxy for "the discounts list changed".
+  }, [userId, discountsByEntity?.size]);
 
   const handleViewOrder = async (order) => {
     try {
@@ -119,17 +121,48 @@ const CustomerShopHistory = ({ userId }) => {
      },
      {
         title: 'Total',
-        dataIndex: 'total_amount',
         key: 'total_amount',
-        width: 100,
-        render: (amount) => <span className="text-[13px] font-semibold text-slate-900">{formatCurrency(amount)}</span>
+        width: 140,
+        render: (_, record) => {
+          const original = Number(record.total_amount) || 0;
+          const dByMap = discountsByEntity?.get?.(`shop_order:${record.id}`) || null;
+          const discountAmt = Number(record.total_discount_amount ?? dByMap?.amount ?? 0) || 0;
+          if (discountAmt <= 0) {
+            return <span className="text-[13px] font-semibold text-slate-900">{formatCurrency(original)}</span>;
+          }
+          const final = Math.max(0, original - discountAmt);
+          return (
+            <Space size={4} wrap>
+              <span className="tabular-nums line-through text-slate-400 text-xs">{formatCurrency(original)}</span>
+              <span className="tabular-nums font-semibold text-emerald-600">{formatCurrency(final)}</span>
+            </Space>
+          );
+        },
      },
      {
-        title: '',
+        title: 'Actions',
         key: 'action',
-        width: 40,
+        width: 150,
         render: (_, record) => (
-           <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleViewOrder(record)} />
+          <Space size="small">
+            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleViewOrder(record)} />
+            {isAdminView && onApplyDiscount && Number(record.total_amount) > 0 && (
+              <Button
+                type="link"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApplyDiscount({
+                    entityType: 'shop_order',
+                    entityId: record.id,
+                    originalPrice: Number(record.total_amount) || 0,
+                    currency: record.currency || 'EUR',
+                    description: `Shop order #${record.order_number || record.id}`,
+                  });
+                }}
+              >Discount</Button>
+            )}
+          </Space>
         )
      }
   ];
@@ -256,9 +289,32 @@ const CustomerShopHistory = ({ userId }) => {
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                     Items ({(selectedOrder.items || []).reduce((s, i) => s + (i.quantity || 1), 0)})
                   </p>
-                  <p className="text-sm font-bold text-slate-900">
-                    {formatCurrency(selectedOrder.total_amount, selectedOrder.currency || 'EUR')}
-                  </p>
+                  {(() => {
+                    const originalTotal = Number(selectedOrder.total_amount) || 0;
+                    const discountAmt = Number(selectedOrder.total_discount_amount) || 0;
+                    const cur = selectedOrder.currency || 'EUR';
+                    if (discountAmt > 0) {
+                      const finalTotal = Math.max(0, originalTotal - discountAmt);
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400 line-through">
+                            {formatCurrency(originalTotal, cur)}
+                          </span>
+                          <span className="text-sm font-bold text-emerald-600">
+                            {formatCurrency(finalTotal, cur)}
+                          </span>
+                          <Tag color="orange" className="!m-0 !text-[10px]">
+                            -{formatCurrency(discountAmt, cur)}
+                          </Tag>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="text-sm font-bold text-slate-900">
+                        {formatCurrency(originalTotal, cur)}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   {(selectedOrder.items || []).map((item, idx) => (

@@ -1,7 +1,13 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, CalendarDaysIcon, ViewColumnsIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
-import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, getISOWeek, getISOWeekYear, startOfISOWeek } from 'date-fns';
+import { format, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths } from 'date-fns';
+import { DatePicker } from 'antd';
+import dayjs from 'dayjs';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+
+// WeekPicker uses dayjs's w/wo tokens — register the plugin once at module load.
+dayjs.extend(weekOfYear);
 
 // Import calendar views
 import DailyView from './views/DailyView';
@@ -55,33 +61,13 @@ const getNextDate = (view, date) => {
 };
 
 function DateNavigator({ view, selectedDate, onChangeDate, onPrev, onNext }) {
-  const dayInputRef = useRef(null);
-  const weekInputRef = useRef(null);
-  const monthInputRef = useRef(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  const openNativePicker = useCallback(() => {
-    const ref = view === 'day' ? dayInputRef : view === 'week' ? weekInputRef : monthInputRef;
-    const el = ref.current;
-    if (!el) return;
-    if (pickerOpen) {
-      try { el.blur(); } catch { /* no-op */ }
-      setPickerOpen(false);
-      return;
-    }
-    try {
-      if (typeof el.showPicker === 'function') {
-        el.showPicker();
-      } else {
-        el.focus();
-        el.click();
-      }
-    } catch {
-      el.focus();
-      el.click();
-    }
-    setPickerOpen(true);
-  }, [pickerOpen, view]);
+  // antd DatePicker — a JS popup so it behaves identically across iOS Safari,
+  // Windows Chrome/Edge, macOS Safari, and Firefox. No native input quirks.
+  const pickerType = view === 'week' ? 'week' : view === 'month' ? 'month' : 'date';
+  const pickerFormat =
+    view === 'week' ? '[W]w · YYYY'
+    : view === 'month' ? 'MMMM YYYY'
+    : 'MMM D, YYYY';
 
   return (
     <div className="flex items-center space-x-1 sm:space-x-2">
@@ -93,64 +79,17 @@ function DateNavigator({ view, selectedDate, onChangeDate, onPrev, onNext }) {
       >
         <ChevronLeftIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-600" />
       </button>
-      <div className="relative">
-        <input
-          type="text"
-          value={format(selectedDate, 'MM/dd/yyyy')}
-          readOnly
-          className="px-3 sm:px-4 h-8 sm:h-9 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-900 bg-white cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 min-w-[96px] sm:min-w-[112px] text-center shadow-sm"
-          onClick={openNativePicker}
-        />
-        {/* Hidden native inputs to open picker immediately */}
-        <input
-          ref={dayInputRef}
-          type="date"
-          value={format(selectedDate, 'yyyy-MM-dd')}
-          onChange={(e) => {
-            const d = new Date(e.target.value);
-            if (!isNaN(d)) onChangeDate(d);
-          }}
-          onFocus={() => setPickerOpen(true)}
-          onBlur={() => setPickerOpen(false)}
-          className="absolute opacity-0 -z-10 pointer-events-none h-0 w-0"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
-        <input
-          ref={weekInputRef}
-          type="week"
-          value={`${getISOWeekYear(selectedDate)}-W${String(getISOWeek(selectedDate)).padStart(2, '0')}`}
-          onChange={(e) => {
-            const match = e.target.value.match(/(\d{4})-W(\d{2})/);
-            if (match) {
-              const isoYear = parseInt(match[1], 10);
-              const isoWeek = parseInt(match[2], 10);
-              const isoWeek1 = startOfISOWeek(new Date(isoYear, 0, 4));
-              const d = addWeeks(isoWeek1, isoWeek - 1);
-              onChangeDate(d);
-            }
-          }}
-          onFocus={() => setPickerOpen(true)}
-          onBlur={() => setPickerOpen(false)}
-          className="absolute opacity-0 -z-10 pointer-events-none h-0 w-0"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
-        <input
-          ref={monthInputRef}
-          type="month"
-          value={format(selectedDate, 'yyyy-MM')}
-          onChange={(e) => {
-            const d = new Date(`${e.target.value}-01`);
-            if (!isNaN(d)) onChangeDate(d);
-          }}
-          onFocus={() => setPickerOpen(true)}
-          onBlur={() => setPickerOpen(false)}
-          className="absolute opacity-0 -z-10 pointer-events-none h-0 w-0"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
-      </div>
+      <DatePicker
+        picker={pickerType}
+        value={dayjs(selectedDate)}
+        onChange={(d) => { if (d) onChangeDate(d.toDate()); }}
+        format={pickerFormat}
+        allowClear={false}
+        inputReadOnly
+        size="middle"
+        className="calendar-date-jump !rounded-lg"
+        popupClassName="calendar-date-jump-popup"
+      />
       <button
         type="button"
         className="h-8 w-8 sm:h-9 sm:w-9 grid place-items-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 shadow-sm"

@@ -289,7 +289,7 @@ router.get('/unit-types', async (req, res) => {
 // ============================================================================
 
 // List accommodation bookings with optional status filter
-router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
 	try {
 		const { status, limit = 50, offset = 0, startDate, endDate, guestId } = req.query;
 		const params = [];
@@ -337,7 +337,7 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 
 // Package-based accommodation stays (from customer_packages with check-in dates)
 // Returns stays that are stored in customer_packages but don't have a corresponding accommodation_bookings record.
-router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
 	try {
 		const { rows } = await pool.query(
 			`SELECT
@@ -382,7 +382,7 @@ router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager'
 });
 
 // Mark an accommodation booking as completed and write snapshot
-router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
+router.patch('/bookings/:id/complete', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');
@@ -876,7 +876,7 @@ router.get('/my-bookings', authenticateJWT, async (req, res) => {
 });
 
 // Confirm a pending booking (admin/manager)
-router.patch('/bookings/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
+router.patch('/bookings/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	try {
 		const { id } = req.params;
 		const { rows } = await pool.query(
@@ -938,7 +938,7 @@ router.get('/bookings/:id', authenticateJWT, async (req, res) => {
 });
 
 // Edit a booking by ID (admin, manager) — update unit, dates, guests, notes, total price
-router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
+router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
 	const client = await pool.connect();
 	try {
 		await client.query('BEGIN');

@@ -993,9 +993,11 @@ function Dashboard() {
         return rentalRoles.includes(user?.role) || userPermissions.includes('equipment:rental');
     }, [user?.role, userPermissions]);
 
-    // Hide welcome header for front desk role - they need quick actions only
+    // Hide welcome header for front desk / receptionist roles - they need quick actions only.
+    // `receptionist` and `front_desk` are aliases for the same operational role.
     const showWelcomeHeader = useMemo(() => {
-        return user?.role !== 'front_desk';
+        const r = user?.role?.toLowerCase?.();
+        return r !== 'front_desk' && r !== 'receptionist';
     }, [user?.role]);
 
     const highlightCards = useMemo(() => {

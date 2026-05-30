@@ -131,6 +131,7 @@ const GroupBookingDetailPage = lazyWithRetry(() => import('../features/bookings/
 const GroupBookingCreatePage = lazyWithRetry(() => import('../features/bookings/pages/GroupBookingCreatePage'));
 const GroupLessonRequestPage = lazyWithRetry(() => import('../features/bookings/pages/GroupLessonRequestPage'));
 const UserSettings = lazyWithRetry(() => import('../features/settings/pages/UserSettings'));
+const SpotifyCallback = lazyWithRetry(() => import('../features/settings/pages/SpotifyCallback'));
 const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
 const ManagerPayroll = lazyWithRetry(() => import('../features/manager/pages/ManagerPayroll'));
 // Manager experience (new) — Home dashboard + dedicated finance hub
@@ -335,6 +336,9 @@ const AppRoutes = () => {
   
   {/* Payment callback route - Iyzico ödeme sonrası yönlendirme */}
   <Route path="/payment/callback" element={<PaymentCallback />} />
+
+  {/* Spotify OAuth callback — finishes connection then closes the popup */}
+  <Route path="/spotify/callback" element={<SpotifyCallback />} />
   
   {/* Default route: unauthenticated users see the "Enter the World" splash page */}
   <Route path="/" element={isAuthenticated ? <Navigate to={landingRoute} replace /> : <PublicHome />} />

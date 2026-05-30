@@ -1345,6 +1345,36 @@ export async function recordTransaction({
     if (allowNegative && nextAvailable < -0.0001) {
       // Allow the migration guard to accept overdrafts for this transaction within the current session
       await client.query("SELECT set_config('wallet.allow_negative', 'true', false)");
+
+      // Audit trail: record who exercised the override, on whose wallet, and for how much.
+      // Fires for every flow (bookings, rentals, shop) since they all funnel through here.
+      try {
+        await client.query(
+          `INSERT INTO wallet_audit_logs (wallet_user_id, actor_user_id, action, details)
+           VALUES ($1, $2, 'wallet.negative_balance_override', $3)`,
+          [
+            userId,
+            createdBy || null,
+            JSON.stringify({
+              transactionType,
+              currency: normalizedCurrency,
+              availableDelta: numericAvailableDelta,
+              previousAvailable: currentAvailable,
+              nextAvailable,
+              shortfall: Math.abs(nextAvailable),
+              relatedEntityType: resolvedRelatedEntityType,
+              relatedEntityId: resolvedRelatedEntityId,
+            }),
+          ]
+        );
+      } catch (auditErr) {
+        // Audit failure must not abort the transaction — just log it.
+        logger.warn('Failed to write wallet.negative_balance_override audit row', {
+          userId,
+          createdBy,
+          error: auditErr.message,
+        });
+      }
     }
 
     await client.query(

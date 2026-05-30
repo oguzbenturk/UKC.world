@@ -1,6 +1,9 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Drawer } from 'antd';
+import { Drawer, Modal, TimePicker } from 'antd';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 import { XMarkIcon, PencilSquareIcon, TrashIcon, CheckCircleIcon, CheckIcon, ClockIcon, CurrencyDollarIcon, UserCircleIcon, CalendarDaysIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
 import { useCalendar } from '../contexts/CalendarContext';
@@ -74,12 +77,15 @@ function CreatedBySection({ booking }) {
  */
 const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const { t } = useTranslation(['common']);
-  const { deleteBooking, updateBooking, refreshData } = useCalendar();
+  const { deleteBooking, updateBooking, refreshData, checkBookingConflicts } = useCalendar();
   const { showSuccess, showError } = useToast();
   const { getCurrencySymbol, businessCurrency } = useCurrency();
   const currencySymbol = getCurrencySymbol(businessCurrency);
   const { user } = useAuth();
-  const canModifyBooking = ['manager', 'admin', 'developer'].includes(user?.role?.toLowerCase?.() || '');
+  // Frontdesk + receptionist + owner can also edit bookings — backend PUT /bookings/:id
+  // already accepts these roles. Without them here the Edit button stayed hidden even
+  // though the API would have allowed the change.
+  const canModifyBooking = ['manager', 'admin', 'developer', 'front_desk', 'receptionist', 'owner'].includes(user?.role?.toLowerCase?.() || '');
   // Instructors see duration/rate/commission but not the total booking amount.
   const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
   const [isEditing, setIsEditing] = useState(false);
@@ -190,11 +196,24 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     if (booking) {
 
       setCheckInStatus(booking.checkInStatus || booking.status || 'pending');
+      // Normalise start time to HH:MM. Booking may carry startTime ("HH:MM"), start_hour
+      // (NUMERIC like 9.5), or time ("HH:MM"). Cover all three shapes.
+      const rawStart = booking.startTime ?? booking.start_hour ?? booking.time ?? '';
+      let normalisedStart = '';
+      if (typeof rawStart === 'string' && /^\d{1,2}:\d{2}/.test(rawStart)) {
+        normalisedStart = rawStart.slice(0, 5).padStart(5, '0');
+      } else if (rawStart !== '' && Number.isFinite(Number(rawStart))) {
+        const dec = Number(rawStart);
+        const h = Math.floor(dec);
+        const m = Math.round((dec - h) * 60);
+        normalisedStart = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
       setEditForm({
         notes: booking.notes || '',
         serviceName: booking.serviceName || booking.service_name || '',
         duration: Number(booking.duration) || 1,
         date: formatDateForInput(booking.date) || '',
+        start_hour: normalisedStart,
         price: booking.final_amount || booking.amount || booking.price || 0, // Use final_amount as priority
         instructor_commission: booking.instructor_commission || 0,
         instructor_commission_type: booking.commission_type || 'fixed',
@@ -445,11 +464,87 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const handleUpdateBooking = async () => {
     if (!booking || isProcessing) return;
 
+    // Required: start_hour (HH:MM). Block the save with a clear message if missing —
+    // the previous edit form had no time field at all, so updates could silently keep
+    // a stale start_hour. Now staff must confirm a valid time before saving.
+    if (!editForm.start_hour || !/^\d{2}:\d{2}$/.test(editForm.start_hour)) {
+      showError(t('common:bookings.detail.startTimeRequired', 'Start time is required (HH:MM)'));
+      return;
+    }
+
+    // Conflict check before save — only when something that affects scheduling has changed
+    // (date, start time, duration or instructor). If unchanged, skip the check entirely so
+    // notes-only edits stay instant.
+    const editedStart = editForm.start_hour;
+    const editedDate = editForm.date;
+    const editedDuration = Number(editForm.duration) || 0;
+    const editedInstructor = editForm.instructor_id;
+
+    const originalStart = (() => {
+      const r = booking?.startTime ?? booking?.start_hour ?? booking?.time;
+      if (typeof r === 'string' && /^\d{1,2}:\d{2}/.test(r)) return r.slice(0, 5).padStart(5, '0');
+      if (r != null && Number.isFinite(Number(r))) {
+        const d = Number(r);
+        const h = Math.floor(d);
+        const m = Math.round((d - h) * 60);
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+      return '';
+    })();
+
+    const scheduleChanged =
+      editedStart !== originalStart ||
+      editedDate !== formatDateForInput(booking?.date) ||
+      editedDuration !== (Number(booking?.duration) || 0) ||
+      String(editedInstructor || '') !== String(booking?.instructor_user_id || booking?.instructorId || '');
+
+    if (scheduleChanged && checkBookingConflicts) {
+      try {
+        const conflictRes = await checkBookingConflicts({
+          date: editedDate,
+          time: editedStart,
+          duration: editedDuration,
+          instructorId: editedInstructor,
+        });
+        const otherConflicts = (conflictRes?.conflicts || []).filter((c) => String(c.id) !== String(booking?.id));
+        if (otherConflicts.length > 0) {
+          const summary = otherConflicts
+            .slice(0, 3)
+            .map((c) => `${c.startTime} ${c.studentName || c.serviceName || 'booking'}`)
+            .join(', ');
+          const confirmed = await new Promise((resolve) => {
+            Modal.confirm({
+              title: t('common:bookings.detail.conflictTitle', 'Time slot has conflicts'),
+              content: t(
+                'common:bookings.detail.conflictDesc',
+                `This instructor already has ${otherConflicts.length} booking(s) overlapping with the new time (${summary}). Save anyway?`
+              ),
+              okText: t('common:buttons.save', 'Save anyway'),
+              cancelText: t('common:buttons.cancel', 'Cancel'),
+              okButtonProps: { danger: true },
+              onOk: () => resolve(true),
+              onCancel: () => resolve(false),
+            });
+          });
+          if (!confirmed) {
+            return; // user backed out — preserve edit form state, no setIsProcessing(true)
+          }
+        }
+      } catch (conflictErr) {
+        logger.warn('Conflict pre-check failed; proceeding with save', { error: conflictErr?.message });
+      }
+    }
+
     setIsProcessing(true);
 
     try {
-      const { serviceName: _serviceName, instructor_id, price, ...rest } = editForm;
+      const { serviceName: _serviceName, instructor_id, price, start_hour: startHourStr, ...rest } = editForm;
       const numericAmount = parseFloat(price) || 0;
+      // Backend stores bookings.start_hour as NUMERIC (e.g. 9.5 = 09:30). The UI edits an
+      // HH:MM string, so convert before sending or the UPDATE will fail with type mismatch.
+      const [hh, mm] = (startHourStr || '').split(':').map((x) => Number.parseInt(x, 10));
+      const numericStartHour = Number.isFinite(hh) && Number.isFinite(mm) ? hh + (mm / 60) : null;
+      rest.start_hour = numericStartHour;
 
       // Backend reads `amount` (not `price`); also clear stale `final_amount`
       // so the display recomputes from the new amount.
@@ -933,6 +1028,23 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 value={editForm.date}
                                 onChange={(e) => handleEditFormChange('date', e.target.value)}
                                 disabled={isProcessing}
+                              />
+                            </EditField>
+
+                            <EditField icon={ClockIcon} label={t('common:bookings.detail.startTimeLabel', 'Start time')}>
+                              <TimePicker
+                                value={editForm.start_hour ? dayjs(editForm.start_hour, 'HH:mm') : null}
+                                onChange={(time) => handleEditFormChange('start_hour', time ? time.format('HH:mm') : '')}
+                                format="HH:mm"
+                                minuteStep={15}
+                                showNow={false}
+                                allowClear={false}
+                                needConfirm={false}
+                                className="w-full"
+                                size="middle"
+                                status={editForm.start_hour ? '' : 'error'}
+                                disabled={isProcessing}
+                                placeholder="Select time"
                               />
                             </EditField>
 

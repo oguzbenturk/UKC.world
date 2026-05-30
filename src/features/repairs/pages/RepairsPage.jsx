@@ -238,7 +238,7 @@ const RepairMobileCard = ({ record, onAction, isAdmin, staffUsers = [] }) => {
  * Admin/manager: repairman workflow view (no New Request button)
  * Other roles: customer view with submit and track
  */
-const ADMIN_REPAIR_ROLES = ['admin', 'manager'];
+const ADMIN_REPAIR_ROLES = ['admin', 'manager', 'front_desk', 'receptionist', 'owner'];
 const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 const RepairsPage = () => {

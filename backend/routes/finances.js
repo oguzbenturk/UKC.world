@@ -1201,6 +1201,34 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
         allowNegative: (-originalAmount) < 0,
         client
       });
+
+      // The cancel + reversal pair double-decrements the cache: status='cancelled' takes
+      // the original out of the SUM, and recordWalletTransaction also subtracts the
+      // reversal's delta — net effect 2× the rollback (incident 2026-05-30, Rifat Doğan,
+      // -120€ booking shown as -260€). Re-derive the balance from the ledger after the
+      // pair lands so cache == SUM(completed deltas) regardless of intermediate drift.
+      const txCurrency = transaction.currency || 'EUR';
+      await client.query(
+        `SELECT set_config('wallet.allow_negative', 'true', false)`
+      );
+      await client.query(
+        `UPDATE wallet_balances
+            SET available_amount = COALESCE((
+                  SELECT SUM(available_delta) FROM wallet_transactions
+                   WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                ), 0),
+                pending_amount = COALESCE((
+                  SELECT SUM(pending_delta) FROM wallet_transactions
+                   WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                ), 0),
+                non_withdrawable_amount = COALESCE((
+                  SELECT SUM(non_withdrawable_delta) FROM wallet_transactions
+                   WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                ), 0),
+                updated_at = NOW()
+          WHERE user_id = $1 AND currency = $2`,
+        [transaction.user_id, txCurrency]
+      );
     }
 
     await client.query('COMMIT');

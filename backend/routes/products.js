@@ -364,7 +364,7 @@ router.get('/subcategories', publicApiLimiter, cacheMiddleware(3600), async (req
 });
 
 // Create a new subcategory (admin only)
-router.post('/subcategories', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/subcategories', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     const { category, subcategory, display_name, parent_subcategory = null } = req.body;
 
@@ -407,7 +407,7 @@ router.post('/subcategories', authenticateJWT, authorizeRoles(['admin', 'manager
 });
 
 // Delete (deactivate) a subcategory (admin only)
-router.delete('/subcategories/:category/:subcategory', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.delete('/subcategories/:category/:subcategory', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     const { category, subcategory } = req.params;
 
@@ -426,7 +426,7 @@ router.delete('/subcategories/:category/:subcategory', authenticateJWT, authoriz
 });
 
 // Trigger external vendor product synchronization (ION, Duotone...)
-router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     const { vendors, dryRun = false } = req.body ?? {};
     const vendorKeys = Array.isArray(vendors)
@@ -481,7 +481,7 @@ router.get('/:id', publicApiLimiter, async (req, res) => {
 });
 
 // Create new product
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'services:write'), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const {
       name,
@@ -593,7 +593,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'services
 });
 
 // Update product
-router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
+router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -729,7 +729,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
 });
 
 // Delete product
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -749,7 +749,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
 });
 
 // Update stock quantity (for inventory management)
-router.patch('/:id/stock', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.patch('/:id/stock', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     const { id } = req.params;
     const { stock_quantity, reason } = req.body;
@@ -826,7 +826,7 @@ router.get('/inventory/low-stock', authenticateJWT, async (req, res) => {
   }
 });
 
-router.get('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.get('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     const metadata = await getRecommendationMetadata(req.params.id, req.query.role || 'student');
     res.json({ metadata });
@@ -836,7 +836,7 @@ router.get('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'man
   }
 });
 
-router.post('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     const { id } = req.params;
     const { role = 'student', priority = 5, isFeatured = false, metadata = {} } = req.body || {};
@@ -857,7 +857,7 @@ router.post('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'ma
   }
 });
 
-router.delete('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.delete('/:id/recommendation', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {
     await removeProductRecommendation(req.params.id, req.query.role || 'student');
     res.status(204).send();

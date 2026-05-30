@@ -149,6 +149,32 @@ export const formatBookingTimeRangeDot = (booking, { hideMinutesIfZero = true } 
 };
 
 /**
+ * Initials of the primary participant for very compact card rendering.
+ * Returns "JD" or "JD +2" for groups.
+ */
+export const formatParticipantInitials = (booking) => {
+  const toInitials = (name) => {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+  const participants = booking.participants;
+  if (participants && Array.isArray(participants) && participants.length > 0) {
+    const first = participants[0];
+    const initials = toInitials(first.userName || first.name || 'Participant');
+    const extra = participants.length - 1;
+    return extra > 0 ? `${initials} +${extra}` : initials;
+  }
+  if (booking.group_size && booking.group_size > 1) {
+    const initials = toInitials(booking.userName || booking.studentName || 'Participant');
+    return `${initials} +${booking.group_size - 1}`;
+  }
+  return toInitials(booking.userName || booking.studentName || 'Participant');
+};
+
+/**
  * Compact participant names for month labels: "Mert +2"
  */
 export const formatParticipantNamesCompact = (booking) => {

@@ -1,13 +1,14 @@
 // src/components/UserForm.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber, DatePicker } from 'antd';
+import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber, DatePicker, Modal, Space } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { UserOutlined, UploadOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { UserOutlined, UploadOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { parsePhoneNumber } from 'libphonenumber-js';
 import ReactCountryFlag from "react-country-flag";
 import DataService from '../../services/dataService';
 import apiClient from '../../services/apiClient';
+import { useAuth } from '@/shared/hooks/useAuth';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
@@ -386,11 +387,15 @@ const detectCountryFromPhone = (phone) => {
 
 const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _isModal }) => {
   const { t } = useTranslation(['common']);
+  const { user: currentUser } = useAuth();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(user?.profile_image_url || null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState(null);
+  // Activation-confirmation dialog (shown only on CREATE, never on edit)
+  const [activationModalOpen, setActivationModalOpen] = useState(false);
+  const [pendingCreatePayload, setPendingCreatePayload] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -561,7 +566,17 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
         return;
       }
 
-  await persistUser(payload);
+      // On CREATE only: ask staff whether to pre-verify (activate now) or send an activation
+      // email so the new member can confirm themselves. Edits skip this — they're an
+      // identity-vetted maintenance op, not a new-account decision.
+      if (!user || !user.id) {
+        setPendingCreatePayload(payload);
+        setActivationModalOpen(true);
+        setLoading(false);
+        return;
+      }
+
+      await persistUser(payload);
     } catch (error) {
       // Display specific error message if available, otherwise show a generic message
       message.error(error.message || t('common:userForm.errorSaving'));
@@ -636,7 +651,23 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
     });
   }, [user?.id]);
 
+  const submitCreateWithActivationChoice = async (sendVerification) => {
+    if (!pendingCreatePayload) return;
+    setActivationModalOpen(false);
+    setLoading(true);
+    try {
+      const finalPayload = { ...pendingCreatePayload, send_verification: !!sendVerification };
+      await persistUser(finalPayload);
+    } catch (error) {
+      message.error(error.message || t('common:userForm.errorSaving'));
+    } finally {
+      setLoading(false);
+      setPendingCreatePayload(null);
+    }
+  };
+
   return (
+    <>
     <Form
       form={form}
       layout="vertical"
@@ -847,26 +878,48 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
         </Col>
       </Row>
 
-      {roles && roles.length > 0 && (
-        <Form.Item
-          name="role_id"
-          label={t('common:userForm.role')}
-          rules={[{ required: true, message: t('common:userForm.selectRole') }]}
-        >
-          <Select placeholder={t('common:userForm.selectRole')}>
-            {roles.map(role => (
-              <Option key={role.id} value={role.id}>{role.name}</Option>
-            ))}
-          </Select>
-        </Form.Item>
-      )}
+      {roles && roles.length > 0 && (() => {
+        // Front desk / receptionist users may only create customer-tier accounts. Admin and
+        // manager can create any role. This filter mirrors what the user can actually do —
+        // staff-tier roles (admin, manager, instructor, etc.) are hidden for frontdesk.
+        const currentRole = currentUser?.role?.toLowerCase?.() || '';
+        const isFrontdesk = currentRole === 'front_desk' || currentRole === 'receptionist';
+        const customerOnlyRoles = new Set(['student', 'outsider', 'trusted_customer']);
+        const visibleRoles = isFrontdesk
+          ? roles.filter((r) => customerOnlyRoles.has((r.name || '').toLowerCase()))
+          : roles;
+        return (
+          <Form.Item
+            name="role_id"
+            label={t('common:userForm.role')}
+            rules={[{ required: true, message: t('common:userForm.selectRole') }]}
+          >
+            <Select placeholder={t('common:userForm.selectRole')}>
+              {visibleRoles.map(role => (
+                <Option key={role.id} value={role.id}>{role.name}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+        );
+      })()}
 
       <Row gutter={24}>
         <Col xs={24} sm={12}>
           <Form.Item
             name="password"
             label={user && user.id ? t('common:userForm.newPassword') : t('common:userForm.password')}
-            rules={user && user.id ? [] : [{ required: true, message: t('common:userForm.passwordRequired') }]}
+            rules={[
+              ...(user && user.id
+                ? []
+                : [{ required: true, message: t('common:userForm.passwordRequired') }]),
+              {
+                validator(_, value) {
+                  if (!value) return Promise.resolve();
+                  if (typeof value === 'string' && value.length >= 8) return Promise.resolve();
+                  return Promise.reject(new Error(t('common:userForm.passwordTooShort', 'Password must be at least 8 characters')));
+                },
+              },
+            ]}
             hasFeedback
             extra={user && user.id ? t('common:userForm.leaveEmptyToKeepPassword') : undefined}
           >
@@ -907,6 +960,55 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
         </Button>
       </Form.Item>
     </Form>
+
+    <Modal
+      open={activationModalOpen}
+      title={t('common:userForm.activationTitle', 'How should this account be activated?')}
+      onCancel={() => {
+        setActivationModalOpen(false);
+        setPendingCreatePayload(null);
+      }}
+      footer={null}
+      width={520}
+      destroyOnHidden
+    >
+      <p className="text-sm text-slate-600 mb-4">
+        {t(
+          'common:userForm.activationPrompt',
+          'Choose how this customer should gain access. Identity is your call — confirm in person and activate immediately, or send them an email link so they confirm themselves.'
+        )}
+      </p>
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <Button
+          type="primary"
+          size="large"
+          icon={<CheckCircleOutlined />}
+          block
+          onClick={() => submitCreateWithActivationChoice(false)}
+        >
+          {t('common:userForm.activateNow', 'Activate now')}
+        </Button>
+        <Button
+          size="large"
+          icon={<MailOutlined />}
+          block
+          onClick={() => submitCreateWithActivationChoice(true)}
+        >
+          {t('common:userForm.sendActivationEmail', 'Send activation email')}
+        </Button>
+        <Button
+          type="text"
+          block
+          onClick={() => {
+            setActivationModalOpen(false);
+            setPendingCreatePayload(null);
+          }}
+        >
+          {t('common:buttons.cancel')}
+        </Button>
+      </Space>
+    </Modal>
+    </>
   );
 };
 

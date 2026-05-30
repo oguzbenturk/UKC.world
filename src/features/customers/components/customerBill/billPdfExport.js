@@ -1,265 +1,41 @@
-// PDF export for the Customer Bill. Two paths:
+// Native jsPDF + autoTable bill renderer.
 //
-//   1) `exportBillPdfFromElement(element, filename)` — preferred. Captures
-//      the on-screen bill DOM with html2canvas and embeds it into a jsPDF
-//      A4 doc, paginating across pages when the bill is taller than one
-//      page. The PDF becomes a 1:1 visual match of the modal — same colors,
-//      icons, status pills, table alignment, totals block.
+// Produces a pixel-perfect, vector-quality PDF that mirrors the on-screen
+// bill design: centered Duotone Pro Center logo, double rule (black + teal),
+// BILL TO / PERIOD grid, per-category section tables with subtotal headers,
+// status pills, struck-through original prices on discounted rows, and the
+// totals block (Subtotal → per-category breakdown → Payments received →
+// Balance Due). Text remains real (selectable, searchable), tables paginate
+// row-by-row so nothing is ever clipped, and Turkish characters are
+// transliterated for Helvetica's Latin-1 charset.
 //
-//   2) `exportBillPdf({...})` — legacy text-based fallback that draws every
-//      element manually with jsPDF text() / autoTable() calls. Kept around
-//      so the export still works if html2canvas fails or the DOM ref is
-//      somehow unavailable, but no longer the primary path.
+// `exportBillPdfFromElement` kept as a fallback only.
 
 import { CATEGORY_DISPLAY_ORDER, CATEGORY_LABELS } from './billAggregator';
 
-// ─────────────────────────────────────────────────────────────────────────
-// Path 1: DOM-capture export
-// ─────────────────────────────────────────────────────────────────────────
-export async function exportBillPdfFromElement(element, filename = 'DPC-Statement.pdf') {
-  if (!element) throw new Error('exportBillPdfFromElement: element is required');
-
-  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-    import('html2canvas'),
-    import('jspdf'),
-  ]);
-
-  // Always capture at desktop layout (900px wide) regardless of the user's
-  // device viewport. On mobile the bill renders inside a ~380px-wide modal
-  // with mobile-specific CSS — capturing that produces a phone-shaped PDF
-  // with squashed columns. We clone the bill into an offscreen wrapper at
-  // a fixed desktop width and capture from there. Tailwind / billPrint.css
-  // mobile media queries are also neutralized via html2canvas's
-  // `windowWidth` option so any `@media (max-width: 640px)` rules don't
-  // fire during capture.
-  const DESKTOP_CAPTURE_WIDTH = 900;
-  const clone = element.cloneNode(true);
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = [
-    'position:fixed',
-    'top:0',
-    // Keep the wrapper visible to layout but invisible to the user.
-    // Hard-offscreen via left:-10000px caused html2canvas to miscompute
-    // some inline-block widths in Safari; opacity:0 keeps it laid out
-    // normally without flashing the user.
-    'left:0',
-    'opacity:0',
-    'pointer-events:none',
-    'z-index:-1',
-    `width:${DESKTOP_CAPTURE_WIDTH}px`,
-    'background:#ffffff',
-  ].join(';');
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
-
-  // Use the CLONE's images for loading / SVG rasterization so the live
-  // on-screen bill is never modified. (The user could still see flicker
-  // on the live element if we touched its <img> sources.)
-  const imgs = Array.from(clone.querySelectorAll('img'));
-  await Promise.all(imgs.map(img => {
-    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-    return new Promise(resolve => {
-      const done = () => resolve();
-      img.addEventListener('load', done, { once: true });
-      img.addEventListener('error', done, { once: true });
-      // Safety timeout so a stuck image doesn't block the PDF forever.
-      setTimeout(done, 3000);
-    });
-  }));
-
-  // html2canvas reliably fails to rasterize SVG <img> sources — even when
-  // loaded, even as a base64 data URL, even with allowTaint. The bulletproof
-  // workaround is to rasterize the SVG to a PNG ourselves via canvas, then
-  // swap the img's src to that PNG data URL before html2canvas runs. The
-  // canvas API handles SVG drawing perfectly and emits a PNG that
-  // html2canvas trivially copies into the capture.
-  const restoreImgSrcs = [];
-  for (const img of imgs) {
-    const src = img.getAttribute('src') || '';
-    if (!src.toLowerCase().includes('.svg')) continue;
-    try {
-      // Decode the SVG into a fresh Image (separate from the live <img> so
-      // the user-visible element isn't flickered).
-      const sourceImg = new Image();
-      sourceImg.crossOrigin = 'anonymous';
-      sourceImg.src = src;
-      await new Promise((resolve, reject) => {
-        if (sourceImg.complete && sourceImg.naturalWidth > 0) return resolve();
-        sourceImg.addEventListener('load', resolve, { once: true });
-        sourceImg.addEventListener('error', reject, { once: true });
-        setTimeout(() => reject(new Error('svg load timeout')), 4000);
-      });
-
-      // Use the on-screen displayed size × 2 for retina-grade crispness.
-      const displayWidth = img.clientWidth || sourceImg.naturalWidth || 600;
-      const aspect = (sourceImg.naturalHeight && sourceImg.naturalWidth)
-        ? sourceImg.naturalHeight / sourceImg.naturalWidth
-        : (112.5 / 800);
-      const displayHeight = img.clientHeight || Math.round(displayWidth * aspect);
-
-      const offscreen = document.createElement('canvas');
-      offscreen.width = displayWidth * 2;
-      offscreen.height = displayHeight * 2;
-      const ctx = offscreen.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
-      ctx.drawImage(sourceImg, 0, 0, offscreen.width, offscreen.height);
-      const pngDataUrl = offscreen.toDataURL('image/png');
-
-      // Temporarily detach the modal img's onerror so a load failure on the
-      // PNG (extremely unlikely, but defensive) doesn't permanently hide the
-      // live logo via the modal's `onError={display:none}` handler.
-      const originalOnError = img.onerror;
-      img.onerror = null;
-
-      restoreImgSrcs.push({ img, originalSrc: src, originalOnError });
-      img.setAttribute('src', pngDataUrl);
-
-      await new Promise(resolve => {
-        if (img.complete && img.naturalWidth > 0) return resolve();
-        img.addEventListener('load', resolve, { once: true });
-        img.addEventListener('error', resolve, { once: true });
-        setTimeout(resolve, 1500);
-      });
-    } catch (e) {
-      console.warn('Bill PDF: failed to rasterize SVG to PNG; leaving original src', src, e);
-    }
-  }
-
-  // 2× scale for print crispness; `windowWidth` forces a desktop viewport so
-  // mobile-only @media queries don't apply during capture.
-  let fullCanvas;
-  let cloneRect;
-  let sectionRects;
-  try {
-    fullCanvas = await html2canvas(clone, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      imageTimeout: 5000,
-      width: DESKTOP_CAPTURE_WIDTH,
-      windowWidth: DESKTOP_CAPTURE_WIDTH,
-      ignoreElements: (el) => !!(el.classList && el.classList.contains('ukc-bill-no-print')),
-    });
-    // Bounding rects become unreliable once the element is detached.
-    cloneRect = clone.getBoundingClientRect();
-    sectionRects = Array.from(clone.querySelectorAll('.ukc-bill-section'))
-      .map(s => s.getBoundingClientRect());
-  } finally {
-    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-  }
-
-  // Cut on `.ukc-bill-section` boundaries so categories and totals never
-  // straddle an A4 page break.
-  const yScale = fullCanvas.height / cloneRect.height;
-  const blocks = [];
-  if (sectionRects.length > 0) {
-    const firstSectionTopPx = (sectionRects[0].top - cloneRect.top) * yScale;
-    if (firstSectionTopPx > 0) {
-      blocks.push({ topPx: 0, heightPx: firstSectionTopPx });
-    }
-    for (const rect of sectionRects) {
-      blocks.push({
-        topPx: (rect.top - cloneRect.top) * yScale,
-        heightPx: rect.height * yScale,
-      });
-    }
-  } else {
-    blocks.push({ topPx: 0, heightPx: fullCanvas.height });
-  }
-
-  // jsPDF's addImage takes no source rectangle, so each slice needs its own
-  // canvas before encoding.
-  const sliceCanvas = ({ topPx, heightPx }) => {
-    const out = document.createElement('canvas');
-    out.width = fullCanvas.width;
-    out.height = Math.max(1, Math.round(heightPx));
-    out.getContext('2d').drawImage(
-      fullCanvas,
-      0, Math.round(topPx),
-      fullCanvas.width, out.height,
-      0, 0,
-      fullCanvas.width, out.height,
-    );
-    return out;
-  };
-
-  const A4_WIDTH_PT = 595.28;
-  const A4_HEIGHT_PT = 841.89;
-  const margin = 24;
-  const contentWidthPt = A4_WIDTH_PT - margin * 2;
-  const usableHeightPt = A4_HEIGHT_PT - margin * 2;
-  const blockGapPt = 10;
-
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
-  let cursorY = margin;
-  let isFirstOnPage = true;
-
-  for (const slice of blocks) {
-    const blockCanvas = sliceCanvas(slice);
-    const naturalHeightPt = (blockCanvas.height / blockCanvas.width) * contentWidthPt;
-
-    if (!isFirstOnPage && cursorY + naturalHeightPt > margin + usableHeightPt) {
-      pdf.addPage();
-      cursorY = margin;
-      isFirstOnPage = true;
-    }
-
-    let renderHeightPt = naturalHeightPt;
-    let renderWidthPt = contentWidthPt;
-    if (renderHeightPt > usableHeightPt) {
-      renderHeightPt = usableHeightPt;
-      renderWidthPt = (blockCanvas.width / blockCanvas.height) * renderHeightPt;
-    }
-
-    const xOffset = margin + (contentWidthPt - renderWidthPt) / 2;
-    // JPEG (q=0.92) keeps a long bill's peak memory in check vs PNG with no
-    // visible quality loss on screenshot-style content.
-    pdf.addImage(
-      blockCanvas.toDataURL('image/jpeg', 0.92),
-      'JPEG',
-      xOffset,
-      cursorY,
-      renderWidthPt,
-      renderHeightPt,
-    );
-
-    // Release the slice bitmap immediately rather than waiting for GC.
-    blockCanvas.width = 0;
-    blockCanvas.height = 0;
-
-    cursorY += renderHeightPt + blockGapPt;
-    isFirstOnPage = false;
-  }
-
-  pdf.save(filename);
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Path 2: legacy text-based export (fallback)
-// ─────────────────────────────────────────────────────────────────────────
-
 const BRAND_RGB = [0, 168, 196];
-
-const fmtShort = (date) => date
-  ? date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
-  : '—';
+const INK_RGB = [15, 23, 42];
+const MUTED_RGB = [100, 116, 139];
+const HAIRLINE_RGB = [226, 232, 240];
+const ROW_HAIRLINE_RGB = [241, 245, 249];
+const DISCOUNT_RGB = [225, 29, 72];
+const PAID_RGB = [5, 150, 105];
 
 const STATUS_LABEL = {
   paid: 'Paid',
   unpaid: 'Unpaid',
-  package: 'Incl. in package',
+  package: 'In package',
   cancelled: 'Cancelled',
   refunded: 'Refunded',
 };
+const STATUS_STYLE = {
+  paid:      { fill: [220, 252, 231], text: [5, 122, 85] },
+  unpaid:    { fill: [254, 243, 199], text: [161, 98, 7] },
+  package:   { fill: [224, 242, 254], text: [3, 105, 161] },
+  cancelled: { fill: [241, 245, 249], text: [100, 116, 139] },
+  refunded:  { fill: [243, 232, 255], text: [126, 34, 206] },
+};
 
-// jsPDF's built-in Helvetica only covers Latin-1, so Turkish glyphs (ğ, ş, ç,
-// ı, İ, etc.) render as missing characters. Rather than embedding a heavy
-// Unicode TTF (which made the layout look too bold), we transliterate Turkish
-// characters to their closest ASCII equivalents at render time. Names like
-// "Gürkan Köksal" become "Gurkan Koksal", which Helvetica draws cleanly.
 const TURKISH_MAP = {
   'ı': 'i', 'İ': 'I',
   'ğ': 'g', 'Ğ': 'G',
@@ -270,28 +46,29 @@ const TURKISH_MAP = {
 };
 
 const transliterate = (input) => {
-  if (input == null) return input;
+  if (input == null) return '';
   const s = String(input);
-  // Fast path: skip non-ASCII detection if everything is ASCII already.
   if (/^[\x00-\x7F]*$/.test(s)) return s;
   let out = '';
-  for (const ch of s) {
-    out += TURKISH_MAP[ch] ?? ch;
-  }
-  // Strip remaining combining diacritics from any non-Turkish accented
-  // characters (é, à, etc.) so they degrade to plain ASCII too.
+  for (const ch of s) out += TURKISH_MAP[ch] ?? ch;
   return out.normalize('NFD').replace(/[̀-ͯ]/g, '');
 };
 
-// Rasterize the Duotone Pro Center SVG to a high-DPI PNG data URL so jsPDF
-// can embed it via addImage. We render at 4× the target print size so the
-// logo stays crisp on paper.
+const fmtShort = (date) => {
+  if (!date) return '—';
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 async function loadLogoPngDataUrl(targetWidthPt = 280, dpr = 4) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const aspect = img.naturalWidth / img.naturalHeight || (800 / 112.5);
+      const aspect = (img.naturalWidth && img.naturalHeight)
+        ? img.naturalWidth / img.naturalHeight
+        : 800 / 112.5;
       const canvas = document.createElement('canvas');
       const targetWidthPx = targetWidthPt * dpr;
       canvas.width = targetWidthPx;
@@ -300,237 +77,525 @@ async function loadLogoPngDataUrl(targetWidthPt = 280, dpr = 4) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      try {
-        resolve({ dataUrl: canvas.toDataURL('image/png'), aspect });
-      } catch {
-        resolve(null);
-      }
+      try { resolve({ dataUrl: canvas.toDataURL('image/png'), aspect }); }
+      catch { resolve(null); }
     };
     img.onerror = () => resolve(null);
     img.src = '/dps-procenter.svg?v=3';
   });
 }
 
+// Strip leading non-letter junk (e.g. literal "### Name") that occasionally
+// leaks in from imported customer data.
+const cleanName = (name) => transliterate((name || '').replace(/^[^\p{L}\p{N}]+/u, '').trim() || 'Customer');
+
 export async function exportBillPdf({
   customerName,
   customerEmail,
   customerPhone,
   customerAddress,
-  billRef,
   issuedAt,
   period,
   grouped,
   totals,
   baseCurrency,
   formatCurrency,
+  isCohortMode = false,
+  cohortPartyNames = [],
 }) {
   const { default: jsPDF } = await import('jspdf');
-  const { default: autoTable } = await import('jspdf-autotable');
+  const autoTableMod = await import('jspdf-autotable');
+  const autoTable = autoTableMod.default || autoTableMod.autoTable || autoTableMod;
 
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 40;
-  // Wrap formatCurrency so any currency-symbol/locale output flows through
-  // transliteration too (e.g. NBSP narrow spaces from Intl.NumberFormat).
+  const contentWidth = pageWidth - margin * 2;
+
   const fmt = (v) => transliterate(formatCurrency(v || 0, baseCurrency));
   const tr = transliterate;
+  const safeCustomerName = cleanName(customerName);
 
   // ── Letterhead ────────────────────────────────────────────────────────
-  // Centered Duotone Pro Center logo + double rule (matches on-screen bill).
-  const logoTargetWidth = 280; // points
+  const logoTargetWidth = 320;
   const logo = await loadLogoPngDataUrl(logoTargetWidth);
-  let separatorY = 70;
+  let separatorY = 76;
   if (logo) {
     const logoHeight = logoTargetWidth / logo.aspect;
     const logoX = (pageWidth - logoTargetWidth) / 2;
-    const logoY = 30;
+    const logoY = 36;
     doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoTargetWidth, logoHeight);
-    separatorY = logoY + logoHeight + 14;
+    separatorY = logoY + logoHeight + 16;
   } else {
-    // Fallback: bold wordmark if the SVG fails to load.
-    doc.setFontSize(18);
-    doc.setTextColor(20, 20, 20);
+    doc.setFontSize(20);
+    doc.setTextColor(...INK_RGB);
     doc.setFont('helvetica', 'bold');
-    doc.text('DUOTONE PRO CENTER', pageWidth / 2, 56, { align: 'center' });
-    separatorY = 74;
+    doc.text('DUOTONE PRO CENTER URLA', pageWidth / 2, 64, { align: 'center' });
+    separatorY = 84;
   }
 
-  // Double-rule signature: heavy black + brand teal hairline below.
-  doc.setDrawColor(20, 20, 20);
-  doc.setLineWidth(1.5);
+  // Heavy black rule + brand teal hairline below — editorial signature.
+  doc.setDrawColor(...INK_RGB);
+  doc.setLineWidth(2.4);
   doc.line(margin, separatorY, pageWidth - margin, separatorY);
   doc.setDrawColor(...BRAND_RGB);
-  doc.setLineWidth(0.8);
-  doc.line(margin, separatorY + 3, pageWidth - margin, separatorY + 3);
+  doc.setLineWidth(1.4);
+  doc.line(margin, separatorY + 4, pageWidth - margin, separatorY + 4);
   doc.setLineWidth(0.2);
 
-  // Issued date aligned right, like the on-screen bill.
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(140, 140, 140);
-  doc.text(`ISSUED ${(issuedAt || '').toUpperCase()}`, pageWidth - margin, separatorY + 18, { align: 'right' });
+  // ── Bill-to / Period grid ─────────────────────────────────────────────
+  let y = separatorY + 28;
 
-  // ── Bill-to ───────────────────────────────────────────────────────────
-  let y = separatorY + 38;
-  doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
-  doc.text('BILL TO', margin, y);
-  doc.text('PERIOD', pageWidth / 2, y);
-  y += 14;
-  doc.setFontSize(11);
-  doc.setTextColor(20, 20, 20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(tr(customerName || ''), margin, y);
+  // Issued date (top-right)
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED_RGB);
+  doc.text(`ISSUED ${tr((issuedAt || '').toUpperCase())}`, pageWidth - margin, y, { align: 'right' });
+  y += 18;
+
+  // Column labels
+  const colMid = pageWidth / 2;
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 163, 184);
+  doc.setFont('helvetica', 'bold');
+  doc.text(isCohortMode ? 'BILL TO (PAYER)' : 'BILL TO', margin, y);
+  doc.text('PERIOD', colMid, y);
+  y += 14;
+
+  // Track separate Y cursors for the left (customer) and right (period) columns
+  // so they can each grow independently without overlapping.
+  let leftY = y;
+  let rightY = y;
+
+  // Customer name (left) + period value (right) — same baseline.
+  doc.setFontSize(13);
+  doc.setTextColor(...INK_RGB);
+  doc.setFont('helvetica', 'bold');
+  doc.text(safeCustomerName, margin, leftY);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(51, 65, 85);
+  doc.text(period ? `${period[0]} → ${period[1]}` : 'All time', colMid, rightY);
+  leftY += 14;
+  rightY += 14;
+
+  // Customer contacts (left column)
   doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
-  doc.text(period ? `${period[0]} - ${period[1]}` : 'All time', pageWidth / 2, y);
-  y += 12;
-  if (customerEmail) { doc.text(tr(customerEmail), margin, y); y += 11; }
-  if (customerPhone) { doc.text(tr(customerPhone), margin, y); y += 11; }
+  doc.setTextColor(71, 85, 105);
+  if (customerEmail) { doc.text(tr(customerEmail), margin, leftY); leftY += 11; }
+  if (customerPhone) { doc.text(tr(customerPhone), margin, leftY); leftY += 11; }
   if (customerAddress) {
-    doc.setTextColor(120, 120, 120);
-    doc.text(tr(customerAddress), margin, y);
-    y += 11;
+    doc.setTextColor(...MUTED_RGB);
+    const addressLines = doc.splitTextToSize(tr(customerAddress), colMid - margin - 12);
+    for (const line of addressLines) { doc.text(line, margin, leftY); leftY += 11; }
   }
 
-  let cursorY = y + 14;
+  // Item count under period (right column)
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 163, 184);
+  doc.setFont('helvetica', 'bold');
+  const itemCount = CATEGORY_DISPLAY_ORDER.reduce((acc, c) => acc + (grouped[c]?.length || 0), 0);
+  doc.text(`${itemCount} ITEM${itemCount === 1 ? '' : 'S'} IN PERIOD`, colMid, rightY);
+  rightY += 11;
+
+  // Continue with the taller of the two columns.
+  y = Math.max(leftY, rightY);
+
+  // Cohort party tags
+  if (isCohortMode && cohortPartyNames.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text('COMBINED FOR', margin, y + 4);
+    y += 16;
+    let chipX = margin;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    for (const name of cohortPartyNames) {
+      const label = tr(name);
+      const w = doc.getTextWidth(label) + 12;
+      if (chipX + w > pageWidth - margin) { chipX = margin; y += 18; }
+      doc.setFillColor(224, 242, 254);
+      doc.setDrawColor(186, 230, 253);
+      doc.roundedRect(chipX, y - 9, w, 14, 3, 3, 'FD');
+      doc.setTextColor(3, 105, 161);
+      doc.text(label, chipX + 6, y + 1);
+      chipX += w + 4;
+    }
+    y += 8;
+  }
+
+  let cursorY = y + 18;
 
   // ── Section tables ────────────────────────────────────────────────────
-  for (const cat of CATEGORY_DISPLAY_ORDER) {
+  const visibleCategories = CATEGORY_DISPLAY_ORDER.filter((c) => (grouped[c]?.length || 0) > 0);
+  const hasAnyDiscount = visibleCategories.some(
+    (c) => (grouped[c] || []).some((r) => (r.discountAmount ?? 0) > 0)
+  );
+
+  for (const cat of visibleCategories) {
     const rows = grouped[cat];
-    if (!rows || rows.length === 0) continue;
     const subtotal = totals.subtotalsByCategory[cat] || 0;
+
+    // ── Section banner (drawn as a separate one-row table so it stays
+    //    grouped with its body table at page breaks) ───────────────────
+    const bannerHeight = 22;
+    if (cursorY + bannerHeight + 40 > pageHeight - margin) {
+      doc.addPage();
+      cursorY = margin;
+    }
+    // Banner background
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, cursorY, contentWidth, bannerHeight, 'F');
+    // Brand teal accent bar
+    doc.setFillColor(...BRAND_RGB);
+    doc.rect(margin, cursorY, 3, bannerHeight, 'F');
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...INK_RGB);
+    doc.text(tr(CATEGORY_LABELS[cat]).toUpperCase(), margin + 12, cursorY + 14);
+    // Row count chip
+    const countLabel = String(rows.length);
+    const countLabelWidth = doc.getTextWidth(countLabel) + 8;
+    const titleWidth = doc.getTextWidth(tr(CATEGORY_LABELS[cat]).toUpperCase());
+    doc.setDrawColor(...HAIRLINE_RGB);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin + 12 + titleWidth + 6, cursorY + 5, countLabelWidth, 12, 2, 2, 'FD');
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED_RGB);
+    doc.text(countLabel, margin + 12 + titleWidth + 6 + countLabelWidth / 2, cursorY + 13.5, { align: 'center' });
+    // Subtotal (right)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...INK_RGB);
+    doc.text(fmt(subtotal), pageWidth - margin - 6, cursorY + 14, { align: 'right' });
+    cursorY += bannerHeight;
+
+    // Body table
+    const head = [[
+      'Date',
+      'Description',
+      { content: 'Qty', styles: { halign: 'center' } },
+      { content: 'Unit', styles: { halign: 'right' } },
+      { content: 'Amount', styles: { halign: 'right' } },
+      ...(hasAnyDiscount ? [{ content: 'Discount', styles: { halign: 'right' } }] : []),
+      { content: 'Status', styles: { halign: 'center' } },
+    ]];
+
+    const body = rows.map((it) => {
+      const isCancelled = it.status === 'cancelled';
+      const isPackage = it.status === 'package';
+      const hasDiscount = (it.discountAmount ?? 0) > 0;
+      let descText = tr(it.description || '');
+      if (it.detail) descText += `\n${tr(it.detail)}`;
+      if (isCohortMode) {
+        const parties = it.sharedCustomerNames?.length > 1
+          ? it.sharedCustomerNames
+          : (it.customerName ? [it.customerName] : []);
+        if (parties.length > 0) descText += `\n${parties.map(tr).join(' · ')}`;
+      }
+      const amountCell = isPackage
+        ? { content: 'included', styles: { fontStyle: 'italic', textColor: MUTED_RGB } }
+        : hasDiscount
+          ? { content: `${fmt(it.originalAmount)}\n${fmt(it.amount)}`, _hasStrike: true }
+          : { content: fmt(it.amount) };
+      const cells = [
+        fmtShort(it.date),
+        descText,
+        { content: it.qtyDisplay ?? String(it.qty ?? 1) },
+        { content: it.unitPrice != null ? fmt(it.unitPrice) : '—' },
+        amountCell,
+      ];
+      if (hasAnyDiscount) {
+        cells.push(hasDiscount
+          ? { content: `${it.discountPercent}% −${fmt(it.discountAmount)}`, styles: { textColor: DISCOUNT_RGB, fontSize: 8 } }
+          : { content: '—', styles: { textColor: [203, 213, 225] } });
+      }
+      cells.push({ content: STATUS_LABEL[it.status] || tr(it.status || ''), _statusKey: it.status });
+      if (isCancelled) {
+        cells.forEach((c) => {
+          if (typeof c === 'string') return;
+          c.styles = { ...(c.styles || {}), textColor: [148, 163, 184] };
+        });
+      }
+      return cells;
+    });
+
+    // Compute column widths: Date 60, Qty 36, Unit 60, Amount 64,
+    // (Discount 78), Status 70 — description gets the rest.
+    const fixedCols = { date: 60, qty: 36, unit: 60, amount: 64, discount: 78, status: 70 };
+    const descWidth = contentWidth
+      - fixedCols.date
+      - fixedCols.qty
+      - fixedCols.unit
+      - fixedCols.amount
+      - (hasAnyDiscount ? fixedCols.discount : 0)
+      - fixedCols.status;
+
+    const columnStyles = {
+      0: { cellWidth: fixedCols.date, halign: 'left' },
+      1: { cellWidth: descWidth, halign: 'left' },
+      2: { cellWidth: fixedCols.qty, halign: 'center' },
+      3: { cellWidth: fixedCols.unit, halign: 'right' },
+      4: { cellWidth: fixedCols.amount, halign: 'right' },
+    };
+    if (hasAnyDiscount) {
+      columnStyles[5] = { cellWidth: fixedCols.discount, halign: 'right' };
+      columnStyles[6] = { cellWidth: fixedCols.status, halign: 'center' };
+    } else {
+      columnStyles[5] = { cellWidth: fixedCols.status, halign: 'center' };
+    }
 
     autoTable(doc, {
       startY: cursorY,
-      head: [[
-        {
-          content: `${CATEGORY_LABELS[cat]}  (${rows.length})`,
-          colSpan: 5,
-          styles: { halign: 'left', fillColor: [245, 247, 250], textColor: [40, 60, 80], fontStyle: 'bold' },
-        },
-        {
-          content: fmt(subtotal),
-          styles: { halign: 'right', fillColor: [245, 247, 250], textColor: [40, 60, 80], fontStyle: 'bold' },
-        },
-      ], [
-        'Date', 'Description', 'Qty', 'Unit price', 'Amount', 'Status',
-      ]],
-      body: rows.map(it => [
-        fmtShort(it.date),
-        tr(it.description) + (it.detail ? `\n${tr(it.detail)}` : ''),
-        it.qtyDisplay ?? String(it.qty),
-        it.unitPrice != null ? fmt(it.unitPrice) : '-',
-        it.status === 'package' ? 'included' : fmt(it.amount),
-        STATUS_LABEL[it.status] || it.status,
-      ]),
-      styles: { fontSize: 8, cellPadding: 4, lineColor: [230, 230, 230] },
-      headStyles: { fillColor: [255, 255, 255], textColor: [120, 120, 120], fontStyle: 'normal', fontSize: 7 },
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 32, halign: 'right' },
-        3: { cellWidth: 60, halign: 'right' },
-        4: { cellWidth: 60, halign: 'right' },
-        5: { cellWidth: 70, halign: 'right' },
+      head,
+      body,
+      styles: {
+        font: 'helvetica',
+        fontSize: 8.5,
+        cellPadding: { top: 6, right: 8, bottom: 6, left: 10 },
+        textColor: [51, 65, 85],
+        lineColor: ROW_HAIRLINE_RGB,
+        lineWidth: 0.4,
+        valign: 'top',
       },
-      didParseCell: (data) => {
-        if (data.row.section === 'body') {
-          const row = rows[data.row.index];
-          if (row?.status === 'cancelled') {
-            data.cell.styles.textColor = [180, 180, 180];
-          }
-          if (data.column.index === 4 || data.column.index === 2 || data.column.index === 3) {
-            data.cell.styles.halign = 'right';
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [148, 163, 184],
+        fontStyle: 'bold',
+        fontSize: 7,
+        cellPadding: { top: 6, right: 8, bottom: 6, left: 10 },
+        lineColor: HAIRLINE_RGB,
+        lineWidth: 0.4,
+      },
+      alternateRowStyles: { fillColor: [255, 255, 255] },
+      columnStyles,
+      margin: { left: margin, right: margin },
+      tableLineColor: HAIRLINE_RGB,
+      tableLineWidth: 0.4,
+      // Status pill + struck-through original price rendering.
+      didDrawCell: (data) => {
+        if (data.section !== 'body') return;
+        const raw = data.cell.raw;
+        if (!raw || typeof raw !== 'object') return;
+
+        // Status pill (cell text was suppressed in didParseCell so we draw
+        // the whole pill ourselves)
+        if (raw._statusKey) {
+          const style = STATUS_STYLE[raw._statusKey] || STATUS_STYLE.unpaid;
+          const label = STATUS_LABEL[raw._statusKey] || raw._statusKey;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          const labelWidth = doc.getTextWidth(label);
+          const padX = 8;
+          const pillH = 12;
+          const pillW = Math.max(labelWidth + padX * 2, 44);
+          const cx = data.cell.x + data.cell.width / 2;
+          const cy = data.cell.y + data.cell.height / 2;
+          const px = cx - pillW / 2;
+          const py = cy - pillH / 2;
+          doc.setFillColor(...style.fill);
+          doc.setDrawColor(...style.fill);
+          doc.roundedRect(px, py, pillW, pillH, 6, 6, 'F');
+          doc.setTextColor(...style.text);
+          doc.text(label, cx, py + pillH / 2 + 2.4, { align: 'center' });
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(51, 65, 85);
+        }
+
+        // Strikethrough on the first line of a discounted Amount cell
+        if (raw._hasStrike) {
+          const lines = String(raw.content).split('\n');
+          if (lines.length >= 1) {
+            const original = lines[0];
+            const cellRight = data.cell.x + data.cell.width - 8;
+            const firstLineY = data.cell.y + 6 + 7; // padding + first line baseline approx
+            const w = doc.getTextWidth(original);
+            doc.setDrawColor(148, 163, 184);
+            doc.setLineWidth(0.6);
+            doc.line(cellRight - w, firstLineY - 2, cellRight, firstLineY - 2);
+            doc.setLineWidth(0.2);
           }
         }
       },
-      margin: { left: margin, right: margin },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        // Right-align the Status column's raw text inside the cell so the
+        // pill (drawn in didDrawCell) centers cleanly even before overdraw.
+        if (data.cell.raw && data.cell.raw._statusKey) {
+          data.cell.text = [''];
+        }
+      },
     });
     cursorY = doc.lastAutoTable.finalY + 14;
   }
 
-  // ── Totals — mirrors the on-screen layout ────────────────────────────
-  // Heavy black rule above Subtotal, indented category subtotals in light
-  // gray, Payments / Refunds in colored bold, heavy black rule above
-  // Balance Due, Balance Due as the largest line.
-  if (cursorY > doc.internal.pageSize.getHeight() - 220) {
+  // ── Totals block ──────────────────────────────────────────────────────
+  const totalsWidth = 280;
+  const totalsLeft = pageWidth - margin - totalsWidth;
+  const totalsRight = pageWidth - margin;
+  // Approximate height needed for the totals so we keep them together.
+  const perCategoryCount = visibleCategories.filter((c) => (totals.subtotalsByCategory[c] || 0) > 0).length;
+  const perCustomerCount = isCohortMode && Array.isArray(totals.perCustomer) ? totals.perCustomer.length : 0;
+  const approxTotalsHeight = 50 + perCategoryCount * 11 + (perCustomerCount > 0 ? 14 + perCustomerCount * 11 : 0) + 50;
+  if (cursorY + approxTotalsHeight > pageHeight - margin) {
     doc.addPage();
-    cursorY = 60;
+    cursorY = margin;
   }
 
-  const totalsBlockWidth = 280;
-  const totalsLeft = pageWidth - margin - totalsBlockWidth;
-  const totalsRight = pageWidth - margin;
-
-  // Top heavy black rule
-  doc.setDrawColor(20, 20, 20);
-  doc.setLineWidth(1.2);
+  // Heavy black rule above Subtotal
+  doc.setDrawColor(...INK_RGB);
+  doc.setLineWidth(1.6);
   doc.line(totalsLeft, cursorY, totalsRight, cursorY);
   doc.setLineWidth(0.2);
-  cursorY += 14;
+  cursorY += 16;
 
-  // Subtotal (medium)
+  // Subtotal
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(...INK_RGB);
   doc.text('Subtotal', totalsLeft, cursorY);
   doc.text(fmt(totals.subtotal), totalsRight, cursorY, { align: 'right' });
   cursorY += 12;
 
-  // Indented category subtotals (small, gray)
+  // Per-category indented breakdown
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(140, 140, 140);
-  for (const cat of CATEGORY_DISPLAY_ORDER) {
+  doc.setTextColor(...MUTED_RGB);
+  for (const cat of visibleCategories) {
     const v = totals.subtotalsByCategory[cat] || 0;
     if (v <= 0) continue;
-    doc.text(CATEGORY_LABELS[cat], totalsLeft + 12, cursorY);
+    doc.text(tr(CATEGORY_LABELS[cat]), totalsLeft + 12, cursorY);
     doc.text(fmt(v), totalsRight, cursorY, { align: 'right' });
     cursorY += 11;
   }
 
+  // Per-customer breakdown (cohort mode only)
+  if (isCohortMode && Array.isArray(totals.perCustomer) && totals.perCustomer.length > 1) {
+    cursorY += 4;
+    doc.setDrawColor(...HAIRLINE_RGB);
+    doc.setLineWidth(0.4);
+    doc.line(totalsLeft, cursorY, totalsRight, cursorY);
+    cursorY += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text('PER CUSTOMER', totalsLeft, cursorY);
+    cursorY += 11;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    for (const pc of totals.perCustomer) {
+      const label = tr(pc.customerName || '');
+      doc.text(label, totalsLeft + 12, cursorY);
+      doc.text(fmt(pc.subtotal), totalsRight, cursorY, { align: 'right' });
+      cursorY += 11;
+    }
+  }
+
   // Hairline separator
   cursorY += 4;
-  doc.setDrawColor(220, 220, 220);
+  doc.setDrawColor(...HAIRLINE_RGB);
   doc.setLineWidth(0.4);
   doc.line(totalsLeft, cursorY, totalsRight, cursorY);
-  cursorY += 12;
-
-  // Payments received (emerald) — shown as a positive amount; the math
-  // (Subtotal − Payments = Balance Due) is conveyed by the Balance Due row,
-  // not by a leading minus sign.
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
-  doc.text('Payments received', totalsLeft, cursorY);
-  doc.setTextColor(5, 150, 105);
-  doc.text(fmt(totals.paymentsReceived), totalsRight, cursorY, { align: 'right' });
-  cursorY += 13;
-
-  // Bottom heavy black rule before Balance Due
-  cursorY += 4;
-  doc.setDrawColor(20, 20, 20);
-  doc.setLineWidth(1.2);
-  doc.line(totalsLeft, cursorY, totalsRight, cursorY);
-  doc.setLineWidth(0.2);
-  cursorY += 18;
-
-  // Balance Due (large, bold, colored)
-  const balanceColor = totals.balanceDue > 0.005 ? [225, 29, 72] : BRAND_RGB;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(40, 40, 40);
-  doc.text('BALANCE DUE', totalsLeft, cursorY);
-  doc.setFontSize(16);
-  doc.setTextColor(...balanceColor);
-  doc.text(fmt(totals.balanceDue), totalsRight, cursorY, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
   cursorY += 14;
 
-  const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
+  // Payments received
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...INK_RGB);
+  doc.text('Payments received', totalsLeft, cursorY);
+  doc.setTextColor(...PAID_RGB);
+  doc.text(fmt(totals.paymentsReceived), totalsRight, cursorY, { align: 'right' });
+  cursorY += 14;
+
+  // Heavy black rule before Balance Due
+  doc.setDrawColor(...INK_RGB);
+  doc.setLineWidth(1.6);
+  doc.line(totalsLeft, cursorY, totalsRight, cursorY);
+  doc.setLineWidth(0.2);
+  cursorY += 20;
+
+  // Balance Due — large, colored
+  const dueRgb = totals.balanceDue > 0.005 ? DISCOUNT_RGB : BRAND_RGB;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...INK_RGB);
+  doc.text('BALANCE DUE', totalsLeft, cursorY);
+  doc.setFontSize(18);
+  doc.setTextColor(...dueRgb);
+  doc.text(fmt(totals.balanceDue), totalsRight, cursorY + 2, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  // ── Footer on every page ──────────────────────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i += 1) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Duotone Pro Center Urla', margin, pageHeight - 18);
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, pageHeight - 18, { align: 'right' });
+  }
+
+  const safeName = safeCustomerName.replace(/[^a-zA-Z0-9-_]+/g, '-');
   const datePart = new Date().toISOString().slice(0, 10);
   doc.save(`DPC-Statement-${safeName}-${datePart}.pdf`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fallback: DOM-capture export. Kept for backwards compat — the native
+// renderer above is the primary path now.
+// ─────────────────────────────────────────────────────────────────────────
+export async function exportBillPdfFromElement(element, filename = 'DPC-Statement.pdf') {
+  if (!element) throw new Error('exportBillPdfFromElement: element is required');
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+
+  const DESKTOP_CAPTURE_WIDTH = 900;
+  const clone = element.cloneNode(true);
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `position:fixed;top:0;left:0;opacity:0;pointer-events:none;z-index:-1;width:${DESKTOP_CAPTURE_WIDTH}px;background:#ffffff`;
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  let fullCanvas;
+  try {
+    fullCanvas = await html2canvas(clone, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      width: DESKTOP_CAPTURE_WIDTH,
+      windowWidth: DESKTOP_CAPTURE_WIDTH,
+      ignoreElements: (el) => !!(el.classList && el.classList.contains('ukc-bill-no-print')),
+    });
+  } finally {
+    if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+  }
+
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 24;
+  const imgWidth = pageWidth - margin * 2;
+  const imgHeight = (fullCanvas.height / fullCanvas.width) * imgWidth;
+  let position = margin;
+  let heightLeft = imgHeight;
+  const dataUrl = fullCanvas.toDataURL('image/jpeg', 0.92);
+  pdf.addImage(dataUrl, 'JPEG', margin, position, imgWidth, imgHeight);
+  heightLeft -= (pageHeight - margin * 2);
+  while (heightLeft > 0) {
+    position = heightLeft - imgHeight + margin;
+    pdf.addPage();
+    pdf.addImage(dataUrl, 'JPEG', margin, position, imgWidth, imgHeight);
+    heightLeft -= (pageHeight - margin * 2);
+  }
+  pdf.save(filename);
 }

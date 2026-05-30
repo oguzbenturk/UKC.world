@@ -228,6 +228,15 @@ async function postDiscountAdjustment(client, {
   const fields = {};
   if (entityType === 'booking') fields.bookingId = entityId;
   if (entityType === 'rental') fields.rentalId = entityId;
+
+  // wallet_transactions.related_entity_id is UUID-typed. Booking/rental/accommodation/customer_package
+  // all use UUID PKs, but shop_order and member_purchase use SERIAL int. Only attach
+  // relatedEntityId when the source table actually has a UUID id; otherwise the INSERT
+  // fails with "invalid input syntax for type uuid". The numeric id stays in metadata for
+  // correlation.
+  const cfg = ENTITY_CONFIG[entityType];
+  const idIsUuid = cfg?.idType === 'uuid';
+
   const tx = await recordTransaction({
     client,
     userId: customerId,
@@ -238,7 +247,7 @@ async function postDiscountAdjustment(client, {
     currency,
     description: reason ? `Discount adjustment: ${reason}` : 'Discount adjustment',
     relatedEntityType: entityType,
-    relatedEntityId: String(entityId),
+    ...(idIsUuid ? { relatedEntityId: String(entityId) } : {}),
     metadata: { discount_id: discountId, entity_type: entityType, entity_id: String(entityId) },
     createdBy: createdBy || null,
     // A refund-style credit must never be blocked because the customer's

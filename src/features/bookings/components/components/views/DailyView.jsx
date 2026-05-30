@@ -5,8 +5,8 @@ import LoadingIndicator from '@/shared/components/ui/LoadingIndicator';
 import ErrorIndicator from '@/shared/components/ui/ErrorIndicator';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-import { Modal } from 'antd';
-import { formatParticipantNames, getGroupBookingTooltip } from '@/features/bookings/utils/groupBookingUtils';
+import { Modal, Popover } from 'antd';
+import { formatParticipantNames, formatParticipantNamesCompact, formatParticipantInitials, getGroupBookingTooltip } from '@/features/bookings/utils/groupBookingUtils';
 import { logger } from '@/shared/utils/logger';
 import '../../styles/bookingCalendar.css';
 import CalendarDndProvider from '../dnd/CalendarDndProvider';
@@ -79,15 +79,13 @@ const getBookingStatusClass = (status) => {
   }
 };
 
-// Solid wind colors for Windguru-style display (darker backgrounds for white text)
-const getWindSolidClasses = (kn) => {
-  if (kn == null) return 'bg-slate-500';
-  if (kn < 8) return 'bg-sky-500';
-  if (kn < 12) return 'bg-green-500';
-  if (kn < 16) return 'bg-lime-500';
-  if (kn < 20) return 'bg-yellow-500';
-  if (kn < 25) return 'bg-orange-500';
-  return 'bg-red-500';
+// Soft pastel wind chips — ambient context, not a primary alert
+const getWindChipClasses = (kn) => {
+  if (kn == null) return 'bg-slate-100 text-slate-600';
+  if (kn < 12) return 'bg-sky-100 text-sky-700';
+  if (kn < 20) return 'bg-amber-100 text-amber-800';
+  if (kn < 25) return 'bg-orange-100 text-orange-800';
+  return 'bg-rose-100 text-rose-800';
 };
 
 // Consistent wind arrow using SVG rotated by degrees
@@ -250,6 +248,47 @@ const parseTimeComponents = (timeStr) => {
   }
 };
 
+// Compute [start, end] in minutes for a booking, falling back to duration when endTime is missing.
+const getBookingRangeMinutes = (booking) => {
+  const startStr = booking.startTime || booking.time;
+  const start = parseTimeToMinutes(startStr);
+  if (start == null) return null;
+  let end = null;
+  if (booking.endTime && isValidTime(booking.endTime)) {
+    end = parseTimeToMinutes(booking.endTime);
+  }
+  if (end == null || end <= start) {
+    let dur = parseFloat(booking.duration);
+    if (!dur || isNaN(dur)) dur = 1;
+    const durMin = dur <= 12 ? dur * 60 : dur;
+    end = start + durMin;
+  }
+  return { start, end };
+};
+
+// Cluster bookings whose [start, end) ranges overlap. Returns array of arrays (sorted by start).
+const clusterOverlappingBookings = (bookings) => {
+  const ranges = bookings
+    .map((b) => ({ booking: b, range: getBookingRangeMinutes(b) }))
+    .filter((x) => x.range != null)
+    .sort((a, b) => a.range.start - b.range.start);
+  const clusters = [];
+  let current = [];
+  let currentEnd = -1;
+  for (const item of ranges) {
+    if (current.length === 0 || item.range.start < currentEnd) {
+      current.push(item.booking);
+      currentEnd = Math.max(currentEnd, item.range.end);
+    } else {
+      clusters.push(current);
+      current = [item.booking];
+      currentEnd = item.range.end;
+    }
+  }
+  if (current.length) clusters.push(current);
+  return clusters;
+};
+
 const calculateEndTime = (startTimeStr, durationMinutes) => {
   const { hour, minute } = parseTimeComponents(startTimeStr);
   const startTotalMinutes = hour * 60 + minute;
@@ -372,17 +411,35 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Fetch wind data per selectedDate
+  // Fetch wind data per selectedDate — sourced from the same Windguru pipeline that
+  // backs the public Wind Report page so calendar + wind report stay in sync.
   useEffect(() => {
     const controller = new AbortController();
     const fetchWind = async () => {
       try {
         const dateStr = format(effectiveDate, 'yyyy-MM-dd');
-        const resp = await fetch(`/api/weather/hourly?date=${dateStr}`, { signal: controller.signal });
+        const spotId = forecastSettings?.defaultLocation || 'gulbahce';
+        const resp = await fetch(`/api/weather/report/${spotId}`, { signal: controller.signal });
         if (!resp.ok) throw new Error('Failed to load weather');
-        const data = await resp.json();
-        setWindByHour(data.hours || {});
-        setDayTemperature(extractDayTemperature(data));
+        const payload = await resp.json();
+        const allHours = payload?.forecast?.hours || [];
+        // Windguru returns multi-day forecast; pick rows for the selected date and
+        // reshape into { 'HH:00': { speedKn, gustKn, dirDeg, tempC } } so existing
+        // consumers (windByHour lookups, extractDayTemperature) keep working.
+        const hours = {};
+        for (const h of allHours) {
+          if (h.dateLocal !== dateStr) continue;
+          const key = h.timeLocal || `${String(h.hour).padStart(2, '0')}:00`;
+          hours[key] = {
+            speedKn: h.wspdKn,
+            gustKn: h.gustKn,
+            dirDeg: h.dirDeg,
+            dirText: h.dirText,
+            tempC: h.tempC,
+          };
+        }
+        setWindByHour(hours);
+        setDayTemperature(extractDayTemperature({ hours }));
       } catch (e) {
         if (e.name !== 'AbortError') {
           setWindByHour({});
@@ -390,7 +447,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
         }
       }
     };
-    
+
     // Only fetch wind data if forecast is enabled
     if (selectedDate && forecastSettings?.showForecast) {
       fetchWind();
@@ -400,7 +457,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     }
     
     return () => controller.abort();
-  }, [effectiveDate, forecastSettings?.showForecast]);
+  }, [effectiveDate, forecastSettings?.showForecast, forecastSettings?.defaultLocation]);
 
 
   // DnD highlight state
@@ -499,18 +556,21 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     const selectedDateStr = format(effectiveDate, 'yyyy-MM-dd');
     const daySlots = slots.find(day => day.date === selectedDateStr);
     
+    // Backend slots come at 30-minute granularity so the end label is +30, not +60.
+    // Previously the "+1 hour" math made adjacent rows overlap visually and confused staff
+    // trying to drop bookings on the half-hour, since labels and drop targets disagreed.
     if (daySlots && daySlots.slots && daySlots.slots.length > 0) {
-      // Extract unique time slots from API data
       const uniqueTimes = [...new Set(daySlots.slots.map(slot => slot.time))].sort();
       return uniqueTimes.map(time => {
         const [hours, minutes] = time.split(':').map(Number);
-        const endHour = hours + 1; // Default 1-hour slots
-        const endTime = `${endHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        const totalEnd = hours * 60 + minutes + 30;
+        const endTime = `${String(Math.floor(totalEnd / 60)).padStart(2, '0')}:${String(totalEnd % 60).padStart(2, '0')}`;
         return { start: time, end: endTime };
       });
     }
-    
-    // Fallback: generate 30-min slots from calendarConfig operating hours
+
+    // Fallback: generate true 30-min slots from calendarConfig operating hours so that
+    // drag-and-drop snaps to the half-hour even when the API hasn't delivered slot data.
     const parseHHMM = (t) => {
       if (typeof t === 'number') return t * 60;
       const [h, m] = String(t).split(':').map(Number);
@@ -521,12 +581,51 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     const startMins = parseHHMM(calendarConfig.operatingHours.start);
     const endMins = parseHHMM(calendarConfig.operatingHours.end);
     const fallback = [];
-    for (let m = startMins; m < endMins; m += 60) {
-      fallback.push({ start: fmtMins(m), end: fmtMins(m + 60) });
+    for (let m = startMins; m < endMins; m += 30) {
+      fallback.push({ start: fmtMins(m), end: fmtMins(m + 30) });
     }
     return fallback;
   }, [slots, effectiveDate]);
-  
+
+  // Variable-height layout: :00 rows are full-height, :30 rows are half-height so the eye
+  // immediately groups the half-hour into its parent hour. All grid positions (slots, "now"
+  // line, booking cards) read from this helper so the time column and instructor columns
+  // stay perfectly aligned.
+  const slotLayout = useMemo(() => {
+    const FULL = slotHeight;
+    const HALF = Math.round(slotHeight * 0.5);
+    const heightForSlot = (slot) => {
+      const minute = parseInt(String(slot.start).split(':')[1], 10) || 0;
+      return minute === 0 ? FULL : HALF;
+    };
+    const tops = [];
+    let cumulative = 0;
+    for (const s of timeSlots) {
+      tops.push(cumulative);
+      cumulative += heightForSlot(s);
+    }
+    const total = cumulative;
+    const dayStartMin = timeSlots.length > 0
+      ? parseInt(timeSlots[0].start.split(':')[0], 10) * 60 + (parseInt(timeSlots[0].start.split(':')[1], 10) || 0)
+      : 0;
+    // Convert "minutes since day start" → y pixel, respecting variable row heights.
+    const getYForMinute = (minOffset) => {
+      const absMin = dayStartMin + Math.max(0, minOffset);
+      const dayStartHours = Math.floor(dayStartMin / 60);
+      const hours = Math.floor(absMin / 60);
+      const hoursFromStart = hours - dayStartHours;
+      const remainder = absMin - hours * 60;
+      let y = hoursFromStart * (FULL + HALF);
+      if (remainder <= 30) {
+        y += (remainder / 30) * FULL;
+      } else {
+        y += FULL + ((remainder - 30) / 30) * HALF;
+      }
+      return y;
+    };
+    return { tops, total, heightForSlot, getYForMinute, FULL, HALF };
+  }, [timeSlots, slotHeight]);
+
 
   const dailyBookings = useMemo(() => {
     if (!effectiveDate || !bookings) return [];
@@ -664,9 +763,12 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
         duration = Math.max(30, totalCalendarMinutes - minutesFromStart);
       }
       
-      const pixelsPerMinute = SLOT_HEIGHT / 60;
-      const top = minutesFromStart * pixelsPerMinute;
-      const height = duration * pixelsPerMinute;
+      // Variable-height rows (:00 = full, :30 = half) mean a flat "pixels per minute" no longer
+      // works — minutes inside a :00 row pay full price, minutes inside a :30 row pay half.
+      // slotLayout.getYForMinute walks the cumulative geometry so booking top + height land
+      // exactly on the same y coordinates as the time-column labels.
+      const top = slotLayout.getYForMinute(minutesFromStart);
+      const height = slotLayout.getYForMinute(minutesFromStart + duration) - top;
       
       
       // STEP 6: Apply visual constraints to ensure visibility
@@ -680,7 +782,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
       logger.error('Error calculating booking position', { error, booking });
       return { top: 0, height: SLOT_HEIGHT };
     }
-  }, [timeSlots, slotHeight]);
+  }, [timeSlots, slotHeight, slotLayout]);
 
   const getBookingsForInstructor = useCallback((instructorId) => {
     const instructorBookings = dailyBookings.filter(booking => String(booking.instructorId) === String(instructorId));
@@ -927,7 +1029,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
         instructorId={instructor.id}
         timeStart={slot.start}
         className={`time-slot-clickable absolute w-full border-b border-gray-100 transition-colors duration-200 ${cls}`}
-        style={{ top: `${index * slotHeight}px`, height: `${slotHeight}px` }}
+        style={{ top: `${slotLayout.tops[index] ?? index * slotHeight}px`, height: `${slotLayout.heightForSlot(slot)}px` }}
       >
         {!hasBooking && (
           <button type="button" className="absolute inset-0 w-full h-full" onClick={() => handleTimeSlotClick(instructor, slot)} aria-label={`Book ${slot.start}-${slot.end}`} />
@@ -937,7 +1039,10 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
   };
 
   const TimeColumnCell = ({ slot }) => {
-    const hour = parseInt(slot.start.split(':')[0], 10);
+    const [hourStr, minuteStr] = slot.start.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10) || 0;
+    const isHourMark = minute === 0;
     const hour12 = hour % 12 || 12;
     const wind = windByHour[slot.start];
     const showForecast = Boolean(wind && forecastSettings?.showForecast);
@@ -945,33 +1050,37 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
     const showGust = Boolean(showForecast && wind?.gustKn && forecastSettings?.showGustSpeed);
     const justify = showForecast ? 'justify-between' : 'justify-center';
     return (
-      <div className={`relative border-b border-gray-100 bg-gray-50 flex items-center w-full ${justify}`} style={{ height: `${slotHeight}px`, padding: '2px 4px' }}>
+      <div className={`relative border-b border-gray-100 bg-gray-50 flex items-center w-full ${justify}`} style={{ height: `${slotLayout.heightForSlot(slot)}px`, padding: '2px 4px' }}>
         {showForecast && (
           <div className="flex flex-col items-start gap-0.5">
             <div className="flex items-center">
-              <span className={`px-2 py-0.5 rounded-full text-white text-[10px] font-bold leading-none shadow-sm ${getWindSolidClasses(wind.speedKn)}`}>{wind.speedKn}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold leading-none ${getWindChipClasses(wind.speedKn)}`}>{wind.speedKn}</span>
               <span className="text-[8px] text-gray-500 ml-1 font-medium">kn</span>
             </div>
             {showGust && (
               <div className="flex items-center">
-                <span className={`px-2 py-0.5 rounded-full text-white text-[9px] font-semibold leading-none shadow-sm opacity-90 ${getWindSolidClasses(wind.gustKn)}`}>{wind.gustKn}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold leading-none opacity-80 ${getWindChipClasses(wind.gustKn)}`}>{wind.gustKn}</span>
                 <span className="text-[7px] text-gray-400 ml-1 font-medium">G</span>
               </div>
             )}
           </div>
         )}
         <div className="flex flex-col items-center justify-center">
-          {showDirection && (
+          {showDirection && isHourMark && (
             <div className="mb-1">
               <div className="bg-white/80 rounded-full p-1 shadow-sm border border-gray-200/50">
                 <WindArrow deg={wind.dirDeg} className="text-gray-700" size={10} />
               </div>
             </div>
           )}
-          <div className="flex flex-col items-center pointer-events-none select-none">
-            <span className="text-[13px] sm:text-sm font-bold text-slate-600 tabular-nums leading-none">{hour12}</span>
-            <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">{hour >= 12 ? 'PM' : 'AM'}</span>
-          </div>
+          {isHourMark ? (
+            <div className="flex flex-col items-center pointer-events-none select-none">
+              <span className="text-[13px] sm:text-sm font-bold text-slate-600 tabular-nums leading-none">{hour12}</span>
+              <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">{hour >= 12 ? 'PM' : 'AM'}</span>
+            </div>
+          ) : (
+            <span className="text-[10px] text-slate-300 font-medium leading-none select-none">:30</span>
+          )}
         </div>
       </div>
     );
@@ -1007,7 +1116,9 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
   const nowTotalMinutes = nowHour * 60 + nowMinute;
   const dayStartMinutes = dayStartHour * 60;
   const dayEndMinutes = dayEndHour * 60;
-  const nowTopPx = ((nowTotalMinutes - dayStartMinutes) / 60) * slotHeight;
+  // Variable-height rows — delegate to slotLayout so "now" stays on the exact pixel that
+  // matches the current minute, even though :30 rows are half-height.
+  const nowTopPx = slotLayout.getYForMinute(nowTotalMinutes - dayStartMinutes);
   const showNowLine = isToday && nowTotalMinutes >= dayStartMinutes && nowTotalMinutes <= dayEndMinutes;
 
   return (
@@ -1051,42 +1162,6 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                 </button>
               )}
             </div>
-            
-            {/* Debug Refresh Button */}
-            <button
-              onClick={async () => {
-                logger.info('Force refresh triggered - clearing cache and fetching fresh data');
-                
-                // Set force refresh flag
-                localStorage.setItem('force_bookings_refresh', 'true');
-                
-                // Clear localStorage cache
-                Object.keys(localStorage).forEach(key => {
-                  if (key.includes('cache')) {
-                    localStorage.removeItem(key);
-                    logger.debug('Cleared cache key', { key });
-                  }
-                });
-                
-                // Clear React state cache if available
-                if (window.clearCalendarCache) {
-                  window.clearCalendarCache();
-                }
-                
-                logger.debug('Current bookings state', {
-                  count: bookings.length,
-                  dailyCount: dailyBookings.length,
-                  selectedDate: format(effectiveDate, 'yyyy-MM-dd')
-                });
-                
-                await refreshData();
-                
-                logger.info('Refresh completed');
-              }}
-              className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-              🔄 Force Refresh
-            </button>
           </div>
         )}
         
@@ -1162,7 +1237,7 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
         <div className="flex">          {/* Time Column */}
           <div className="daily-view-time-column w-16 sm:w-24 lg:w-28 flex-shrink-0 border-r border-gray-200 sticky left-0 bg-gray-50 z-10">
             {/* Time Column Header - matches instructor header height */}
-            <div className="h-16 sm:h-20 border-b border-gray-200 bg-gray-50 flex flex-col items-center justify-center">
+            <div className="h-14 sm:h-16 border-b border-gray-200 bg-gray-50 flex flex-col items-center justify-center">
               <div className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">Time</div>
               {dayTemperature && (
                 <div className="text-[11px] sm:text-xs font-bold text-sky-600 mt-1">
@@ -1172,9 +1247,9 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
             </div>
             
             {/* Time Slots */}
-            <div className="relative" style={{ height: `${timeSlots.length * slotHeight}px` }}>
+            <div className="relative" style={{ height: `${slotLayout.total}px` }}>
               {timeSlots.map((slot, index) => (
-                <div key={slot.start} className="absolute w-full" style={{ top: `${index * slotHeight}px`, height: `${slotHeight}px` }}>
+                <div key={slot.start} className="absolute w-full" style={{ top: `${slotLayout.tops[index]}px`, height: `${slotLayout.heightForSlot(slot)}px` }}>
                   <TimeColumnCell slot={slot} />
                 </div>
               ))}
@@ -1215,31 +1290,35 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                       key={instructor.id}
                       className={`${getInstructorColumnWidth()} daily-view-instructor-column border-r border-gray-200 flex-shrink-0${isUnavailable ? ' instructor-column-unavailable' : ''}`}
                     >
-                      {/* Sticky Column Header — avatar + name + lesson count */}
-                      <div className={`instructor-column-header h-16 sm:h-20 px-2 py-2 text-center border-b border-gray-200 flex flex-col items-center justify-center sticky top-0 z-10 gap-0.5${isUnavailable ? ' bg-slate-50' : ' bg-white'}`}>
-                        {/* Avatar circle */}
-                        <div
-                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold flex-shrink-0"
-                          style={{ backgroundColor: isUnavailable ? '#94a3b8' : getInstructorColor(instructor.id) }}
-                        >
-                          {getInstructorInitials(instructor.name)}
+                      {/* Sticky Column Header — avatar + name; lesson count overlays the avatar */}
+                      <div className={`instructor-column-header h-14 sm:h-16 px-2 py-1.5 text-center border-b border-gray-200 flex flex-col items-center justify-center sticky top-0 z-10 gap-1${isUnavailable ? ' bg-slate-50' : ' bg-white'}`}>
+                        {/* Avatar circle with optional lesson-count badge */}
+                        <div className="relative flex-shrink-0">
+                          <div
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-[10px] sm:text-xs font-bold"
+                            style={{ backgroundColor: isUnavailable ? '#94a3b8' : getInstructorColor(instructor.id) }}
+                          >
+                            {getInstructorInitials(instructor.name)}
+                          </div>
+                          {isUnavailable ? (
+                            <span className="absolute -top-1 -right-1 px-1 py-0.5 rounded text-[8px] font-bold bg-slate-200 text-slate-600 tracking-wider leading-none shadow-sm">OFF</span>
+                          ) : instructorBookings.length > 0 ? (
+                            <span
+                              className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold bg-sky-500 text-white flex items-center justify-center shadow-sm ring-2 ring-white leading-none"
+                              title={`${instructorBookings.length} lesson${instructorBookings.length !== 1 ? 's' : ''}`}
+                            >
+                              {instructorBookings.length}
+                            </span>
+                          ) : null}
                         </div>
                         {/* Full name */}
                         <div className="text-[10px] sm:text-[11px] font-semibold text-gray-800 w-full text-center leading-tight px-1 font-duotone-bold" style={{ wordBreak: 'break-word' }}>
                           {instructor.name}
                         </div>
-                        {/* Lesson count or OFF badge */}
-                        {isUnavailable ? (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-500 tracking-wide">OFF</span>
-                        ) : instructorBookings.length > 0 ? (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-sky-100 text-sky-600">
-                            {instructorBookings.length} lesson{instructorBookings.length !== 1 ? 's' : ''}
-                          </span>
-                        ) : null}
                       </div>
 
                       {/* Time Slots + DnD Container */}
-                      <div className="relative bg-white" style={{ height: `${timeSlots.length * slotHeight}px` }}>
+                      <div className="relative bg-white" style={{ height: `${slotLayout.total}px` }}>
                         {/* Time slot grid lines with availability indicators */}
                         {timeSlots.map((slot, index) => (
                           <TimeSlotCell
@@ -1257,15 +1336,17 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                             className="absolute left-0 right-0 z-20 pointer-events-none"
                             style={{ top: `${nowTopPx}px` }}
                           >
-                            <div className="relative flex items-center">
-                              <div className="w-2 h-2 rounded-full bg-red-500/50 flex-shrink-0 -ml-1" />
-                              <div className="flex-1 h-[2px] bg-red-500/40" />
-                            </div>
+                            <div
+                              className="h-[3px] w-full bg-red-500/70"
+                              style={{ boxShadow: '0 0 8px rgba(239, 68, 68, 0.25)' }}
+                            />
                           </div>
                         )}
 
-                        {/* Booking Cards */}
-                        {instructorBookings.map((booking) => {
+                        {/* Booking Cards — clustered so overlapping lessons show a +N badge */}
+                        {clusterOverlappingBookings(instructorBookings).map((cluster, clusterIdx) => {
+                          const booking = cluster[0];
+                          const overlapCount = cluster.length - 1;
                           const { top, height } = getBookingPosition(booking);
 
                           const startTime = booking.startTime || booking.time;
@@ -1299,8 +1380,9 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                           const bookingStatusClass = getBookingStatusClass(booking.status);
                           const serviceName = booking.serviceName || 'Service';
                           const participantDisplay = formatParticipantNames(booking);
+                          const participantFirstName = formatParticipantNamesCompact(booking);
+                          const participantInitials = formatParticipantInitials(booking);
                           const timeDisplay = `${formatTime(startTime)}${endTimeDisplay}`;
-                          // Group badge removed per request
                           const tooltipText = getGroupBookingTooltip(booking);
 
                           const statusLabel = booking.status === 'checked-in' ? 'Checked In'
@@ -1310,14 +1392,17 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                             : booking.status === 'confirmed' ? 'Confirmed'
                             : booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
                             : 'Pending';
-                          const isCompact = height < slotHeight - 8;
+                          // Tiered density: full → first name → initials
+                          const showFullDetails = height >= 50;
+                          const showFirstNameOnly = height >= 30 && height < 50;
+                          const veryCompact = height < 30;
 
                           return (
                             <DraggableBooking
                               key={`${instructor.id}-${booking.id}`}
                               booking={booking}
                               className={`booking-card ${bookingStatusClass} fixed-layout-card`}
-                              style={{ top, height }}
+                              style={{ top, height, '--card-index': clusterIdx }}
                             >
                               {/* Drop highlight for card swap */}
                               {dragOverKey === `card|${booking.id}` && (
@@ -1330,29 +1415,79 @@ const DailyView = ({ onTimeSlotClick, onBookingClick, displayDate }) => {
                                 onClick={() => onBookingClick && onBookingClick(booking)}
                                 title={tooltipText}
                               >
-                                {/* Row 1: status pill + time */}
-                                <div className="booking-card-toprow">
-                                  <div className={`booking-status-pill booking-status-pill-${booking.status}`}>
-                                    <span className="booking-status-dot-small" />
-                                    {!isCompact && statusLabel}
-                                  </div>
-                                  <span className="booking-card-time-label">{timeDisplay}</span>
+                                {/* Status pill on its own row */}
+                                <div className={`booking-status-pill booking-status-pill-${booking.status}`}>
+                                  <span className="booking-status-dot-small" />
+                                  {showFullDetails && statusLabel}
+                                  {veryCompact && (
+                                    <span className="booking-status-initials">{participantInitials}</span>
+                                  )}
                                 </div>
 
-                                {/* Row 2: participant name(s) — wraps for groups */}
-                                {!isCompact && (
-                                  <div className="booking-card-name">
-                                    {participantDisplay}
+                                {/* Time below the status pill (hidden on very compact cards) */}
+                                {!veryCompact && (
+                                  <span className="booking-card-time-label">{timeDisplay}</span>
+                                )}
+
+                                {/* Middle tier: first name + group count, no service */}
+                                {showFirstNameOnly && (
+                                  <div className="booking-card-name booking-card-name-compact">
+                                    {participantFirstName}
                                   </div>
                                 )}
 
-                                {/* Row 3: service (only if enough height) */}
-                                {height >= 50 && (
-                                  <div className="booking-card-service-label">
-                                    {serviceName}
-                                  </div>
+                                {/* Full tier: wrapped participant names + service */}
+                                {showFullDetails && (
+                                  <>
+                                    <div className="booking-card-name">
+                                      {participantDisplay}
+                                    </div>
+                                    <div className="booking-card-service-label">
+                                      {serviceName}
+                                    </div>
+                                  </>
                                 )}
                               </div>
+
+                              {/* Overlap badge — opens a popover listing all stacked bookings */}
+                              {overlapCount > 0 && (
+                                <Popover
+                                  trigger="click"
+                                  placement="rightTop"
+                                  content={
+                                    <div className="booking-overlap-list">
+                                      {cluster.map((b) => {
+                                        const bStatus = b.status || 'pending';
+                                        return (
+                                          <button
+                                            key={b.id}
+                                            type="button"
+                                            className="booking-overlap-item"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (onBookingClick) onBookingClick(b);
+                                            }}
+                                          >
+                                            <span className={`booking-overlap-dot booking-overlap-dot-${bStatus}`} />
+                                            <span className="booking-overlap-time">{formatTime(b.startTime || b.time)}</span>
+                                            <span className="booking-overlap-name">{formatParticipantNames(b)}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  }
+                                >
+                                  <button
+                                    type="button"
+                                    className="booking-overlap-badge"
+                                    onClick={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    aria-label={`${overlapCount} more overlapping booking${overlapCount > 1 ? 's' : ''}`}
+                                  >
+                                    +{overlapCount}
+                                  </button>
+                                </Popover>
+                              )}
                             </DraggableBooking>
                           );
                         })}

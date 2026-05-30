@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Bars3Icon, UserCircleIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
@@ -9,6 +9,7 @@ import { useAuthModal } from '../../contexts/AuthModalContext';
 import { useCart } from '@/shared/hooks/useCart';
 import RealTimeStatusIndicator from '../realtime/RealTimeStatusIndicator';
 import EnhancedCustomerDetailModal from '@/features/customers/components/EnhancedCustomerDetailModal';
+const FamilyCombinedBillLauncher = lazy(() => import('@/features/customers/components/FamilyCombinedBillLauncher'));
 import NotificationBell from '@/features/notifications/components/NotificationBell';
 import StudentWalletTriggerButton from '@/features/students/components/StudentWalletTriggerButton';
 import { getWalletBalance } from '@/features/students/utils/getWalletBalance';
@@ -135,7 +136,16 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   const [isStudentProfileOpen, setIsStudentProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { logout, user, isAuthenticated } = useAuth();
+  const { logout, user, isAuthenticated, familyGroup } = useAuth();
+  const [familyBillOpen, setFamilyBillOpen] = useState(false);
+
+  const isFamilyOrganizer = !!(
+    familyGroup
+    && user?.id
+    && (familyGroup.organizer_user_id === user.id
+      || familyGroup.members?.some((m) => m.id === user.id && m.is_organizer))
+  );
+  const familyMembersExcludingSelf = (familyGroup?.members || []).filter((m) => m.id !== user?.id);
   const { openAuthModal } = useAuthModal();
   const { getCartCount } = useCart();
   const { userCurrency, getCurrencySymbol, convertCurrency, businessCurrency } = useCurrency();
@@ -528,6 +538,44 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
                           </span>
                         </button>
                       )}
+                      {isFamilyOrganizer && familyMembersExcludingSelf.length > 0 && (
+                        <>
+                          <hr className="my-1 border-slate-200 dark:border-slate-700" />
+                          <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                            Family
+                          </div>
+                          {familyMembersExcludingSelf.map((member) => {
+                            const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email || 'Member';
+                            return (
+                              <button
+                                key={member.id}
+                                type="button"
+                                onClick={() => {
+                                  setIsProfileDropdownOpen(false);
+                                  navigate(`/customers/${member.id}/profile`);
+                                }}
+                                className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
+                                role="menuitem"
+                              >
+                                <span className="truncate">{memberName}</span>
+                                <span className="ml-2 text-[10px] text-sky-500 dark:text-sky-400 font-medium">View</span>
+                              </button>
+                            );
+                          })}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileDropdownOpen(false);
+                              setFamilyBillOpen(true);
+                            }}
+                            className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-sky-600 hover:bg-slate-100/80 transition-colors duration-150 ease-in-out dark:text-sky-400 dark:hover:bg-slate-700/50"
+                            role="menuitem"
+                          >
+                            <span>Combined bill</span>
+                            <span className="text-[10px] text-slate-400">All members</span>
+                          </button>
+                        </>
+                      )}
                       <NavLink
                         to="/shop/my-orders"
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-100/80 hover:text-sky-600 transition-colors duration-150 ease-in-out dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-sky-300"
@@ -668,6 +716,17 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
             onClose={() => setIsStudentProfileOpen(false)}
             readOnly={true}
           />
+        )}
+
+        {/* Family combined bill (Organizer opens this from profile dropdown) */}
+        {familyBillOpen && familyGroup && user?.id && (
+          <Suspense fallback={null}>
+            <FamilyCombinedBillLauncher
+              memberIds={(familyGroup.members || []).map((m) => m.id)}
+              primaryId={user.id}
+              onClose={() => setFamilyBillOpen(false)}
+            />
+          </Suspense>
         )}
     </div>
   );

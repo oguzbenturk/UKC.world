@@ -31,7 +31,7 @@ const EXPENSE_CATEGORIES = [
  * GET /api/business-expenses
  * Get all business expenses with filtering
  */
-router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:read'), async (req, res) => {
+router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:read'), async (req, res) => {
   try {
     const {
       page = 1,
@@ -159,7 +159,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk
  * GET /api/business-expenses/:id
  * Get a single expense by ID
  */
-router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:read'), async (req, res) => {
+router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:read'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -192,7 +192,7 @@ router.get('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_d
  * POST /api/business-expenses
  * Create a new business expense
  */
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:write'), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:write'), async (req, res) => {
   try {
     const {
       amount,

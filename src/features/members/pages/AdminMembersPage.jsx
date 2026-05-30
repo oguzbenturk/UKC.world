@@ -1,12 +1,12 @@
 // src/features/members/pages/AdminMembersPage.jsx
 // Admin page to view all member purchases and assign memberships
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Card, Table, Tag, Button, Space,
+  Card, Table, Tag, Button, Space, Tooltip,
   Modal, Input, Select, DatePicker, Spin,
-  Avatar, Descriptions,
+  Avatar, Descriptions, Form,
   message, Empty, Grid
 } from 'antd';
 import {
@@ -14,6 +14,8 @@ import {
   StarOutlined,
   TrophyOutlined,
   EyeOutlined,
+  EditOutlined,
+  PercentageOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
@@ -27,6 +29,9 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import QuickMembershipModal from '@/features/dashboard/components/QuickMembershipModal';
+import ApplyDiscountModal from '@/features/customers/components/ApplyDiscountModal';
+
+const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
 
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
@@ -60,6 +65,25 @@ const AdminMembersPage = () => {
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [assignModalVisible, setAssignModalVisible] = useState(false);
+  // Edit purchase (status/notes/expires_at)
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editForm] = Form.useForm();
+  const [editSaving, setEditSaving] = useState(false);
+  // Apply discount to a member purchase
+  const [discountTarget, setDiscountTarget] = useState(null);
+  // Customer detail drawer
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerDrawerOpen, setCustomerDrawerOpen] = useState(false);
+
+  const openCustomerDrawer = (record) => {
+    if (!record?.user_id) return;
+    setSelectedCustomer({
+      id: record.user_id,
+      name: record.user_name,
+      email: record.user_email,
+    });
+    setCustomerDrawerOpen(true);
+  };
 
   // Fetch all member purchases
   const { data: purchases = [], isLoading, refetch } = useQuery({
@@ -111,6 +135,51 @@ const AdminMembersPage = () => {
     setDetailModalVisible(true);
   };
 
+  const handleEdit = (purchase) => {
+    setSelectedPurchase(purchase);
+    editForm.setFieldsValue({
+      status: purchase.status || 'active',
+      payment_status: purchase.payment_status || 'completed',
+      expires_at: purchase.expires_at ? dayjs(purchase.expires_at) : null,
+      notes: purchase.notes || '',
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedPurchase) return;
+    try {
+      const values = await editForm.validateFields();
+      setEditSaving(true);
+      await apiClient.put(`/member-offerings/admin/purchases/${selectedPurchase.id}`, {
+        status: values.status,
+        payment_status: values.payment_status,
+        notes: values.notes || null,
+        expires_at: values.expires_at ? values.expires_at.toISOString() : null,
+      });
+      message.success(t('admin:members.toast.updated', 'Membership updated'));
+      setEditModalVisible(false);
+      refetch();
+      queryClient.invalidateQueries(['admin-member-stats']);
+    } catch (err) {
+      if (err?.errorFields) return; // form validation
+      message.error(err?.response?.data?.error || t('admin:members.toast.updateFailed', 'Failed to update'));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDiscount = (purchase) => {
+    setDiscountTarget({
+      customerId: purchase.user_id,
+      entityType: 'member_purchase',
+      entityId: purchase.id,
+      originalPrice: Number(purchase.offering_price) || 0,
+      currency: purchase.currency || 'EUR',
+      description: `${purchase.offering_name || purchase.current_offering_name || 'Membership'} — ${purchase.user_name || purchase.user_email || ''}`,
+    });
+  };
+
   const handleAssignSuccess = () => {
     setAssignModalVisible(false);
     refetch();
@@ -123,10 +192,13 @@ const AdminMembersPage = () => {
       title: t('admin:members.table.member'),
       key: 'member',
       render: (_, record) => (
-        <div className="flex items-center gap-2">
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded-md -mx-1 px-1 py-0.5 transition-colors"
+          onClick={() => openCustomerDrawer(record)}
+        >
           <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
           <div className="leading-tight">
-            <span className="text-sm font-medium text-slate-800">{record.user_name || t('admin:members.detail.memberName')}</span>
+            <span className="text-sm font-medium text-slate-800 hover:text-blue-600">{record.user_name || t('admin:members.detail.memberName')}</span>
             <br />
             <span className="text-[11px] text-slate-400">{record.user_email}</span>
           </div>
@@ -191,16 +263,21 @@ const AdminMembersPage = () => {
       sorter: (a, b) => (a.offering_price || 0) - (b.offering_price || 0)
     },
     {
-      title: '',
+      title: t('admin:members.table.actions', 'Actions'),
       key: 'actions',
-      width: 60,
+      width: 140,
       render: (_, record) => (
-        <Button
-          type="text"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewDetails(record)}
-        />
+        <Space size={2}>
+          <Tooltip title={t('admin:members.actions.view', 'View')}>
+            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetails(record)} />
+          </Tooltip>
+          <Tooltip title={t('admin:members.actions.edit', 'Edit')}>
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          </Tooltip>
+          <Tooltip title={t('admin:members.actions.discount', 'Apply discount')}>
+            <Button type="text" size="small" icon={<PercentageOutlined />} onClick={() => handleDiscount(record)} />
+          </Tooltip>
+        </Space>
       )
     }
   ];
@@ -217,10 +294,13 @@ const AdminMembersPage = () => {
         styles={{ body: { padding: 12 } }}
       >
         <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => openCustomerDrawer(record)}
+          >
             <Avatar size={28} icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
             <div className="leading-tight">
-              <span className="text-sm font-medium block">{record.user_name || t('admin:members.detail.memberName')}</span>
+              <span className="text-sm font-medium block hover:text-blue-600">{record.user_name || t('admin:members.detail.memberName')}</span>
               <span className="text-[11px] text-slate-400">{record.user_email}</span>
             </div>
           </div>
@@ -459,6 +539,77 @@ const AdminMembersPage = () => {
         visible={assignModalVisible}
         onClose={() => setAssignModalVisible(false)}
         onSuccess={handleAssignSuccess}
+      />
+
+      {/* Edit Membership Modal */}
+      <Modal
+        open={editModalVisible}
+        title={t('admin:members.edit.title', 'Edit membership')}
+        onCancel={() => setEditModalVisible(false)}
+        onOk={handleSaveEdit}
+        okButtonProps={{ loading: editSaving }}
+        okText={t('common:buttons.save', 'Save')}
+        cancelText={t('common:buttons.cancel', 'Cancel')}
+        destroyOnHidden
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="status" label={t('admin:members.edit.status', 'Status')} rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'active', label: t('admin:members.status.active') },
+                { value: 'pending', label: t('admin:members.status.pending') },
+                { value: 'expired', label: t('admin:members.status.expired') },
+                { value: 'cancelled', label: t('admin:members.status.cancelled') },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="payment_status" label={t('admin:members.edit.paymentStatus', 'Payment status')}>
+            <Select
+              options={[
+                { value: 'completed', label: 'Completed' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'failed', label: 'Failed' },
+                { value: 'refunded', label: 'Refunded' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="expires_at" label={t('admin:members.edit.expires', 'Expires at')}>
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+          </Form.Item>
+          <Form.Item name="notes" label={t('admin:members.edit.notes', 'Notes')}>
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Customer Detail Drawer */}
+      <Suspense fallback={null}>
+        <EnhancedCustomerDetailModal
+          customer={selectedCustomer}
+          isOpen={customerDrawerOpen}
+          onClose={() => { setCustomerDrawerOpen(false); setSelectedCustomer(null); }}
+          onUpdate={() => {
+            refetch();
+            queryClient.invalidateQueries(['admin-member-stats']);
+          }}
+        />
+      </Suspense>
+
+      {/* Apply Discount Modal */}
+      <ApplyDiscountModal
+        open={!!discountTarget}
+        onClose={() => setDiscountTarget(null)}
+        onSaved={() => {
+          setDiscountTarget(null);
+          refetch();
+          queryClient.invalidateQueries(['admin-member-stats']);
+        }}
+        customerId={discountTarget?.customerId}
+        entityType={discountTarget?.entityType}
+        entityId={discountTarget?.entityId}
+        originalPrice={discountTarget?.originalPrice}
+        currency={discountTarget?.currency}
+        description={discountTarget?.description}
       />
     </div>
   );

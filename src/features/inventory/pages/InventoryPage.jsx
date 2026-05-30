@@ -148,6 +148,7 @@ const InventoryPage = () => {
     user?.role === 'manager' ||
     user?.role === 'owner' ||
     user?.role === 'receptionist' ||
+    user?.role === 'front_desk' ||
     user?.permissions?.['equipment:write'] === true;
   const watchType = Form.useWatch('type', form);
 

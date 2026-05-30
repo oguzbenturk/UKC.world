@@ -343,7 +343,7 @@ function Services() {
     message.success(t('manager:services.messages.proceedingToCheckout'));
   };
 
-  const hasPermissionToEdit = ['admin', 'manager'].includes(user?.role);
+  const hasPermissionToEdit = ['admin', 'manager', 'front_desk', 'receptionist', 'owner'].includes(user?.role?.toLowerCase());
 
   // Display skeletons while loading
   const renderSkeletons = () => {

@@ -675,7 +675,7 @@ router.get('/deposits', authenticateJWT, async (req, res) => {
 router.get(
   '/admin/deposits',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);
@@ -713,7 +713,7 @@ router.get(
 router.post(
   '/admin/deposits/:id/approve',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const metadata = req.body?.metadata;
@@ -746,7 +746,7 @@ router.post(
 router.post(
   '/admin/deposits/:id/reject',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { failureReason, metadata, notes } = req.body || {};
@@ -778,7 +778,7 @@ router.post(
 router.post(
   '/admin/payment-methods/:id/verification',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { status, notes, metadata, verifiedAt } = req.body || {};
@@ -807,7 +807,7 @@ router.post(
 router.post(
   '/admin/kyc/documents/:id/review',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { status, reviewNotes, rejectionReason, metadata } = req.body || {};
@@ -836,7 +836,7 @@ router.post(
 router.post(
   '/manual-adjust',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { userId, amount, currency, transactionType, description, metadata, allowNegative } = req.body;
@@ -875,7 +875,7 @@ router.post(
 router.get(
   '/admin/settings',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const scopeType = req.query.scopeType || 'global';
@@ -904,7 +904,7 @@ router.get(
 router.put(
   '/admin/settings',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { scopeType = 'global', scopeId, currency, settings } = req.body || {};
@@ -938,7 +938,7 @@ router.put(
 router.get(
   '/admin/bank-accounts',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const scopeType = req.query.scopeType || 'global';
@@ -967,7 +967,7 @@ router.get(
 router.post(
   '/admin/bank-accounts',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const payload = req.body || {};
@@ -1013,7 +1013,7 @@ router.post(
 router.post(
   '/admin/bank-accounts/:id/status',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -1105,7 +1105,7 @@ router.get('/withdrawals', authenticateJWT, async (req, res) => {
 router.post(
   '/withdrawals/:id/approve',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const updated = await approveWithdrawal({
@@ -1125,7 +1125,7 @@ router.post(
 router.post(
   '/withdrawals/:id/finalize',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { success = true, metadata = {} } = req.body || {};
@@ -1147,7 +1147,7 @@ router.post(
 router.get(
   '/admin/withdrawals',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);
@@ -1177,7 +1177,7 @@ router.get(
 router.post(
   '/withdrawals/:id/reject',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const { rejectionReason, metadata = {} } = req.body || {};
@@ -1220,7 +1220,7 @@ router.post(
 router.post(
   '/admin/refund',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   [
     body('transactionId').isUUID().withMessage('Valid transaction ID required'),
     body('amount').optional().isFloat({ min: 0.01 }).withMessage('Amount must be positive'),
@@ -1397,7 +1397,7 @@ router.post(
 router.get(
   '/admin/refundable-transactions',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);
@@ -1484,7 +1484,7 @@ router.get(
 router.get(
   '/admin/refund-history',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner']),
+  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
     try {
       const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);

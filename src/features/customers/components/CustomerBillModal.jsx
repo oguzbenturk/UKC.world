@@ -212,36 +212,10 @@ const CustomerBillModal = ({
   };
 
   const handlePdf = async () => {
-    // Generate a real PDF file via html2canvas + jsPDF. This produces an
-    // actual file download which works on every device — desktop browsers,
-    // iOS Safari, Android Chrome — without requiring the user to navigate
-    // a print dialog and pick "Save as PDF" (which mobile doesn't expose
-    // the same way and iOS Safari often blocks for cross-frame content).
-    //
-    // Trade-off: html2canvas is a layout APPROXIMATION, so chip baselines
-    // and strikethrough positions can drift slightly compared to the live
-    // modal. The single-page custom-format export keeps everything
-    // together (no mid-section slicing) so at worst the visuals are a hair
-    // off — never cut, never duplicated, never blank pages.
-    const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
-    const datePart = new Date().toISOString().slice(0, 10);
-    const filename = `DPC-Statement-${safeName}-${datePart}.pdf`;
-
-    let domCaptureError = null;
-    if (printableRef.current) {
-      try {
-        await exportBillPdfFromElement(printableRef.current, filename);
-        return;
-      } catch (err) {
-        domCaptureError = err;
-        console.warn('Bill PDF: DOM capture failed, falling back to text export', err);
-      }
-    }
-
-    // Fallback: legacy text-based PDF, drawn entirely with jsPDF text()
-    // calls. Visually plainer than the DOM-capture path but doesn't depend
-    // on a working canvas pipeline, so it survives whatever broke the
-    // primary path (rare — usually only when the printable ref is null).
+    // Native jsPDF + autoTable renderer is the primary path: vector-quality,
+    // selectable text, row-by-row pagination that never clips. html2canvas
+    // remains as a fallback in case a future change introduces a render bug.
+    let nativeError = null;
     try {
       await exportBillPdf({
         customerName,
@@ -255,12 +229,32 @@ const CustomerBillModal = ({
         totals,
         baseCurrency,
         formatCurrency,
+        isCohortMode,
+        cohortPartyNames,
       });
+      return;
     } catch (err) {
-      console.error('Bill PDF: legacy export also failed', err);
+      nativeError = err;
+      console.warn('Bill PDF: native renderer failed, falling back to DOM capture', err);
+    }
+
+    const safeName = (customerName || 'Customer').replace(/[^a-zA-Z0-9-_]+/g, '-');
+    const datePart = new Date().toISOString().slice(0, 10);
+    const filename = `DPC-Statement-${safeName}-${datePart}.pdf`;
+
+    if (printableRef.current) {
+      try {
+        await exportBillPdfFromElement(printableRef.current, filename);
+        return;
+      } catch (err) {
+        console.error('Bill PDF: DOM-capture fallback also failed', err);
+        message.error('Could not generate PDF. Use the Print button as a workaround.');
+        reportClientError('CustomerBillModal.handlePdf:native', nativeError);
+        reportClientError('CustomerBillModal.handlePdf:dom-capture', err);
+      }
+    } else {
       message.error('Could not generate PDF. Use the Print button as a workaround.');
-      reportClientError('CustomerBillModal.handlePdf', err);
-      if (domCaptureError) reportClientError('CustomerBillModal.handlePdf:dom-capture', domCaptureError);
+      reportClientError('CustomerBillModal.handlePdf:native', nativeError);
     }
   };
 

@@ -422,8 +422,12 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
   const actorId = resolveActorId(req);
   const actorRoleRaw = req.user?.role;
   const actorRole = typeof actorRoleRaw === 'string' ? actorRoleRaw.toLowerCase() : null;
-  const isStaff = actorRole ? ['admin', 'manager', 'owner', 'instructor'].includes(actorRole) : false;
-  const allowNegativeBalance = actorRole ? ['admin', 'manager', 'owner'].includes(actorRole) : false;
+  const isStaff = actorRole ? ['admin', 'manager', 'owner', 'instructor', 'front_desk', 'receptionist'].includes(actorRole) : false;
+  // Negative-balance override — consistent with bookings.js. Previously this excluded front_desk
+  // and receptionist, so they couldn't complete rentals for customers with insufficient balance.
+  const allowNegativeBalance = actorRole
+    ? ['admin', 'manager', 'owner', 'front_desk', 'receptionist'].includes(actorRole)
+    : false;
     
     const { 
       user_id, // Changed from customer_id to user_id to match frontend

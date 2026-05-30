@@ -47,6 +47,7 @@ const CombineBillSetupModal = lazy(() => import('./customerBill/CombineBillSetup
 const CustomerDiscountsTab = lazy(() => import('./CustomerDiscountsTab'));
 const ApplyDiscountModal = lazy(() => import('./ApplyDiscountModal'));
 const EditPackagePriceModal = lazy(() => import('./EditPackagePriceModal'));
+const FamilyLinkingModal = lazy(() => import('./FamilyLinkingModal'));
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -160,6 +161,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const [addFundsCurrency, setAddFundsCurrency] = useState(null); // null = will default to storageCurrency on open
   const [addFundsAmount, setAddFundsAmount] = useState(null);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showFamilyLinkingModal, setShowFamilyLinkingModal] = useState(false);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [packageManagerVisible, setPackageManagerVisible] = useState(false);
@@ -196,11 +198,14 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
 
   // ─── Currency helpers ─────────────────────────────────────────
   const isStaff = useMemo(() => {
-    const staffRoles = ['admin', 'manager', 'developer', 'instructor'];
+    const staffRoles = ['admin', 'manager', 'developer', 'instructor', 'front_desk', 'receptionist', 'owner'];
     return currentUser && staffRoles.includes(currentUser.role?.toLowerCase());
   }, [currentUser]);
 
-  const isAdmin = currentUser && ['admin', 'manager'].includes(currentUser.role);
+  // Front desk needs the same admin-view affordances as admin/manager (financial history,
+  // discount actions, wallet operations). Receptionist and front_desk are the same operational
+  // role under two different role-string aliases.
+  const isAdmin = currentUser && ['admin', 'manager', 'front_desk', 'receptionist', 'owner'].includes(currentUser.role?.toLowerCase());
   const storageCurrency = businessCurrency || 'EUR';
   const walletCurrency = useMemo(() => userAccount?.currency || 'EUR', [userAccount?.currency]);
   const currencySymbol = useMemo(() => getCurrencySymbol(storageCurrency), [getCurrencySymbol, storageCurrency]);
@@ -1354,7 +1359,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           <Space wrap size="small">
             <Button icon={<PlusCircleOutlined />} size="small" onClick={() => setShowAddFundsModal(true)}>Add Balance</Button>
             <Button icon={<MinusCircleOutlined />} size="small" danger onClick={() => setShowChargeModal(true)}>Charge</Button>
-            {isAdmin && <Button icon={<DeleteOutlined />} size="small" danger onClick={handleResetWalletBalance}>Reset Wallet</Button>}
+            {/* Reset wallet is destructive and admin-only — must not be available to frontdesk. */}
+            {['admin', 'manager', 'owner'].includes(currentUser?.role?.toLowerCase()) && <Button icon={<DeleteOutlined />} size="small" danger onClick={handleResetWalletBalance}>Reset Wallet</Button>}
           </Space>
         )}
       </div>
@@ -1512,8 +1518,26 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       case 'rentals': return renderRentals();
       case 'accommodation': return renderAccommodation();
       case 'financial': return renderFinancial();
-      case 'shop': return <Suspense fallback={<Spin />}><CustomerShopHistory userId={customerId} /></Suspense>;
-      case 'memberships': return <Suspense fallback={<Spin />}><MemberPurchasesSection userId={customerId} isAdminView={!readOnly} /></Suspense>;
+      case 'shop': return (
+        <Suspense fallback={<Spin />}>
+          <CustomerShopHistory
+            userId={customerId}
+            discountsByEntity={discountsByEntity}
+            onApplyDiscount={openDiscountForEntity}
+          />
+        </Suspense>
+      );
+      case 'memberships': return (
+        <Suspense fallback={<Spin />}>
+          <MemberPurchasesSection
+            userId={customerId}
+            isAdminView={!readOnly}
+            readOnly={readOnly}
+            discountsByEntity={discountsByEntity}
+            onApplyDiscount={openDiscountForEntity}
+          />
+        </Suspense>
+      );
       case 'discounts': return (
         <Suspense fallback={<Spin />}>
           <CustomerDiscountsTab
@@ -1526,6 +1550,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             transactions={transactions}
             discounts={discounts}
             onChanged={refreshDiscounts}
+            onApplyDiscount={openDiscountForEntity}
             readOnly={readOnly}
           />
         </Suspense>
@@ -1608,6 +1633,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
                   { label: 'Assign Package', icon: <GiftOutlined />, color: 'text-amber-600 hover:bg-amber-50', action: () => { setStartAssignFlow(true); setPackageManagerVisible(true); } },
                   { label: 'Add Balance', icon: <PlusOutlined />, color: 'text-emerald-600 hover:bg-emerald-50', action: () => setShowAddFundsModal(true) },
                   { label: 'Charge', icon: <CreditCardOutlined />, color: 'text-rose-600 hover:bg-rose-50', action: () => setShowChargeModal(true) },
+                  { label: 'Family', icon: <TeamOutlined />, color: 'text-violet-600 hover:bg-violet-50', action: () => setShowFamilyLinkingModal(true) },
                   { label: 'Edit Profile', icon: <EditOutlined />, color: 'text-slate-500 hover:bg-gray-100', action: () => setShowEditProfileModal(true) },
                 ].map(({ label, icon, color, action }) => (
                   <Tooltip key={label} title={label} placement="right">
@@ -1689,6 +1715,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
                   { label: 'Assign Package', icon: <GiftOutlined />, cls: 'text-amber-700 hover:bg-amber-50', action: () => { setStartAssignFlow(true); setPackageManagerVisible(true); } },
                   { label: 'Add Balance', icon: <PlusOutlined />, cls: 'text-emerald-700 hover:bg-emerald-50', action: () => setShowAddFundsModal(true) },
                   { label: 'Charge', icon: <CreditCardOutlined />, cls: 'text-rose-700 hover:bg-rose-50', action: () => setShowChargeModal(true) },
+                  { label: 'Family', icon: <TeamOutlined />, cls: 'text-violet-700 hover:bg-violet-50', action: () => setShowFamilyLinkingModal(true) },
                   { label: 'Edit Profile', icon: <EditOutlined />, cls: 'text-slate-600 hover:bg-gray-100', action: () => setShowEditProfileModal(true) },
                 ].map(({ label, icon, cls, action }) => (
                   <button key={label} onClick={() => { setSidebarExpanded(false); action(); }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${cls} transition-colors cursor-pointer border-0 bg-transparent text-left`}>
@@ -1881,6 +1908,17 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           <Form.Item className="mb-0"><div className="flex justify-end"><Button className="mr-2" onClick={() => setShowChargeModal(false)}>Cancel</Button><Button type="primary" danger htmlType="submit" loading={paymentProcessing} icon={<MinusCircleOutlined />}>Process Charge</Button></div></Form.Item>
         </Form>
       </Modal>
+
+      {/* Family Linking */}
+      <Suspense fallback={null}>
+        {showFamilyLinkingModal && customer && (
+          <FamilyLinkingModal
+            open={showFamilyLinkingModal}
+            onCancel={() => setShowFamilyLinkingModal(false)}
+            primaryCustomer={customer}
+          />
+        )}
+      </Suspense>
 
       {/* Edit Profile */}
       <Modal title="Edit Customer Profile" open={showEditProfileModal} onCancel={() => setShowEditProfileModal(false)} footer={null} width={800} destroyOnHidden>

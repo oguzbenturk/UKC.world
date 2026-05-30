@@ -1,8 +1,8 @@
 // src/features/members/components/MemberPurchasesSection.jsx
 import { Card, Typography, Tag, Space, Empty, Spin, Button, Tooltip } from 'antd';
-import { CrownOutlined, StarOutlined, TrophyOutlined, ThunderboltOutlined, GiftOutlined, CheckCircleOutlined, ClockCircleOutlined, HistoryOutlined } from '@ant-design/icons';
+import { CrownOutlined, StarOutlined, TrophyOutlined, ThunderboltOutlined, GiftOutlined, CheckCircleOutlined, ClockCircleOutlined, HistoryOutlined, PercentageOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { useData } from '@/shared/hooks/useData';
+import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 const { Text, Title } = Typography;
@@ -39,34 +39,43 @@ const getPaymentStatusColor = (status) => {
 /**
  * MemberPurchasesSection - Displays member purchases/subscriptions
  * Can be used in customer profile or standalone
- * 
+ *
  * @param {Object} props
  * @param {number} props.userId - User ID to fetch purchases for (optional, defaults to current user)
  * @param {boolean} props.isAdminView - Whether this is an admin viewing a customer profile
  * @param {boolean} props.compact - Show compact version
+ * @param {Map} props.discountsByEntity - Discount lookup map keyed by `${entityType}:${entityId}` (provided by EnhancedCustomerDetailModal)
+ * @param {Function} props.onApplyDiscount - Callback fired when staff clicks Discount on a row; opens the ApplyDiscountModal in the parent
+ * @param {boolean} props.readOnly - Hide write actions like Discount
  */
-const MemberPurchasesSection = ({ userId, isAdminView = false, compact = false }) => {
-  const { apiClient, user } = useData();
+const MemberPurchasesSection = ({
+  userId,
+  isAdminView = false,
+  compact = false,
+  discountsByEntity = null,
+  onApplyDiscount = null,
+  readOnly = false,
+}) => {
   const { formatCurrency } = useCurrency();
-  const targetUserId = userId || user?.id;
+  const targetUserId = userId;
 
   // Fetch purchases - use admin endpoint if viewing another user's purchases
   const { data: purchases = [], isLoading } = useQuery({
     queryKey: ['member-purchases', targetUserId, isAdminView],
     queryFn: async () => {
-      if (!apiClient || !targetUserId) return [];
-      
+      if (!targetUserId) return [];
+
       // Admin viewing a customer's purchases
       if (isAdminView && userId) {
         const response = await apiClient.get(`/member-offerings/user/${userId}/purchases`);
         return Array.isArray(response.data) ? response.data : [];
       }
-      
+
       // User viewing their own purchases
       const response = await apiClient.get('/member-offerings/my-purchases');
       return Array.isArray(response.data) ? response.data : [];
     },
-    enabled: !!apiClient && !!targetUserId,
+    enabled: !!targetUserId,
   });
 
   // Separate active and past purchases
@@ -81,6 +90,52 @@ const MemberPurchasesSection = ({ userId, isAdminView = false, compact = false }
       day: 'numeric'
     });
   };
+
+  const fmt = (amount, currency) => {
+    const num = Number(amount) || 0;
+    if (formatCurrency) return formatCurrency(num, currency || undefined);
+    return `${currency || '€'}${num.toFixed(2)}`;
+  };
+
+  // Returns { discount, original, final } for a purchase row.
+  const lookupDiscount = (purchase) => {
+    const original = Number(purchase.offering_price) || 0;
+    if (!discountsByEntity || typeof discountsByEntity.get !== 'function') {
+      return { discount: null, original, final: original };
+    }
+    const d = discountsByEntity.get(`member_purchase:${purchase.id}`) || null;
+    if (!d) return { discount: null, original, final: original };
+    const amt = Number(d.amount) || 0;
+    return { discount: d, original, final: Math.max(0, original - amt) };
+  };
+
+  const renderPriceCell = (purchase) => {
+    const { discount, original, final } = lookupDiscount(purchase);
+    const currency = purchase.offering_currency || purchase.currency || undefined;
+    if (!discount) {
+      return <Text className="tabular-nums">{fmt(original, currency)}</Text>;
+    }
+    return (
+      <Space size={4} wrap>
+        <span className="tabular-nums line-through text-slate-400 text-xs">{fmt(original, currency)}</span>
+        <span className="tabular-nums font-semibold text-emerald-600">{fmt(final, currency)}</span>
+        <Tag color="orange" className="!m-0">−{Number(discount.percent)}%</Tag>
+      </Space>
+    );
+  };
+
+  const handleApplyDiscount = (purchase) => {
+    if (!onApplyDiscount) return;
+    onApplyDiscount({
+      entityType: 'member_purchase',
+      entityId: purchase.id,
+      originalPrice: Number(purchase.offering_price) || 0,
+      currency: purchase.offering_currency || purchase.currency || undefined,
+      description: `${purchase.offering_name || 'Membership'} · ${formatDate(purchase.purchased_at)}`,
+    });
+  };
+
+  const canDiscount = isAdminView && !readOnly && typeof onApplyDiscount === 'function';
 
   const getDaysRemaining = (expiresAt) => {
     if (!expiresAt) return null;
@@ -186,11 +241,21 @@ const MemberPurchasesSection = ({ userId, isAdminView = false, compact = false }
                       <div className="flex items-center gap-2 flex-wrap">
                         <Text strong>{purchase.offering_name}</Text>
                         <Tag color="green" className="text-xs">Active</Tag>
+                        {canDiscount && (
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<PercentageOutlined />}
+                            className="ml-auto !px-1"
+                            onClick={() => handleApplyDiscount(purchase)}
+                          >
+                            Discount
+                          </Button>
+                        )}
                       </div>
-                      <div className="text-slate-500 text-sm mt-1">
-                        {formatCurrency ? formatCurrency(purchase.offering_price) : `€${purchase.offering_price}`}
-                        {' • '}
-                        Purchased {formatDate(purchase.purchased_at)}
+                      <div className="text-slate-500 text-sm mt-1 flex items-center gap-1 flex-wrap">
+                        {renderPriceCell(purchase)}
+                        <span className="text-slate-400">• Purchased {formatDate(purchase.purchased_at)}</span>
                       </div>
                       {daysRemaining !== null && (
                         <div className="flex items-center gap-1 mt-2">
@@ -228,7 +293,7 @@ const MemberPurchasesSection = ({ userId, isAdminView = false, compact = false }
           <div className="space-y-2">
             {pastPurchases.map((purchase) => (
               <Card key={purchase.id} size="small" className="rounded-lg bg-slate-50">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-3">
                     {iconMap[purchase.icon] || iconMap.star}
                     <div>
@@ -238,7 +303,7 @@ const MemberPurchasesSection = ({ userId, isAdminView = false, compact = false }
                       </div>
                     </div>
                   </div>
-                  <Space>
+                  <Space wrap size="small">
                     <Tag color={getStatusColor(purchase.status)}>
                       {purchase.status?.toUpperCase()}
                     </Tag>
@@ -247,9 +312,17 @@ const MemberPurchasesSection = ({ userId, isAdminView = false, compact = false }
                         {purchase.payment_status?.toUpperCase()}
                       </Tag>
                     )}
-                    <Text type="secondary">
-                      {formatCurrency ? formatCurrency(purchase.offering_price) : `€${purchase.offering_price}`}
-                    </Text>
+                    {renderPriceCell(purchase)}
+                    {canDiscount && (
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<PercentageOutlined />}
+                        onClick={() => handleApplyDiscount(purchase)}
+                      >
+                        Discount
+                      </Button>
+                    )}
                   </Space>
                 </div>
               </Card>

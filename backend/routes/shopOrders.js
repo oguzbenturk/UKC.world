@@ -14,6 +14,7 @@ import { dispatchNotification, dispatchToStaff } from '../services/notificationD
 import CurrencyService from '../services/currencyService.js';
 import { addTag } from '../services/userTagService.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+import { discountSumLateral } from '../utils/discountAmounts.js';
 
 const router = express.Router();
 
@@ -55,14 +56,17 @@ const emitSocketEvent = (event, data) => {
 // Helper to get order with items
 async function getOrderWithItems(orderId, client = pool) {
   const orderResult = await client.query(`
-    SELECT 
+    SELECT
       o.*,
       u.first_name,
       u.last_name,
       u.email,
-      u.phone
+      u.phone,
+      COALESCE(d.amt, 0) AS total_discount_amount,
+      GREATEST(COALESCE(o.total_amount, 0) - COALESCE(d.amt, 0), 0) AS total_after_discount
     FROM shop_orders o
     LEFT JOIN users u ON o.user_id = u.id
+    ${discountSumLateral('d', 'shop_order', 'o.id')}
     WHERE o.id = $1
   `, [orderId]);
 
@@ -875,7 +879,7 @@ router.get('/my-orders/unread-counts', authenticateJWT, async (req, res) => {
 });
 
 // Admin: Get specific user's orders (must be before /:id to avoid route conflict in Express 5)
-router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk'], 'finances:read'), async (req, res) => {
+router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'finances:read'), async (req, res) => {
   try {
     const { userId } = req.params;
     const pageNum = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -885,6 +889,8 @@ router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'man
     const ordersResult = await pool.query(`
       SELECT
         o.*,
+        COALESCE(d.amt, 0) AS total_discount_amount,
+        GREATEST(COALESCE(o.total_amount, 0) - COALESCE(d.amt, 0), 0) AS total_after_discount,
         (SELECT COUNT(*) FROM shop_order_items WHERE order_id = o.id) as item_count,
         (SELECT json_agg(json_build_object(
           'id', oi.id,
@@ -897,6 +903,7 @@ router.get('/admin/user/:userId', authenticateJWT, authorizeRoles(['admin', 'man
           'selected_color', oi.selected_color
         )) FROM shop_order_items oi WHERE oi.order_id = o.id) as items
       FROM shop_orders o
+      ${discountSumLateral('d', 'shop_order', 'o.id')}
       WHERE o.user_id = $1
       ORDER BY o.created_at DESC
       LIMIT $2 OFFSET $3
@@ -932,8 +939,8 @@ router.get('/:id', authenticateJWT, async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Check authorization - user can only see their own orders unless admin/manager/front_desk
-    if (order.user_id !== userId && !['admin', 'manager', 'front_desk'].includes(userRole)) {
+    // Check authorization - user can only see their own orders unless admin/manager/frontdesk
+    if (order.user_id !== userId && !['admin', 'manager', 'front_desk', 'receptionist', 'owner'].includes(userRole)) {
       return res.status(403).json({ error: 'Not authorized to view this order' });
     }
 
@@ -1634,25 +1641,20 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
       ? validatedItems.map(i => `${i.product_name} x${i.quantity}`).join(', ')
       : `${validatedItems.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${validatedItems.length - 2} more`;
 
-    // For wallet payment, check customer's wallet balance
+    // Quick-sale is always invoked by staff (route is gated to admin/manager/front_desk/receptionist),
+    // so staff can always complete the sale even if the customer's wallet is empty — the customer
+    // simply goes negative. trusted_customer is also allowed to go negative.
+    const actorRole = (req.user?.role || '').toLowerCase();
+    const isStaffSeller = ['admin', 'manager', 'front_desk', 'receptionist'].includes(actorRole);
+    let buyerIsTrusted = false;
     if (payment_method === 'wallet' && user_id) {
-      const walletBalance = await getBalance(user_id, 'EUR');
-      const balance = walletBalance.available || 0;
-
-      // trusted_customer is allowed to go negative
       const { rows: buyerRoleRows } = await client.query(
         `SELECT r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`,
         [user_id]
       );
-      const buyerIsTrusted = buyerRoleRows[0]?.role_name === 'trusted_customer';
-
-      if (balance < totalAmount && !buyerIsTrusted) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({
-          error: `Insufficient wallet balance. Required: €${totalAmount.toFixed(2)}, Available: €${balance.toFixed(2)}`
-        });
-      }
+      buyerIsTrusted = buyerRoleRows[0]?.role_name === 'trusted_customer';
     }
+    const allowNegative = isStaffSeller || buyerIsTrusted;
 
     // Create the order (user_id can be null for walk-in customers)
     // Note: Store staffUserId in notes since created_by column doesn't exist
@@ -1707,6 +1709,10 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
         availableDelta: -totalAmount,
         description: `${itemSummary} - Order #${order.order_number} (Staff Sale)`,
         relatedEntityType: 'shop_order',
+        // No relatedEntityId — wallet_transactions.related_entity_id is UUID and
+        // shop_orders.id is SERIAL int. Numeric id stays in metadata.
+        createdBy: staffUserId,
+        allowNegative,
         metadata: { orderId: order.id, orderNumber: order.order_number, staffId: staffUserId }
       });
     }

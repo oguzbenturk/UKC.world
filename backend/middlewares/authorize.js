@@ -60,6 +60,7 @@ const ROUTE_SCOPE_MAP = {
   '/students': 'users',
   '/student-portal': 'users',
   '/family': 'users',
+  '/family-groups': 'users',
   '/roles': 'users',
   '/user-consents': 'users',
   '/user-relationships': 'users',

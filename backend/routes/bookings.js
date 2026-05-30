@@ -190,7 +190,12 @@ const resolveServiceType = (serviceRow) => {
 
     const newUsed = currentUsed + delta;
     const newRemaining = Math.max(allowNegative ? Number.NEGATIVE_INFINITY : 0, liveRemaining - delta);
-    const newStatus = newRemaining > 0 ? 'active' : pkg.status === 'active' ? 'completed' : pkg.status;
+    // `customer_packages.check_status_valid` constraint allows only
+    // 'active' | 'expired' | 'used_up' | 'cancelled' | 'pending_payment' | 'waiting_payment'.
+    // Previously we wrote 'completed' here, which the constraint rejects with 23514 and the
+    // whole PUT /bookings/:id transaction rolls back — surfaced on prod 2026-05-30 as a
+    // ~20× retry loop on duration edits of fully-consumed packages.
+    const newStatus = newRemaining > 0 ? 'active' : pkg.status === 'active' ? 'used_up' : pkg.status;
     const { rows: upd } = await client.query(
       `UPDATE customer_packages
        SET used_hours = $1, remaining_hours = $2, status = $3, updated_at = NOW()
@@ -1568,12 +1573,14 @@ router.post('/',
     // preferred_currency is for display/price-lookup only, not for wallet storage.
     const walletTransactionCurrency = DEFAULT_CURRENCY;
     
-    // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
+    // Staff roles automatically allow negative balance (front desk can book even if customer
+    // has no balance). Derived purely from req.user.role — req.body.allowNegativeBalance is
+    // intentionally NOT honoured so a customer cannot self-overdraft via the wire payload.
     const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'receptionist', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
     // trusted_customer: always allowed to book with insufficient balance — debt is tracked in wallet
     const isTrustedCustomer = req.user?.role === 'trusted_customer';
-    const allowNegativeBalance = req.body.allowNegativeBalance === true || isStaffBooker || isTrustedCustomer;
+    const allowNegativeBalance = isStaffBooker || isTrustedCustomer;
 
     // Staff roles automatically confirm bookings (admin, manager, front_desk)
     const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk', 'receptionist'];
@@ -2628,13 +2635,15 @@ router.post('/group',
       date, start_hour, duration, instructor_user_id, 
       status, notes, location, equipment_ids, service_id,
       participants, // Array of participant objects with payment info
-      allowNegativeBalance: requestedAllowNegative // Allow wallet balance to go negative if explicitly set
     } = req.body;
 
-    // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
-    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'instructor'];
+    // Negative-balance override derived purely from req.user.role — never from the request body.
+    // receptionist was previously missing from this list (group bookings only); now consistent
+    // with single + calendar booking entry points.
+    const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'receptionist', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
-    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker;
+    const isTrustedCustomer = req.user?.role === 'trusted_customer';
+    const allowNegativeBalance = isStaffBooker || isTrustedCustomer;
 
     // Staff roles automatically confirm bookings (admin, manager, front_desk)
     const staffRolesForAutoConfirm = ['admin', 'manager', 'front_desk'];
@@ -3438,20 +3447,18 @@ router.post('/group',
 // POST create a new booking from the calendar
 router.post('/calendar', authenticateJWT, async (req, res) => {
   try {
-    const { 
-      date, time, duration, instructorId, serviceId, user, 
+    const {
+      date, time, duration, instructorId, serviceId, user,
       amount, finalAmount, paymentStatus, checkinStatus, checkoutStatus, use_package, customerPackageId,
-      allowNegativeBalance: requestedAllowNegative // Allow wallet balance to go negative if explicitly set
     } = req.body;
     
     const walletCurrencyRaw = req.body.wallet_currency || req.body.walletCurrency || req.body.currency;
     const requestedPaymentMethod = req.body.payment_method || req.body.paymentMethod || null;
-    // Staff roles automatically can allow negative balance (front desk can book even if customer has no balance)
+    // Negative-balance override is role-derived only — never trusts req.body.allowNegativeBalance.
     const staffRolesForNegativeBalance = ['admin', 'manager', 'front_desk', 'receptionist', 'instructor'];
     const isStaffBooker = staffRolesForNegativeBalance.includes(req.user?.role);
-    // trusted_customer: always allowed to book with insufficient balance — debt is tracked in wallet
     const isTrustedCustomer = req.user?.role === 'trusted_customer';
-    const allowNegativeBalance = requestedAllowNegative === true || isStaffBooker || isTrustedCustomer;
+    const allowNegativeBalance = isStaffBooker || isTrustedCustomer;
     
     // Currency will be resolved later after we know the user ID
     let resolvedWalletCurrency = walletCurrencyRaw?.trim()?.toUpperCase() || null;
@@ -4180,7 +4187,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
 });
 
 // UPDATE a booking
-router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), rateLimitBookingUpdates, async (req, res) => {
+router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist']), rateLimitBookingUpdates, async (req, res) => {
   const client = await pool.connect();
   
   try {

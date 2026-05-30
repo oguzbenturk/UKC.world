@@ -1,9 +1,7 @@
 import { CheckCircleIcon, CalendarDaysIcon, UserCircleIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { computeBookingPrice, getPricingBreakdown } from '@/shared/utils/pricing';
-import { useEffect, useRef, useState } from 'react';
-import { Checkbox, Alert, Tooltip } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { useEffect, useRef } from 'react';
 
 /**
  * S        <div className="flex items-start mb-4">
@@ -30,8 +28,11 @@ import { InfoCircleOutlined } from '@ant-design/icons';
  */
 // eslint-disable-next-line complexity
 const ConfirmationStep = ({ formData, updateFormData, onSubmit, onPrev, isSubmitting, hideNavigation = false }) => {
-  const [allowNegativeBalance, setAllowNegativeBalance] = useState(formData.allowNegativeBalance || false);
-  
+  // Negative-balance override is no longer a customer-facing choice — the backend derives it
+  // from the requester's role (admin/manager/front_desk/receptionist/instructor automatically
+  // override; customers never can). Closes a pre-existing security hole where customers could
+  // self-overdraft by checking a UI checkbox.
+
   // Format price for display with fallback
   const { formatCurrency, businessCurrency } = useCurrency();
   const currencyCode = formData?.currency || businessCurrency || 'EUR';
@@ -345,33 +346,7 @@ const ConfirmationStep = ({ formData, updateFormData, onSubmit, onPrev, isSubmit
           <h5 className="text-base font-medium text-gray-900">Total</h5>
           <span className="text-lg font-semibold text-gray-900">{paymentInfo.total}</span>
         </div>
-        
-        {/* Allow Negative Balance Option */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-          <Checkbox
-            checked={allowNegativeBalance}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setAllowNegativeBalance(checked);
-              updateFormData({ allowNegativeBalance: checked });
-            }}
-          >
-            <span className="font-medium text-gray-900">Allow Negative Balance</span>
-            <Tooltip title="When enabled, participants can book even if they don't have sufficient wallet balance. They will go into debt.">
-              <InfoCircleOutlined className="ml-2 text-gray-400" />
-            </Tooltip>
-          </Checkbox>
-          {allowNegativeBalance && (
-            <Alert
-              message="Negative balance enabled - participants can go into debt"
-              type="warning"
-              showIcon
-              className="mt-3"
-            />
-          )}
-        </div>
-        
-  {/* Check-in status controls removed per request */}
+        {/* Check-in status controls removed per request */}
       </div>
       
       {/* Navigation buttons */}

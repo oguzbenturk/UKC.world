@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import { useData } from '@/shared/hooks/useData';
+import apiClient from '@/shared/services/apiClient';
 import {
   buildBillItems, indexDiscounts, CATEGORY_LABELS,
 } from './customerBill/billAggregator';
@@ -28,10 +28,10 @@ export default function CustomerDiscountsTab({
   instructors = [],
   discounts = [],
   onChanged,
+  onApplyDiscount = null,
   readOnly = false,
 }) {
   const { formatCurrency, businessCurrency } = useCurrency();
-  const { apiClient } = useData();
   const baseCur = businessCurrency || 'EUR';
 
   const [selectedKeys, setSelectedKeys] = useState([]);
@@ -206,21 +206,38 @@ export default function CustomerDiscountsTab({
     },
     {
       title: '',
-      key: 'remove',
-      width: 90,
-      render: (_, r) => r.discountId
-        ? (
-          <Popconfirm
-            title="Remove this discount?"
-            onConfirm={() => handleRemoveOne(r.discountId)}
-            okText="Remove"
-            cancelText="Cancel"
-            disabled={readOnly}
-          >
-            <Button type="link" size="small" danger disabled={readOnly}>Remove</Button>
-          </Popconfirm>
-        )
-        : null,
+      key: 'rowAction',
+      width: 100,
+      render: (_, r) => {
+        if (r.discountId) {
+          return (
+            <Popconfirm
+              title="Remove this discount?"
+              onConfirm={() => handleRemoveOne(r.discountId)}
+              okText="Remove"
+              cancelText="Cancel"
+              disabled={readOnly}
+            >
+              <Button type="link" size="small" danger disabled={readOnly}>Remove</Button>
+            </Popconfirm>
+          );
+        }
+        if (readOnly || !onApplyDiscount || !r.entityType || r.entityId == null) return null;
+        return (
+          <Button
+            type="link"
+            size="small"
+            onClick={() => onApplyDiscount({
+              entityType: r.entityType,
+              entityId: r.entityId,
+              originalPrice: Number(r.originalAmount ?? r.amount) || 0,
+              currency: r.currency || baseCur,
+              description: r.description || CATEGORY_LABELS[r.category] || 'Item',
+              participantUserId: r.participantUserId || null,
+            })}
+          >Apply</Button>
+        );
+      },
     },
   ];
 

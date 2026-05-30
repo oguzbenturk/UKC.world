@@ -66,6 +66,7 @@ import notificationWorkersRouter from './routes/notification-workers.js';
 import userConsentsRouter from './routes/userConsents.js';
 import gdprRouter from './routes/gdpr.js';
 import familyRouter from './routes/family.js';
+import familyGroupsRouter from './routes/familyGroups.js';
 import waiversRouter from './routes/waivers.js';
 import auditLogsRouter from './routes/auditLogs.js';
 import adminWaiversRouter from './routes/adminWaivers.js';
@@ -101,6 +102,7 @@ import MessageCleanupService from './services/messageCleanupService.js';
 import { startLessonReminderJob } from './jobs/lessonReminderJob.js';
 import './services/alerts/notificationAlertService.js';
 import telegramRouter from './routes/telegram.js';
+import spotifyRouter from './routes/spotify.js';
 import { initialize as initializeTelegramBot, pruneStaleLinkCodes } from './services/telegramService.js';
 import { attachTelegramHandlers } from './services/telegramBotHandlers.js';
 import {
@@ -450,6 +452,7 @@ app.use('/api/students', (req, res, next) => {
 app.use('/api/auth', authRouter);
 app.use('/api/2fa', twoFactorRouter);
 app.use('/api/telegram', telegramRouter);
+app.use('/api/spotify', spotifyRouter);
 app.use('/api/user-consents', authenticateJWT, userConsentsRouter);
 app.use('/api/gdpr', gdprRouter);
 app.use('/api/users', authenticateJWT, usersRouter);
@@ -464,6 +467,7 @@ app.use('/api/instructors', authenticateJWT, instructorFeatureRouter);
 // Instructor skills (teaching qualifications per discipline)
 app.use('/api/instructors', instructorSkillsRouter);
 app.use('/api/students', authenticateJWT, familyRouter); // Family management routes (must be before studentsRouter)
+app.use('/api/family-groups', familyGroupsRouter); // Adult peer-linked customer accounts (Organizer + members)
 app.use('/api/students', authenticateJWT, studentsRouter);
 app.use('/api/waivers', waiversRouter); // Liability waiver routes (template endpoints allow public access)
 app.use('/api/student', authenticateJWT, studentPortalRouter);

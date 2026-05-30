@@ -32,6 +32,7 @@ import {
   LockOutlined,
   CameraOutlined,
   RobotOutlined,
+  CustomerServiceOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -65,6 +66,7 @@ const InstructorNotificationSettings = lazy(() => import('@/features/settings/co
 const ManagerTeamNotifications = lazy(() => import('@/features/settings/components/ManagerTeamNotifications'));
 const ManagerOperationalDefaults = lazy(() => import('@/features/settings/components/ManagerOperationalDefaults'));
 const AccountSettings = lazy(() => import('@/features/settings/components/AccountSettings'));
+const MusicSettings = lazy(() => import('@/features/settings/components/MusicSettings'));
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -684,6 +686,10 @@ const UserSettings = () => {
         { key: 'telegram', label: t('admin:settings.tabs.telegram'), icon: <NotificationOutlined />, group: t('admin:settings.groups.personal') }
       );
     }
+    // Music tab — available to all authenticated users (Spotify integration)
+    tabs.push(
+      { key: 'music', label: 'Müzik', icon: <CustomerServiceOutlined />, group: t('admin:settings.groups.personal') }
+    );
     return tabs;
   }, [isAdmin, isManager, isStudent, isInstructor, canUseTelegram, t]);
 
@@ -864,6 +870,10 @@ case 'finance':
       case 'telegram':
         return canUseTelegram ? <TelegramConnectCard /> : null;
 
+      // Music (Spotify integration) — all authenticated users
+      case 'music':
+        return <MusicSettings />;
+
       default:
         return null;
     }
@@ -957,6 +967,7 @@ case 'finance':
                 {activeTab === 'team-notifications' && t('admin:settings.tabDescriptions.teamNotifications')}
                 {activeTab === 'operational-defaults' && t('admin:settings.tabDescriptions.operationalDefaults')}
                 {activeTab === 'telegram' && t('admin:settings.tabDescriptions.telegram')}
+                {activeTab === 'music' && 'Spotify Premium ile müzik kontrolü, cihazlar ve zamanlanmış çalma.'}
               </Paragraph>
             </div>
 

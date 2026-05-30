@@ -13,7 +13,7 @@ import { recordMembershipCommission, cancelCommission } from '../services/manage
 
 const router = Router();
 
-const ADMIN_ROLES = ['admin', 'manager', 'developer', 'front_desk'];
+const ADMIN_ROLES = ['admin', 'manager', 'developer', 'front_desk', 'receptionist'];
 
 // ==================================================
 // PUBLIC ROUTES (No authentication required)
@@ -946,14 +946,14 @@ router.post(
 
       const { rows: [purchase] } = await pool.query(`
         INSERT INTO member_purchases (
-          user_id, 
-          offering_id, 
-          offering_name, 
-          offering_price, 
-          purchased_at, 
-          expires_at, 
-          status, 
-          payment_method, 
+          user_id,
+          offering_id,
+          offering_name,
+          offering_price,
+          purchased_at,
+          expires_at,
+          status,
+          payment_method,
           payment_status,
           notes,
           created_by,
@@ -973,6 +973,53 @@ router.post(
         req.user.id,
         storageUnit
       ]);
+
+      // Mirror the sale into wallet_transactions so it appears in the customer's financial
+      // history. Without this, admin-created membership/storage purchases never showed up in
+      // the Financial tab on the customer profile. Cash/card/transfer also write a row (with
+      // payment_method on the wallet tx) so the history is comprehensive.
+      try {
+        const price = parseFloat(offering.price) || 0;
+        if (price > 0) {
+          const txCurrency = offering.currency || 'EUR';
+          await recordTransaction({
+            userId,
+            amount: -price,
+            currency: txCurrency,
+            transactionType: 'payment',
+            direction: 'debit',
+            availableDelta: paymentMethod === 'wallet' ? -price : 0,
+            description: `${offering.category === 'storage' ? 'Storage' : 'Membership'} purchase: ${offering.name}${storageUnit ? ` (unit #${storageUnit})` : ''}`,
+            paymentMethod,
+            createdBy: req.user.id,
+            relatedEntityType: 'member_purchase',
+            // No relatedEntityId — wallet_transactions.related_entity_id is UUID-typed and
+            // member_purchases.id is SERIAL int. Numeric id lives in metadata for lookup.
+            metadata: {
+              offeringId,
+              offeringName: offering.name,
+              memberPurchaseId: purchase.id,
+              category: offering.category,
+              storageUnit,
+              adminSale: true,
+            },
+            // Non-wallet payments (cash/card/transfer) just record the audit row without
+            // actually moving the wallet balance — staff handled the money outside.
+            // Wallet payments allow negative because the route is gated to staff and they've
+            // already decided this customer should be sold to even with insufficient balance.
+            allowNegative: true,
+          });
+        }
+      } catch (txErr) {
+        // Non-fatal: the member_purchases row exists; if the wallet log fails we surface a
+        // warning rather than rolling back the sale.
+        logger.warn('Failed to mirror admin member purchase to wallet_transactions', {
+          purchaseId: purchase.id,
+          userId,
+          offeringId,
+          error: txErr.message,
+        });
+      }
 
       logger.info(`Member purchase created by admin: user=${userId}, offering=${offering.name}`);
       res.status(201).json(purchase);

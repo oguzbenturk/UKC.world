@@ -41,6 +41,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  const [discountPercent, setDiscountPercent] = useState(0);
 
   // Fetch customers
   useEffect(() => {
@@ -107,10 +108,17 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
     setQuantity(value || 1);
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     if (!selectedProduct) return 0;
     return selectedProduct.price * quantity;
   };
+
+  const calculateDiscountAmount = () => {
+    const pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+    return Math.round(calculateSubtotal() * pct) / 100;
+  };
+
+  const calculateTotal = () => Math.max(0, calculateSubtotal() - calculateDiscountAmount());
 
   const handleSubmit = async (values) => {
     try {
@@ -130,18 +138,40 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
         notes: values.notes || ''
       };
 
-      await apiClient.post('/shop/orders/admin/quick-sale', orderData);
+      const saleRes = await apiClient.post('/shop/orders/admin/quick-sale', orderData);
+
+      // If discount was set, apply it to the freshly-created order.
+      const pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+      if (pct > 0 && values.customer_id) {
+        const orderId = saleRes?.data?.order?.id;
+        if (orderId) {
+          try {
+            await apiClient.post('/discounts', {
+              customer_id: values.customer_id,
+              entity_type: 'shop_order',
+              entity_id: orderId,
+              percent: pct,
+              reason: 'Quick sale discount',
+            });
+          } catch (discountErr) {
+            // Sale already completed; surface a non-fatal warning so the order isn't lost.
+            console.error('Failed to apply discount', discountErr);
+            message.warning('Sale completed but discount could not be applied — apply manually from the customer profile.');
+          }
+        }
+      }
 
       form.resetFields();
       setSelectedProduct(null);
       setQuantity(1);
-      
+      setDiscountPercent(0);
+
       if (onSuccess) {
         onSuccess();
       }
-      
+
       message.success('Sale completed successfully!');
-      
+
       onClose();
     } catch (error) {
       console.error('Error creating sale:', error);
@@ -155,6 +185,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
     form.resetFields();
     setSelectedProduct(null);
     setQuantity(1);
+    setDiscountPercent(0);
     onClose();
   };
 
@@ -293,9 +324,24 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
             </Select>
           </Form.Item>
 
+          {/* Discount */}
+          {selectedProduct && (
+            <Form.Item label="Discount (%)" className="mb-4">
+              <InputNumber
+                min={0}
+                max={100}
+                value={discountPercent}
+                onChange={(v) => setDiscountPercent(v || 0)}
+                size="large"
+                className="w-full"
+                addonAfter="%"
+              />
+            </Form.Item>
+          )}
+
           {/* Total Display */}
           {selectedProduct && (
-            <Card 
+            <Card
               className="mb-4 bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200"
             >
               <div className="flex justify-between items-center">
@@ -303,12 +349,22 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
                   <DollarOutlined style={{ fontSize: '20px', color: '#10b981' }} />
                   <Text strong className="text-lg">Total Amount</Text>
                 </Space>
-                <Text strong className="text-2xl text-emerald-600">
-                  {formatCurrency(calculateTotal())}
-                </Text>
+                <div className="text-right">
+                  {discountPercent > 0 && (
+                    <div className="text-sm text-slate-400 line-through">
+                      {formatCurrency(calculateSubtotal())}
+                    </div>
+                  )}
+                  <Text strong className="text-2xl text-emerald-600">
+                    {formatCurrency(calculateTotal())}
+                  </Text>
+                </div>
               </div>
               <div className="mt-2 text-sm text-slate-600">
                 {quantity} × {formatCurrency(selectedProduct.price)}
+                {discountPercent > 0 && (
+                  <> &nbsp;·&nbsp; −{discountPercent}% ({formatCurrency(calculateDiscountAmount())})</>
+                )}
               </div>
             </Card>
           )}

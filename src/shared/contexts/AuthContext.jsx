@@ -2,7 +2,7 @@
 import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import authService, { SIGN_IN_DISABLED_USER_MESSAGE } from '../services/auth/authService';
 import consentService from '../services/consentService.js';
-import { clearAccessToken, setAccessToken, getAccessToken } from '../services/apiClient.js';
+import apiClient, { clearAccessToken, setAccessToken, getAccessToken } from '../services/apiClient.js';
 import { AuthContext } from './authContextInstance.js';
 
 // eslint-disable-next-line
@@ -27,7 +27,24 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
   const [consent, setConsent] = useState(null);
   const [consentLoading, setConsentLoading] = useState(false);
+  const [familyGroup, setFamilyGroup] = useState(null);
   const authCheckRef = useRef(false);
+
+  const refreshFamilyGroup = useCallback(async (userId) => {
+    if (!userId) {
+      setFamilyGroup(null);
+      return null;
+    }
+    try {
+      const res = await apiClient.get(`/family-groups/by-user/${userId}`);
+      const group = res?.data?.data ?? null;
+      setFamilyGroup(group);
+      return group;
+    } catch {
+      setFamilyGroup(null);
+      return null;
+    }
+  }, []);
   
   // Helper to determine if current state is guest mode
   // Guest = not authenticated but also not loading
@@ -430,6 +447,14 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setFamilyGroup(null);
+      return;
+    }
+    refreshFamilyGroup(user.id);
+  }, [isAuthenticated, user?.id, refreshFamilyGroup]);
+
+  useEffect(() => {
     if (!isAuthenticated || consentLoading || consent) {
       return;
     }
@@ -474,6 +499,8 @@ export function AuthProvider({ children }) {
     consent,
     consentLoading,
     requiresConsent: isAuthenticated && (consent?.requiresTermsAcceptance ?? true),
+    familyGroup,
+    refreshFamilyGroup,
     login,
     logout,
     clearError,

@@ -21,10 +21,10 @@ import {
 
 const router = Router();
 
-const STAFF_ROLES = ['admin', 'manager'];
+const STAFF_ROLES = ['admin', 'manager', 'receptionist', 'front_desk'];
 // Students/customers may view their own discounts (read-only). Write/delete
 // is still restricted to STAFF_ROLES below.
-const READ_ROLES = [...STAFF_ROLES, 'receptionist', 'instructor', 'student', 'trusted_customer'];
+const READ_ROLES = [...STAFF_ROLES, 'instructor', 'student', 'trusted_customer'];
 
 // GET /api/discounts?customer_id=<uuid>
 router.get('/', authorizeRoles(READ_ROLES), async (req, res) => {

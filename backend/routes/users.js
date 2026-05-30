@@ -46,17 +46,26 @@ const roleSpecificFields = {
 };
 
 function getAllowedFieldsByRole(roleName) {
-  const baseFields = ['email', 'phone']; // Removed 'name' since we're using first_name/last_name
+  // NOTE: there is intentionally no `language` here — the users table doesn't have a language
+  // column yet, so writing one would 500 on INSERT. UserForm renders the language Select for
+  // future use, but until a migration adds the column we drop it silently. If you add the DB
+  // column, remember to add 'language' here too.
+  const baseFields = ['email', 'phone'];
   const specific = roleSpecificFields[roleName] || [];
   return baseFields.concat(specific);
 }
 
+const MIN_PASSWORD_LENGTH = 8;
+
 // === CREATE USER ===
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:write'), cacheInvalidationMiddleware(USER_LIST_CACHE_PATTERNS), async (req, res) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist'], 'users:write'), cacheInvalidationMiddleware(USER_LIST_CACHE_PATTERNS), async (req, res) => {
   const { password, role_id } = req.body;
-  
+
   if (!password || !role_id) {
     return res.status(400).json({ error: 'Password and role_id are required' });
+  }
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
   }
 
   try {
@@ -69,15 +78,18 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:wr
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Dynamically collect insert data.
-    // Staff-created accounts (admin/manager/receptionist via this endpoint) are pre-verified —
-    // identity is vetted in person, so they should not be gated by the /auth/register email
-    // verification flow added in migration 242.
+    // Two activation branches:
+    //   1. send_verification=false (default) — staff verifies identity in person, account is
+    //      pre-verified, welcome email with password-reset link goes out.
+    //   2. send_verification=true — account stays unverified, a verification email is sent so
+    //      the new member confirms ownership of the address themselves before logging in.
+    const sendVerification = req.body.send_verification === true;
+
     const insertData = {
       password_hash: hashedPassword,
       role_id,
-      email_verified: true,
-      email_verified_at: new Date()
+      email_verified: !sendVerification,
+      email_verified_at: sendVerification ? null : new Date()
     };
 
     // Generate name field from first_name and last_name if they exist
@@ -94,9 +106,10 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:wr
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    // Check if email exists (only for active users, not soft-deleted)
+    // Check if email exists (only for active users, not soft-deleted) — case-insensitive
+    // to match emailVerificationService which looks up by LOWER(email).
     const emailCheck = await pool.query(
-      'SELECT id, email, deleted_at FROM users WHERE email = $1 AND deleted_at IS NULL',
+      'SELECT id, email, deleted_at FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL',
       [req.body.email]
     );
     if (emailCheck.rows.length > 0) {
@@ -125,15 +138,25 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager'], 'users:wr
     const { rows } = await pool.query(query, values);
     const createdUser = rows[0];
 
-    sendWelcomeEmailWithResetLink({
-      user: createdUser,
-      req,
-      context: 'welcome email after admin user creation'
-    });
+    if (sendVerification) {
+      // Send a verification email — the user must confirm ownership of the address before
+      // logging in. Failure is non-fatal: the user exists, staff can use /resend-verification.
+      sendVerificationEmail(createdUser.id, createdUser.email, createdUser.first_name || createdUser.name || null)
+        .catch((emailErr) => {
+          logger.error('Failed to send verification email after admin user creation', {
+            userId: createdUser.id,
+            error: emailErr.message
+          });
+        });
+    }
+    // Note: when sendVerification=false ("Activate now"), no email is sent. Staff entered the
+    // password and is expected to communicate credentials to the customer in person. The
+    // previous behaviour (welcome email with a password-reset link) was misleading to staff
+    // who'd already set the password explicitly.
 
     // Don't return the password_hash in the response
     const { password_hash, ...userWithoutPassword } = createdUser;
-    res.status(201).json(userWithoutPassword);
+    res.status(201).json({ ...userWithoutPassword, send_verification: sendVerification });
   } catch (err) {
     logger.error('User creation failed', err);
 
@@ -1472,7 +1495,7 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
 // can't receive the verification email (typo, mailbox issues, already
 // confirmed by phone, etc.). Same pattern as the calendar-booking flow
 // that pre-verifies staff-created customers.
-router.post('/:id/activate-email', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/:id/activate-email', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist']), async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
@@ -1508,11 +1531,13 @@ router.post('/:id/activate-email', authenticateJWT, authorizeRoles(['admin', 'ma
 // to an unverified customer. Different from /auth/resend-verification (public,
 // rate-limited, anti-enumeration generic response): this one is staff-only
 // and returns concrete success/failure so the UI can show actual feedback.
-router.post('/:id/resend-verification', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/:id/resend-verification', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist']), async (req, res) => {
   const { id } = req.params;
+  const COOLDOWN_MS = 2 * 60 * 1000;
   try {
     const result = await pool.query(
-      `SELECT id, email, first_name, name, email_verified FROM users WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT id, email, first_name, name, email_verified, email_verification_sent_at
+         FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     );
     if (result.rows.length === 0) {
@@ -1524,6 +1549,15 @@ router.post('/:id/resend-verification', authenticateJWT, authorizeRoles(['admin'
     }
     if (!user.email) {
       return res.status(400).json({ error: 'no_email', message: 'User has no email on file.' });
+    }
+    if (user.email_verification_sent_at) {
+      const elapsed = Date.now() - new Date(user.email_verification_sent_at).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        const retryAfterSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        return res.status(429)
+          .set('Retry-After', String(retryAfterSec))
+          .json({ error: 'cooldown', message: `Please wait ${retryAfterSec}s before resending.`, retryAfterSec });
+      }
     }
     await sendVerificationEmail(user.id, user.email, user.first_name || user.name || null);
     return res.json({ success: true, message: 'Verification email sent.' });
