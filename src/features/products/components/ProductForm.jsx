@@ -263,6 +263,20 @@ const ProductForm = ({
   const [activeTab, setActiveTab] = useState('product');
   const [selectedCategory, setSelectedCategory] = useState(product?.category || null);
   const [extraSubcategories, setExtraSubcategories] = useState([]);
+  // Custom categories/brands the user creates inline. New value persists when
+  // the product is saved (both columns are free-text on `products`); subsequent
+  // form loads pick it up via the seed below when editing that product.
+  const [extraCategories, setExtraCategories] = useState(() => {
+    const cat = product?.category;
+    if (!cat) return [];
+    const known = CATEGORY_OPTIONS.some((c) => c.value === cat);
+    return known ? [] : [{ value: cat, label: cat }];
+  });
+  const [extraBrands, setExtraBrands] = useState(() => {
+    const brand = product?.brand;
+    if (!brand) return [];
+    return BRANDS.includes(brand) ? [] : [brand];
+  });
   const [colorNames, setColorNames] = useState(initialGallery.colorNames);
   const [colorImagesMap, setColorImagesMap] = useState(initialGallery.colorImagesMap);
   const [colorInputVal, setColorInputVal] = useState('');
@@ -287,13 +301,23 @@ const ProductForm = ({
   const fieldConfig = useMemo(() => getFieldConfig(selectedCategory), [selectedCategory]);
 
   // Category options for CreatableSelect
-  const categoryOptions = useMemo(() => 
-    CATEGORY_OPTIONS.map(cat => ({
+  const categoryOptions = useMemo(() => {
+    const base = CATEGORY_OPTIONS.map(cat => ({
       value: cat.value,
       label: `${cat.icon} ${cat.label}`,
-    })),
-    []
-  );
+    }));
+    const knownValues = new Set(base.map(o => o.value));
+    const extras = extraCategories
+      .filter(c => !knownValues.has(c.value))
+      .map(c => ({ value: c.value, label: c.label }));
+    return [...base, ...extras];
+  }, [extraCategories]);
+
+  const brandOptions = useMemo(() => {
+    const all = [...BRANDS];
+    for (const b of extraBrands) if (!all.includes(b)) all.push(b);
+    return all.map(b => ({ value: b, label: b }));
+  }, [extraBrands]);
 
   // Subcategory options: merge constants hierarchy + any DB extras
   const subcategoryOptions = useMemo(() => {
@@ -433,6 +457,18 @@ const ProductForm = ({
     setColorImagesMap(prev => { const copy = { ...prev }; delete copy[name]; return copy; });
   }, []);
 
+  const handleCreateCategory = useCallback(async (slug, label) => {
+    setExtraCategories((prev) =>
+      prev.some((c) => c.value === slug) ? prev : [...prev, { value: slug, label }]
+    );
+    message.success(t('manager:products.form.categoryCreated', { defaultValue: `Category "{{label}}" added`, label }));
+  }, [t]);
+
+  const handleCreateBrand = useCallback(async (value) => {
+    setExtraBrands((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    message.success(t('manager:products.form.brandCreated', { defaultValue: `Brand "{{label}}" added`, label: value }));
+  }, [t]);
+
   const handleCreateSubcategory = useCallback(async (slug, label, parentValue) => {
     if (!selectedCategory) return;
     try {
@@ -527,7 +563,7 @@ const ProductForm = ({
                 <CreatableSelect
                   options={categoryOptions}
                   placeholder="Select or create"
-                  onCreateNew={async (slug, label) => { message.info(`"${label}" will be saved with this product`); }}
+                  onCreateNew={handleCreateCategory}
                   createLabel="Create category"
                   createPlaceholder="e.g., Surfboards"
                 />
@@ -550,9 +586,14 @@ const ProductForm = ({
             </Col>
             <Col xs={24} md={8}>
               <Form.Item name="brand" label="Brand">
-                <Select placeholder="Select brand" showSearch allowClear>
-                  {BRANDS.map(b => <Option key={b} value={b}>{b}</Option>)}
-                </Select>
+                <CreatableSelect
+                  options={brandOptions}
+                  placeholder="Select or create"
+                  onCreateNew={handleCreateBrand}
+                  createLabel="Create brand"
+                  createPlaceholder="e.g., Naish"
+                  slugify={false}
+                />
               </Form.Item>
             </Col>
           </Row>

@@ -36,6 +36,10 @@ const CreatableSelect = ({
   createLabel = 'Add new',
   createPlaceholder = 'Type new value...',
   hierarchical = false,
+  // When true (default), the new entry's value is a lowercased slug derived
+  // from the label. Set to false for label-as-value cases (e.g. Brand) where
+  // the stored value should be the display string itself.
+  slugify = true,
   style,
   ...rest
 }) => {
@@ -57,11 +61,13 @@ const CreatableSelect = ({
     const trimmed = newItemName.trim();
     if (!trimmed) return;
 
-    // Generate a slug-friendly value
-    const slug = trimmed
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Generate a slug-friendly value (or use the label verbatim for label-as-value cases)
+    const slug = slugify
+      ? trimmed
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+      : trimmed;
 
     const parentValue = selectedParent === '__none__' ? null : selectedParent;
 
