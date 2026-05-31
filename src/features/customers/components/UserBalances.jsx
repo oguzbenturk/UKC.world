@@ -41,8 +41,11 @@ function UserBalances({ userId, initialTransactions = [], lessonPackages = [], r
         }
       }
       
-      setUserAccount(response.data.account);
-      setTransactions(response.data.transactions || []);
+      // The /finances/accounts/:id endpoint returns a FLAT body (top-level balance,
+      // total_spent, wallet, …) — there is no `.account` wrapper. Fall back to the
+      // flat object so the balance isn't always read as undefined → 0.
+      setUserAccount(response.data?.account || response.data || null);
+      setTransactions(response.data?.transactions || initialTransactions || []);
     } catch (err) {
       console.error('Error loading user financials:', err);
       
@@ -140,7 +143,7 @@ function UserBalances({ userId, initialTransactions = [], lessonPackages = [], r
     });
 
     // Current account balance from the backend
-    const accountBalance = studentAccount ? parseFloat(studentAccount.balance) : 0;
+    const accountBalance = userAccount ? parseFloat(userAccount.balance) : 0;
     
     // Calculate outstanding balances from lessons and rentals
     const outstanding = lessonPackages.reduce((acc, p) => acc + (p.totalAmount - p.paidAmount), 0) +
@@ -155,7 +158,7 @@ function UserBalances({ userId, initialTransactions = [], lessonPackages = [], r
       packageBalance: packageBal,
       rentalBalance: rentalBal
     };
-  }, [transactions, lessonPackages, rentals, selectedPeriod, studentAccount]);
+  }, [transactions, lessonPackages, rentals, selectedPeriod, userAccount]);
 
   const columns = useMemo(() => [    { Header: 'User ID', accessor: 'userId' },
     { Header: 'User Name', accessor: 'userName' },
@@ -292,7 +295,7 @@ function UserBalances({ userId, initialTransactions = [], lessonPackages = [], r
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {/* Individual transaction balance not available from API */}
-                        {formatCurrency(studentAccount ? parseFloat(studentAccount.balance) : 0)}
+                        {formatCurrency(userAccount ? parseFloat(userAccount.balance) : 0)}
                       </td>
                     </tr>
                   );

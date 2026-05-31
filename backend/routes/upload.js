@@ -214,8 +214,9 @@ router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']),
   }
 });
 
-// General image upload endpoint for products, etc.
-router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.single('image')), (req, res) => {
+// General image upload endpoint for products, packages, accommodation units, etc.
+// Allowed roles must match the ones that can write those records (see products.js POST /).
+router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), handleMulterError(imageUpload.single('image')), (req, res) => {
   try {
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
@@ -225,7 +226,7 @@ router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager']), han
   }
 });
 
-router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.array('images', 20)), (req, res) => {
+router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), handleMulterError(imageUpload.array('images', 20)), (req, res) => {
   try {
     const uploadedImages = req.files.map(file => ({
       url: `/uploads/images/${file.filename}`,

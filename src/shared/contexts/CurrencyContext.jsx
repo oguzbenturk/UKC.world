@@ -1,5 +1,6 @@
 // src/shared/contexts/CurrencyContext.jsx
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { formatCurrencyValue } from '../utils/formatCurrencyValue.js';
 import { App } from 'antd';
 import apiClient from '../services/apiClient';
 import { useAuth } from '../hooks/useAuth';
@@ -165,9 +166,9 @@ export const CurrencyProvider = ({ children }) => {
   const formatCurrency = (amount, currencyCode = userCurrency) => {
     const currency = currencies.find(c => c.currency_code === currencyCode);
     const symbol = currency?.symbol || currencyCode;
-    const numAmount = parseFloat(amount) || 0;
-
-    return `${symbol}${Math.round(numAmount).toLocaleString('en-US')}`;
+    // Show the currency's decimal places (default 2). Previously this Math.round'ed
+    // money to whole units, silently dropping cents (€1.50 → "€2", €1.49 → "€1").
+    return formatCurrencyValue(amount, { symbol, decimalPlaces: currency?.decimal_places });
   };
 
   // Format an amount stored in `fromCurrency` as a dual-currency string

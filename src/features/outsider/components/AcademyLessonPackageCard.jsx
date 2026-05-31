@@ -106,6 +106,21 @@ function truncateTier(s, max = 22) {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+/** Skill level pill text. Uses the raw services.level so we skip i18n-fallback strings like "Single Session". */
+function levelLabel(pkg) {
+  const raw = String(pkg.serviceLevel || '').trim();
+  if (!raw) return null;
+  return raw.length > 14 ? `${raw.slice(0, 13)}…` : raw;
+}
+
+/** Participant-count pill text. Hides when the lesson is unbounded. */
+function participantsLabel(pkg) {
+  const n = Number(pkg.maxParticipants);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n === 1) return i18n.t('outsider:servicePackages.card.private', { defaultValue: '1-ON-1' });
+  return i18n.t('outsider:servicePackages.card.upToN', { count: n, defaultValue: `UP TO ${n}` });
+}
+
 export default function AcademyLessonPackageCard({
   pkg,
   resolvedImageSrc,
@@ -166,6 +181,9 @@ export default function AcademyLessonPackageCard({
 
   const { t } = useTranslation(['outsider']);
   const tagline = cardTagline(pkg);
+  const lvl = levelLabel(pkg);
+  const pcp = participantsLabel(pkg);
+  const hasMeta = !!(lvl || pcp);
 
   return (
     <div className="relative">
@@ -277,8 +295,22 @@ export default function AcademyLessonPackageCard({
         >
           {pkg.name}
         </h3>
+        {hasMeta ? (
+          <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5">
+            {lvl ? (
+              <span className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-400/15 px-2 py-0.5 text-[9px] font-duotone-bold uppercase tracking-wider text-emerald-200">
+                {lvl}
+              </span>
+            ) : null}
+            {pcp ? (
+              <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[9px] font-duotone-bold uppercase tracking-wider text-white/85">
+                {pcp}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {tagline ? (
-          <p className="mx-auto mt-1.5 max-w-md font-duotone-regular text-[10px] uppercase leading-snug tracking-wide text-white/75 line-clamp-3 sm:text-[11px]">
+          <p className={`mx-auto ${hasMeta ? 'mt-1' : 'mt-1.5'} max-w-md font-duotone-regular text-[10px] uppercase leading-snug tracking-wide text-white/75 sm:text-[11px] ${hasMeta ? 'line-clamp-2' : 'line-clamp-3'}`}>
             {tagline}
           </p>
         ) : null}

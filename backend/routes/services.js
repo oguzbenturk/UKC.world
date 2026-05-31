@@ -263,6 +263,9 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
         ls.discipline_tag as linked_discipline_tag,
         ls.lesson_category_tag as linked_lesson_category_tag,
         ls.level_tag as linked_level_tag,
+        ls.max_participants as linked_max_participants,
+        ls.includes as linked_includes,
+        ls.level as linked_service_level,
         rs.name as linked_rental_service_name,
         au.name as linked_accommodation_unit_name,
         au.type as linked_accommodation_unit_type,
@@ -352,8 +355,11 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
         eventLocation: row.event_location || null,
         departureLocation: row.departure_location || null,
         destinationLocation: row.destination_location || null,
-        maxParticipants: row.max_participants || null,
+        maxParticipants: row.max_participants || row.linked_max_participants || null,
         currentParticipants: row.current_participants || 0,
+        // Linked-service enrichment for catalog cards
+        includes: row.linked_includes || null,
+        serviceLevel: row.linked_service_level || null,
         minSkillLevel: row.min_skill_level || null,
         minAge: row.min_age || null,
         maxAge: row.max_age || null,
@@ -1147,10 +1153,13 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
 
     // Handle wallet payment
     if (normalizedPaymentMethod === 'wallet') {
-      // Check user's wallet balance in the price currency first
+      // Check user's wallet balance in the price currency first.
+      // FOR UPDATE locks the row so the check-then-debit can't race a concurrent
+      // purchase (two requests both passing a stale sufficiency check).
       const balanceResult = await client.query(
-        `SELECT available_amount FROM wallet_balances 
-         WHERE user_id = $1 AND currency = $2`,
+        `SELECT available_amount FROM wallet_balances
+         WHERE user_id = $1 AND currency = $2
+         FOR UPDATE`,
         [userId, priceCurrency]
       );
       
@@ -1162,9 +1171,10 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
       // to find a currency where the user CAN afford the package
       if (availableBalance < packagePrice) {
         const allBalancesResult = await client.query(
-          `SELECT available_amount, currency FROM wallet_balances 
+          `SELECT available_amount, currency FROM wallet_balances
            WHERE user_id = $1 AND available_amount > 0
-           ORDER BY available_amount DESC`,
+           ORDER BY available_amount DESC
+           FOR UPDATE`,
           [userId]
         );
         

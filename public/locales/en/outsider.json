@@ -174,7 +174,9 @@
       "session": "SESSION",
       "lesson": "LESSON",
       "bundle": "BUNDLE",
-      "package": "PACKAGE"
+      "package": "PACKAGE",
+      "private": "1-ON-1",
+      "upToN": "UP TO {{count}}"
     },
     "authModal": {
       "title": "Sign in to Book",

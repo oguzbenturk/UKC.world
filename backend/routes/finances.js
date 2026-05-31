@@ -43,7 +43,7 @@ const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'payment', 'service_
 // manual credits are credit-direction but do NOT represent money received from
 // the customer (refunds flow out; discounts/credits are bookkeeping). Anything
 // not in this set, when credit-direction, is treated as a charge reduction.
-const INCOME_TX_TYPES = ['wallet_deposit', 'deposit', 'payment'];
+const INCOME_TX_TYPES = ['wallet_deposit', 'deposit', 'payment', 'bank_transfer_payment'];
 const PACKAGE_CASCADE_STRATEGIES = new Set(['delete-all-lessons', 'charge-used']);
 const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
 
@@ -399,7 +399,9 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
           totalEur += avail;
         } else {
           const rate = parseFloat(w.exchange_rate || 0);
-          if (rate > 0) totalEur += avail / rate;
+          // Never silently DROP a balance when its rate is missing — fall back to 1:1
+          // (currency_settings has rates for all active currencies, so this is rare).
+          totalEur += rate > 0 ? avail / rate : avail;
         }
       }
       balance = Math.round(totalEur * 100) / 100;
@@ -640,6 +642,12 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     const statsParams = [];
     let sIdx = 0;
     statsFilters.push(`status != 'cancelled'`);
+    // Cancel+reversal pairs net to zero economically. Original gets status='cancelled'
+    // (already excluded above); the reversal row stays 'completed', so without this
+    // filter every deleted debit subtracts a second time from totalCharges, driving
+    // it arbitrarily negative (incident 2026-05-31, admin Payment History at -191101€).
+    // Temp fix — proper fix is to read from wallet_balances / rollups, not raw ledger.
+    statsFilters.push(`right(transaction_type, 9) != '_reversal'`);
     statsFilters.push(`NOT (status = 'pending' AND available_delta = 0 AND payment_method = 'credit_card')`);
     if (options.startDate) { statsParams.push(new Date(options.startDate)); statsFilters.push(`transaction_date >= $${++sIdx}`); }
     if (options.endDate) {
@@ -682,7 +690,26 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     // total_income: only customer cash-in events.
     // total_charges: net billed = debit charges minus credit-direction reductions
     //   (refunds, discounts, edit credits, vouchers, manual credits).
-    const [statsResult, breakdownResult, trendResult] = await Promise.all([
+    // Discounts live in their own table keyed on (entity_type, entity_id) — they
+    // are NOT a wallet_transactions row, so the ledger-sum charges total ignores
+    // them by default. Count each discount once per entity that has at least one
+    // wallet_tx matching the current filter set; subtracted from totalCharges in
+    // JS below. EXISTS instead of JOIN avoids fan-out when a booking has multiple
+    // debit rows (booking_charge + booking_charge_adjustment etc.).
+    const DISCOUNT_ENTITY_TYPES = ['booking', 'rental', 'customer_package', 'accommodation_booking', 'shop_order'];
+    const discountEntityTypesIdx = sIdx + 1;
+    const statsParamsWithDiscountTypes = [...statsParams, DISCOUNT_ENTITY_TYPES];
+    // For per-month discount attribution: distribute each entity's discount across
+    // its debit rows pro-rata to row amount, then group those shares by transaction
+    // month. Sum across months equals the headline totalDiscounts (within rounding),
+    // keeping the trend bars consistent with the headline charge total.
+    const debitShareFilters = [
+      ...statsFilters,
+      `direction = 'debit'`,
+      `related_entity_type = ANY($${discountEntityTypesIdx})`
+    ];
+    const debitShareWhere = `WHERE ${debitShareFilters.join(' AND ')}`;
+    const [statsResult, breakdownResult, trendResult, discountResult, monthDiscountResult] = await Promise.all([
       pool.query(`
         SELECT
           count(*) FILTER (WHERE transaction_type NOT IN (
@@ -725,11 +752,52 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
         ${statsWhere}
         GROUP BY to_char(transaction_date, 'YYYY-MM')
         ORDER BY month
-      `, statsParamsWithIncome)
+      `, statsParamsWithIncome),
+      pool.query(`
+        SELECT COALESCE(SUM(d.amount), 0) AS total_discounts
+          FROM discounts d
+         WHERE d.entity_type = ANY($${discountEntityTypesIdx})
+           AND EXISTS (
+             SELECT 1 FROM wallet_transactions
+              WHERE wallet_transactions.related_entity_type = d.entity_type
+                AND wallet_transactions.related_entity_id::text = d.entity_id
+                AND wallet_transactions.direction = 'debit'
+                ${statsFilters.length > 0 ? `AND ${statsFilters.join(' AND ')}` : ''}
+           )
+      `, statsParamsWithDiscountTypes),
+      pool.query(`
+        WITH entity_discount AS (
+          SELECT entity_type, entity_id, SUM(amount) AS total
+            FROM discounts
+           WHERE entity_type = ANY($${discountEntityTypesIdx})
+           GROUP BY entity_type, entity_id
+        ),
+        debit_share AS (
+          SELECT
+            to_char(transaction_date, 'YYYY-MM') AS month,
+            related_entity_type AS et,
+            related_entity_id::text AS eid,
+            abs(amount) AS row_amount,
+            SUM(abs(amount)) OVER (PARTITION BY related_entity_type, related_entity_id) AS entity_debit_total
+          FROM wallet_transactions
+          ${debitShareWhere}
+        )
+        SELECT
+          ds.month,
+          COALESCE(SUM((ed.total * ds.row_amount) / NULLIF(ds.entity_debit_total, 0)), 0) AS discount
+        FROM debit_share ds
+        JOIN entity_discount ed
+          ON ed.entity_type = ds.et
+         AND ed.entity_id = ds.eid
+        GROUP BY ds.month
+        ORDER BY ds.month
+      `, statsParamsWithDiscountTypes)
     ]);
     const statsRow = statsResult.rows[0];
     const totalIncome = parseFloat(statsRow.total_income) || 0;
-    const totalCharges = parseFloat(statsRow.total_charges) || 0;
+    const totalDiscounts = parseFloat(discountResult.rows[0]?.total_discounts) || 0;
+    const totalChargesRaw = parseFloat(statsRow.total_charges) || 0;
+    const totalCharges = Math.max(totalChargesRaw - totalDiscounts, 0);
 
     // Enrich transactions with user names
     const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
@@ -766,6 +834,8 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       stats: {
         totalIncome,
         totalCharges,
+        totalDiscounts,
+        totalChargesRaw,
         net: totalIncome - totalCharges,
         total: parseInt(statsRow.total_count) || 0
       },
@@ -775,11 +845,23 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
         count: r.count,
         total: parseFloat(r.total) || 0
       })),
-      trend: trendResult.rows.map(r => ({
-        month: r.month,
-        income: parseFloat(r.income) || 0,
-        charges: parseFloat(r.charges) || 0
-      }))
+      trend: (() => {
+        const monthDiscountMap = new Map();
+        for (const row of monthDiscountResult.rows) {
+          monthDiscountMap.set(row.month, parseFloat(row.discount) || 0);
+        }
+        return trendResult.rows.map(r => {
+          const chargesRaw = parseFloat(r.charges) || 0;
+          const monthDiscount = monthDiscountMap.get(r.month) || 0;
+          return {
+            month: r.month,
+            income: parseFloat(r.income) || 0,
+            charges: Math.max(chargesRaw - monthDiscount, 0),
+            chargesRaw,
+            discounts: monthDiscount
+          };
+        });
+      })()
     });
   } catch (error) {
     logger.error('Error fetching transactions:', error);
@@ -2130,13 +2212,17 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
       managerCommissionByTypeResult,
     ] = await Promise.all([
 
-      // 1. Wallet revenue & refunds
+      // 1. Wallet revenue & refunds — normalised to EUR. Amounts are stored in mixed
+      // currencies (EUR/TRY/USD); summing raw `amount` inflated revenue by adding e.g.
+      // TRY at face value. currency_settings.exchange_rate is units-per-EUR, so
+      // amount / rate converts to EUR (same pattern as the deposits-admin stats query).
       pool.query(`
         SELECT
-          COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN amount ELSE 0 END), 0) AS total_revenue,
-          COALESCE(SUM(CASE WHEN transaction_type = ANY($4) THEN amount ELSE 0 END), 0) AS total_refunds,
+          COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN wallet_transactions.amount / COALESCE(cs.exchange_rate, 1) ELSE 0 END), 0) AS total_revenue,
+          COALESCE(SUM(CASE WHEN transaction_type = ANY($4) THEN wallet_transactions.amount / COALESCE(cs.exchange_rate, 1) ELSE 0 END), 0) AS total_refunds,
           COUNT(*) AS total_transactions
         FROM wallet_transactions
+        LEFT JOIN currency_settings cs ON cs.currency_code = wallet_transactions.currency AND cs.is_active = true
         WHERE transaction_date >= $1::date AND transaction_date <= $2::date
           AND status = 'completed'
           AND NOT (transaction_type = ANY($5))
@@ -2183,9 +2269,12 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         WITH customer_wallets AS (
           SELECT
             u.id AS user_id,
-            COALESCE(SUM(wb.available_amount), 0) AS balance
+            -- Convert each per-currency wallet row to EUR before summing, otherwise a
+            -- customer with EUR + TRY rows had the raw amounts added together.
+            COALESCE(SUM(wb.available_amount / COALESCE(cs.exchange_rate, 1)), 0) AS balance
           FROM users u
           LEFT JOIN wallet_balances wb ON wb.user_id = u.id
+          LEFT JOIN currency_settings cs ON cs.currency_code = wb.currency AND cs.is_active = true
           WHERE u.role_id IN (SELECT id FROM roles WHERE name IN ('student', 'outsider'))
             AND u.deleted_at IS NULL
           GROUP BY u.id

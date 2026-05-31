@@ -178,7 +178,9 @@
       "session": "СЕССИЯ",
       "lesson": "УРОК",
       "bundle": "БАНДЛ",
-      "package": "ПАКЕТ"
+      "package": "ПАКЕТ",
+      "private": "1-НА-1",
+      "upToN": "ДО {{count}}"
     },
     "authModal": {
       "title": "Войдите, чтобы забронировать",

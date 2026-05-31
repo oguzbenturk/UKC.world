@@ -130,12 +130,16 @@ async function generateSql() {
   }
 
   lines.push('');
-  lines.push('-- Wallet balances (only for rows we just inserted — joined by email)');
+  lines.push('-- Wallet balances + paired ledger entry (only for rows we just inserted — joined by email)');
   for (const w of walletEntries) {
     lines.push(
       `INSERT INTO wallet_balances (user_id, currency, available_amount)
  SELECT id, ${q(w.currency)}, ${num(w.amount)} FROM users WHERE email = ${q(w.email)} AND deleted_at IS NULL AND registration_source = 'legacy_import'
  ON CONFLICT (user_id, currency) DO UPDATE SET available_amount = EXCLUDED.available_amount, updated_at = now();`
+    );
+    lines.push(
+      `INSERT INTO wallet_transactions (user_id, transaction_type, status, direction, currency, amount, available_delta, description, metadata)
+ SELECT id, 'legacy_opening_balance', 'completed', 'adjustment', ${q(w.currency)}, ${num(w.amount)}, ${num(w.amount)}, 'Opening balance migrated from previous app', jsonb_build_object('source','import_customers_to_prod') FROM users WHERE email = ${q(w.email)} AND deleted_at IS NULL AND registration_source = 'legacy_import';`
     );
   }
 

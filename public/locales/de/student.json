@@ -87,8 +87,7 @@
       }
     },
     "lessonsSection": {
-      "upcomingLabel": "Bevorstehend",
-      "pastLabel": "Vergangen",
+      "historyLabel": "Verlauf",
       "noLessons": "Keine {{label}} Stunden",
       "columns": {
         "date": "Datum",
@@ -100,8 +99,7 @@
       "showMore": "Mehr anzeigen ({{count}})"
     },
     "rentalsSection": {
-      "upcomingLabel": "Bevorstehend",
-      "pastLabel": "Vergangen",
+      "historyLabel": "Verlauf",
       "noRentals": "Keine {{label}} Verleihvorgänge",
       "columns": {
         "date": "Datum",
@@ -184,10 +182,10 @@
     "stats": {
       "walletBalance": "Wallet-Guthaben",
       "availableToSpend": "Verfügbar zum Ausgeben",
-      "settled": "Beglichen",
-      "completedInvoices": "Abgeschlossene Rechnungen",
-      "settledAmount": "Beglichener Betrag",
       "totalPaid": "Insgesamt bezahlt",
+      "moneyReceived": "Geld eingegangen",
+      "totalCharged": "Insgesamt berechnet",
+      "moneyOut": "Geld ausgegangen",
       "pending": "Ausstehend",
       "awaitingProcessing": "Wartet auf Bearbeitung"
     },

@@ -87,8 +87,7 @@
       }
     },
     "lessonsSection": {
-      "upcomingLabel": "Yaklaşan",
-      "pastLabel": "Geçmiş",
+      "historyLabel": "Geçmiş",
       "noLessons": "{{label}} ders bulunamadı",
       "columns": {
         "date": "Tarih",
@@ -100,8 +99,7 @@
       "showMore": "Daha fazla göster ({{count}})"
     },
     "rentalsSection": {
-      "upcomingLabel": "Yaklaşan",
-      "pastLabel": "Geçmiş",
+      "historyLabel": "Geçmiş",
       "noRentals": "{{label}} kiralama bulunamadı",
       "columns": {
         "date": "Tarih",
@@ -184,10 +182,10 @@
     "stats": {
       "walletBalance": "Cüzdan Bakiyesi",
       "availableToSpend": "Kullanılabilir tutar",
-      "settled": "Ödenenler",
-      "completedInvoices": "Tamamlanmış faturalar",
-      "settledAmount": "Ödenen Tutar",
-      "totalPaid": "Toplam ödendi",
+      "totalPaid": "Toplam Ödenen",
+      "moneyReceived": "Hesaba giren",
+      "totalCharged": "Toplam Tahsil Edilen",
+      "moneyOut": "Hesaptan çıkan",
       "pending": "Bekleyen",
       "awaitingProcessing": "İşlem bekleniyor"
     },

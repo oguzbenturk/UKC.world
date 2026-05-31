@@ -199,14 +199,10 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
     staleTime: 5 * 60_000,
   });
 
-  const [expandedSections, setExpandedSections] = useState({
-    lessons: true,
-    rentals: false,
-    accommodations: false,
-    shop: false,
-    memberships: false,
-    wallet: false
-  });
+  // User toggles override the data-driven defaults below. Sections with records
+  // open on page load; clicking a header records an explicit override that sticks
+  // for the session even if data refetches change the default.
+  const [userOverride, setUserOverride] = useState({});
 
   const statGroups = useMemo(() => {
     // Lessons
@@ -307,11 +303,27 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
     };
   }, [t, stats, walletSummary, myPurchases, formatDualCurrency, convertCurrency, storageCurrency, userCurrency]);
 
+  // Auto-expand any category that has records on page load. User toggles override.
+  const accommodationsCount = Array.isArray(myAccommodations) ? myAccommodations.length : 0;
+  const membershipsCount = Array.isArray(myPurchases) ? myPurchases.length : 0;
+  const walletHasFunds = Array.isArray(walletSummary?.balances)
+    ? walletSummary.balances.some(b => Number(b?.available) !== 0)
+    : Number(walletSummary?.available) !== 0;
+
+  const defaultExpanded = {
+    lessons: upcomingLessons.length > 0 || pastLessons.length > 0,
+    rentals: upcomingRentalsList.length > 0 || pastRentalsList.length > 0,
+    accommodations: accommodationsCount > 0,
+    shop: (stats?.completedOrders ?? 0) + (stats?.pendingOrders ?? 0) > 0,
+    memberships: membershipsCount > 0,
+    wallet: walletHasFunds,
+  };
+
+  const isExpanded = (key) =>
+    Object.prototype.hasOwnProperty.call(userOverride, key) ? userOverride[key] : !!defaultExpanded[key];
+
   const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
+    setUserOverride(prev => ({ ...prev, [section]: !isExpanded(section) }));
   };
 
   return (
@@ -321,7 +333,7 @@ const StatsStrip = ({ stats, businessCurrency, upcomingLessons = [], pastLessons
           key={key}
           label={group.label}
           items={group.items}
-          isExpanded={expandedSections[key]}
+          isExpanded={isExpanded(key)}
           onToggle={() => toggleSection(key)}
         >
           {key === 'lessons' && (upcomingLessons.length > 0 || pastLessons.length > 0) && (

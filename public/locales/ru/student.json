@@ -88,8 +88,7 @@
       }
     },
     "lessonsSection": {
-      "upcomingLabel": "Предстоящие",
-      "pastLabel": "Прошедшие",
+      "historyLabel": "История",
       "noLessons": "Нет {{label}} уроков",
       "columns": {
         "date": "Дата",
@@ -101,8 +100,7 @@
       "showMore": "Показать ещё ({{count}})"
     },
     "rentalsSection": {
-      "upcomingLabel": "Предстоящие",
-      "pastLabel": "Прошедшие",
+      "historyLabel": "История",
       "noRentals": "Нет {{label}} аренды",
       "columns": {
         "date": "Дата",
@@ -186,10 +184,10 @@
     "stats": {
       "walletBalance": "Баланс кошелька",
       "availableToSpend": "Доступно для трат",
-      "settled": "Оплачено",
-      "completedInvoices": "Закрытые счета",
-      "settledAmount": "Сумма оплат",
       "totalPaid": "Всего оплачено",
+      "moneyReceived": "Поступления",
+      "totalCharged": "Всего списано",
+      "moneyOut": "Списания",
       "pending": "Ожидание",
       "awaitingProcessing": "Ожидает обработки"
     },

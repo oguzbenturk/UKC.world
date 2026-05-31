@@ -59,6 +59,124 @@ function createHashDigest(payload) {
 	}
 }
 
+// ── Webhook signature verification ────────────────────────────────────────────
+// Without this, a forged POST to /api/webhooks/{iyzico,paytr,binance-pay} can
+// auto-approve a deposit (credit a wallet) or reject a legitimate one. Each
+// provider is verified with its documented HMAC scheme when its secret is
+// configured. If no secret is configured the request is allowed but logged as a
+// security gap, UNLESS WEBHOOK_REQUIRE_SIGNATURE=true (fail-closed in prod).
+const WEBHOOK_REQUIRE_SIGNATURE = process.env.WEBHOOK_REQUIRE_SIGNATURE === 'true';
+
+function timingSafeEqualStr(a, b) {
+	if (typeof a !== 'string' || typeof b !== 'string' || a.length === 0 || b.length === 0) {
+		return false;
+	}
+	const ba = Buffer.from(a);
+	const bb = Buffer.from(b);
+	if (ba.length !== bb.length) {
+		return false;
+	}
+	try {
+		return crypto.timingSafeEqual(ba, bb);
+	} catch {
+		return false;
+	}
+}
+
+function hmacDigest(algorithm, secret, data, encoding) {
+	return crypto.createHmac(algorithm, secret).update(data ?? '').digest(encoding);
+}
+
+function getHeader(headers, name) {
+	if (!headers) return null;
+	const lower = name.toLowerCase();
+	for (const key of Object.keys(headers)) {
+		if (key.toLowerCase() === lower) {
+			return headers[key];
+		}
+	}
+	return null;
+}
+
+// PayTR: hash = base64( HMAC-SHA256( merchant_oid + merchant_salt + status + total_amount, merchant_key ) )
+function verifyPaytrSignature(context) {
+	const key = process.env.PAYTR_MERCHANT_KEY;
+	const salt = process.env.PAYTR_MERCHANT_SALT;
+	if (!key || !salt) {
+		return { configured: false };
+	}
+	const body = ensurePlainObject(context.payload);
+	const provided = body.hash || getHeader(context.headers, 'x-paytr-hash');
+	const computed = hmacDigest(
+		'sha256',
+		key,
+		`${body.merchant_oid ?? ''}${salt}${body.status ?? ''}${body.total_amount ?? ''}`,
+		'base64'
+	);
+	return { configured: true, valid: timingSafeEqualStr(String(provided || ''), computed) };
+}
+
+// Binance Pay: HMAC-SHA512( apiSecret, timestamp + "\n" + nonce + "\n" + rawBody + "\n" ), hex, upper-case.
+function verifyBinancePaySignature(context) {
+	const secret = process.env.BINANCE_PAY_SECRET || process.env.BINANCE_PAY_API_SECRET;
+	if (!secret) {
+		return { configured: false };
+	}
+	const timestamp = getHeader(context.headers, 'binancepay-timestamp');
+	const nonce = getHeader(context.headers, 'binancepay-nonce');
+	const provided = getHeader(context.headers, 'binancepay-signature');
+	const raw = typeof context.rawBody === 'string' ? context.rawBody : '';
+	const computed = hmacDigest('sha512', secret, `${timestamp}\n${nonce}\n${raw}\n`, 'hex').toUpperCase();
+	return { configured: true, valid: timingSafeEqualStr(String(provided || '').toUpperCase(), computed) };
+}
+
+// Iyzico: HMAC-SHA256 over the raw notification body; accept hex or base64 forms.
+function verifyIyzicoSignature(context) {
+	const secret = process.env.IYZICO_WEBHOOK_SECRET;
+	if (!secret) {
+		return { configured: false };
+	}
+	const provided =
+		getHeader(context.headers, 'x-iyz-signature-v3') ||
+		getHeader(context.headers, 'x-iyz-signature') ||
+		context.signature;
+	const raw = typeof context.rawBody === 'string' ? context.rawBody : '';
+	const hex = hmacDigest('sha256', secret, raw, 'hex');
+	const b64 = hmacDigest('sha256', secret, raw, 'base64');
+	const candidate = String(provided || '');
+	return { configured: true, valid: timingSafeEqualStr(candidate, hex) || timingSafeEqualStr(candidate, b64) };
+}
+
+export function verifyWebhookSignature(provider, context) {
+	let result;
+	switch (provider) {
+		case 'iyzico':
+			result = verifyIyzicoSignature(context);
+			break;
+		case 'paytr':
+			result = verifyPaytrSignature(context);
+			break;
+		case 'binance_pay':
+			result = verifyBinancePaySignature(context);
+			break;
+		default:
+			result = { configured: false };
+	}
+
+	if (!result.configured) {
+		if (WEBHOOK_REQUIRE_SIGNATURE) {
+			throw new WebhookSignatureError(provider, `No webhook secret configured for ${provider} and WEBHOOK_REQUIRE_SIGNATURE is enabled`);
+		}
+		logger.warn(`[SECURITY] ${provider} webhook processed WITHOUT signature verification (no secret configured). Set the gateway webhook secret to enable verification.`, { provider });
+		return;
+	}
+
+	if (!result.valid) {
+		logger.warn(`[SECURITY] Rejected ${provider} webhook: invalid signature`, { provider });
+		throw new WebhookSignatureError(provider);
+	}
+}
+
 function resolveDedupeKey(event) {
 	const parts = [event.provider];
 	if (event.externalId) {
@@ -623,6 +741,7 @@ function normalizeBinancePayEvent({ payload }) {
 }
 
 export async function handleIyzicoWebhook(context) {
+	verifyWebhookSignature('iyzico', context);
 	const normalizedEvent = normalizeIyzicoEvent(context);
 	const result = await processNormalizedEvent(normalizedEvent);
 
@@ -637,6 +756,7 @@ export async function handleIyzicoWebhook(context) {
 }
 
 export async function handlePaytrWebhook(context) {
+	verifyWebhookSignature('paytr', context);
 	const normalizedEvent = normalizePaytrEvent(context);
 	const result = await processNormalizedEvent(normalizedEvent);
 
@@ -651,6 +771,7 @@ export async function handlePaytrWebhook(context) {
 }
 
 export async function handleBinancePayWebhook(context) {
+	verifyWebhookSignature('binance_pay', context);
 	const normalizedEvent = normalizeBinancePayEvent(context);
 	const result = await processNormalizedEvent(normalizedEvent);
 

@@ -174,7 +174,9 @@
       "session": "SESSION",
       "lesson": "KURS",
       "bundle": "BUNDLE",
-      "package": "PAKET"
+      "package": "PAKET",
+      "private": "1-ZU-1",
+      "upToN": "BIS ZU {{count}}"
     },
     "authModal": {
       "title": "Zum Buchen anmelden",

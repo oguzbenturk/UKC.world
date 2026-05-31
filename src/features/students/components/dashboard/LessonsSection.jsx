@@ -156,10 +156,19 @@ const LessonsSection = ({ upcoming = [], past = [] }) => {
   const { t } = useTranslation(['student']);
   if (upcoming.length === 0 && past.length === 0) return null;
 
+  // Single merged history: newest first (upcoming → past), with TBD entries pushed to the bottom.
+  const all = [...upcoming, ...past].sort((a, b) => {
+    const da = new Date(a?.startTime || a?.date || 0).getTime();
+    const db = new Date(b?.startTime || b?.date || 0).getTime();
+    if (!Number.isFinite(da) && !Number.isFinite(db)) return 0;
+    if (!Number.isFinite(da)) return 1;
+    if (!Number.isFinite(db)) return -1;
+    return db - da;
+  });
+
   return (
     <div className="space-y-3">
-      <LessonGroup label={t('student:dashboard.lessonsSection.upcomingLabel')} labelKey="student:dashboard.lessonsSection.upcomingLabel" lessons={upcoming} defaultExpanded />
-      <LessonGroup label={t('student:dashboard.lessonsSection.pastLabel')} labelKey="student:dashboard.lessonsSection.pastLabel" lessons={past} defaultExpanded={false} />
+      <LessonGroup label={t('student:dashboard.lessonsSection.historyLabel')} labelKey="student:dashboard.lessonsSection.historyLabel" lessons={all} defaultExpanded />
     </div>
   );
 };

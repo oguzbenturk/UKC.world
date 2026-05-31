@@ -1,6 +1,7 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { appendCreatedBy, resolveSystemActorId } from '../utils/auditUtils.js';
+import { findBalanceLedgerDrift } from './walletService.js';
 
 /**
  * Automated Financial Reconciliation Service
@@ -205,6 +206,35 @@ class FinancialReconciliationService {
     }
   }
 
+  // Detect wallet_balances rows that disagree with the completed-ledger SUM and
+  // alarm on them. Read-only by design — repair is a deliberate admin action
+  // (recomputeBalanceFromLedger), never an automatic silent overwrite.
+  async runWalletLedgerDriftCheck() {
+    try {
+      const tolerance = parseFloat(process.env.WALLET_DRIFT_TOLERANCE) || 0.01;
+      const drift = await findBalanceLedgerDrift({ tolerance, limit: 500 });
+      if (drift.length > 0) {
+        logger.error('[WALLET-DRIFT] wallet_balances cache disagrees with the ledger', {
+          count: drift.length,
+          tolerance,
+          worst: drift.slice(0, 10).map((d) => ({
+            userId: d.userId,
+            currency: d.currency,
+            cached: d.cachedAvailable,
+            ledger: d.ledgerAvailable,
+            drift: d.drift,
+          })),
+        });
+      } else {
+        logger.info('[WALLET-DRIFT] wallet ledger ↔ cache invariant holds (no drift)');
+      }
+      return drift;
+    } catch (error) {
+      logger.error('[WALLET-DRIFT] drift check failed', { error: error.message });
+      return [];
+    }
+  }
+
   async runReconciliation(options = {}) {
     if (this.isRunning) {
       logger.warn('Financial reconciliation already running, skipping');
@@ -248,6 +278,12 @@ class FinancialReconciliationService {
         this.stats.totalChecks++;
       }
 
+      // Wallet ledger ↔ cache invariant check (the SSOT guard): every wallet_balances
+      // row must equal SUM(available_delta) over its completed ledger rows. Any raw-SQL
+      // writer or bug that drifts the cache is surfaced here as a loud alarm (read-only;
+      // it does NOT silently overwrite — use recomputeBalanceFromLedger deliberately).
+      const walletDrift = await this.runWalletLedgerDriftCheck();
+
       const duration = Date.now() - startTime;
       this.lastRun = new Date();
 
@@ -256,6 +292,7 @@ class FinancialReconciliationService {
         usersChecked: checkedUsers,
         discrepanciesFound,
         discrepanciesFixed: this.stats.discrepanciesFixed,
+        walletDriftRows: walletDrift.length,
         errors: this.stats.errors
       });
 
@@ -264,6 +301,7 @@ class FinancialReconciliationService {
         usersChecked: checkedUsers,
         discrepanciesFound,
         discrepanciesFixed: this.stats.discrepanciesFixed,
+        walletDriftRows: walletDrift.length,
         duration
       };
 

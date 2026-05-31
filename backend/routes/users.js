@@ -1007,6 +1007,31 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
         await client.query('DELETE FROM booking_series_customers WHERE customer_user_id = $1', [userId]);
         await client.query('DELETE FROM booking_series WHERE instructor_user_id = $1 OR created_by = $1', [userId]);
         
+        // ── Archive wallet financials BEFORE destroying them ─────────
+        // Preserves balances + full ledger + summary so a deleted user's debt/credit
+        // and transaction history remain auditable (the deletes below are irreversible).
+        await client.query(
+          `INSERT INTO deleted_user_wallet_archive (user_id, email, balances, transaction_summary, transactions, archived_by)
+           SELECT u.id,
+                  u.email,
+                  COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                      'currency', wb.currency, 'available', wb.available_amount,
+                      'pending', wb.pending_amount, 'non_withdrawable', wb.non_withdrawable_amount))
+                    FROM wallet_balances wb WHERE wb.user_id = u.id), '[]'::jsonb),
+                  (SELECT jsonb_build_object(
+                      'count', COUNT(*),
+                      'sum_available_delta', COALESCE(SUM(available_delta), 0),
+                      'sum_credits', COALESCE(SUM(available_delta) FILTER (WHERE available_delta > 0), 0),
+                      'sum_debits', COALESCE(SUM(available_delta) FILTER (WHERE available_delta < 0), 0))
+                    FROM wallet_transactions WHERE user_id = u.id),
+                  COALESCE((SELECT jsonb_agg(to_jsonb(wt.*) ORDER BY wt.created_at)
+                    FROM wallet_transactions wt WHERE wt.user_id = u.id), '[]'::jsonb),
+                  $2
+             FROM users u
+            WHERE u.id = $1`,
+          [userId, req.user?.id || null]
+        );
+
         // ── Batch 1: independent leaf tables ────────────────────────
         const batch1Results = await Promise.all([
           client.query('DELETE FROM wallet_transactions WHERE user_id = $1', [userId]),

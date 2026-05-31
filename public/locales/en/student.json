@@ -87,8 +87,7 @@
       }
     },
     "lessonsSection": {
-      "upcomingLabel": "Upcoming",
-      "pastLabel": "Past",
+      "historyLabel": "History",
       "noLessons": "No {{label}} lessons",
       "columns": {
         "date": "Date",
@@ -100,8 +99,7 @@
       "showMore": "Show more ({{count}})"
     },
     "rentalsSection": {
-      "upcomingLabel": "Upcoming",
-      "pastLabel": "Past",
+      "historyLabel": "History",
       "noRentals": "No {{label}} rentals",
       "columns": {
         "date": "Date",
@@ -184,10 +182,10 @@
     "stats": {
       "walletBalance": "Wallet Balance",
       "availableToSpend": "Available to spend",
-      "settled": "Settled",
-      "completedInvoices": "Completed invoices",
-      "settledAmount": "Settled Amount",
-      "totalPaid": "Total paid",
+      "totalPaid": "Total Paid",
+      "moneyReceived": "Money received",
+      "totalCharged": "Total Charged",
+      "moneyOut": "Money out",
       "pending": "Pending",
       "awaitingProcessing": "Awaiting processing"
     },

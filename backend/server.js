@@ -602,6 +602,12 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
                 availableDelta: -wd.amount,
                 description: txDescription,
                 relatedEntityType: 'shop_order',
+                // shop_orders.id is INTEGER and related_entity_id is UUID, so the
+                // order id lives in metadata.orderId (below), never related_entity_id.
+                // Idempotent on (order, currency): a duplicate/retried Iyzico callback
+                // (server webhook + browser return, or a gateway retry) can no longer
+                // double-debit — the second call replays the original ledger row.
+                idempotencyKey: `shop-order-charge:${order.id}:${wd.currency}`,
                 metadata: { orderId: order.id, orderNumber: order.order_number, hybridPayment: true, walletPortion: order.wallet_deduction_data.totalDeductedEUR, deductedCurrency: wd.currency, deductedAmount: wd.amount, gatewayCurrency: payment.currency, gatewayAmount: payment.paidPrice, provider: 'iyzico', paymentId: payment.paymentId }
               });
             }
@@ -879,11 +885,18 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
           }
 
-          // Update payment status and activate membership
-          await pool.query(
-            `UPDATE member_purchases SET payment_status = 'completed', status = 'active' WHERE id = $1`,
+          // Update payment status and activate membership — atomic guard so a
+          // duplicate/concurrent callback cannot run the credit/debit pair twice.
+          const moUpdate = await pool.query(
+            `UPDATE member_purchases SET payment_status = 'completed', status = 'active'
+             WHERE id = $1 AND payment_status NOT IN ('completed', 'paid')
+             RETURNING id`,
             [purchaseId]
           );
+          if (moUpdate.rowCount === 0) {
+            logger.warn('Iyzico Callback: membership already processed by concurrent request, skipping', { purchaseId, token });
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
+          }
 
           const paidAmount = new Decimal(payment.paidPrice || mo.offering_price || 0).toNumber();
           const paidCurrency = payment.currency || 'TRY';
@@ -899,6 +912,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
               transactionType: 'deposit',
               direction: 'credit',
               description: `Card payment for: ${mo.offering_name}`,
+              idempotencyKey: `membership-credit:${purchaseId}`,
               metadata: { purchaseId, paymentId: payment.paymentId, method: 'credit_card' }
             });
             // Debit: membership purchase charge
@@ -909,6 +923,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
               transactionType: 'payment',
               direction: 'debit',
               description: `Membership purchase: ${mo.offering_name}`,
+              idempotencyKey: `membership-charge:${purchaseId}`,
               metadata: { purchaseId, offeringName: mo.offering_name, method: 'credit_card' }
             });
           } catch (walletErr) {

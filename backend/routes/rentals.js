@@ -5,7 +5,7 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
 import { requireWaiver, checkFamilyMemberWaiver } from '../middlewares/waiverCheck.js';
 import { resolveActorId } from '../utils/auditUtils.js';
-import { recordLegacyTransaction, createDepositRequest, getAllBalances } from '../services/walletService.js';
+import { recordLegacyTransaction, createDepositRequest, getAllBalances, getEntityNetCharges } from '../services/walletService.js';
 import { forceDeleteRental } from '../services/rentalCleanupService.js';
 import CurrencyService from '../services/currencyService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
@@ -1276,22 +1276,34 @@ router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']
     const chargedAmount = parseFloat(rental.total_price) || 0;
     if (chargedAmount > 0 && rental.user_id && rental.payment_status === 'paid' && !rental.customer_package_id) {
       try {
-        await recordLegacyTransaction({
-          client,
-          userId: rental.user_id,
-          amount: Math.abs(chargedAmount),
-          transactionType: 'rental_cancelled_refund',
-          status: 'completed',
-          direction: 'credit',
-          description: `Rental ${wasPending ? 'declined' : 'cancelled'} — refund`,
-          metadata: { rentalId: rental.id, cancelledVia: 'admin_action' },
-          entityType: 'rental',
-          relatedEntityType: 'rental',
-          relatedEntityId: rental.id,
-          rentalId: rental.id,
-          createdBy: req.user.id,
-        });
-        logger.info(`Refunded €${chargedAmount} for rental ${id} to user ${rental.user_id}`);
+        // Refund EXACTLY what the wallet was charged, in the ORIGINAL currency (the
+        // charge may have debited a TRY/USD wallet, not EUR), and only the still-
+        // outstanding portion — so a retried cancel cannot double-refund.
+        const netCharges = await getEntityNetCharges({ client, rentalId: rental.id });
+        for (const rc of netCharges) {
+          await recordLegacyTransaction({
+            client,
+            userId: rental.user_id,
+            amount: rc.amount,
+            currency: rc.currency,
+            transactionType: 'rental_cancelled_refund',
+            status: 'completed',
+            direction: 'credit',
+            description: `Rental ${wasPending ? 'declined' : 'cancelled'} — refund`,
+            metadata: { rentalId: rental.id, cancelledVia: 'admin_action' },
+            entityType: 'rental',
+            relatedEntityType: 'rental',
+            relatedEntityId: rental.id,
+            rentalId: rental.id,
+            createdBy: req.user.id,
+            idempotencyKey: `rental-refund:${rental.id}:${rc.currency}`,
+          });
+        }
+        if (!netCharges.length) {
+          logger.warn(`Rental ${id} cancel: no outstanding wallet charge found to refund (already refunded or pre-ledger)`);
+        } else {
+          logger.info(`Refunded rental ${id} to user ${rental.user_id}`, { refunds: netCharges });
+        }
       } catch (refundErr) {
         logger.error('Failed to refund rental charge', { rentalId: id, error: refundErr?.message });
         throw refundErr;

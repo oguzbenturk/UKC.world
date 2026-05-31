@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheService } from '../services/cacheService.js';
 import {
   isSpotifyConfigured,
   buildAuthUrl,
@@ -15,23 +16,37 @@ import {
 
 const router = express.Router();
 
+// OAuth state is stored in Redis so it survives restarts and works across
+// multiple backend processes. An in-memory Map mirrors writes as a fallback
+// for environments where Redis is disabled (DISABLE_REDIS=true) or unreachable.
 const stateStore = new Map();
-const STATE_TTL_MS = 10 * 60 * 1000;
+const STATE_TTL_SEC = 10 * 60;
+const stateKey = (s) => `spotify:oauth:state:${s}`;
 
-const issueState = (userId) => {
+const issueState = async (userId) => {
   const state = crypto.randomBytes(16).toString('hex');
-  stateStore.set(state, { userId, createdAt: Date.now() });
+  const entry = { userId, createdAt: Date.now() };
+
+  await cacheService.set(stateKey(state), entry, STATE_TTL_SEC);
+
+  stateStore.set(state, entry);
   for (const [k, v] of stateStore.entries()) {
-    if (Date.now() - v.createdAt > STATE_TTL_MS) stateStore.delete(k);
+    if (Date.now() - v.createdAt > STATE_TTL_SEC * 1000) stateStore.delete(k);
   }
   return state;
 };
 
-const consumeState = (state) => {
+const consumeState = async (state) => {
+  const fromRedis = await cacheService.get(stateKey(state));
+  if (fromRedis) {
+    await cacheService.del(stateKey(state));
+    stateStore.delete(state);
+    return fromRedis;
+  }
   const entry = stateStore.get(state);
   if (!entry) return null;
   stateStore.delete(state);
-  if (Date.now() - entry.createdAt > STATE_TTL_MS) return null;
+  if (Date.now() - entry.createdAt > STATE_TTL_SEC * 1000) return null;
   return entry;
 };
 
@@ -45,7 +60,7 @@ router.get('/callback', async (req, res) => {
     if (error) return res.status(400).json({ error: String(error) });
     if (!code || !state) return res.status(400).json({ error: 'Missing code or state' });
 
-    const stateEntry = consumeState(String(state));
+    const stateEntry = await consumeState(String(state));
     if (!stateEntry) return res.status(400).json({ error: 'Invalid or expired state' });
 
     const tokenResponse = await exchangeCodeForTokens(String(code));
@@ -71,12 +86,17 @@ router.get('/callback', async (req, res) => {
 
 router.use(authenticateJWT);
 
-router.get('/auth-url', (req, res) => {
-  if (!isSpotifyConfigured()) {
-    return res.status(503).json({ error: 'Spotify is not configured' });
+router.get('/auth-url', async (req, res) => {
+  try {
+    if (!isSpotifyConfigured()) {
+      return res.status(503).json({ error: 'Spotify is not configured' });
+    }
+    const state = await issueState(req.user.id);
+    res.json({ url: buildAuthUrl(state), state });
+  } catch (err) {
+    logger.error('Spotify auth-url failed', { error: err.message });
+    res.status(500).json({ error: 'Failed to start Spotify OAuth' });
   }
-  const state = issueState(req.user.id);
-  res.json({ url: buildAuthUrl(state), state });
 });
 
 router.get('/status', async (req, res) => {

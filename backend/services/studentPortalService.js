@@ -4,7 +4,7 @@ import { validate as uuidValidate } from 'uuid';
 import { getRecommendedProductsForRole } from './recommendationService.js';
 import { getUnratedBookings as fetchUnratedBookings } from './ratingService.js';
 import bookingNotificationService from './bookingNotificationService.js';
-import { recordTransaction as recordWalletTransaction, recordLegacyTransaction } from './walletService.js';
+import { recordTransaction as recordWalletTransaction, recordLegacyTransaction, getEntityNetCharges } from './walletService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -1616,38 +1616,45 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
         }
       }
 
-      // 2) Refund wallet balance for non-package individual payments
+      // 2) Refund wallet balance for non-package individual payments.
+      // NOTE: previously this ALSO did a raw `UPDATE users SET balance = balance + amount`
+      // alongside the wallet credit \u2014 a DOUBLE refund (legacy users.balance is read as a
+      // fallback elsewhere). The raw update is removed; the wallet ledger is the single
+      // source of truth. Refund is now currency-correct + idempotent + outstanding-only.
       const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
       if (bookingAmount > 0 && booking.student_user_id && booking.payment_method !== 'package' && booking.payment_status !== 'package' && !booking.package_id) {
-        await client.query(
-          `UPDATE users SET balance = COALESCE(balance, 0) + $1, updated_at = NOW() WHERE id = $2`,
-          [bookingAmount, booking.student_user_id]
-        );
-
         try {
-          await recordLegacyTransaction({
-            userId: booking.student_user_id,
-            amount: bookingAmount,
-            transactionType: 'booking_cancelled_refund',
-            status: 'completed',
-            direction: 'credit',
-            description: `Student self-cancel refund: ${booking.date}`,
-            metadata: { bookingId: booking.id, cancelledVia: 'student_portal' },
-            entityType: 'booking',
-            relatedEntityType: 'booking',
-            relatedEntityId: booking.id,
-            bookingId: booking.id,
-            createdBy: normalizedStudentId,
-            client
-          });
+          const netCharges = await getEntityNetCharges({ client, bookingId: booking.id });
+          for (const rc of netCharges) {
+            await recordLegacyTransaction({
+              userId: booking.student_user_id,
+              amount: rc.amount,
+              currency: rc.currency,
+              transactionType: 'booking_cancelled_refund',
+              status: 'completed',
+              direction: 'credit',
+              description: `Student self-cancel refund: ${booking.date}`,
+              metadata: { bookingId: booking.id, cancelledVia: 'student_portal' },
+              entityType: 'booking',
+              relatedEntityType: 'booking',
+              relatedEntityId: booking.id,
+              bookingId: booking.id,
+              createdBy: normalizedStudentId,
+              idempotencyKey: `student-cancel-refund:${booking.id}:${rc.currency}`,
+              client
+            });
+          }
+          if (netCharges.length) {
+            logger.info(`Student cancel: refunded booking ${booking.id}`, { refunds: netCharges });
+          } else {
+            logger.warn(`Student cancel: no outstanding wallet charge to refund for booking ${booking.id}`);
+          }
         } catch (walletError) {
           logger.error('Failed to record wallet refund on student cancel', {
             bookingId: booking.id, error: walletError?.message
           });
           throw walletError;
         }
-
-        logger.info(`Student cancel: Refunded \u20ac${bookingAmount} to user ${booking.student_user_id}`);
       }
 
       const result = await client.query(

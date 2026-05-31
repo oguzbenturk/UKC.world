@@ -140,10 +140,19 @@ const RentalsSection = ({ upcoming = [], past = [] }) => {
   const { t } = useTranslation(['student']);
   if (upcoming.length === 0 && past.length === 0) return null;
 
+  // Single merged history: newest first (upcoming → past), with TBD entries pushed to the bottom.
+  const all = [...upcoming, ...past].sort((a, b) => {
+    const da = new Date(a?.startDate || a?.start_date || 0).getTime();
+    const db = new Date(b?.startDate || b?.start_date || 0).getTime();
+    if (!Number.isFinite(da) && !Number.isFinite(db)) return 0;
+    if (!Number.isFinite(da)) return 1;
+    if (!Number.isFinite(db)) return -1;
+    return db - da;
+  });
+
   return (
     <div className="space-y-3">
-      <RentalGroup label={t('student:dashboard.rentalsSection.upcomingLabel')} labelKey="student:dashboard.rentalsSection.upcomingLabel" rentals={upcoming} defaultExpanded />
-      <RentalGroup label={t('student:dashboard.rentalsSection.pastLabel')} labelKey="student:dashboard.rentalsSection.pastLabel" rentals={past} defaultExpanded={false} />
+      <RentalGroup label={t('student:dashboard.rentalsSection.historyLabel')} labelKey="student:dashboard.rentalsSection.historyLabel" rentals={all} defaultExpanded />
     </div>
   );
 };

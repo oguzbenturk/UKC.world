@@ -87,8 +87,7 @@
       }
     },
     "lessonsSection": {
-      "upcomingLabel": "Próximas",
-      "pastLabel": "Pasadas",
+      "historyLabel": "Historial",
       "noLessons": "No hay lecciones {{label}}",
       "columns": {
         "date": "Fecha",
@@ -100,8 +99,7 @@
       "showMore": "Mostrar más ({{count}})"
     },
     "rentalsSection": {
-      "upcomingLabel": "Próximos",
-      "pastLabel": "Pasados",
+      "historyLabel": "Historial",
       "noRentals": "No hay alquileres {{label}}",
       "columns": {
         "date": "Fecha",
@@ -184,10 +182,10 @@
     "stats": {
       "walletBalance": "Saldo de cartera",
       "availableToSpend": "Disponible para gastar",
-      "settled": "Liquidado",
-      "completedInvoices": "Facturas completadas",
-      "settledAmount": "Importe liquidado",
       "totalPaid": "Total pagado",
+      "moneyReceived": "Dinero recibido",
+      "totalCharged": "Total cobrado",
+      "moneyOut": "Dinero salido",
       "pending": "Pendiente",
       "awaitingProcessing": "Pendiente de procesamiento"
     },

@@ -253,12 +253,35 @@ export default function MusicSettings() {
 
   const handleConnect = async () => {
     setConnectBusy(true);
+
+    const ua = navigator.userAgent || '';
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) ||
+      // iPadOS 13+ reports a Mac UA — detect via touch points
+      (/Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+
+    // Open the popup synchronously (with about:blank) so the browser treats it
+    // as a user-gesture popup and doesn't block it. We then redirect it after
+    // the auth URL fetch resolves. On mobile, popups are unreliable
+    // (window.opener is often null, postMessage doesn't propagate), so we do a
+    // full-page redirect instead — SpotifyCallback handles that case.
+    const popup = isMobile
+      ? null
+      : window.open('about:blank', 'spotify-oauth', 'width=500,height=720');
+
     try {
       const { data } = await apiClient.get('/spotify/auth-url');
-      if (data?.url) {
-        window.open(data.url, 'spotify-oauth', 'width=500,height=720');
+      if (!data?.url) {
+        if (popup && !popup.closed) popup.close();
+        return;
+      }
+      if (popup && !popup.closed) {
+        popup.location.href = data.url;
+      } else {
+        window.location.href = data.url;
       }
     } catch (err) {
+      if (popup && !popup.closed) popup.close();
       logger.error('Failed to start Spotify OAuth', { error: String(err) });
       message.error('Could not start Spotify connection.');
     } finally {

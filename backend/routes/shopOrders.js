@@ -7,7 +7,7 @@ import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import socketService from '../services/socketService.js';
-import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
+import { getBalance, getAllBalances, recordTransaction, getEntityNetCharges } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import voucherService from '../services/voucherService.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
@@ -1188,21 +1188,30 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
     // Handle refund - if payment was completed, refund to wallet
     if (status === 'refunded' && currentOrder.rows[0].payment_status === 'completed') {
       const order = currentOrder.rows[0];
-      
-      // Refund to wallet using walletService
-      await recordTransaction({
-        client,
-        userId: order.user_id,
-        amount: parseFloat(order.total_amount),
-        currency: 'EUR',
-        transactionType: 'refund',
-        direction: 'credit',
-        availableDelta: parseFloat(order.total_amount),
-        description: `Refund for Order #${order.order_number}`,
-        relatedEntityType: 'shop_order_refund',
-        // Note: orderId is INTEGER, not UUID, so we store it in metadata instead
-        metadata: { orderId, orderNumber: order.order_number }
-      });
+
+      // Refund the ACTUAL wallet charges per currency (a hybrid order may have debited
+      // TRY/USD, not EUR), outstanding portion only. Fall back to legacy EUR total only
+      // when the order has no wallet charge on the ledger (card-only/pre-ledger).
+      const netCharges = await getEntityNetCharges({ client, shopOrderId: orderId });
+      const refunds = netCharges.length
+        ? netCharges
+        : [{ currency: 'EUR', amount: parseFloat(order.total_amount) }];
+      for (const rc of refunds) {
+        await recordTransaction({
+          client,
+          userId: order.user_id,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'refund',
+          direction: 'credit',
+          availableDelta: rc.amount,
+          description: `Refund for Order #${order.order_number}`,
+          relatedEntityType: 'shop_order_refund',
+          // Note: orderId is INTEGER, not UUID, so we store it in metadata instead
+          metadata: { orderId, orderNumber: order.order_number },
+          idempotencyKey: `shop-order-refund:${orderId}:${rc.currency}`,
+        });
+      }
 
       updateFields.push(`payment_status = 'refunded'`);
     }
@@ -1423,20 +1432,28 @@ router.post('/:id/cancel', authenticateJWT, cacheInvalidationMiddleware(['api:sh
 
     // Refund if payment was made
     if (order.payment_status === 'completed') {
-      // Refund to wallet using walletService
-      await recordTransaction({
-        client,
-        userId,
-        amount: parseFloat(order.total_amount),
-        currency: 'EUR',
-        transactionType: 'refund',
-        direction: 'credit',
-        availableDelta: parseFloat(order.total_amount),
-        description: `Refund for cancelled Order #${order.order_number}`,
-        relatedEntityType: 'shop_order_refund',
-        // Note: orderId is INTEGER, not UUID, so we store it in metadata instead
-        metadata: { orderId, orderNumber: order.order_number }
-      });
+      // Refund the ACTUAL wallet charges per currency, outstanding portion only.
+      // Fall back to legacy EUR total only when no wallet charge exists on the ledger.
+      const netCharges = await getEntityNetCharges({ client, shopOrderId: orderId });
+      const refunds = netCharges.length
+        ? netCharges
+        : [{ currency: 'EUR', amount: parseFloat(order.total_amount) }];
+      for (const rc of refunds) {
+        await recordTransaction({
+          client,
+          userId,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'refund',
+          direction: 'credit',
+          availableDelta: rc.amount,
+          description: `Refund for cancelled Order #${order.order_number}`,
+          relatedEntityType: 'shop_order_refund',
+          // Note: orderId is INTEGER, not UUID, so we store it in metadata instead
+          metadata: { orderId, orderNumber: order.order_number },
+          idempotencyKey: `shop-order-refund:${orderId}:${rc.currency}`,
+        });
+      }
     }
 
     // Update order status

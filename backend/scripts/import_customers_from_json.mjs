@@ -146,13 +146,25 @@ async function main() {
         if (negativeEur < 0) negativeBalances++;
 
         for (const p of positives) {
+          const amount = Number(p.balance);
           await client.query(
             `INSERT INTO wallet_balances (user_id, currency, available_amount)
              VALUES ($1, $2, $3)
              ON CONFLICT (user_id, currency)
              DO UPDATE SET available_amount = EXCLUDED.available_amount,
                            updated_at = now()`,
-            [userId, p.currencyCode, Number(p.balance)]
+            [userId, p.currencyCode, amount]
+          );
+          // Pair the cache row with a ledger entry so wallet_transactions stays
+          // the source of truth (prevents the drift we saw on 2026-05-31).
+          await client.query(
+            `INSERT INTO wallet_transactions
+               (user_id, transaction_type, status, direction, currency,
+                amount, available_delta, description, metadata)
+             VALUES ($1, 'legacy_opening_balance', 'completed', 'adjustment', $2,
+                     $3, $3, 'Opening balance migrated from previous app',
+                     jsonb_build_object('source','import_customers_from_json'))`,
+            [userId, p.currencyCode, amount]
           );
           walletRows++;
         }

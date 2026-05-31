@@ -178,7 +178,9 @@
       "session": "SEANS",
       "lesson": "DERS",
       "bundle": "BUNDLE",
-      "package": "PAKET"
+      "package": "PAKET",
+      "private": "BİREBİR",
+      "upToN": "{{count}} KİŞİYE KADAR"
     },
     "authModal": {
       "title": "Rezervasyon için Giriş Yapın",

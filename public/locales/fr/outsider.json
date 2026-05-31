@@ -178,7 +178,9 @@
       "session": "SESSION",
       "lesson": "COURS",
       "bundle": "BUNDLE",
-      "package": "PACKAGE"
+      "package": "PACKAGE",
+      "private": "1-À-1",
+      "upToN": "JUSQU'À {{count}}"
     },
     "authModal": {
       "title": "Connectez-vous pour réserver",

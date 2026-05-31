@@ -41,15 +41,15 @@ const computeTotals = (rows, storageCurrency, convertCurrency) =>
         : raw;
       const status = String(invoice?.status || '').toLowerCase();
       if (['completed', 'succeeded', 'paid'].includes(status)) {
-        acc.settledAmount += amount;
-        acc.settledCount += 1;
+        if (amount >= 0) acc.totalPaid += amount;
+        else acc.totalCharged += Math.abs(amount);
       } else if (status) {
         acc.pendingAmount += amount;
         acc.pendingCount += 1;
       }
       return acc;
     },
-    { settledAmount: 0, settledCount: 0, pendingAmount: 0, pendingCount: 0, totalCount: rows.length },
+    { totalPaid: 0, totalCharged: 0, pendingAmount: 0, pendingCount: 0, totalCount: rows.length },
   );
 
 const computeTotalRecords = (paginationTotal, dataTotal, fallbackLength) => {
@@ -186,14 +186,14 @@ const StudentPayments = () => {
           <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.availableToSpend')}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.settled')}</p>
-          <p className="mt-2 text-xl font-bold text-emerald-600">{totals.settledCount}</p>
-          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.completedInvoices')}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.totalPaid')}</p>
+          <p className="mt-2 text-xl font-bold text-emerald-600">{formatDualAmount(totals.totalPaid, storageCurrency)}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.moneyReceived')}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.settledAmount')}</p>
-          <p className="mt-2 text-xl font-bold text-emerald-600">{formatDualAmount(totals.settledAmount, storageCurrency)}</p>
-          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.totalPaid')}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.totalCharged')}</p>
+          <p className="mt-2 text-xl font-bold text-rose-600">{formatDualAmount(totals.totalCharged, storageCurrency)}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('student:payments.stats.moneyOut')}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('student:payments.stats.pending')}</p>

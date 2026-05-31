@@ -178,7 +178,9 @@
       "session": "SESIÓN",
       "lesson": "CLASE",
       "bundle": "BUNDLE",
-      "package": "PAQUETE"
+      "package": "PAQUETE",
+      "private": "1-A-1",
+      "upToN": "HASTA {{count}}"
     },
     "authModal": {
       "title": "Inicia sesión para reservar",

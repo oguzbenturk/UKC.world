@@ -20,6 +20,7 @@ import { dispatchNotification, dispatchToStaff } from '../services/notificationD
 import { getDashboardSummary } from '../services/dashboardSummaryService.js';
 import { getInstructorEarningsData } from '../services/instructorFinanceService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
+import { recordTransaction } from '../services/walletService.js';
 import { logAuditEvent } from '../services/auditLogService.js';
 import { listSpots, getSpotReport, getAllSpotReports } from '../services/weather/index.js';
 
@@ -804,6 +805,7 @@ router.post(
       let finalPaymentStatus = 'pending';
       let finalAmount = amount;
       let usedPackageId = null;
+      let studentIsTrusted = false;
 
       // ── Package-based booking ──────────────────────────────────────────
       if (customerPackageId) {
@@ -859,8 +861,11 @@ router.post(
 
       // ── Wallet payment ─────────────────────────────────────────────────
       } else if (paymentMethod === 'wallet') {
+        // Service prices are denominated in the academy storage currency (EUR).
+        // Read the matching wallet row explicitly — NOT the highest-balance row of
+        // an arbitrary currency — so the sufficiency check and the debit agree.
         const { rows: walletRows } = await client.query(
-          `SELECT available_amount FROM wallet_balances WHERE user_id = $1 ORDER BY available_amount DESC LIMIT 1`,
+          `SELECT available_amount FROM wallet_balances WHERE user_id = $1 AND currency = 'EUR'`,
           [studentUserId],
         );
         const balance = toNum(walletRows[0]?.available_amount) || 0;
@@ -869,7 +874,7 @@ router.post(
           `SELECT r.name AS role_name FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`,
           [studentUserId],
         );
-        const studentIsTrusted = studentRoleRows[0]?.role_name === 'trusted_customer';
+        studentIsTrusted = studentRoleRows[0]?.role_name === 'trusted_customer';
         if (balance < amount && !studentIsTrusted) {
           await client.query('ROLLBACK');
           return res.status(400).json({
@@ -910,21 +915,25 @@ router.post(
 
       const bookingId = bookingRows[0].id;
 
-      // Deduct from wallet if applicable
+      // Deduct from wallet if applicable. Route through walletService so the debit
+      // is atomic on the locked (user, currency) row, writes proper deltas +
+      // balance_after snapshots, records the operating actor, and is idempotent on
+      // the booking (a retried Kai/n8n call cannot double-charge).
       if (paymentMethod === 'wallet' && !customerPackageId && amount > 0) {
-        await client.query(
-          `INSERT INTO wallet_transactions (
-             user_id, booking_id, amount, currency, direction,
-             transaction_type, description, created_at
-           ) VALUES ($1, $2, $3, 'EUR', 'debit', 'booking_charge', $4, NOW())`,
-          [studentUserId, bookingId, amount, `Booking: ${service.name} on ${date}`],
-        );
-
-        await client.query(
-          `UPDATE wallet_balances SET available_amount = available_amount - $1, updated_at = NOW()
-           WHERE user_id = $2`,
-          [amount, studentUserId],
-        );
+        await recordTransaction({
+          client,
+          userId: studentUserId,
+          amount: -Math.abs(amount),
+          currency: 'EUR',
+          transactionType: 'booking_charge',
+          description: `Booking: ${service.name} on ${date}`,
+          bookingId,
+          relatedEntityType: 'booking',
+          relatedEntityId: bookingId,
+          createdBy: userId,
+          allowNegative: studentIsTrusted,
+          idempotencyKey: `kai-booking-charge:${bookingId}`,
+        });
       }
 
       await client.query('COMMIT');

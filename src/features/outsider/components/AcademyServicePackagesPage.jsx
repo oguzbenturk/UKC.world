@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import ContactOptionsBanner from '@/features/outsider/components/ContactOptionsBanner';
-import { Button, Tag, Spin, message } from 'antd';
+import { Button, Tag, Skeleton, message } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import AcademyLessonPackageCard from './AcademyLessonPackageCard';
 import AcademyCrossSellBanner from './AcademyCrossSellBanner';
@@ -955,7 +955,13 @@ const AcademyServicePackagesPage = ({
         badges: isStayMode
           ? [toTitle(first.packageType || first.package_type || 'Stay'), first.accommodationUnitType || 'Unit']
           : [toTitle(first.lessonCategoryTag || t('outsider:servicePackages.auto.lessonFallback')), toTitle(first.levelTag || t('outsider:servicePackages.auto.packageFallback'))],
-        lessonCategoryTag: normalize(first.lessonCategoryTag || '')
+        lessonCategoryTag: normalize(first.lessonCategoryTag || ''),
+        // Enriched metadata surfaced to the card front
+        levelTag: first.levelTag || null,
+        serviceLevel: first.serviceLevel || null,
+        maxParticipants: first.maxParticipants || null,
+        includes: first.includes || null,
+        disciplineTag: first.disciplineTag || null
       };
     }).filter(Boolean);
 
@@ -1044,14 +1050,18 @@ const AcademyServicePackagesPage = ({
       price: parseFloat(basePrice) || 0,
       totalHours: hours,
       sessionsCount: 1,
-      lessonServiceName: s.name, 
-      lessonServiceId: s.id, 
+      lessonServiceName: s.name,
+      lessonServiceId: s.id,
       disciplineTag: dTag,
       lessonCategoryTag: s.lessonCategoryTag || s.category || t('outsider:servicePackages.auto.individualLesson'),
       levelTag: s.levelTag || (s.level ? toTitle(s.level) : t('outsider:servicePackages.auto.singleSession')),
       includesLessons: true,
       imageUrl: s.imageUrl || s.image_url,
       updatedAt: s.updatedAt || s.updated_at,
+      // Linked-service detail used by the enriched card metadata strip
+      maxParticipants: s.maxParticipants || s.max_participants || null,
+      includes: s.includes || s.serviceIncludes || null,
+      serviceLevel: s.level || null,
       isService: true
     };
   };
@@ -1646,8 +1656,18 @@ const AcademyServicePackagesPage = ({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <Spin size="large" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex min-h-[360px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+              >
+                <Skeleton.Image active className="!h-[200px] !w-full !rounded-none" rootClassName="!w-full !h-[200px]" />
+                <div className="flex-1 px-4 py-4">
+                  <Skeleton active title={{ width: '70%' }} paragraph={{ rows: 2, width: ['100%', '60%'] }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : displayPackages.length === 0 ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">

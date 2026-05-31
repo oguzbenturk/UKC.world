@@ -337,6 +337,12 @@ router.post('/deposit', authenticateJWT, depositLimiter, [
       return res.status(400).json({ error: 'bankAccountId is required for bank transfer deposits' });
     }
 
+    // SECURITY: only privileged staff may force a deposit to auto-complete (e.g.
+    // recording a manual/cash deposit). A self-service user passing autoComplete:true
+    // with method 'manual'/'crypto' must NOT be able to credit their own wallet.
+    const PRIVILEGED_DEPOSIT_ROLES = ['admin', 'manager', 'owner', 'front_desk', 'receptionist'];
+    const isPrivilegedDepositor = PRIVILEGED_DEPOSIT_ROLES.includes(req.user?.role);
+
     const result = await createDepositRequest({
       userId,
       amount,
@@ -348,6 +354,7 @@ router.post('/deposit', authenticateJWT, depositLimiter, [
       proofUrl,
       notes,
       autoComplete,
+      allowManualComplete: isPrivilegedDepositor,
       gateway,
       gatewayTransactionId,
       bankAccountId,

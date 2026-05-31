@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { initiateGatewayDeposit } from './paymentGatewayService.js';
@@ -50,12 +51,31 @@ function normalizeCurrency(currency) {
   return (currency || DEFAULT_CURRENCY).toUpperCase();
 }
 
+// Quantize a monetary value to the NUMERIC(18,4) column scale using Decimal.js
+// (never float math for money — see CLAUDE.md). null/undefined/'' are treated as
+// "no value" → 0 (many optional deltas rely on this), but a *present* non-numeric
+// value (NaN, "abc") now THROWS instead of being silently swallowed into a 0 tx.
 function toNumeric(value) {
-  const parsed = Number.parseFloat(value);
-  if (Number.isNaN(parsed)) {
+  if (value === null || value === undefined || value === '') {
     return 0;
   }
-  return Number(parsed.toFixed(4));
+  let dec;
+  try {
+    dec = new Decimal(value);
+  } catch {
+    throw new Error(`Invalid monetary value: ${JSON.stringify(value)}`);
+  }
+  if (!dec.isFinite()) {
+    throw new Error(`Non-finite monetary value: ${JSON.stringify(value)}`);
+  }
+  return dec.toDecimalPlaces(4, Decimal.ROUND_HALF_UP).toNumber();
+}
+
+// Exact-decimal sum of money values, returned quantized to 4dp. Used for the
+// read-modify-write balance arithmetic so float drift (0.1+0.2) cannot accumulate.
+function sumMoney(...values) {
+  const total = values.reduce((acc, v) => acc.plus(new Decimal(toNumeric(v))), new Decimal(0));
+  return total.toDecimalPlaces(4, Decimal.ROUND_HALF_UP).toNumber();
 }
 
 function ensurePlainObject(value, fallback = {}) {
@@ -1154,7 +1174,11 @@ export async function fetchTransactions(userId, {
     delete row.booking_adjustment_amount;
   }
 
-  return rows;
+  // Drop standalone booking_charge_adjustment rows: their value was already
+  // folded into the parent booking_charge above, so keeping them as separate
+  // line items would double-count the adjustment in the visible total (and
+  // make every customer-facing list disagree with the wallet balance).
+  return rows.filter((row) => row.transaction_type !== 'booking_charge_adjustment');
 }
 
 // Read the recorded available_delta for a transaction, defaulting to the
@@ -1242,6 +1266,10 @@ export async function recordTransaction({
   relatedEntityId,
   createdBy,
   allowNegative = false,
+  // Optional dedupe key. When provided, a second call with the same key is a
+  // no-op that returns the original transaction (backed by a UNIQUE index, so it
+  // is also safe under concurrency / duplicate webhooks). See migration 265.
+  idempotencyKey = null,
   client: existingClient,
   // Transaction transparency fields (for audit trail)
   originalAmount = null,
@@ -1264,6 +1292,7 @@ export async function recordTransaction({
   const numericAmount = toNumeric(amount);
   const finalDirection = resolveDirection(numericAmount, direction);
   const metadataObject = ensurePlainObject(metadata);
+  const resolvedIdempotencyKey = idempotencyKey ?? metadataObject.idempotencyKey ?? null;
   const resolvedEntityType = entityType || metadataObject.entityType || relatedEntityType || null;
   const resolvedRelatedEntityType = relatedEntityType || resolvedEntityType;
   const resolvedRelatedEntityId = relatedEntityId || metadataObject.entityId || null;
@@ -1318,13 +1347,29 @@ export async function recordTransaction({
 
     const balanceRow = await ensureBalance(client, userId, normalizedCurrency);
 
+    // Idempotency: with the balance row now locked (FOR UPDATE), a concurrent call
+    // with the same key has either already committed (we see its row and return it)
+    // or is still blocked behind our lock. The UNIQUE index is the final backstop.
+    if (resolvedIdempotencyKey) {
+      const existing = await client.query(
+        `SELECT * FROM wallet_transactions WHERE idempotency_key = $1 LIMIT 1`,
+        [resolvedIdempotencyKey]
+      );
+      if (existing.rows.length > 0) {
+        if (shouldCommit) {
+          await client.query('COMMIT');
+        }
+        return existing.rows[0];
+      }
+    }
+
     const currentAvailable = toNumeric(balanceRow.available_amount);
     const currentPending = toNumeric(balanceRow.pending_amount);
     const currentNonWithdrawable = toNumeric(balanceRow.non_withdrawable_amount);
 
-    const nextAvailable = toNumeric(currentAvailable + numericAvailableDelta);
-    const nextPending = toNumeric(currentPending + numericPendingDelta);
-    const nextNonWithdrawable = toNumeric(currentNonWithdrawable + numericNonWithdrawableDelta);
+    const nextAvailable = sumMoney(currentAvailable, numericAvailableDelta);
+    const nextPending = sumMoney(currentPending, numericPendingDelta);
+    const nextNonWithdrawable = sumMoney(currentNonWithdrawable, numericNonWithdrawableDelta);
     const totalSpentDelta = numericAvailableDelta > 0 && TOTAL_SPENT_TRANSACTION_TYPES.has(transactionType)
       ? toNumeric(numericAvailableDelta)
       : 0;
@@ -1343,8 +1388,20 @@ export async function recordTransaction({
     }
 
     if (allowNegative && nextAvailable < -0.0001) {
-      // Allow the migration guard to accept overdrafts for this transaction within the current session
-      await client.query("SELECT set_config('wallet.allow_negative', 'true', false)");
+      // Enforce a per-wallet overdraft floor when one is configured (NULL = unlimited,
+      // preserving prior behaviour). Closes the "overdraft is bottomless" finding.
+      if (balanceRow.overdraft_limit !== null && balanceRow.overdraft_limit !== undefined) {
+        const maxNegative = -Math.abs(toNumeric(balanceRow.overdraft_limit));
+        if (nextAvailable < maxNegative - 0.0001) {
+          throw new Error(
+            `Overdraft limit exceeded (limit ${toNumeric(balanceRow.overdraft_limit)} ${normalizedCurrency})`
+          );
+        }
+      }
+      // Allow the migration guard to accept this overdraft — TRANSACTION-LOCAL
+      // (is_local=true) so the flag never leaks onto the pooled connection and
+      // silently disarms the guard for a later unrelated request.
+      await client.query("SELECT set_config('wallet.allow_negative', 'true', true)");
 
       // Audit trail: record who exercised the override, on whose wallet, and for how much.
       // Fires for every flow (bookings, rentals, shop) since they all funnel through here.
@@ -1388,7 +1445,9 @@ export async function recordTransaction({
       [nextAvailable, nextPending, nextNonWithdrawable, balanceRow.id]
     );
 
-    const { rows } = await client.query(
+    let insertResult;
+    try {
+      insertResult = await client.query(
       `INSERT INTO wallet_transactions (
          user_id,
          balance_id,
@@ -1417,13 +1476,14 @@ export async function recordTransaction({
          original_amount,
          original_currency,
          transaction_exchange_rate,
-         transaction_date
+         transaction_date,
+         idempotency_key
        )
        VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
          $11, $12, $13, $14, $15, $16, $17, $18,
          $19, $20, $21::jsonb, $22, $23, $24, $25, $26, $27,
-         COALESCE($28::timestamptz, NOW())
+         COALESCE($28::timestamptz, NOW()), $29
        )
        RETURNING *`,
       [
@@ -1454,9 +1514,27 @@ export async function recordTransaction({
         originalAmount !== null ? toNumeric(originalAmount) : null,
         originalCurrency ? originalCurrency.toUpperCase() : null,
         transactionExchangeRate !== null ? toNumeric(transactionExchangeRate) : null,
-        resolvedTransactionDate
+        resolvedTransactionDate,
+        resolvedIdempotencyKey
       ]
-    );
+      );
+    } catch (insertErr) {
+      // UNIQUE(idempotency_key) backstop for the rare path the FOR UPDATE pre-check
+      // can't serialize (e.g. the same key landing on different balance rows): a
+      // duplicate already exists — roll back our partial balance mutation and replay it.
+      if (resolvedIdempotencyKey && insertErr?.code === '23505' && shouldCommit) {
+        await client.query('ROLLBACK');
+        const existing = await pool.query(
+          `SELECT * FROM wallet_transactions WHERE idempotency_key = $1 LIMIT 1`,
+          [resolvedIdempotencyKey]
+        );
+        if (existing.rows.length > 0) {
+          return existing.rows[0];
+        }
+      }
+      throw insertErr;
+    }
+    const { rows } = insertResult;
 
     await mirrorLegacyBalance({
       client,
@@ -1505,6 +1583,7 @@ export async function recordLegacyTransaction({
   metadata = {},
   createdBy,
   allowNegative = false,
+  idempotencyKey = null,
   client
 }) {
   const normalizedType = transactionType || type;
@@ -1584,6 +1663,7 @@ export async function recordLegacyTransaction({
     metadata: metadataObject,
     createdBy,
     allowNegative,
+    idempotencyKey,
     client
   });
 }
@@ -1591,6 +1671,132 @@ export async function recordLegacyTransaction({
 export async function calculateAvailableBalance(userId, currency = DEFAULT_CURRENCY) {
   const balance = await getBalance(userId, currency);
   return balance.available;
+}
+
+// ── Ledger ↔ cache reconciliation ─────────────────────────────────────────────
+// The intended invariant is: wallet_balances.{available,pending,non_withdrawable}
+// == SUM of the matching *_delta over completed wallet_transactions. The cache is
+// maintained incrementally by recordTransaction, so any raw-SQL writer or bug can
+// drift it (see the 2026-05-30 / 2026-05-31 incidents). These helpers are the ONE
+// authoritative recompute path and a drift detector for the reconciliation cron.
+
+export async function recomputeBalanceFromLedger(userId, currency = DEFAULT_CURRENCY, { client: existingClient } = {}) {
+  const normalized = normalizeCurrency(currency);
+  const client = existingClient || await pool.connect();
+  const shouldRelease = !existingClient;
+  try {
+    const { rows } = await client.query(
+      `SELECT
+         COALESCE(SUM(available_delta) FILTER (WHERE status = 'completed'), 0)         AS available,
+         COALESCE(SUM(pending_delta) FILTER (WHERE status = 'completed'), 0)           AS pending,
+         COALESCE(SUM(non_withdrawable_delta) FILTER (WHERE status = 'completed'), 0)  AS non_withdrawable
+       FROM wallet_transactions
+       WHERE user_id = $1 AND currency = $2`,
+      [userId, normalized]
+    );
+    const ledger = rows[0] || { available: 0, pending: 0, non_withdrawable: 0 };
+    await client.query(
+      `INSERT INTO wallet_balances (user_id, currency, available_amount, pending_amount, non_withdrawable_amount, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (user_id, currency) DO UPDATE
+         SET available_amount = EXCLUDED.available_amount,
+             pending_amount = EXCLUDED.pending_amount,
+             non_withdrawable_amount = EXCLUDED.non_withdrawable_amount,
+             updated_at = NOW()`,
+      [userId, normalized, toNumeric(ledger.available), toNumeric(ledger.pending), toNumeric(ledger.non_withdrawable)]
+    );
+    return {
+      available: toNumeric(ledger.available),
+      pending: toNumeric(ledger.pending),
+      nonWithdrawable: toNumeric(ledger.non_withdrawable),
+    };
+  } finally {
+    if (shouldRelease) {
+      client.release();
+    }
+  }
+}
+
+// Returns wallets whose cached available_amount disagrees with the completed-ledger
+// SUM by more than `tolerance`. Used by the reconciliation cron to alert (not to
+// silently overwrite). Read-only.
+export async function findBalanceLedgerDrift({ tolerance = 0.01, limit = 500 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT b.user_id,
+            b.currency,
+            b.available_amount AS cached_available,
+            COALESCE(l.available, 0) AS ledger_available,
+            (b.available_amount - COALESCE(l.available, 0)) AS drift
+       FROM wallet_balances b
+       LEFT JOIN (
+         SELECT user_id, currency, SUM(available_delta) AS available
+           FROM wallet_transactions
+          WHERE status = 'completed'
+          GROUP BY user_id, currency
+       ) l ON l.user_id = b.user_id AND l.currency = b.currency
+      WHERE ABS(b.available_amount - COALESCE(l.available, 0)) > $1
+      ORDER BY ABS(b.available_amount - COALESCE(l.available, 0)) DESC
+      LIMIT $2`,
+    [tolerance, limit]
+  );
+  return rows.map((r) => ({
+    userId: r.user_id,
+    currency: r.currency,
+    cachedAvailable: toNumeric(r.cached_available),
+    ledgerAvailable: toNumeric(r.ledger_available),
+    drift: toNumeric(r.drift),
+  }));
+}
+
+// Outstanding net wallet charge per currency for a sale entity. Sums available_delta
+// over completed ledger rows linked to the entity (charges are negative, prior
+// refunds positive), returning only currencies still net-debited. Refund callers use
+// this to credit back EXACTLY what was charged, in the ORIGINAL currency, and to avoid
+// over-refunding an already-refunded entity (a retried cancel returns nothing to do).
+// shop_orders.id is INTEGER (related_entity_id is UUID), so shop orders are matched via
+// metadata.orderId instead.
+export async function getEntityNetCharges({
+  client = pool,
+  bookingId = null,
+  rentalId = null,
+  relatedEntityType = null,
+  relatedEntityId = null,
+  shopOrderId = null,
+} = {}) {
+  const runner = client || pool;
+  const conditions = [];
+  const params = [];
+  if (bookingId) {
+    params.push(bookingId);
+    conditions.push(`booking_id = $${params.length}`);
+  }
+  if (rentalId) {
+    params.push(rentalId);
+    conditions.push(`rental_id = $${params.length}`);
+  }
+  if (relatedEntityType && relatedEntityId) {
+    params.push(relatedEntityType);
+    const a = params.length;
+    params.push(relatedEntityId);
+    const b = params.length;
+    conditions.push(`(related_entity_type = $${a} AND related_entity_id = $${b})`);
+  }
+  if (shopOrderId !== null && shopOrderId !== undefined) {
+    params.push(String(shopOrderId));
+    conditions.push(`(related_entity_type IN ('shop_order', 'shop_order_refund') AND metadata->>'orderId' = $${params.length})`);
+  }
+  if (!conditions.length) {
+    return [];
+  }
+  const { rows } = await runner.query(
+    `SELECT currency, COALESCE(SUM(available_delta), 0) AS net
+       FROM wallet_transactions
+      WHERE status = 'completed' AND (${conditions.join(' OR ')})
+      GROUP BY currency
+      HAVING COALESCE(SUM(available_delta), 0) < 0`,
+    params
+  );
+  return rows.map((r) => ({ currency: r.currency, amount: toNumeric(Math.abs(Number(r.net))) }));
 }
 
 export async function lockFundsForBooking({ userId, amount, bookingId, currency = DEFAULT_CURRENCY, client, originalAmount: providedOriginalAmount = null, originalCurrency: providedOriginalCurrency = null, transactionExchangeRate = null, description = null, allowNegative = false }) {
@@ -2553,6 +2759,12 @@ export async function createDepositRequest({
   proofUrl,
   notes,
   autoComplete = false,
+  // SECURITY: a self-service caller must NEVER be able to mark its own deposit
+  // completed (that credits the wallet with no real payment). The raw `autoComplete`
+  // flag is only honoured for non-gateway methods when the *route* sets this to true
+  // for a privileged actor (admin/manager recording a manual/cash deposit). Gateway
+  // methods still complete via the trusted gateway signal regardless of this flag.
+  allowManualComplete = false,
   gateway,
   gatewayTransactionId,
   initiatedBy,
@@ -2677,7 +2889,10 @@ export async function createDepositRequest({
     }
     let resolvedGatewayTransactionId = gatewayTransactionId || null;
     let resolvedProofUrl = proofUrl || null;
-    let shouldAutoComplete = autoComplete === true;
+    // Self-service callers cannot self-complete: the raw autoComplete is only
+    // honoured when the route authorized it (allowManualComplete). The gateway
+    // branch below can still set this true from a verified-payment signal.
+    let shouldAutoComplete = autoComplete === true && allowManualComplete === true;
     let resolvedBankAccountId = bankAccountId || null;
     let resolvedReferenceCode = referenceCode || null;
     let resolvedBankReference = bankReference || resolvedReferenceCode;
@@ -3630,7 +3845,9 @@ export const __testables = {
   mergePreferences,
   resolveDepositPolicy,
   resolveEnabledGateways,
-  toBooleanFlag
+  toBooleanFlag,
+  toNumeric,
+  sumMoney
 };
 
 export default {

@@ -10,7 +10,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import { queueRatingReminder } from '../services/ratingService.js';
 import bookingNotificationService from '../services/bookingNotificationService.js';
 import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
-import { recordTransaction as recordWalletTransaction, recordLegacyTransaction } from '../services/walletService.js';
+import { recordTransaction as recordWalletTransaction, recordLegacyTransaction, getEntityNetCharges } from '../services/walletService.js';
 import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
@@ -2564,6 +2564,31 @@ router.post('/',
           `UPDATE bookings SET payment_status = 'failed' WHERE id = $1`,
           [booking.id]
         );
+        // Reverse the already-committed hybrid wallet debit so the customer is not
+        // charged for a booking whose card payment never started (orphan debit).
+        // Idempotent so a client retry of the same booking can't over-refund.
+        if (isHybridPayment && hybridWalletDeducted > 0) {
+          try {
+            await recordWalletTransaction({
+              userId: student_user_id,
+              amount: Math.abs(hybridWalletDeducted),
+              direction: 'credit',
+              currency: walletCurrency || 'EUR',
+              transactionType: 'booking_cancelled_refund',
+              description: `Hybrid payment init failed — wallet portion refunded (booking ${booking.id})`,
+              relatedEntityType: 'booking',
+              relatedEntityId: booking.id,
+              bookingId: booking.id,
+              createdBy: student_user_id,
+              idempotencyKey: `booking-hybrid-reversal:${booking.id}`,
+              allowNegative: true,
+            });
+          } catch (reversalErr) {
+            logger.error('Failed to reverse hybrid wallet debit after Iyzico init failure', {
+              bookingId: booking.id, error: reversalErr.message
+            });
+          }
+        }
         return res.status(500).json({
           error: 'payment_initiation_failed',
           message: 'Booking was created but payment could not be initiated. Please try again or use a different payment method.',
@@ -5497,26 +5522,45 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
 
   if (balanceRefunded > 0) {
     try {
-      await recordWalletTransaction({
-        userId: studentId,
-        amount: balanceRefunded,
-        transactionType: 'booking_deleted_refund',
-        description: `Booking deleted refund: ${booking.date}`,
-        metadata: {
-          origin: 'delete_booking_helper',
-          bookingId,
-          reason,
-          packagesUpdated: packagesUpdated.map((pkg) => ({
-            packageId: pkg.packageId,
-            hours: pkg.hoursRestored
-          }))
-        },
-        relatedEntityType: 'booking',
-        relatedEntityId: bookingId,
-        createdBy: deletingUserId,
-        allowNegative: true, // Allow refund even if wallet has negative balance
-        client
-      });
+      // Refund what the wallet was ACTUALLY charged, in the original currency and only
+      // the outstanding portion (fixes wrong-currency + hybrid over-refund + double
+      // refund across the two delete paths). If the booking has no wallet charge on the
+      // ledger (card/cash/pre-ledger), keep the legacy EUR store-credit behaviour.
+      const netCharges = await getEntityNetCharges({ client, bookingId });
+      const chargeProbe = await client.query(
+        `SELECT 1 FROM wallet_transactions WHERE booking_id = $1 AND available_delta < 0 AND status = 'completed' LIMIT 1`,
+        [bookingId]
+      );
+      const refunds = chargeProbe.rows.length > 0
+        ? netCharges
+        : [{ currency: 'EUR', amount: balanceRefunded }];
+      let refundedTotal = 0;
+      for (const rc of refunds) {
+        await recordWalletTransaction({
+          userId: studentId,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'booking_deleted_refund',
+          description: `Booking deleted refund: ${booking.date}`,
+          metadata: {
+            origin: 'delete_booking_helper',
+            bookingId,
+            reason,
+            packagesUpdated: packagesUpdated.map((pkg) => ({
+              packageId: pkg.packageId,
+              hours: pkg.hoursRestored
+            }))
+          },
+          relatedEntityType: 'booking',
+          relatedEntityId: bookingId,
+          createdBy: deletingUserId,
+          allowNegative: true, // Allow refund even if wallet has negative balance
+          idempotencyKey: `booking-deleted-refund:${bookingId}:${rc.currency}`,
+          client
+        });
+        refundedTotal += rc.amount;
+      }
+      balanceRefunded = refundedTotal;
     } catch (walletError) {
       logger?.error?.('Failed to record wallet refund for booking helper delete', {
         bookingId,
@@ -5684,19 +5728,37 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
                   }
                   transactionDescription += ` - ${reason}`;
 
-                  await recordWalletTransaction({
-                    userId: studentId,
-                    amount: balanceRefunded,
-                    transactionType: 'booking_deleted_refund',
-                    status: 'completed',
-                    description: transactionDescription,
-                    metadata: walletMetadata,
-                    relatedEntityType: 'booking',
-                    relatedEntityId: bookingId,
-                    createdBy: deletingUserId,
-                    allowNegative: true, // Allow refund even if wallet has negative balance
-                    client
-                  });
+                  // Refund the ACTUAL wallet charge in its original currency, outstanding
+                  // portion only (currency-correct + hybrid-safe + double-refund-safe).
+                  // Fall back to legacy EUR store-credit only when no wallet charge exists.
+                  const netCharges = await getEntityNetCharges({ client, bookingId });
+                  const chargeProbe = await client.query(
+                    `SELECT 1 FROM wallet_transactions WHERE booking_id = $1 AND available_delta < 0 AND status = 'completed' LIMIT 1`,
+                    [bookingId]
+                  );
+                  const refunds = chargeProbe.rows.length > 0
+                    ? netCharges
+                    : [{ currency: 'EUR', amount: balanceRefunded }];
+                  let refundedTotal = 0;
+                  for (const rc of refunds) {
+                    await recordWalletTransaction({
+                      userId: studentId,
+                      amount: rc.amount,
+                      currency: rc.currency,
+                      transactionType: 'booking_deleted_refund',
+                      status: 'completed',
+                      description: transactionDescription,
+                      metadata: walletMetadata,
+                      relatedEntityType: 'booking',
+                      relatedEntityId: bookingId,
+                      createdBy: deletingUserId,
+                      allowNegative: true, // Allow refund even if wallet has negative balance
+                      idempotencyKey: `booking-deleted-refund:${bookingId}:${rc.currency}`,
+                      client
+                    });
+                    refundedTotal += rc.amount;
+                  }
+                  balanceRefunded = refundedTotal;
                 } catch (walletError) {
                   logger.error('Failed to record wallet refund for booking deletion', {
                     bookingId,
