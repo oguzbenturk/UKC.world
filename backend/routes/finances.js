@@ -602,6 +602,10 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     // entries — without them, payout reversals leak into customer totals.
     const STAFF_PAYOUT_ENTITY_TYPES = ['manager_payment', 'instructor_payment', 'manager', 'instructor'];
 
+    // Hide synthetic backfill entries (one per migrated user — they're not real
+    // payment activity and would inflate admin totals + clutter the table).
+    const HIDDEN_TRANSACTION_TYPES = ['legacy_opening_balance'];
+
     const options = {
       limit: Number.parseInt(limit, 10) || 50,
       offset: Number.parseInt(offset, 10) || 0,
@@ -612,6 +616,7 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       direction: direction || undefined,
       currency: currency || undefined,
       excludeEntityTypes: STAFF_PAYOUT_ENTITY_TYPES,
+      excludeTransactionTypes: HIDDEN_TRANSACTION_TYPES,
       excludeOrphanedRelatedEntities: true
     };
 
@@ -662,6 +667,9 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     if (user_id) { statsParams.push(user_id); statsFilters.push(`user_id = $${++sIdx}`); }
     statsParams.push(STAFF_PAYOUT_ENTITY_TYPES);
     statsFilters.push(`(entity_type IS NULL OR entity_type <> ALL($${++sIdx}))`);
+    // Mirror the row filter: legacy backfill entries aren't real payment activity.
+    statsParams.push(HIDDEN_TRANSACTION_TYPES);
+    statsFilters.push(`transaction_type <> ALL($${++sIdx})`);
     statsFilters.push(`(
       booking_id IS NULL OR NOT EXISTS (
         SELECT 1 FROM bookings b

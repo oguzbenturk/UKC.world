@@ -1024,6 +1024,7 @@ export async function fetchTransactions(userId, {
   endDate,
   direction,
   excludeEntityTypes,
+  excludeTransactionTypes,
   excludeOrphanedRelatedEntities = false
 } = {}) {
   const filters = [];
@@ -1087,6 +1088,12 @@ export async function fetchTransactions(userId, {
     index += 1;
     params.push(excludeEntityTypes);
     filters.push(`(entity_type IS NULL OR entity_type <> ALL($${index}))`);
+  }
+
+  if (Array.isArray(excludeTransactionTypes) && excludeTransactionTypes.length > 0) {
+    index += 1;
+    params.push(excludeTransactionTypes);
+    filters.push(`transaction_type <> ALL($${index})`);
   }
 
   if (excludeOrphanedRelatedEntities) {

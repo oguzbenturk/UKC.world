@@ -79,8 +79,8 @@ router.get('/callback', async (req, res) => {
         : null
     });
   } catch (err) {
-    logger.error('Spotify callback failed', { error: err.message });
-    res.status(500).json({ error: 'Spotify callback failed' });
+    logger.error('Spotify callback failed', { error: err.message, status: err.status });
+    return res.status(err.status === 403 ? 403 : 500).json({ error: err.message || 'Spotify callback failed' });
   }
 });
 
@@ -106,6 +106,18 @@ router.get('/status', async (req, res) => {
     }
     const tokens = await getStoredTokens();
     if (!tokens) return res.json({ configured: true, connected: false });
+
+    // Legacy/broken rows: tokens row was saved before we required a successful
+    // /me fetch, so spotify_user_id is null. Treat as disconnected so the UI
+    // shows the Connect button again instead of an empty "connected" state.
+    if (!tokens.spotify_user_id) {
+      await deleteTokens();
+      return res.json({
+        configured: true,
+        connected: false,
+        warning: 'Previous Spotify connection was incomplete and has been cleared. Please reconnect.'
+      });
+    }
 
     res.json({
       configured: true,

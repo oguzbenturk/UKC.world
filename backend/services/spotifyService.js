@@ -79,12 +79,30 @@ const fetchSpotifyProfile = async (accessToken) => {
   const res = await fetch(`${SPOTIFY_API}/me`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    // Bubble the real reason up instead of returning null and storing broken
+    // tokens. Most common cause is Spotify Developer Dashboard "Development
+    // Mode" — only allowlisted Spotify accounts can complete the OAuth grant
+    // beyond the basic token exchange, so /me returns 403.
+    const text = await res.text();
+    const err = new Error(
+      res.status === 403
+        ? 'This Spotify account is not authorised on the Plannivo Spotify app. ' +
+          'Add it under "Users and Access" in https://developer.spotify.com/dashboard ' +
+          '(Development mode allows up to 25 users), or request Extended Quota Mode.'
+        : `Spotify profile fetch failed: ${res.status} ${text || res.statusText}`
+    );
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 };
 
 export const saveTokens = async ({ tokenResponse, linkedByUserId }) => {
   const expiresAt = new Date(Date.now() + (tokenResponse.expires_in - 60) * 1000);
+  // Throws on failure — caller is responsible for surfacing the message; we
+  // refuse to save tokens we can't even read /me with, since the downstream
+  // /playlists, /devices etc. calls would all fail the same way.
   const profile = await fetchSpotifyProfile(tokenResponse.access_token);
 
   const existing = await pool.query('SELECT id FROM spotify_tokens LIMIT 1');
