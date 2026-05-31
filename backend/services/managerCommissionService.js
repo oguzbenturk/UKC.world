@@ -16,7 +16,7 @@
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from './currencyService.js';
-import { deriveLessonAmount, toNumber } from '../utils/instructorEarnings.js';
+import { deriveLessonAmount, toNumber, partialLessonValue } from '../utils/instructorEarnings.js';
 import { getActiveDiscountAmount as sharedGetActiveDiscountAmount } from '../utils/discountAmounts.js';
 import BookingUpdateCascadeService from './bookingUpdateCascadeService.js';
 import { WALLET_ENTITY_TYPE } from '../constants/transactions.js';
@@ -576,7 +576,14 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
       const groupSize = Math.max(1, parseInt(row.group_size, 10) || 1);
       if (row.payment_status === 'partial') {
         const cashAmount = parseFloat(row.final_amount) || parseFloat(row.amount) || 0;
-        newSourceAmount = Number.parseFloat((perPersonAmount + cashAmount).toFixed(2));
+        // Value only the package-drawn hours + cash (see partialLessonValue) so a
+        // package-price edit doesn't re-inflate partial bookings by stacking the
+        // full cash on top of the full-duration package value.
+        newSourceAmount = partialLessonValue({
+          packageValueFullDuration: perPersonAmount,
+          duration: toNumber(row.duration),
+          cashAmount,
+        });
       } else {
         newSourceAmount = Number.parseFloat((perPersonAmount * (groupSize > 1 ? groupSize : 1)).toFixed(2));
       }

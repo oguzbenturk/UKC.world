@@ -155,6 +155,24 @@ describe('BookingUpdateCascadeService.computeLessonAmount for packages', () => {
     expect(amt).toBeCloseTo(120);
   });
 
+  test('partial booking values only package-drawn hours + cash (no double-count)', async () => {
+    // Package 600 / 10h = €60/hr. A 2h partial lesson where 1h came from the
+    // package and 1h was €60 cash must be worth ~€120 — NOT €180 (full 2h at the
+    // package rate PLUS the cash, which was the historical double-count bug).
+    const client = createMockClient([
+      { rows: [{ purchase_price: 600, total_hours: 10 }] },
+    ]);
+    const booking = {
+      payment_status: 'partial',
+      customer_package_id: 'pkg1',
+      duration: 2,
+      final_amount: 60, // cash portion
+      amount: 60,
+    };
+    const amt = await BookingUpdateCascadeService.computeLessonAmount(client, booking);
+    expect(amt).toBeCloseTo(120); // was 180 before the partial-overcount fix
+  });
+
   test('package booking falls back to base when bad data', async () => {
     const client = createMockClient([{ rows: [] }]);
     const booking = {

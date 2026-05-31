@@ -8,7 +8,7 @@ import Decimal from 'decimal.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { writeLessonSnapshot } from './revenueSnapshotService.js';
-import { deriveLessonAmount } from '../utils/instructorEarnings.js';
+import { deriveLessonAmount, partialLessonValue } from '../utils/instructorEarnings.js';
 import { getActiveDiscountAmount } from '../utils/discountAmounts.js';
 import { recordTransaction as recordWalletTransaction } from './walletService.js';
 import {
@@ -166,9 +166,19 @@ class BookingUpdateCascadeService {
         fallbackSessionDuration: (servicePackage?.total_hours && servicePackage?.sessions_count ? servicePackage.total_hours / servicePackage.sessions_count : null) || booking.duration,
       });
 
-      // For 'partial' group bookings, total lesson value = package per-person value + cash portion
+      // For a 'partial' booking the package covers only SOME of the booked hours
+      // and the rest is settled in cash. `lessonAmount` is the package-rate value
+      // of the FULL duration; adding the whole cash on top double-counted the
+      // cash-covered hour (it inflated both the manager commission base and any
+      // percentage instructor's earnings). `partialLessonValue` attributes the
+      // cash to the hours it pays for and values only the package-drawn hours at
+      // the package rate.
       if (isPartial && baseAmount.gt(0)) {
-        return new Decimal(lessonAmount).add(baseAmount).toDecimalPlaces(2).toNumber();
+        return partialLessonValue({
+          packageValueFullDuration: lessonAmount,
+          duration: booking.duration,
+          cashAmount: baseAmount.toNumber(),
+        });
       }
 
       return lessonAmount;
@@ -242,8 +252,24 @@ class BookingUpdateCascadeService {
   // log: updating instructor earnings
         // 1. Update instructor earnings (or create if booking just completed)
         await this.updateInstructorEarnings(client, booking);
-        
-        // 2. Update revenue snapshots  
+
+        // 1b. Keep the manager commission snapshot in lockstep with the booking's
+        // current price/duration. Historically this cascade only refreshed
+        // instructor earnings, so a later price/duration edit never reached
+        // manager_commissions.source_amount — the manager salary kept showing the
+        // value frozen at booking completion. Mirror the earnings recompute here.
+        // Dynamic import avoids a static cycle (managerCommissionService imports
+        // this module). The recompute no-ops cleanly for paid-out / missing rows.
+        try {
+          const { recomputeManagerCommissionForEntity } = await import('./managerCommissionService.js');
+          await recomputeManagerCommissionForEntity(client, WALLET_ENTITY_TYPE.BOOKING, booking.id);
+        } catch (mcErr) {
+          logger.warn('Manager commission recompute during booking cascade failed', {
+            bookingId: booking.id, error: mcErr.message,
+          });
+        }
+
+        // 2. Update revenue snapshots
         await this.updateRevenueSnapshots(client, booking);
         
         // 3. Update customer balance (if price changed)

@@ -25,7 +25,7 @@
  * skipped automatically. Runs against whatever backend/.env points at.
  */
 import { pool } from '../backend/db.js';
-import { deriveLessonAmount, toNumber as num } from '../backend/utils/instructorEarnings.js';
+import { deriveLessonAmount, toNumber as num, partialLessonValue } from '../backend/utils/instructorEarnings.js';
 import BookingUpdateCascadeService from '../backend/services/bookingUpdateCascadeService.js';
 
 const FIX = process.argv.includes('--fix');
@@ -89,7 +89,13 @@ function computeLessonAmount(row, { applyDiscount }) {
   });
 
   if (row.payment_status === 'partial' && baseAmount > 0) {
-    return round2(lessonAmount + baseAmount);
+    // Mirror the cascade fix: value only the package-drawn hours + cash instead
+    // of stacking the full cash on the full-duration package value.
+    return partialLessonValue({
+      packageValueFullDuration: lessonAmount,
+      duration: num(row.duration),
+      cashAmount: baseAmount,
+    });
   }
   return lessonAmount;
 }

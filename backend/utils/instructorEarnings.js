@@ -112,6 +112,37 @@ export const deriveLessonAmount = ({
   return 0;
 };
 
+/**
+ * Realized lesson value for a PARTIAL package booking (some hours drawn from the
+ * package, the remaining hours settled in cash).
+ *
+ * `packageValueFullDuration` is the package-rate value of the WHOLE booked
+ * duration (package per-hour rate × duration). The historical bug added the
+ * cash on TOP of this full-duration value, which double-counted the hour the
+ * cash already paid for — inflating both the manager commission base and any
+ * percentage instructor's earnings (e.g. a 2h lesson covering 1 package hour +
+ * €60 cash was valued at 2h×rate + €60 instead of ~2h×rate).
+ *
+ * Here the cash settles the hours the package could not cover, priced at the
+ * package per-hour rate: we attribute the cash to the hours it pays for, value
+ * only the package-drawn hours at the package rate, and add the cash back. With
+ * cash priced at the package rate this collapses to `duration × packageRate`
+ * (the cash no longer inflates the total); when the cash exceeds the whole
+ * lesson's package value the cash floors the result so we never under-count real
+ * money paid.
+ */
+export const partialLessonValue = ({ packageValueFullDuration, duration, cashAmount }) => {
+  const pkgValue = safeNumber(packageValueFullDuration);
+  const dur = safeNumber(duration);
+  const cash = Math.max(0, safeNumber(cashAmount));
+  if (pkgValue <= 0) return Number.parseFloat(cash.toFixed(2));
+  if (cash <= 0 || dur <= 0) return Number.parseFloat(pkgValue.toFixed(2));
+  const perHour = pkgValue / dur;
+  const cashHours = perHour > 0 ? Math.min(dur, cash / perHour) : 0;
+  const packageHours = Math.max(0, dur - cashHours);
+  return Number.parseFloat((packageHours * perHour + cash).toFixed(2));
+};
+
 export const deriveTotalEarnings = ({ lessonAmount, commissionRate, commissionType = 'percentage', lessonDuration = 1 }) => {
   const amount = safeNumber(lessonAmount);
   const rate = safeNumber(commissionRate);

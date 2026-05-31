@@ -1,0 +1,2 @@
+cols: tag|bid|status|pay|dur|base|is_self|rate|type
+EARN|9c8b3e0e|completed|paid|2.00|140.00||11.00|fixed
