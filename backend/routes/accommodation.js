@@ -1043,6 +1043,12 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 			createdBy: req.user.id,
 		});
 
+		// M4: recomputeDiscountForAccommodationBooking early-returns when there is
+		// no discount, so a bare price edit never refreshed the manager commission.
+		// Recompute unconditionally here (idempotent; skips paid-out / no-change).
+		const { recomputeManagerCommissionForEntity } = await import('../services/managerCommissionService.js');
+		await recomputeManagerCommissionForEntity(client, 'accommodation_booking', id);
+
 		// pay_later bookings have an `accommodation_charge` debit on creation;
 		// wallet-paid bookings have funds locked equal to the original total.
 		// Either way the customer balance must move by `delta` when the price

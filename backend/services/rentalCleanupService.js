@@ -187,6 +187,19 @@ export async function forceDeleteRental({
     });
   }
 
+  // H4/M3: cancel the manager commission for this rental in the SAME transaction
+  // BEFORE the row is hard-deleted. There is no FK cascade, so without this the
+  // pending commission becomes an orphan (source_id pointing at a non-existent
+  // rental) that summary/payroll/upcoming totals would keep counting forever.
+  await client.query(
+    `UPDATE manager_commissions
+        SET status = 'cancelled',
+            notes = COALESCE(notes || ' | ', '') || $1,
+            updated_at = NOW()
+      WHERE source_type = 'rental' AND source_id = $2 AND status = 'pending'`,
+    ['Cancelled: Rental deleted', String(rentalId)]
+  );
+
   const deleteResult = await client.query(
     'DELETE FROM rentals WHERE id = $1 RETURNING *',
     [rentalId]

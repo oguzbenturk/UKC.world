@@ -957,8 +957,33 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
       }
     }
     
+    // H2/H3: a bare price edit must refresh the discount AND the manager
+    // commission. The status-transition path below only RECORDS a commission on
+    // create (idempotent thereafter), so a price change on an already-active
+    // rental previously left the commission frozen at the old price.
+    // recomputeDiscountForRental rebases any % discount and refreshes the
+    // commission; the direct recompute covers the no-discount case. Both are
+    // idempotent and skip paid-out rows.
+    const rentalPriceChanged = parsedTotalPrice !== null
+      && Number(existingRental.total_price || 0) !== Number(finalTotalPrice || 0);
+    if (rentalPriceChanged) {
+      try {
+        const { recomputeDiscountForRental } = await import('../services/discountService.js');
+        await recomputeDiscountForRental(client, {
+          rentalId: id,
+          newBasePrice: Number(finalTotalPrice) || 0,
+          currency: existingRental.currency || 'EUR',
+          createdBy: actorId || null,
+        });
+        const { recomputeManagerCommissionForEntity } = await import('../services/managerCommissionService.js');
+        await recomputeManagerCommissionForEntity(client, 'rental', id);
+      } catch (cascadeErr) {
+        logger.warn('Rental price-edit cascade failed', { rentalId: id, error: cascadeErr.message });
+      }
+    }
+
     await client.query('COMMIT');
-    
+
     // Fetch the complete updated rental data for the response
     const { rows } = await pool.query(
       `SELECT 

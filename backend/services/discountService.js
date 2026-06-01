@@ -623,6 +623,158 @@ export async function recomputeDiscountForBooking(client, {
   };
 }
 
+// H8/H9/F7: rebase ALL of a booking's discount rows (entity-wide AND per-
+// participant) after its price was edited, then re-credit the customer wallet.
+// Designed to run BEFORE the salary recompute in cascadeBookingUpdate so the
+// manager commission AND instructor earnings both read the corrected post-edit
+// discount. Previously the rebase lived inside updateCustomerBalance, behind its
+// multi-participant and package early-returns — so package / group / multi-
+// participant price edits left a stale absolute discount that BOTH salaries (and
+// the displayed discount chip) subtracted. Fixed-amount discounts (no percent)
+// keep their amount. Entity-wide rows rebase against the whole-booking gross
+// value (package-derived for package/partial, else final_amount); per-participant
+// rows rebase against that participant's current share (payment_amount).
+export async function recomputeBookingDiscountsForPriceEdit(client, { booking, createdBy }) {
+  const bookingId = booking.id;
+  const { rows: discRows } = await client.query(
+    `SELECT id, customer_id, percent, amount, currency, reason, participant_user_id
+       FROM discounts WHERE entity_type = 'booking' AND entity_id = $1`,
+    [String(bookingId)]
+  );
+  if (!discRows.length) return { rebased: 0 };
+
+  // Gross (pre-discount) whole-booking value for entity-wide discount rows.
+  let grossEntityBase = Number(booking.final_amount ?? booking.amount) || 0;
+  if (booking.customer_package_id && (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
+    try {
+      const Cascade = (await import('./bookingUpdateCascadeService.js')).default;
+      grossEntityBase = await Cascade.computeLessonAmount(client, booking);
+    } catch { /* fall back to final_amount */ }
+  }
+
+  let participantShares = null;
+  let rebased = 0;
+  for (const d of discRows) {
+    if (Number(d.percent) <= 0) continue; // fixed-amount discounts keep their amount
+    let base;
+    if (d.participant_user_id) {
+      if (!participantShares) {
+        const { rows: pr } = await client.query(
+          `SELECT user_id, payment_amount FROM booking_participants WHERE booking_id = $1`,
+          [String(bookingId)]
+        );
+        participantShares = new Map(pr.map((r) => [r.user_id, Number(r.payment_amount) || 0]));
+      }
+      base = participantShares.get(d.participant_user_id) || 0;
+    } else {
+      base = grossEntityBase;
+    }
+    const newAmount = computeDiscountAmount(base, d.percent);
+    const oldAmount = Number(d.amount) || 0;
+    if (newAmount === oldAmount) continue;
+
+    const openCredit = await findOpenDiscountAdjustment(client, d.id);
+    if (openCredit) {
+      await reverseDiscountAdjustment(client, openCredit, {
+        reason: 'Discount rebased (booking price edit)',
+        createdBy,
+      });
+    }
+    await client.query(`UPDATE discounts SET amount = $1, updated_at = NOW() WHERE id = $2`, [newAmount, d.id]);
+    if (newAmount > 0) {
+      await postDiscountAdjustment(client, {
+        customerId: d.customer_id,
+        amount: newAmount,
+        currency: d.currency || booking.currency || 'EUR',
+        discountId: d.id,
+        entityType: WALLET_ENTITY_TYPE.BOOKING,
+        entityId: bookingId,
+        reason: d.reason ? `${d.reason} (rebased after price edit)` : 'Discount rebased after price edit',
+        createdBy,
+      });
+    }
+    rebased += 1;
+  }
+  return { rebased };
+}
+
+// H3: rebase a RENTAL's discount after its total_price was edited, and refresh
+// the manager commission. Rentals have no instructor earnings, so this only
+// reconciles the discount amount + outstanding wallet credit and recomputes the
+// manager commission. Mirrors recomputeDiscountForBooking. A fixed-amount
+// discount (no percent) keeps its amount but still triggers a commission
+// refresh against the new base price.
+export async function recomputeDiscountForRental(client, {
+  rentalId,
+  newBasePrice,
+  currency,
+  createdBy,
+}) {
+  const { rows } = await client.query(
+    `SELECT id, customer_id, percent, amount, currency, reason
+       FROM discounts
+      WHERE entity_type = 'rental' AND entity_id = $1`,
+    [String(rentalId)]
+  );
+  if (!rows.length) {
+    // No discount to rebase; caller still recomputes the commission directly.
+    return { adjusted: false, discount: null, oldAmount: 0, newAmount: 0, adjustment: null };
+  }
+
+  const discount = rows[0];
+  const oldAmount = Number(discount.amount) || 0;
+  const isPercent = Number(discount.percent) > 0;
+  const newAmount = isPercent ? computeDiscountAmount(newBasePrice, discount.percent) : oldAmount;
+  const finalCurrency = currency || discount.currency || 'EUR';
+
+  if (newAmount === oldAmount) {
+    // Amount unchanged (fixed discount, or percent yields the same), but the
+    // base price moved — still refresh the commission against the new price.
+    await recomputeManagerCommissionForEntity(client, WALLET_ENTITY_TYPE.RENTAL, rentalId);
+    return { adjusted: false, discount, oldAmount, newAmount, adjustment: null };
+  }
+
+  const openCredit = await findOpenDiscountAdjustment(client, discount.id);
+  if (openCredit) {
+    await reverseDiscountAdjustment(client, openCredit, {
+      reason: 'Discount amount changed (rental price edit)',
+      createdBy,
+    });
+  }
+
+  const updated = await client.query(
+    `UPDATE discounts
+        SET amount = $1, currency = $2, updated_at = NOW()
+      WHERE id = $3
+  RETURNING *`,
+    [newAmount, finalCurrency, discount.id]
+  );
+
+  let adjustment = null;
+  if (newAmount > 0) {
+    adjustment = await postDiscountAdjustment(client, {
+      customerId: discount.customer_id,
+      amount: newAmount,
+      currency: finalCurrency,
+      discountId: discount.id,
+      entityType: WALLET_ENTITY_TYPE.RENTAL,
+      entityId: rentalId,
+      reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
+      createdBy,
+    });
+  }
+
+  await recomputeManagerCommissionForEntity(client, WALLET_ENTITY_TYPE.RENTAL, rentalId);
+
+  return {
+    adjusted: true,
+    discount: updated.rows[0],
+    oldAmount,
+    newAmount,
+    adjustment,
+  };
+}
+
 // Re-derives a customer_package's discount amount after its purchase_price was
 // edited. The stored percent is preserved; only the absolute amount and any
 // outstanding wallet credit are reconciled to match the new base price.

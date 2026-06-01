@@ -30,8 +30,18 @@ const computeInvoiceRows = (invoices, fallbackPayments) => {
   return [];
 };
 
-const computeTotals = (rows, storageCurrency, convertCurrency) =>
-  rows.reduce(
+// F14/F5/F10: type-aware totals that mirror the admin bill aggregator
+// (billAggregator.js:601-636). Without the type filter the student page counted
+// internal reconciliation (discount_adjustment, booking_charge_adjustment),
+// reversals (*_reversal), and refunds (package_refund, booking_deleted_refund)
+// as real money received — producing totals many times the customer's actual
+// deposits (e.g. "Total Paid €1,599" vs €245 really deposited). Rules:
+//   - only 'completed/succeeded/paid' rows count;
+//   - adjustment + reversal rows never move real money → skipped;
+//   - refunds are an outflow → netted against payments (never below zero);
+//   - genuine credits = money in; genuine debits = charges.
+const computeTotals = (rows, storageCurrency, convertCurrency) => {
+  const acc = rows.reduce(
     (acc, invoice) => {
       const raw = Number.parseFloat(invoice?.amount ?? 0);
       if (!Number.isFinite(raw)) return acc;
@@ -40,17 +50,30 @@ const computeTotals = (rows, storageCurrency, convertCurrency) =>
         ? convertCurrency(raw, rowCurrency, storageCurrency)
         : raw;
       const status = String(invoice?.status || '').toLowerCase();
-      if (['completed', 'succeeded', 'paid'].includes(status)) {
-        if (amount >= 0) acc.totalPaid += amount;
-        else acc.totalCharged += Math.abs(amount);
-      } else if (status) {
-        acc.pendingAmount += amount;
-        acc.pendingCount += 1;
+      const type = String(invoice?.type || invoice?.transaction_type || invoice?.transactionType || '').toLowerCase();
+
+      if (!['completed', 'succeeded', 'paid'].includes(status)) {
+        if (status) {
+          acc.pendingAmount += amount;
+          acc.pendingCount += 1;
+        }
+        return acc;
       }
+      if (type.includes('adjustment') || type.includes('reversal')) return acc;
+      if (type.includes('refund')) {
+        acc.totalRefunded += Math.abs(amount);
+        return acc;
+      }
+      if (amount >= 0) acc.totalPaid += amount;
+      else acc.totalCharged += Math.abs(amount);
       return acc;
     },
-    { totalPaid: 0, totalCharged: 0, pendingAmount: 0, pendingCount: 0, totalCount: rows.length },
+    { totalPaid: 0, totalCharged: 0, totalRefunded: 0, pendingAmount: 0, pendingCount: 0, totalCount: rows.length },
   );
+  // Net real deposits after refunds (matches admin "Payments received").
+  acc.totalPaid = Math.max(0, acc.totalPaid - acc.totalRefunded);
+  return acc;
+};
 
 const computeTotalRecords = (paginationTotal, dataTotal, fallbackLength) => {
   if (typeof paginationTotal === 'number' && Number.isFinite(paginationTotal)) return paginationTotal;

@@ -31,6 +31,33 @@ import CurrencyService from '../services/currencyService.js';
 
 const router = express.Router();
 
+// H7: when a group's size changes (participant added/removed), the package
+// per-person lesson value scales by group_size, so the manager commission
+// snapshot (read exclusively from the frozen row) must be recomputed — otherwise
+// the manager is over- or under-credited permanently. The instructor side
+// already re-derives live from bookings.group_size, so only the manager
+// snapshot needs refreshing here. Best-effort, non-blocking, runs after the
+// group_size UPDATE has committed on `pool`. Skips paid-out / no-change rows.
+async function recomputeManagerCommissionAfterGroupChange(bookingId) {
+  if (!bookingId) return;
+  try {
+    const { recomputeManagerCommissionForEntity } = await import('../services/managerCommissionService.js');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await recomputeManagerCommissionForEntity(client, 'booking', bookingId);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.warn('Failed to recompute manager commission after group_size change', { bookingId, error: err.message });
+  }
+}
+
 /**
  * Create a new group booking
  * POST /api/group-bookings
@@ -646,6 +673,7 @@ router.post('/invitation/:token/accept', authenticateJWT, async (req, res, next)
             [bookingId, userId]
           );
           await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
+          await recomputeManagerCommissionAfterGroupChange(bookingId);
         }
       }
     } catch (syncErr) {
@@ -765,6 +793,7 @@ router.post('/:id/accept', authenticateJWT, async (req, res, next) => {
             [bookingId, userId]
           );
           await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
+          await recomputeManagerCommissionAfterGroupChange(bookingId);
         }
       }
     } catch (syncErr) {
@@ -1206,6 +1235,7 @@ router.delete('/:id/participants/:participantId', authenticateJWT, async (req, r
         if (bookingId) {
           await pool.query('DELETE FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, participant.user_id]);
           await pool.query('UPDATE bookings SET group_size = GREATEST(1, (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1)) WHERE id = $1', [bookingId]);
+          await recomputeManagerCommissionAfterGroupChange(bookingId);
         }
       } catch (syncErr) {
         logger.warn('Failed to sync booking_participants on remove', { error: syncErr.message });
@@ -1652,6 +1682,7 @@ router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'm
             [bookingId, targetUser.id]
           );
           await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
+          await recomputeManagerCommissionAfterGroupChange(bookingId);
         }
       }
     } catch (syncErr) {

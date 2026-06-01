@@ -116,7 +116,10 @@ describe('BookingUpdateCascadeService.getCommissionRate precedence', () => {
     expect(commissionValue).toBe(40);
   });
 
-  test('falls back to 50% default when nothing configured', async () => {
+  test('falls back to €0 (require a config) when nothing configured', async () => {
+    // L2: an instructor with NO commission config earns €0 everywhere (the
+    // snapshot writer now matches the live read paths, which already default to
+    // 0). Previously the writer defaulted to 50%, disagreeing with the views.
     const mockClient = createMockClient([
       { rows: [] }, // booking_custom_commissions
       { rows: [] }, // instructor_service_commissions
@@ -127,7 +130,7 @@ describe('BookingUpdateCascadeService.getCommissionRate precedence', () => {
     const booking = { id: 'b6', instructor_user_id: 'i6', service_id: 's6' };
     const { commissionType, commissionValue } = await BookingUpdateCascadeService.getCommissionRate(mockClient, booking);
     expect(commissionType).toBe('percentage');
-    expect(commissionValue).toBe(50);
+    expect(commissionValue).toBe(0);
   });
 });
 

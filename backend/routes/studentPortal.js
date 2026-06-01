@@ -24,7 +24,12 @@ const studentKey = (suffix) => (req) =>
   `api:student:${req.user?.id}:${typeof suffix === 'function' ? suffix(req) : suffix}`;
 const studentInvalidate = [(req) => `api:student:${req.user?.id}:*`];
 
-router.get('/dashboard', requireStudent, cacheMiddleware(60, studentKey('dashboard')), async (req, res, next) => {
+// F4 (interim): staff mutations (price/discount/refund) don't invalidate the
+// per-student cache, so a stale dashboard could persist for the full TTL. Cut
+// the money-sensitive TTL to ~10s to shrink that window. Proper fix (follow-up):
+// invalidate `api:student:<id>:*` from the staff mutation routes for every
+// affected customer (booking owner + participants, package owner).
+router.get('/dashboard', requireStudent, cacheMiddleware(10, studentKey('dashboard')), async (req, res, next) => {
   try {
     const overview = await getStudentOverview(req.user.id, { fallbackUser: req.user });
     res.json(overview);
@@ -73,7 +78,7 @@ router.get('/resources/:courseId', requireStudent, async (req, res, next) => {
   }
 });
 
-router.get('/invoices', requireStudent, cacheMiddleware(120, studentKey(req => `invoices:${req.query.page || 1}`)), async (req, res, next) => {
+router.get('/invoices', requireStudent, cacheMiddleware(15, studentKey(req => `invoices:${req.query.page || 1}`)), async (req, res, next) => {
   try {
     const invoices = await getStudentInvoices(req.user.id, {
       page: req.query.page ? Number(req.query.page) : undefined,

@@ -1,5 +1,5 @@
 import { pool } from '../db.js';
-import { deriveLessonAmount, deriveTotalEarnings, toNumber } from '../utils/instructorEarnings.js';
+import { deriveLessonAmount, deriveTotalEarnings, toNumber, partialLessonValue } from '../utils/instructorEarnings.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
 
 const mapEarningRow = (row) => {
@@ -45,9 +45,12 @@ const mapEarningRow = (row) => {
     serviceDuration: toNumber(row.service_duration),
   });
 
-  // For partial bookings, add the cash portion to the package-derived amount
+  // H5: for partial bookings the package covers only part of the lesson; value
+  // the package-drawn hours + cash via the SAME helper the cascade writer uses,
+  // so this detail view matches the stored snapshot instead of double-counting
+  // the cash hour (was `lessonAmount + baseAmount`).
   if (isPartial && baseAmount > 0) {
-    lessonAmount = Number.parseFloat((lessonAmount + baseAmount).toFixed(2));
+    lessonAmount = partialLessonValue({ packageValueFullDuration: lessonAmount, duration: lessonDuration, cashAmount: baseAmount });
   }
 
   // For group/semi-private bookings using packages, deriveLessonAmount returns
@@ -388,10 +391,18 @@ export async function getAllInstructorBalances() {
     }
 
     const lessonDuration = toNumber(row.lesson_duration);
+    // H6: partial bookings draw some hours from the package and pay the rest in
+    // cash. deriveLessonAmount would return cash-ONLY for 'partial' (dropping the
+    // package hours and undervaluing the instructor). Force the package
+    // derivation, then value package-drawn hours + cash via the shared helper —
+    // matching the cascade writer and the detail view. package_price here is
+    // already discount-adjusted (cp.purchase_price - cp_disc.amt).
+    const isPartialBal = row.payment_status === 'partial' && toNumber(row.package_price) > 0;
+    const baseAmountBal = toNumber(row.base_amount);
     let lessonAmount = deriveLessonAmount({
-      paymentStatus: row.payment_status,
+      paymentStatus: isPartialBal ? 'package' : row.payment_status,
       duration: lessonDuration,
-      baseAmount: toNumber(row.base_amount),
+      baseAmount: isPartialBal ? 0 : baseAmountBal,
       packagePrice: toNumber(row.package_price),
       packageTotalHours: toNumber(row.package_total_hours),
       packageRemainingHours: toNumber(row.package_remaining_hours),
@@ -399,6 +410,9 @@ export async function getAllInstructorBalances() {
       packageSessionsCount: toNumber(row.package_sessions_count),
       fallbackSessionDuration: toNumber(row.fallback_session_duration) || lessonDuration,
     });
+    if (isPartialBal && baseAmountBal > 0) {
+      lessonAmount = partialLessonValue({ packageValueFullDuration: lessonAmount, duration: lessonDuration, cashAmount: baseAmountBal });
+    }
 
     // For group/semi-private bookings using packages, multiply by group_size
     const groupSize = Math.max(1, toNumber(row.group_size) || 1);

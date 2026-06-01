@@ -126,8 +126,14 @@ class BookingUpdateCascadeService {
         const storedHourlyRate = new Decimal(servicePackage.package_hourly_rate || 0);
         const pkgTotalHours = new Decimal(pkg.total_hours || servicePackage.total_hours || 0);
         if (storedHourlyRate.gt(0) && pkgTotalHours.gt(0)) {
-          // Use explicitly stored per-hour lesson rate
-          effectivePackagePrice = storedHourlyRate.mul(pkgTotalHours);
+          // Use explicitly stored per-hour lesson rate, scaled by the discount
+          // ratio (basePrice / full purchase_price) so a package discount still
+          // flows through to the lesson value (L5). Without the ratio the stored
+          // rate overwrites the discount-adjusted base entirely. ratio = 1 when
+          // there is no discount, so non-discounted packages are unchanged.
+          const fullPrice = new Decimal(pkg.purchase_price || 0);
+          const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(1);
+          effectivePackagePrice = storedHourlyRate.mul(pkgTotalHours).mul(ratio);
         } else {
           const rentalDays = parseInt(servicePackage.rental_days) || 0;
           const accomNights = parseInt(servicePackage.accommodation_nights) || 0;
@@ -249,6 +255,21 @@ class BookingUpdateCascadeService {
       const needsEarningsCreation = this.needsEarningsCreation(changes);
       
       if (needsFinancialUpdate || needsCommissionUpdate || needsEarningsCreation) {
+        // 0. Rebase any booking discount(s) against the NEW price BEFORE the
+        // salary recompute, so both the manager commission and instructor
+        // earnings read the corrected post-edit discount. Covers ALL bookings
+        // (package / group / multi-participant) — previously the rebase sat
+        // inside updateCustomerBalance behind early-returns, so those edits left
+        // a stale discount that both salaries subtracted (H8/H9/F7).
+        if (changes.final_amount !== undefined || changes.amount !== undefined) {
+          try {
+            const { recomputeBookingDiscountsForPriceEdit } = await import('./discountService.js');
+            await recomputeBookingDiscountsForPriceEdit(client, { booking, createdBy: booking.updated_by || null });
+          } catch (discErr) {
+            logger.warn('Booking discount rebase during cascade failed', { bookingId: booking.id, error: discErr.message });
+          }
+        }
+
   // log: updating instructor earnings
         // 1. Update instructor earnings (or create if booking just completed)
         await this.updateInstructorEarnings(client, booking);
@@ -371,6 +392,12 @@ class BookingUpdateCascadeService {
     const instructorEarnings = this.computeInstructorEarnings(commissionType, commissionValue, lessonAmount, booking.duration);
     const bookingCurrency = booking.currency || 'EUR';
 
+    // C1: when a booking is reassigned to a different instructor, re-point the
+    // earnings row to the NEW instructor. Historically only the amount was
+    // recomputed (from the new instructor's rate) while instructor_id stayed on
+    // the OLD instructor — so payroll credited the wrong person. COALESCE keeps
+    // the existing instructor_id when the booking has no instructor set (removal
+    // is handled elsewhere), so a transient null never wipes the credit.
     const { rows } = await client.query(`
       UPDATE instructor_earnings
       SET commission_rate = $1,
@@ -378,6 +405,7 @@ class BookingUpdateCascadeService {
           lesson_amount   = $3,
           lesson_duration = $4,
           currency        = $5,
+          instructor_id   = COALESCE($7, instructor_id),
           updated_at      = NOW()
       WHERE booking_id = $6 AND payroll_id IS NULL
       RETURNING lesson_amount, total_earnings
@@ -388,6 +416,7 @@ class BookingUpdateCascadeService {
       booking.duration || 1,
       bookingCurrency,
       booking.id,
+      booking.instructor_user_id || null,
     ]);
 
     return {
@@ -439,7 +468,13 @@ class BookingUpdateCascadeService {
    */
   static async getCommissionRate(client, booking) {
     let commissionType = 'percentage';
-    let commissionValue = 50; // Default fallback
+    // L2: an instructor with NO commission config earns €0 (require an explicit
+    // config). This matches the live read paths (instructorFinanceService /
+    // dashboardSummaryService), which already default to 0 — the snapshot writer
+    // previously defaulted to 50%, so the two disagreed. Verified safe: no current
+    // instructor relies on this fallback (all have a config). An unconfigured
+    // instructor surfaces as €0 so an admin knows to set their commission.
+    let commissionValue = 0; // Default fallback — no config ⇒ €0 (set a commission)
 
     // 0. Self-student override: if the student is personally linked to THIS instructor,
     //    use the instructor's configured self-student commission (default 45%).
@@ -773,17 +808,11 @@ class BookingUpdateCascadeService {
             });
           }
 
-          // Rebase any % discount layered on this booking against the new
-          // base price. Mirrors the accommodation/package flows. Dynamic
-          // import because discountService already imports this module
-          // (avoids the static cycle).
-          const { recomputeDiscountForBooking } = await import('./discountService.js');
-          await recomputeDiscountForBooking(client, {
-            bookingId: booking.id,
-            newBasePrice: newAmount.toNumber(),
-            currency: booking.currency || 'EUR',
-            createdBy: booking.updated_by || null,
-          });
+          // NOTE: discount rebasing moved to step 0 of cascadeBookingUpdate
+          // (recomputeBookingDiscountsForPriceEdit), which runs for ALL bookings
+          // before the salary recompute and handles entity-wide AND per-
+          // participant rows. Doing it here too would double-post the wallet
+          // discount credit, so it is intentionally not repeated.
         }
       }
       

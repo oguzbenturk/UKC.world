@@ -5811,15 +5811,28 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
         
     // 5. SOFT DELETE THE BOOKING
     const _deleteResult = await client.query(`
-      UPDATE bookings 
-      SET deleted_at = NOW(), 
-        deleted_by = $1, 
+      UPDATE bookings
+      SET deleted_at = NOW(),
+        deleted_by = $1,
         deletion_reason = $2,
         updated_at = NOW()
       WHERE id = $3 AND deleted_at IS NULL
       RETURNING *
     `, [deletingUserId, reason, bookingId]);
-        
+
+    // M2: cancel the manager commission for this booking in the SAME transaction
+    // so a deleted lesson never lingers as pending income. Read-side guards also
+    // exclude it, but an explicit 'cancelled' status keeps any un-guarded reader
+    // honest and matches what the cancel-booking route already does. Paid-out
+    // rows (payout_id set) keep status != 'pending' and are left untouched.
+    await client.query(`
+      UPDATE manager_commissions
+         SET status = 'cancelled',
+             notes = COALESCE(notes || ' | ', '') || $1,
+             updated_at = NOW()
+       WHERE source_type = 'booking' AND source_id = $2 AND status = 'pending'
+    `, ['Cancelled: Booking deleted', String(bookingId)]);
+
   logger.info('Booking marked as deleted');
         
         await client.query('COMMIT');

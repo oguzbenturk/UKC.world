@@ -422,15 +422,14 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
         }
       }
 
-      // If no wallet rows or all wallets are zero, fall back to legacy users.balance
-      // (legacy balance can be negative for pre-wallet customers who owe money)
-      if (walletRows.length === 0 || balance === 0) {
-        const legacyBalance = parseFloat(account.db_balance || 0);
-        if (legacyBalance !== 0) {
-          balance = legacyBalance;
-          walletSummary = null; // Don't report a wallet object when using legacy balance
-        }
-      }
+      // F15: do NOT fall back to legacy users.balance. The student portal reads
+      // the wallet (showing €0 when there are no wallet rows), so falling back
+      // here made the admin show a legacy debt (e.g. −€1191) that the customer's
+      // own page showed as €0 — a direct contradiction on the same account. Admin
+      // now reads the same wallet truth as the student. Genuine pre-wallet debt
+      // must be MIGRATED into the wallet ledger as an opening-balance transaction
+      // (see the F15 audit) so it shows consistently on BOTH surfaces, rather than
+      // only on admin via this legacy column.
     } catch (aggErr) {
       logger.error('Error aggregating wallet balances:', { userId: id, error: aggErr?.message });
       // Fallback: single-currency query for EUR
@@ -3139,7 +3138,7 @@ router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
  * Comprehensive financial overview using wallet_transactions as the source of truth.
  * Returns: headline stats, service breakdown, monthly trend, expense breakdown.
  */
-router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:overview:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}`), async (req, res) => {
+router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:overview:${req.query.start_date || 'all'}:${req.query.end_date || 'all'}`), async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
 
@@ -3204,10 +3203,15 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
     `, [startDate, endDate]);
 
     // ── Instructor commissions paid ────────────────────────────────────────
+    // M6: exclude earnings of soft-deleted bookings (LEFT JOIN keeps any earning
+    // whose booking row no longer exists; b.deleted_at IS NULL drops soft-deleted
+    // ones so the expense doesn't count cancelled lessons).
     const commissionResult = await pool.query(`
       SELECT COALESCE(SUM(ie.total_earnings), 0) AS instructor_commission
       FROM instructor_earnings ie
+      LEFT JOIN bookings b ON b.id = ie.booking_id
       WHERE ie.lesson_date BETWEEN $1 AND $2
+        AND b.deleted_at IS NULL
     `, [startDate, endDate]);
 
     const commission = parseFloat(commissionResult.rows[0]?.instructor_commission) || 0;
@@ -3219,9 +3223,10 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       SELECT
         source_type,
         COALESCE(SUM(commission_amount), 0) AS total
-      FROM manager_commissions
-      WHERE source_date BETWEEN $1::date AND $2::date
-        AND status <> 'cancelled'
+      FROM manager_commissions mc
+      WHERE mc.source_date BETWEEN $1::date AND $2::date
+        AND mc.status <> 'cancelled'
+        AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
       GROUP BY source_type
     `, [startDate, endDate]);
 

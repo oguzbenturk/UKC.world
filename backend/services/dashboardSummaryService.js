@@ -1,6 +1,6 @@
 import { pool } from '../db.js';
 import { cacheService } from './cacheService.js';
-import { deriveLessonAmount, deriveTotalEarnings, toNumber as toNum } from '../utils/instructorEarnings.js';
+import { deriveLessonAmount, deriveTotalEarnings, toNumber as toNum, partialLessonValue } from '../utils/instructorEarnings.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from './managerCommissionService.js';
 
@@ -401,8 +401,11 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       servicePrice: toNum(row.service_price),
       serviceDuration: toNum(row.fallback_session_duration),
     });
+    // M1: value package-drawn hours + cash via the shared helper instead of
+    // stacking the full cash on the full-duration package value (was a double-
+    // count that inflated the dashboard "commissions owed" KPI).
     if (isPartial && toNum(row.base_amount) > 0) {
-      lessonAmount = Number.parseFloat((lessonAmount + toNum(row.base_amount)).toFixed(2));
+      lessonAmount = partialLessonValue({ packageValueFullDuration: lessonAmount, duration: lessonDuration, cashAmount: toNum(row.base_amount) });
     }
     if (row.payment_status === 'package' && groupSize > 1) {
       lessonAmount = Number.parseFloat((lessonAmount * groupSize).toFixed(2));

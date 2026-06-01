@@ -256,8 +256,13 @@ const useStudentTables = (displayCurrency, formatCurrency, storageCurrency, conv
         dataIndex: 'total_price',
         key: 'total_price',
         render: (value, record) => {
-          const price = Number(value || record.totalPrice || record.price || record.final_amount || record.amount || 0);
-          if (!Number.isFinite(price)) return t('student:profile.status.na');
+          const gross = Number(value || record.totalPrice || record.price || record.final_amount || record.amount || 0);
+          if (!Number.isFinite(gross)) return t('student:profile.status.na');
+          // F2: show the DISCOUNTED (net) lesson price so the student's history
+          // matches the admin bill. Discounts live in a separate table and never
+          // mutate final_amount, so subtract the discount the API reports.
+          const discount = Number(record.total_discount_amount ?? record.discount_amount ?? 0) || 0;
+          const price = Math.max(0, gross - discount);
           const baseCurrency = record.currency || displayCurrency;
           return formatDualPrice(price, baseCurrency);
         },

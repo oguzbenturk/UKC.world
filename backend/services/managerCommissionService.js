@@ -482,6 +482,10 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
     pkgPriceEur = Math.round((pkgPriceEur / toNumber(pkg.exchange_rate)) * 100) / 100;
   }
 
+  // Full (pre-discount) EUR price, kept for the hourly-rate discount-ratio
+  // scaling below (L5).
+  const pkgFullPriceEur = pkgPriceEur;
+
   // Subtract any active per-package discount so manager commission tracks
   // actual realized revenue, not the headline pre-discount price.
   const { rows: discRows } = await client.query(
@@ -498,7 +502,10 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
   const pkgTotalHours = toNumber(pkg.total_hours) || toNumber(pkg.sp_total_hours);
   let effectiveLessonPrice = pkgPriceEur;
   if (storedHourlyRate > 0 && pkgTotalHours > 0) {
-    effectiveLessonPrice = storedHourlyRate * pkgTotalHours;
+    // L5: scale by the discount ratio so a package discount still flows through
+    // (ratio = 1 when no discount).
+    const ratio = pkgFullPriceEur > 0 ? pkgPriceEur / pkgFullPriceEur : 1;
+    effectiveLessonPrice = storedHourlyRate * pkgTotalHours * ratio;
   } else {
     let rentalCost = 0;
     let accomCost = 0;
@@ -825,9 +832,25 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
     // instructor earnings path produces.
     const total = await BookingUpdateCascadeService.computeBookingTotalAmount(client, entity);
     newSourceAmount = Number.parseFloat(total.toFixed(2));
+  } else if (entity.skip_pkg && entityType === WALLET_ENTITY_TYPE.RENTAL) {
+    // M5: package-paid rental — derive its value from the package (the package
+    // cascade only loops booking rows, so nothing else refreshes a package
+    // rental's commission after a discount edit) and subtract any active rental
+    // discount. Mirrors recordRentalCommission / the backfill script.
+    const { rows: rr } = await client.query(
+      `SELECT id, total_price, rental_days_used, payment_status, customer_package_id, currency
+         FROM rentals WHERE id = $1::uuid AND deleted_at IS NULL LIMIT 1`,
+      [String(entityId)]
+    );
+    if (!rr.length || rr[0].payment_status !== 'package' || !rr[0].customer_package_id) {
+      return { skipped: 'package_paid' };
+    }
+    let derived = await derivePackageRentalAmount(client, rr[0]);
+    const rentalDisc = await getActiveDiscountAmount(client, WALLET_ENTITY_TYPE.RENTAL, entityId);
+    if (rentalDisc > 0) derived = Number.parseFloat(Math.max(0, derived - rentalDisc).toFixed(2));
+    newSourceAmount = derived;
   } else if (entity.skip_pkg) {
-    // Other package-paid entities (rentals) — leave to the package cascade
-    // which already handles them.
+    // Other package-paid entities — leave to the package cascade.
     return { skipped: 'package_paid' };
   } else {
     const basePrice = toNumber(entity.base_price);
@@ -1146,15 +1169,7 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
     }
 
     // Lesson commissions: only rows whose booking still exists, is not soft-deleted, and is completed
-    whereClause += ` AND (
-      mc.source_type IS DISTINCT FROM 'booking'
-      OR EXISTS (
-        SELECT 1 FROM bookings b
-        WHERE b.id = mc.source_id::uuid
-          AND b.deleted_at IS NULL
-          AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
-      )
-    )`;
+    whereClause += ` AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}`;
 
     const result = await pool.query(
       `SELECT 
@@ -1306,15 +1321,7 @@ export async function getManagerCommissions(managerUserId, options = {}) {
     }
 
     // Manager Comm. — Lessons: hide rows for soft-deleted or non-completed bookings
-    whereClause += ` AND (
-      mc.source_type IS DISTINCT FROM 'booking'
-      OR EXISTS (
-        SELECT 1 FROM bookings b
-        WHERE b.id = mc.source_id::uuid
-          AND b.deleted_at IS NULL
-          AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
-      )
-    )`;
+    whereClause += ` AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}`;
 
     const offset = limit ? (page - 1) * limit : 0;
 
@@ -1604,13 +1611,18 @@ export async function getAllManagersWithCommissionSettings() {
           FROM manager_commissions mc2
           WHERE mc2.manager_user_id = u.id
             AND (
-              mc2.source_type IS DISTINCT FROM 'booking'
-              OR EXISTS (
+              mc2.source_type NOT IN ('booking','rental')
+              OR (mc2.source_type = 'booking' AND EXISTS (
                 SELECT 1 FROM bookings b2
                 WHERE b2.id = mc2.source_id::uuid
                   AND b2.deleted_at IS NULL
                   AND LOWER(TRIM(COALESCE(b2.status, ''))) IN ('completed', 'done', 'checked_out')
-              )
+              ))
+              OR (mc2.source_type = 'rental' AND EXISTS (
+                SELECT 1 FROM rentals r2
+                WHERE r2.id = mc2.source_id::uuid
+                  AND LOWER(TRIM(COALESCE(r2.status, ''))) NOT IN ('cancelled', 'canceled')
+              ))
             )
         ) as total_commission,
         (
@@ -1698,15 +1710,7 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
        FROM manager_commissions mc
        WHERE mc.manager_user_id = $1
          AND mc.period_month LIKE $2
-         AND (
-           mc.source_type IS DISTINCT FROM 'booking'
-           OR EXISTS (
-             SELECT 1 FROM bookings b
-             WHERE b.id = mc.source_id::uuid
-               AND b.deleted_at IS NULL
-               AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
-           )
-         )
+         AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
        GROUP BY mc.period_month
        ORDER BY mc.period_month`,
       [managerUserId, `${year}-%`]
@@ -1855,6 +1859,7 @@ export async function getManagerUpcomingIncome(managerUserId) {
        FROM manager_commissions mc
        WHERE mc.manager_user_id = $1
          AND mc.status = 'pending'
+         AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
        ORDER BY mc.source_date ASC, mc.created_at ASC`,
       [managerUserId]
     );

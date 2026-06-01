@@ -984,7 +984,13 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
 
   const totalPackages = packages.length;
   const activePackages = packages.filter(p => getStatusText(p) === 'Active').length;
-  const totalValue = packages.reduce((sum, p) => sum + (p.price || 0), 0);
+  // F9: sum the DISCOUNTED package values so the "Total Value" stat matches the
+  // per-row figures (which subtract the package discount via `discountsByEntity`).
+  const totalValue = packages.reduce((sum, p) => {
+    const price = Number(p.price) || 0;
+    const d = discountsByEntity?.get(`customer_package:${p.id}`);
+    return sum + (d ? Math.max(0, price - (Number(d.amount) || 0)) : price);
+  }, 0);
 
   const Body = (
       <div className="space-y-6">
