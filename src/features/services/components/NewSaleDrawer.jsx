@@ -27,112 +27,77 @@ import { useData } from '@/shared/hooks/useData';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClientDefault from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
+import {
+  buildSizeOptions,
+  buildVariantIndex,
+  sizeOptionsFor,
+  resolveCombo,
+} from '@/features/products/utils/variantSelection';
 
+// Thin order-item wrappers over the shared point-of-sale variant helpers.
+const getSizeOptions = (item) =>
+  sizeOptionsFor({ isMatrix: item._isMatrix, variants: item._variants, sizeOptions: item._sizeOptions, color: item.selected_color });
 
+const resolveSelected = (item) =>
+  resolveCombo({ isMatrix: item._isMatrix, variants: item._variants, sizeOptions: item._sizeOptions, color: item.selected_color, size: item.selected_size });
 
-/** Safely parse JSON fields that may already be objects or may be JSON strings */
-function parseJSON(field) {
-  if (!field) return null;
-  if (typeof field === 'string') {
-    try { return JSON.parse(field); } catch { return null; }
-  }
-  return field;
-}
-
-/** Build size options from variants or sizes field.
- *  Returns: [{ label: 'S', stock: 12, price: 145 }, ...] */
-function buildSizeOptions(product) {
-  const variants = parseJSON(product.variants);
-  if (Array.isArray(variants) && variants.length > 0) {
-    return variants
-      .filter(v => v.label || v.size)
-      .map(v => ({
-        label: v.label || v.size || String(v.key),
-        stock: v.quantity ?? 0,
-        price: v.price ?? v.price_final ?? null,
-      }));
-  }
-  // Fallback to sizes array
-  const sizes = parseJSON(product.sizes);
-  if (Array.isArray(sizes) && sizes.length > 0) {
-    const labels = typeof sizes[0] === 'string'
-      ? sizes
-      : sizes.map(s => s.label || s.name || s.size || String(s)).filter(Boolean);
-    return labels.map(s => ({ label: s, stock: null, price: null }));
-  }
-  return [];
-}
-
-/** Normalize colors — may be [{code, name}] objects or simple strings */
-function normalizeColors(raw) {
-  const parsed = parseJSON(raw);
-  if (!Array.isArray(parsed) || parsed.length === 0) return [];
-  if (typeof parsed[0] === 'string') return parsed;
-  return parsed.map(c => c.name || c.label || c.code || String(c)).filter(Boolean);
+/** Whether the item must have a size picked before it can be ordered. */
+function itemNeedsSize(item) {
+  return item._isMatrix ? (item._variants?.length > 0) : (item._sizeOptions?.length > 0);
 }
 
 function validateOrderItems(items) {
   for (const item of items) {
-    if (item._sizeOptions?.length > 0 && !item.selected_size) {
-      return { ok: false, level: 'warning', msg: `Please select a size for ${item.product_name}` };
-    }
+    // Colour first — for a matrix product the available sizes depend on it.
     if (item._colors?.length > 0 && !item.selected_color) {
       return { ok: false, level: 'warning', msg: `Please select a color for ${item.product_name}` };
     }
+    if (itemNeedsSize(item) && !item.selected_size) {
+      return { ok: false, level: 'warning', msg: `Please select a size for ${item.product_name}` };
+    }
     const maxStock = item._selectedSizeStock ?? item._stock;
-    if (item.quantity > maxStock) {
+    if (maxStock != null && item.quantity > maxStock) {
       return { ok: false, level: 'error', msg: `Insufficient stock for ${item.product_name}. Available: ${maxStock}` };
     }
   }
   return { ok: true };
 }
 
-/** Apply field update to an order item, handling size-variant stock/price lookup */
+/** Apply field update to an order item, resolving (colour, size) stock/price. */
 function applyItemUpdate(item, field, value) {
   const updated = { ...item, [field]: value };
-  if (field === 'selected_size' && item._sizeOptions?.length > 0) {
-    const opt = item._sizeOptions.find(o => o.label === value);
-    updated._selectedSizeStock = opt?.stock ?? item._stock;
-    updated._selectedSizePrice = opt?.price ?? null;
-    if (opt?.stock != null && updated.quantity > opt.stock) {
-      updated.quantity = Math.max(1, opt.stock);
+  // Changing colour on a matrix product can invalidate the chosen size.
+  if (item._isMatrix && field === 'selected_color') {
+    const sizesForColor = (item._variants || [])
+      .filter(v => v.color === value)
+      .map(v => v.size || v.label);
+    if (updated.selected_size && !sizesForColor.includes(updated.selected_size)) {
+      updated.selected_size = null;
+    }
+  }
+  if (field === 'selected_size' || field === 'selected_color') {
+    const { stock, price } = resolveSelected(updated);
+    updated._selectedSizeStock = stock;
+    updated._selectedSizePrice = price;
+    if (stock != null && updated.quantity > stock) {
+      updated.quantity = Math.max(1, stock);
     }
   }
   return updated;
 }
 
-/** Size/Color/Qty selectors row inside an OrderItemCard */
+/** Color/Size/Qty selectors row inside an OrderItemCard.
+ *  Colour comes first: for a colour×size matrix product the available sizes
+ *  (and their stock) depend on the chosen colour. */
 function ItemOptionsRow({ item, index, onUpdate }) {
-  const hasSizes = item._sizeOptions?.length > 0;
   const hasColors = item._colors?.length > 0;
+  const sizeOptions = getSizeOptions(item);
+  const hasSizes = itemNeedsSize(item);
+  const sizeDisabled = item._isMatrix ? !item.selected_color : !hasSizes;
   const effectiveStock = item._selectedSizeStock ?? item._stock;
 
   return (
     <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-50">
-      <div className="flex items-center gap-1.5">
-        <span className="text-[10px] uppercase text-slate-400 font-semibold">
-          Size{hasSizes && <span className="text-red-400">*</span>}
-        </span>
-        <Select
-          size="small"
-          className="!w-28"
-          placeholder={hasSizes ? 'Pick size' : '—'}
-          disabled={!hasSizes}
-          status={hasSizes && !item.selected_size ? 'warning' : undefined}
-          value={item.selected_size}
-          onChange={(val) => onUpdate(index, 'selected_size', val)}
-        >
-          {(item._sizeOptions || []).map(opt => (
-            <Select.Option key={opt.label} value={opt.label} disabled={opt.stock === 0}>
-              <span className="font-medium">{opt.label}</span>
-              {opt.stock != null && (
-                <span className="text-slate-400 ml-1 text-[11px]">· {opt.stock}</span>
-              )}
-            </Select.Option>
-          ))}
-        </Select>
-      </div>
-
       <div className="flex items-center gap-1.5">
         <span className="text-[10px] uppercase text-slate-400 font-semibold">
           Color{hasColors && <span className="text-red-400">*</span>}
@@ -148,6 +113,30 @@ function ItemOptionsRow({ item, index, onUpdate }) {
         >
           {(item._colors || []).map(c => (
             <Select.Option key={c} value={c}>{c}</Select.Option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] uppercase text-slate-400 font-semibold">
+          Size{hasSizes && <span className="text-red-400">*</span>}
+        </span>
+        <Select
+          size="small"
+          className="!w-28"
+          placeholder={sizeDisabled ? (item._isMatrix ? 'Pick color first' : '—') : 'Pick size'}
+          disabled={sizeDisabled}
+          status={hasSizes && !item.selected_size ? 'warning' : undefined}
+          value={item.selected_size}
+          onChange={(val) => onUpdate(index, 'selected_size', val)}
+        >
+          {sizeOptions.map(opt => (
+            <Select.Option key={opt.label} value={opt.label} disabled={opt.stock === 0}>
+              <span className="font-medium">{opt.label}</span>
+              {opt.stock != null && (
+                <span className="text-slate-400 ml-1 text-[11px]">· {opt.stock}</span>
+              )}
+            </Select.Option>
           ))}
         </Select>
       </div>
@@ -276,12 +265,15 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
+    const { isMatrix, variants, colors } = buildVariantIndex(product);
+    const sizeOptions = isMatrix ? [] : buildSizeOptions(product);
+
     // Check if already added (without size/color picked yet — safe to bump qty)
     const existing = orderItems.find(i => i.product_id === productId);
     if (existing) {
-      const hasPendingOptions = (existing._sizeOptions?.length > 0 && !existing.selected_size) ||
+      const hasPendingOptions = (itemNeedsSize(existing) && !existing.selected_size) ||
                                  (existing._colors?.length > 0 && !existing.selected_color);
-      const hasNoOptions = (!existing._sizeOptions?.length && !existing._colors?.length);
+      const hasNoOptions = !itemNeedsSize(existing) && !(existing._colors?.length > 0);
       if (hasNoOptions || hasPendingOptions) {
         setOrderItems(prev => prev.map(i =>
           i === existing ? { ...i, quantity: i.quantity + 1 } : i
@@ -290,26 +282,41 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
         return;
       }
     }
-    const sizeOptions = buildSizeOptions(product);
-    const colors = normalizeColors(product.colors);
-    setOrderItems(prev => [...prev, {
+
+    // Auto-pick the only colour, then the only size that colour has.
+    const initColor = colors.length === 1 ? colors[0] : null;
+    let initSize = null;
+    if (!isMatrix && sizeOptions.length === 1) {
+      initSize = sizeOptions[0].label;
+    } else if (isMatrix && initColor) {
+      const sizesForColor = variants.filter(v => v.color === initColor).map(v => v.size || v.label);
+      if (sizesForColor.length === 1) initSize = sizesForColor[0];
+    }
+
+    const base = {
       product_id: product.id,
       product_name: product.name,
       product_image: product.image_url,
       brand: product.brand,
       unit_price: parseFloat(product.price) || 0,
       quantity: 1,
-      selected_size: sizeOptions.length === 1 ? sizeOptions[0].label : null,
-      selected_color: colors.length === 1 ? colors[0] : null,
-      // variant/size options with per-size stock
+      selected_size: initSize,
+      selected_color: initColor,
+      // Colour×size matrix vs. legacy size-only model
+      _isMatrix: isMatrix,
+      _variants: variants,
       _sizeOptions: sizeOptions,
       _colors: colors,
       _stock: product.stock_quantity,
-      // When a size is selected, these get updated
-      _selectedSizeStock: sizeOptions.length === 1 ? (sizeOptions[0].stock ?? product.stock_quantity) : null,
-      _selectedSizePrice: sizeOptions.length === 1 ? sizeOptions[0].price : null,
+      _selectedSizeStock: null,
+      _selectedSizePrice: null,
       _currency: product.currency,
-    }]);
+    };
+    const resolved = resolveSelected(base);
+    base._selectedSizeStock = resolved.stock;
+    base._selectedSizePrice = resolved.price;
+
+    setOrderItems(prev => [...prev, base]);
     setProductDropdownOpen(false);
   }, [products, orderItems]);
 

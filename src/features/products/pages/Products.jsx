@@ -48,8 +48,9 @@ import ProductPreviewModal from '@/features/dashboard/components/ProductPreviewM
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
-import { CATEGORY_OPTIONS } from '@/shared/constants/productCategories';
+import { CATEGORY_OPTIONS, getSubcategories } from '@/shared/constants/productCategories';
 import { useTranslation } from 'react-i18next';
 
 const { Option } = Select;
@@ -118,10 +119,16 @@ const Products = () => {
   const [filters, setFilters] = useState({
     search: '',
     category: 'all',
+    subcategory: 'all',
     status: 'active',
     low_stock: false,
     createdBy: 'all'
   });
+
+  // Local search box value — typed immediately, debounced into `filters.search`
+  // so we don't fire an API request on every keystroke.
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebouncedValue(searchInput, 350);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 12,
@@ -315,6 +322,22 @@ const Products = () => {
     loadProducts(filters, pagination);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, pagination.page, pagination.limit]);
+
+  // Commit the debounced search term into filters (triggers a single reload
+  // once the user stops typing) and jump back to the first page.
+  useEffect(() => {
+    setFilters((prev) => (prev.search === debouncedSearch ? prev : { ...prev, search: debouncedSearch }));
+    setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [debouncedSearch]);
+
+  // Subcategory options for the currently selected category (children indented).
+  const subcategoryOptions = useMemo(() => {
+    if (!filters.category || filters.category === 'all') return [];
+    return getSubcategories(filters.category).map((sub) => ({
+      value: sub.value,
+      label: sub.parent ? `   ${sub.label}` : sub.label,
+    }));
+  }, [filters.category]);
 
   // Bulk delete handler
   const handleBulkDelete = useCallback(() => {
@@ -730,31 +753,50 @@ const Products = () => {
       {/* Filters */}
       <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
         <Row gutter={[8, 8]} align="middle">
-          <Col xs={24} md={8}>
+          <Col xs={24} sm={12} md={8}>
             <Input
               placeholder={t('manager:products.filters.searchPlaceholder')}
               prefix={<SearchOutlined className="text-slate-400" />}
               allowClear
               size="small"
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </Col>
-          <Col xs={12} md={4}>
+          <Col xs={12} sm={6} md={4}>
             <Select
               value={filters.category}
-              onChange={(value) => handleFilterChange('category', value)}
+              onChange={(value) => {
+                setFilters((prev) => ({ ...prev, category: value, subcategory: 'all' }));
+                setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+              }}
               size="small"
               style={{ width: '100%' }}
-            >
-              {PRODUCT_CATEGORIES.map(category => (
-                <Option key={category.value} value={category.value}>
-                  {category.icon} {category.label}
-                </Option>
-              ))}
-            </Select>
+              showSearch
+              optionFilterProp="label"
+              options={PRODUCT_CATEGORIES.map((category) => ({
+                value: category.value,
+                label: `${category.icon} ${category.label}`,
+              }))}
+            />
           </Col>
-          <Col xs={12} md={4}>
+          {subcategoryOptions.length > 0 && (
+            <Col xs={12} sm={6} md={4}>
+              <Select
+                value={filters.subcategory}
+                onChange={(value) => handleFilterChange('subcategory', value)}
+                size="small"
+                style={{ width: '100%' }}
+                showSearch
+                optionFilterProp="label"
+                options={[
+                  { value: 'all', label: t('manager:products.filters.allSubcategories', 'All Types') },
+                  ...subcategoryOptions,
+                ]}
+              />
+            </Col>
+          )}
+          <Col xs={12} sm={6} md={4}>
             <Select
               value={filters.status}
               onChange={(value) => handleFilterChange('status', value)}
@@ -767,7 +809,7 @@ const Products = () => {
               <Option value="discontinued">{t('manager:products.filters.discontinued')}</Option>
             </Select>
           </Col>
-          <Col xs={12} md={4}>
+          <Col xs={12} sm={6} md={4}>
             <Select
               value={filters.createdBy}
               onChange={(value) => handleFilterChange('createdBy', value)}
@@ -783,7 +825,7 @@ const Products = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={12} md={4}>
+          <Col xs={24} sm={12} md={4}>
             <Button
               type={filters.low_stock ? 'primary' : 'default'}
               danger={filters.low_stock}

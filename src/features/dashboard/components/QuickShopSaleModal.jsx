@@ -2,15 +2,15 @@
  * QuickShopSaleModal - Quick shop sale form for Front Desk dashboard
  * Allows making a shop sale: select customer -> select product -> process sale
  */
-import { useState, useEffect } from 'react';
-import { 
-  Modal, 
-  Form, 
-  Select, 
-  InputNumber, 
-  Button, 
-  Row, 
-  Col, 
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Modal,
+  Form,
+  Select,
+  InputNumber,
+  Button,
+  Row,
+  Col,
   Space,
   Divider,
   Card,
@@ -19,14 +19,20 @@ import {
   Alert
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
-import { 
+import {
   ShoppingCartOutlined,
-  UserOutlined, 
+  UserOutlined,
   TagOutlined,
   DollarOutlined
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import {
+  buildVariantIndex,
+  buildSizeOptions,
+  sizeOptionsFor,
+  resolveCombo,
+} from '@/features/products/utils/variantSelection';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -42,6 +48,40 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
+
+  // Colour×size variant model for the chosen product
+  const variantIndex = useMemo(
+    () => (selectedProduct ? buildVariantIndex(selectedProduct) : { isMatrix: false, variants: [], colors: [] }),
+    [selectedProduct],
+  );
+  const legacySizeOptions = useMemo(
+    () => (selectedProduct && !variantIndex.isMatrix ? buildSizeOptions(selectedProduct) : []),
+    [selectedProduct, variantIndex.isMatrix],
+  );
+  const sizeOptions = useMemo(
+    () => sizeOptionsFor({ isMatrix: variantIndex.isMatrix, variants: variantIndex.variants, sizeOptions: legacySizeOptions, color: selectedColor }),
+    [variantIndex, legacySizeOptions, selectedColor],
+  );
+  const combo = useMemo(
+    () => resolveCombo({ isMatrix: variantIndex.isMatrix, variants: variantIndex.variants, sizeOptions: legacySizeOptions, color: selectedColor, size: selectedSize }),
+    [variantIndex, legacySizeOptions, selectedColor, selectedSize],
+  );
+  const hasColors = variantIndex.colors.length > 0;
+  const needsSize = variantIndex.isMatrix ? variantIndex.variants.length > 0 : legacySizeOptions.length > 0;
+  const effectivePrice = (combo.price != null ? combo.price : selectedProduct?.price) || 0;
+  const effectiveStock = combo.stock != null
+    ? combo.stock
+    : (selectedProduct?.stock_quantity ?? selectedProduct?.stock ?? 0);
+
+  // Clamp quantity if the chosen combo has less stock than currently entered.
+  useEffect(() => {
+    if (combo.stock != null && quantity > combo.stock) {
+      setQuantity(Math.max(1, combo.stock));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combo.stock]);
 
   // Fetch customers
   useEffect(() => {
@@ -102,6 +142,28 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
     const product = products.find(p => p.id === productId);
     setSelectedProduct(product);
     setQuantity(1);
+
+    // Auto-pick the only colour, then the only size that colour carries.
+    const idx = product ? buildVariantIndex(product) : { isMatrix: false, variants: [], colors: [] };
+    const initColor = idx.colors.length === 1 ? idx.colors[0] : null;
+    setSelectedColor(initColor);
+    let initSize = null;
+    if (!idx.isMatrix) {
+      const so = product ? buildSizeOptions(product) : [];
+      if (so.length === 1) initSize = so[0].label;
+    } else if (initColor) {
+      const sizes = idx.variants.filter(v => v.color === initColor).map(v => v.size || v.label);
+      if (sizes.length === 1) initSize = sizes[0];
+    }
+    setSelectedSize(initSize);
+  };
+
+  const handleColorChange = (color) => {
+    setSelectedColor(color);
+    if (variantIndex.isMatrix) {
+      const sizes = variantIndex.variants.filter(v => v.color === color).map(v => v.size || v.label);
+      setSelectedSize(prev => (prev && sizes.includes(prev) ? prev : (sizes.length === 1 ? sizes[0] : null)));
+    }
   };
 
   const handleQuantityChange = (value) => {
@@ -110,7 +172,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
 
   const calculateSubtotal = () => {
     if (!selectedProduct) return 0;
-    return selectedProduct.price * quantity;
+    return effectivePrice * quantity;
   };
 
   const calculateDiscountAmount = () => {
@@ -121,6 +183,16 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
   const calculateTotal = () => Math.max(0, calculateSubtotal() - calculateDiscountAmount());
 
   const handleSubmit = async (values) => {
+    // A product with colours / sizes must have the combination chosen so the
+    // right per-combo stock is decremented and the right price is charged.
+    if (hasColors && !selectedColor) {
+      message.warning('Please select a color');
+      return;
+    }
+    if (needsSize && !selectedSize) {
+      message.warning('Please select a size');
+      return;
+    }
     try {
       setSubmitting(true);
 
@@ -131,7 +203,9 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
           {
             product_id: values.product_id,
             quantity: quantity,
-            price: selectedProduct.price
+            price: effectivePrice,
+            selected_size: selectedSize || undefined,
+            selected_color: selectedColor || undefined
           }
         ],
         payment_method: values.payment_method || 'cash',
@@ -165,6 +239,8 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
       setSelectedProduct(null);
       setQuantity(1);
       setDiscountPercent(0);
+      setSelectedColor(null);
+      setSelectedSize(null);
 
       if (onSuccess) {
         onSuccess();
@@ -186,6 +262,8 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
     setSelectedProduct(null);
     setQuantity(1);
     setDiscountPercent(0);
+    setSelectedColor(null);
+    setSelectedSize(null);
     onClose();
   };
 
@@ -287,12 +365,57 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
             {selectedProduct && (
               <>
                 <Divider className="my-3" />
+
+                {/* Colour / Size pickers — pick the colour first; for a
+                    colour×size product the sizes depend on the chosen colour. */}
+                {(hasColors || needsSize) && (
+                  <Row gutter={16} className="mb-3">
+                    {hasColors && (
+                      <Col span={12}>
+                        <div className="text-sm text-slate-600 mb-1">
+                          Color <span className="text-red-400">*</span>
+                        </div>
+                        <Select
+                          size="large"
+                          className="w-full"
+                          placeholder="Select color"
+                          value={selectedColor}
+                          status={!selectedColor ? 'warning' : undefined}
+                          onChange={handleColorChange}
+                          options={variantIndex.colors.map(c => ({ value: c, label: c }))}
+                        />
+                      </Col>
+                    )}
+                    {needsSize && (
+                      <Col span={12}>
+                        <div className="text-sm text-slate-600 mb-1">
+                          Size <span className="text-red-400">*</span>
+                        </div>
+                        <Select
+                          size="large"
+                          className="w-full"
+                          placeholder={variantIndex.isMatrix && !selectedColor ? 'Pick color first' : 'Select size'}
+                          disabled={variantIndex.isMatrix && !selectedColor}
+                          value={selectedSize}
+                          status={!selectedSize ? 'warning' : undefined}
+                          onChange={setSelectedSize}
+                          options={sizeOptions.map(o => ({
+                            value: o.label,
+                            label: o.stock != null ? `${o.label} · ${o.stock} in stock` : o.label,
+                            disabled: o.stock === 0,
+                          }))}
+                        />
+                      </Col>
+                    )}
+                  </Row>
+                )}
+
                 <Row gutter={16}>
                   <Col span={12}>
                     <div className="text-sm text-slate-600 mb-1">Quantity</div>
                     <InputNumber
                       min={1}
-                      max={selectedProduct.stock_quantity ?? selectedProduct.stock ?? 999}
+                      max={effectiveStock || 999}
                       value={quantity}
                       onChange={handleQuantityChange}
                       size="large"
@@ -302,7 +425,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
                   <Col span={12}>
                     <div className="text-sm text-slate-600 mb-1">Available Stock</div>
                     <div className="text-lg font-semibold text-slate-800 mt-2">
-                      {selectedProduct.stock_quantity ?? selectedProduct.stock ?? 0} units
+                      {effectiveStock} units
                     </div>
                   </Col>
                 </Row>
@@ -361,7 +484,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
                 </div>
               </div>
               <div className="mt-2 text-sm text-slate-600">
-                {quantity} × {formatCurrency(selectedProduct.price)}
+                {quantity} × {formatCurrency(effectivePrice)}
                 {discountPercent > 0 && (
                   <> &nbsp;·&nbsp; −{discountPercent}% ({formatCurrency(calculateDiscountAmount())})</>
                 )}
@@ -397,7 +520,7 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
                 block 
                 size="large"
                 loading={submitting}
-                disabled={!selectedProduct || products.length === 0}
+                disabled={!selectedProduct || products.length === 0 || (hasColors && !selectedColor) || (needsSize && !selectedSize)}
                 style={{ background: '#ec4899' }}
               >
                 Complete Sale

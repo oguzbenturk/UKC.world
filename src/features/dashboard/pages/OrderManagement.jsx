@@ -1,7 +1,7 @@
 // src/features/dashboard/pages/OrderManagement.jsx
 // Admin order management page for shop orders
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Card, Tag, Button, Space, Typography, Tabs,
@@ -39,6 +39,8 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import apiClient from '@/shared/services/apiClient';
 import { realTimeService } from '@/shared/services/realTimeService';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
+import { CATEGORY_OPTIONS, getSubcategories } from '@/shared/constants/productCategories';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -113,10 +115,17 @@ const OrderManagement = ({ embedded = false }) => {
   const [filters, setFilters] = useState({
     status: 'all',
     payment_status: 'all',
+    category: 'all',
+    subcategory: 'all',
     search: '',
     date_from: null,
     date_to: null
   });
+
+  // Local search box value — typed immediately, debounced into `filters.search`
+  // so we don't fire an API request on every keystroke.
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebouncedValue(searchInput, 350);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [statusForm, setStatusForm] = useState({ status: '', notes: '' });
@@ -135,6 +144,8 @@ const OrderManagement = ({ embedded = false }) => {
 
       if (filters.status !== 'all') params.append('status', filters.status);
       if (filters.payment_status !== 'all') params.append('payment_status', filters.payment_status);
+      if (filters.category !== 'all') params.append('category', filters.category);
+      if (filters.subcategory !== 'all') params.append('subcategory', filters.subcategory);
       if (filters.search) params.append('search', filters.search);
       if (filters.date_from) params.append('date_from', filters.date_from);
       if (filters.date_to) params.append('date_to', filters.date_to);
@@ -163,6 +174,22 @@ const OrderManagement = ({ embedded = false }) => {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Commit the debounced search term into filters (auto-searches once the user
+  // stops typing) and jump back to the first page.
+  useEffect(() => {
+    setFilters((f) => (f.search === debouncedSearch ? f : { ...f, search: debouncedSearch }));
+    setPagination((p) => (p.current === 1 ? p : { ...p, current: 1 }));
+  }, [debouncedSearch]);
+
+  // Subcategory options for the currently selected category (children indented).
+  const subcategoryOptions = useMemo(() => {
+    if (!filters.category || filters.category === 'all') return [];
+    return getSubcategories(filters.category).map((sub) => ({
+      value: sub.value,
+      label: sub.parent ? `   ↳ ${sub.label}` : sub.label,
+    }));
+  }, [filters.category]);
 
   useEffect(() => {
     fetchLowStock();
@@ -503,16 +530,53 @@ const OrderManagement = ({ embedded = false }) => {
             prefix={<SearchOutlined className="text-slate-400" />}
             className="w-56"
             size="small"
-            value={filters.search}
-            onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
-            onPressEnter={() => fetchOrders()}
+            allowClear
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
+          <Select
+            placeholder="Product Type"
+            className="w-40"
+            size="small"
+            showSearch
+            optionFilterProp="label"
+            value={filters.category}
+            onChange={(value) => {
+              setFilters(f => ({ ...f, category: value, subcategory: 'all' }));
+              setPagination(p => ({ ...p, current: 1 }));
+            }}
+            options={[
+              { value: 'all', label: 'All Categories' },
+              ...CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: `${c.icon} ${c.label}` })),
+            ]}
+          />
+          {subcategoryOptions.length > 0 && (
+            <Select
+              placeholder="Type"
+              className="w-40"
+              size="small"
+              showSearch
+              optionFilterProp="label"
+              value={filters.subcategory}
+              onChange={(value) => {
+                setFilters(f => ({ ...f, subcategory: value }));
+                setPagination(p => ({ ...p, current: 1 }));
+              }}
+              options={[
+                { value: 'all', label: 'All Types' },
+                ...subcategoryOptions,
+              ]}
+            />
+          )}
           <Select
             placeholder="Payment Status"
             className="w-36"
             size="small"
             value={filters.payment_status}
-            onChange={(value) => setFilters(f => ({ ...f, payment_status: value }))}
+            onChange={(value) => {
+              setFilters(f => ({ ...f, payment_status: value }));
+              setPagination(p => ({ ...p, current: 1 }));
+            }}
             options={[
               { value: 'all', label: 'All Payments' },
               { value: 'pending', label: 'Pending' },
@@ -529,11 +593,9 @@ const OrderManagement = ({ embedded = false }) => {
                 date_from: dates?.[0]?.format('YYYY-MM-DD') || null,
                 date_to: dates?.[1]?.format('YYYY-MM-DD') || null
               }));
+              setPagination(p => ({ ...p, current: 1 }));
             }}
           />
-          <Button type="primary" size="small" onClick={fetchOrders}>
-            Search
-          </Button>
         </div>
 
         {/* Tabs */}

@@ -18,6 +18,63 @@ import { discountSumLateral } from '../utils/discountAmounts.js';
 
 const router = express.Router();
 
+// Adjust per-variant stock inside products.variants JSONB for one order line.
+//
+// A variant is identified by size label AND colour, so a colour×size matrix
+// (e.g. "XS Blue" vs "XS Red", same size label) decrements/restores only the
+// exact combination sold. Fallbacks keep legacy single-colour and scraped
+// products working: if the order line recorded no colour, or the variant
+// carries no colour field, we fall back to matching on size label alone.
+//
+//   restore=false → sale: floor at 0 (GREATEST). restore=true → cancel/refund.
+//
+// No-ops when no size was recorded or the product has no variants array.
+async function adjustVariantStock(client, { productId, size, color, qty, restore }) {
+  if (!size) return;
+  const quantityExpr = restore
+    ? `(elem->>'quantity')::int + $1`
+    : `GREATEST(0, (elem->>'quantity')::int - $1)`;
+  await client.query(
+    `
+    UPDATE products
+    SET variants = (
+      SELECT jsonb_agg(
+        CASE
+          WHEN elem->>'label' = $2
+               AND ($4::text IS NULL OR elem->>'color' IS NULL OR elem->>'color' = $4)
+          THEN jsonb_set(elem, '{quantity}', to_jsonb(${quantityExpr}))
+          ELSE elem
+        END
+      )
+      FROM jsonb_array_elements(variants) AS elem
+    ),
+    updated_at = NOW()
+    WHERE id = $3 AND variants IS NOT NULL
+    `,
+    [qty, size, productId, color ?? null]
+  );
+}
+
+// Resolve the unit price for a chosen (size, colour) combination from a
+// product's variants JSONB, falling back to the base product price. Matches a
+// variant by size label AND colour, with the same legacy fallbacks as
+// adjustVariantStock (no colour recorded, or a colour-less variant).
+function resolveVariantUnitPrice(product, selectedSize, selectedColor) {
+  const base = parseFloat(product.price) || 0;
+  if (!selectedSize || !product.variants) return base;
+  let variants = product.variants;
+  if (typeof variants === 'string') {
+    try { variants = JSON.parse(variants); } catch { return base; }
+  }
+  if (!Array.isArray(variants)) return base;
+  const match = variants.find((v) =>
+    (v.label === selectedSize || v.size === selectedSize) &&
+    (!selectedColor || !v.color || v.color === selectedColor)
+  );
+  const price = match?.price ?? match?.price_final;
+  return price != null ? parseFloat(price) : base;
+}
+
 // Helper to notify admins and managers about a new shop order
 async function notifyAdminsNewOrder(order, items, buyerName) {
   try {
@@ -376,24 +433,14 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
         WHERE id = $2
       `, [item.quantity, item.product_id]);
 
-      // Decrease variant-level stock when a size was selected
-      if (item.selected_size) {
-        await client.query(`
-          UPDATE products
-          SET variants = (
-            SELECT jsonb_agg(
-              CASE
-                WHEN elem->>'label' = $2
-                THEN jsonb_set(elem, '{quantity}', to_jsonb(GREATEST(0, (elem->>'quantity')::int - $1)))
-                ELSE elem
-              END
-            )
-            FROM jsonb_array_elements(variants) AS elem
-          ),
-          updated_at = NOW()
-          WHERE id = $3 AND variants IS NOT NULL
-        `, [item.quantity, item.selected_size, item.product_id]);
-      }
+      // Decrease variant-level stock for the exact colour×size combination sold.
+      await adjustVariantStock(client, {
+        productId: item.product_id,
+        size: item.selected_size,
+        color: item.selected_color,
+        qty: item.quantity,
+        restore: false,
+      });
     }
 
     // Process credit_card payment via Iyzico (wallet deduction deferred to callback)
@@ -984,13 +1031,15 @@ router.get('/:id', authenticateJWT, async (req, res) => {
 });
 
 // Admin: Get all orders
-router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:shop:orders:all:${req.query.page || 1}:${req.query.status || ''}:${req.query.search || ''}:${req.query.date_from || ''}:${req.query.date_to || ''}`), async (req, res) => {
+router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:shop:orders:all:${req.query.page || 1}:${req.query.limit || 20}:${req.query.status || ''}:${req.query.payment_status || ''}:${req.query.search || ''}:${req.query.date_from || ''}:${req.query.date_to || ''}:${req.query.category || ''}:${req.query.subcategory || ''}`), async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      status, 
+    const {
+      page = 1,
+      limit = 20,
+      status,
       payment_status,
+      category,
+      subcategory,
       search,
       date_from,
       date_to,
@@ -1011,6 +1060,29 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
     if (payment_status && payment_status !== 'all') {
       whereConditions.push(`o.payment_status = $${paramIndex++}`);
       params.push(payment_status);
+    }
+
+    // Product-type filters: keep orders that contain at least one item whose
+    // product matches the given category / subcategory. Subcategory matching
+    // includes children (e.g. 'harnesses' also matches 'harnesses-kite').
+    if (category && category !== 'all') {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM shop_order_items soi
+        JOIN products p ON p.id = soi.product_id
+        WHERE soi.order_id = o.id AND p.category = $${paramIndex++}
+      )`);
+      params.push(category);
+    }
+
+    if (subcategory && subcategory !== 'all') {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM shop_order_items soi
+        JOIN products p ON p.id = soi.product_id
+        WHERE soi.order_id = o.id
+          AND (p.subcategory = $${paramIndex} OR p.subcategory LIKE $${paramIndex + 1})
+      )`);
+      params.push(subcategory, `${subcategory}-%`);
+      paramIndex += 2;
     }
 
     if (search) {
@@ -1154,34 +1226,24 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
     // Handle cancellation - restore stock
     if (status === 'cancelled' && previousStatus !== 'cancelled') {
       const orderItems = await client.query(`
-        SELECT product_id, quantity, selected_size FROM shop_order_items WHERE order_id = $1
+        SELECT product_id, quantity, selected_size, selected_color FROM shop_order_items WHERE order_id = $1
       `, [orderId]);
 
       for (const item of orderItems.rows) {
         await client.query(`
-          UPDATE products 
+          UPDATE products
           SET stock_quantity = stock_quantity + $1, updated_at = NOW()
           WHERE id = $2
         `, [item.quantity, item.product_id]);
 
-        // Restore variant-level stock
-        if (item.selected_size) {
-          await client.query(`
-            UPDATE products
-            SET variants = (
-              SELECT jsonb_agg(
-                CASE
-                  WHEN elem->>'label' = $2
-                  THEN jsonb_set(elem, '{quantity}', to_jsonb((elem->>'quantity')::int + $1))
-                  ELSE elem
-                END
-              )
-              FROM jsonb_array_elements(variants) AS elem
-            ),
-            updated_at = NOW()
-            WHERE id = $3 AND variants IS NOT NULL
-          `, [item.quantity, item.selected_size, item.product_id]);
-        }
+        // Restore the exact colour×size combination's variant stock.
+        await adjustVariantStock(client, {
+          productId: item.product_id,
+          size: item.selected_size,
+          color: item.selected_color,
+          qty: item.quantity,
+          restore: true,
+        });
       }
     }
 
@@ -1400,34 +1462,24 @@ router.post('/:id/cancel', authenticateJWT, cacheInvalidationMiddleware(['api:sh
 
     // Restore stock
     const orderItems = await client.query(`
-      SELECT product_id, quantity, selected_size FROM shop_order_items WHERE order_id = $1
+      SELECT product_id, quantity, selected_size, selected_color FROM shop_order_items WHERE order_id = $1
     `, [orderId]);
 
     for (const item of orderItems.rows) {
       await client.query(`
-        UPDATE products 
+        UPDATE products
         SET stock_quantity = stock_quantity + $1, updated_at = NOW()
         WHERE id = $2
       `, [item.quantity, item.product_id]);
 
-      // Restore variant-level stock
-      if (item.selected_size) {
-        await client.query(`
-          UPDATE products
-          SET variants = (
-            SELECT jsonb_agg(
-              CASE
-                WHEN elem->>'label' = $2
-                THEN jsonb_set(elem, '{quantity}', to_jsonb((elem->>'quantity')::int + $1))
-                ELSE elem
-              END
-            )
-            FROM jsonb_array_elements(variants) AS elem
-          ),
-          updated_at = NOW()
-          WHERE id = $3 AND variants IS NOT NULL
-        `, [item.quantity, item.selected_size, item.product_id]);
-      }
+      // Restore the exact colour×size combination's variant stock.
+      await adjustVariantStock(client, {
+        productId: item.product_id,
+        size: item.selected_size,
+        color: item.selected_color,
+        qty: item.quantity,
+        restore: true,
+      });
     }
 
     // Refund if payment was made
@@ -1531,7 +1583,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
     const stockAlreadyReturned = ['cancelled', 'refunded'].includes(order.status);
     if (!stockAlreadyReturned) {
       const orderItems = await client.query(
-        'SELECT product_id, quantity, selected_size FROM shop_order_items WHERE order_id = $1',
+        'SELECT product_id, quantity, selected_size, selected_color FROM shop_order_items WHERE order_id = $1',
         [orderId]
       );
 
@@ -1541,24 +1593,14 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
           [item.quantity, item.product_id]
         );
 
-        if (item.selected_size) {
-          await client.query(
-            `UPDATE products
-             SET variants = (
-               SELECT jsonb_agg(
-                 CASE
-                   WHEN elem->>'label' = $2
-                   THEN jsonb_set(elem, '{quantity}', to_jsonb((elem->>'quantity')::int + $1))
-                   ELSE elem
-                 END
-               )
-               FROM jsonb_array_elements(variants) AS elem
-             ),
-             updated_at = NOW()
-             WHERE id = $3 AND variants IS NOT NULL`,
-            [item.quantity, item.selected_size, item.product_id]
-          );
-        }
+        // Restore the exact colour×size combination's variant stock.
+        await adjustVariantStock(client, {
+          productId: item.product_id,
+          size: item.selected_size,
+          color: item.selected_color,
+          qty: item.quantity,
+          restore: true,
+        });
       }
     }
 
@@ -1617,15 +1659,15 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
 
     for (const item of items) {
       const productResult = await client.query(`
-        SELECT id, name, price, stock_quantity, image_url, brand, status
-        FROM products 
+        SELECT id, name, price, stock_quantity, image_url, brand, status, variants
+        FROM products
         WHERE id = $1 AND status = 'active'
       `, [item.product_id]);
 
       if (productResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Product ${item.product_name || item.product_id} is not available` 
+        return res.status(400).json({
+          error: `Product ${item.product_name || item.product_id} is not available`
         });
       }
 
@@ -1633,12 +1675,15 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
 
       if (product.stock_quantity < item.quantity) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Insufficient stock for ${product.name}. Available: ${product.stock_quantity}` 
+        return res.status(400).json({
+          error: `Insufficient stock for ${product.name}. Available: ${product.stock_quantity}`
         });
       }
 
-      const itemTotal = product.price * item.quantity;
+      // Resolve the per-variant price for the chosen colour×size combo, server-side
+      // (don't trust a client-sent price). Falls back to the base product price.
+      const unitPrice = resolveVariantUnitPrice(product, item.selected_size, item.selected_color);
+      const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
 
       validatedItems.push({
@@ -1647,8 +1692,10 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
         product_image: product.image_url,
         brand: product.brand,
         quantity: item.quantity,
-        unit_price: product.price,
-        total_price: itemTotal
+        unit_price: unitPrice,
+        total_price: itemTotal,
+        selected_size: item.selected_size || null,
+        selected_color: item.selected_color || null
       });
     }
 
@@ -1692,9 +1739,9 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
       await client.query(`
         INSERT INTO shop_order_items (
           order_id, product_id, product_name, product_image, brand,
-          quantity, unit_price, total_price
+          quantity, unit_price, total_price, selected_size, selected_color
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       `, [
         order.id,
         item.product_id,
@@ -1703,15 +1750,26 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
         item.brand,
         item.quantity,
         item.unit_price,
-        item.total_price
+        item.total_price,
+        item.selected_size,
+        item.selected_color
       ]);
 
-      // Decrease stock
+      // Decrease top-level stock
       await client.query(`
-        UPDATE products 
+        UPDATE products
         SET stock_quantity = stock_quantity - $1, updated_at = NOW()
         WHERE id = $2
       `, [item.quantity, item.product_id]);
+
+      // Decrease the exact colour×size combination's variant stock.
+      await adjustVariantStock(client, {
+        productId: item.product_id,
+        size: item.selected_size,
+        color: item.selected_color,
+        qty: item.quantity,
+        restore: false,
+      });
     }
 
     // Process wallet payment if applicable

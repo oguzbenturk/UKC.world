@@ -34,6 +34,7 @@ import {
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { productApi } from '@/shared/services/productApi';
 import VariantTable from './VariantTable';
+import VariantMatrix from './VariantMatrix';
 import CreatableSelect from './CreatableSelect';
 import GallerySection from './GallerySection';
 import {
@@ -198,7 +199,13 @@ const pickPlainProductForForm = (p) => {
       ? {
           key: row.key,
           label: row.label,
+          // `size`/`color`/`stock` are written by the colour×size matrix; keep
+          // them so an edit re-hydrates the grid instead of losing the colour
+          // dimension on form re-init.
+          size: row.size,
+          color: row.color,
           quantity: row.quantity,
+          stock: row.stock,
           price: row.price,
           price_final: row.price_final,
           cost_price: row.cost_price,
@@ -299,6 +306,13 @@ const ProductForm = ({
 
   // Derived field config based on selected category
   const fieldConfig = useMemo(() => getFieldConfig(selectedCategory), [selectedCategory]);
+
+  // Photo count per colour — shown on each grid row so staff can see that a
+  // colour's pictures are linked to its stock (e.g. "Blue 📷 3").
+  const colorImageCounts = useMemo(
+    () => Object.fromEntries(colorNames.map((n) => [n, (colorImagesMap[n] || []).length])),
+    [colorNames, colorImagesMap],
+  );
 
   // Category options for CreatableSelect
   const categoryOptions = useMemo(() => {
@@ -706,7 +720,22 @@ const ProductForm = ({
           {fieldConfig.showVariants && <div className="h-px bg-slate-100" />}
 
           {/* ── Variants ── */}
-          {fieldConfig.showVariants && (
+          {/* Colours defined → colour×size stock grid (each cell is a combo,
+              e.g. 3 × XS Blue). No colours → the size-only variant table. */}
+          {fieldConfig.showVariants && colorNames.length > 0 && (
+            <>
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> {t('manager:products.form.colorSizeStock', { defaultValue: 'Colour × Size stock' })}</p>
+              <Form.Item name="variants" noStyle>
+                <VariantMatrix
+                  currency={selectedCurrency}
+                  category={selectedCategory}
+                  colorNames={colorNames}
+                  colorImageCounts={colorImageCounts}
+                />
+              </Form.Item>
+            </>
+          )}
+          {fieldConfig.showVariants && colorNames.length === 0 && (
             <>
               <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> {t('manager:products.form.sizeVariants')}</p>
               <Form.Item name="variants" noStyle>
