@@ -1,4 +1,4 @@
-import apiClient, { clearAccessToken, getAccessToken, setAccessToken } from '../apiClient.js';
+import apiClient, { clearAccessToken, getAccessToken, refreshSession } from '../apiClient.js';
 
 /** Shown when DISABLE_LOGIN blocks password sign-in (avoid harsh “invalid password” UX). */
 export const SIGN_IN_DISABLED_USER_MESSAGE =
@@ -145,23 +145,22 @@ class AuthService {
   }
 
   /**
-   * Refresh authentication token
-   * Gets a new JWT with the current role from the database
-   * Essential after role changes (e.g., outsider → student upgrade)
+   * Refresh the session — gets a new short-lived access JWT (with the current role)
+   * using the long-lived httpOnly refresh-token cookie. Works even after the access
+   * token has expired, and is single-flight / cross-tab coordinated in apiClient.
+   * Also used after role changes (e.g., outsider → student upgrade).
    */
   async refreshToken() {
     try {
-      const response = await apiClient.post('/auth/refresh-token');
-      
-      if (response.data.token) {
-        setAccessToken(response.data.token);
+      // refreshSession() already stores the new token (in-memory + localStorage) and
+      // notifies the refresh scheduler; it returns the full { token, user, consent }.
+      const data = await refreshSession();
+
+      if (data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
       }
-      
-      if (response.data.user) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      }
-      
-      return response.data;
+
+      return data;
     } catch (error) {
       console.error('AuthService: Token refresh failed:', error);
       throw error;

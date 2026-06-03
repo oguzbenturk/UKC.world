@@ -394,6 +394,7 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/auth/forgot-password',    // Public — sends reset email by address
   '/api/auth/validate-reset-token', // Public — verifies token-only, no session
   '/api/auth/reset-password',     // Public — token-in-body completes the reset
+  '/api/auth/refresh-session',    // Cookie-authed session renewal; secured by httpOnly + SameSite=lax refresh cookie + rotation/reuse-detection. Must work after the 24h csrf cookie has expired but the long-lived refresh cookie is still valid.
   '/api/agent/',                  // Server-to-server from n8n; protected by X-Kai-Agent-Secret header
   '/api/assistant',               // Public AI chat widget — no session cookie to steal
   '/api/telegram/webhook',        // Telegram webhook; protected by X-Telegram-Bot-Api-Secret-Token header

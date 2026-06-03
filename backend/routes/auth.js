@@ -22,6 +22,12 @@ import {
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { ERROR_CODES } from '../shared/errorCodes.js';
+import {
+  issueRefreshToken,
+  rotateRefreshToken,
+  revokeFamily,
+  revokeByRawToken
+} from '../services/refreshTokenService.js';
 
 const router = express.Router();
 
@@ -45,6 +51,50 @@ const getAuthCookieOptions = (maxAgeMs) => ({
   path: '/',
   maxAge: maxAgeMs
 });
+
+// Parse a jsonwebtoken-style duration ('2h', '30m', '7d', '45s', a bare numeric
+// string = milliseconds, or a number = seconds) into milliseconds. Falls back to a
+// safe default on anything unparseable so the auth cookie can never be emitted with
+// a NaN Max-Age. Used to keep the access cookie's lifetime aligned with TOKEN_EXPIRY.
+const parseDurationMs = (value, fallbackMs = 2 * 60 * 60 * 1000) => {
+  if (value == null || value === '') return fallbackMs;
+  if (typeof value === 'number' && Number.isFinite(value)) return value * 1000; // jwt: number = seconds
+  const m = /^(\d+(?:\.\d+)?)\s*(ms|s|m|h|d)?$/i.exec(String(value).trim());
+  if (!m) return fallbackMs;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return fallbackMs;
+  if (!m[2]) return Math.round(n); // jwt: bare numeric string = milliseconds
+  const mult = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 }[m[2].toLowerCase()];
+  return Math.round(n * mult);
+};
+
+// Access cookie lifetime tracks the JWT lifetime so the two can never silently
+// diverge (the old hardcoded 2h cookie vs configurable JWT was a latent footgun).
+const AUTH_COOKIE_MAX_AGE_MS = parseDurationMs(TOKEN_EXPIRY);
+
+// Long-lived rotating refresh token (decoupled from the access token). Scoped to
+// /api/auth so it is only sent to auth routes, not every API call.
+const REFRESH_COOKIE_NAME = process.env.REFRESH_COOKIE_NAME || 'plannivo_refresh';
+const REFRESH_EXPIRY_DAYS = parseInt(process.env.REFRESH_EXPIRY_DAYS, 10) || 60;
+const REFRESH_COOKIE_MAX_AGE_MS = REFRESH_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+const REFRESH_COOKIE_PATH = '/api/auth';
+
+const getRefreshCookieOptions = (maxAgeMs = REFRESH_COOKIE_MAX_AGE_MS) => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: 'lax',
+  path: REFRESH_COOKIE_PATH,
+  maxAge: maxAgeMs
+});
+
+const clearRefreshCookie = (res) => {
+  res.clearCookie(REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: REFRESH_COOKIE_PATH
+  });
+};
 
 const parseCookies = (cookieHeader = '') => {
   return cookieHeader
@@ -472,8 +522,8 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
     
     logger.info('Token refreshed for user', { userId, newRole: user.role_name });
 
-    // SEC-006 FIX: Set httpOnly auth cookie
-    const maxAgeMs = 2 * 60 * 60 * 1000;
+    // SEC-006 FIX: Set httpOnly auth cookie (lifetime tracks the access JWT)
+    const maxAgeMs = AUTH_COOKIE_MAX_AGE_MS;
     res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(maxAgeMs));
     setCsrfCookie(res);
 
@@ -486,6 +536,120 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
   } catch (err) {
     logger.error('Error refreshing token', err);
     res.status(500).json({ error: 'Failed to refresh token' });
+  }
+});
+
+// Long-lived session refresh — validates the httpOnly refresh-token cookie (NOT the
+// access token), so it can renew a session whose access JWT has already expired.
+// This is what keeps the always-on /music screen logged in. PUBLIC (no
+// authenticateJWT) and CSRF-exempt: its security comes from the httpOnly,
+// SameSite=lax, path-scoped refresh cookie plus rotation + reuse-detection.
+router.post('/refresh-session', async (req, res) => {
+  try {
+    const cookies = parseCookies(req.headers.cookie || '');
+    const rawRefresh = cookies[REFRESH_COOKIE_NAME];
+
+    if (!rawRefresh) {
+      return res.status(401).json({
+        error: 'No refresh token provided.',
+        code: ERROR_CODES.AUTH_TOKEN_MISSING,
+      });
+    }
+
+    const result = await rotateRefreshToken(rawRefresh, {
+      userAgent: req.headers['user-agent'] || null,
+      ip: req.ip || null,
+    });
+
+    if (result.error) {
+      clearRefreshCookie(res);
+      if ((result.error === 'reuse' || result.error === 'revoked') && result.userId) {
+        await logSecurityEvent(result.userId, 'refresh_token_reuse_detected', req, {
+          familyId: result.familyId,
+          reason: result.error,
+        });
+      }
+      return res.status(401).json({
+        error: 'Session expired. Please log in again.',
+        code: ERROR_CODES.AUTH_TOKEN_INVALID,
+      });
+    }
+
+    // Load current user (fresh role) — mirrors /refresh-token.
+    const userResult = await pool.query(`
+      SELECT u.id, u.email, r.name as role_name, u.two_factor_enabled
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.id = $1 AND u.deleted_at IS NULL
+    `, [result.userId]);
+
+    if (userResult.rows.length === 0) {
+      await revokeFamily(result.familyId);
+      clearRefreshCookie(res);
+      return res.status(401).json({
+        error: 'User not found.',
+        code: ERROR_CODES.AUTH_TOKEN_INVALID,
+      });
+    }
+
+    const account = userResult.rows[0];
+
+    const token = jwt.sign(
+      {
+        id: account.id,
+        email: account.email,
+        role: account.role_name,
+        twoFactorVerified: !account.two_factor_enabled,
+        jti: crypto.randomBytes(16).toString('hex'),
+      },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+
+    // Full user payload for the frontend (same shape as /refresh-token).
+    const fullUserResult = await pool.query(`
+      SELECT
+        u.id,
+        u.email,
+        COALESCE(u.name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as name,
+        u.first_name,
+        u.last_name,
+        u.created_at,
+        u.updated_at,
+        u.profile_image_url,
+        r.name as role
+      FROM users u
+      LEFT JOIN roles r ON r.id = u.role_id
+      WHERE u.id = $1 AND u.deleted_at IS NULL
+    `, [account.id]);
+
+    const userData = fullUserResult.rows[0];
+
+    let consent = null;
+    try {
+      consent = await getConsentStatus(account.id);
+      if (userData) userData.consent = consent;
+    } catch (consentError) {
+      logger.warn('Failed to load consent status during session refresh', {
+        userId: account.id,
+        error: consentError.message,
+      });
+    }
+
+    // Rotate the refresh cookie + reset the access and CSRF cookies.
+    res.cookie(REFRESH_COOKIE_NAME, result.raw, getRefreshCookieOptions());
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(AUTH_COOKIE_MAX_AGE_MS));
+    setCsrfCookie(res);
+
+    return res.json({
+      token,
+      user: userData,
+      consent,
+      message: 'Session refreshed successfully',
+    });
+  } catch (err) {
+    logger.error('Error refreshing session', err);
+    return res.status(500).json({ error: 'Failed to refresh session' });
   }
 });
 
@@ -506,6 +670,19 @@ router.post('/logout', authenticateJWT, async (req, res) => {
       
       }
     
+    // Revoke the refresh-token family so the long-lived session cannot be renewed,
+    // then clear its cookie.
+    try {
+      const cookies = parseCookies(req.headers.cookie || '');
+      const rawRefresh = cookies[REFRESH_COOKIE_NAME];
+      if (rawRefresh) {
+        await revokeByRawToken(rawRefresh);
+      }
+    } catch (revokeErr) {
+      logger.warn('Failed to revoke refresh token on logout', { error: revokeErr.message });
+    }
+    clearRefreshCookie(res);
+
     // Log logout event
     await logSecurityEvent(req.user.id, 'logout', req);
 
@@ -516,7 +693,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
       sameSite: 'lax',
       path: '/'
     });
-    
+
     res.json({ message: 'Logout successful' });
   } catch (err) {
     logger.error('Logout error', err);
@@ -819,10 +996,24 @@ async function completeLogin(user, req, res) {
       { expiresIn: TOKEN_EXPIRY }
     );
 
-    // SEC-006 FIX: Set httpOnly auth cookie
-    const maxAgeMs = 2 * 60 * 60 * 1000;
+    // SEC-006 FIX: Set httpOnly auth cookie (lifetime tracks the access JWT)
+    const maxAgeMs = AUTH_COOKIE_MAX_AGE_MS;
     res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(maxAgeMs));
     setCsrfCookie(res);
+
+    // Issue a long-lived rotating refresh token so the short access JWT can be
+    // silently renewed (keeps the always-on /music screen logged in past TOKEN_EXPIRY).
+    try {
+      const { raw: refreshRaw } = await issueRefreshToken(user.id, {
+        userAgent: req.headers['user-agent'] || null,
+        ip: req.ip || null
+      });
+      res.cookie(REFRESH_COOKIE_NAME, refreshRaw, getRefreshCookieOptions());
+    } catch (refreshErr) {
+      // Non-fatal: login still succeeds with the access token; the session just
+      // won't auto-renew until the next login.
+      logger.error('Failed to issue refresh token at login', refreshErr);
+    }
 
     // Remove sensitive data
     delete user.password_hash;

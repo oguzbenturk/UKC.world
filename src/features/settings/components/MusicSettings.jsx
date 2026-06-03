@@ -187,11 +187,27 @@ export default function MusicSettings() {
     );
   }, [connected, loadNowPlaying, loadDevices, loadPlaylists, loadSchedules]);
 
-  // Now-playing poll
+  // Now-playing poll — 5s while the screen is actively visible, backing off to 30s
+  // when the tab/screen is hidden, so an always-on display doesn't hammer Spotify's
+  // API (and risk rate limits) around the clock.
   useEffect(() => {
     if (!connected) return undefined;
-    const id = setInterval(loadNowPlaying, 5000);
-    return () => clearInterval(id);
+    let intervalId = null;
+    const start = () => {
+      if (intervalId) clearInterval(intervalId);
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      intervalId = setInterval(loadNowPlaying, hidden ? 30000 : 5000);
+    };
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && !document.hidden) loadNowPlaying();
+      start(); // reset the cadence for the new visibility state
+    };
+    start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [connected, loadNowPlaying]);
 
   // Listen for OAuth completion from popup

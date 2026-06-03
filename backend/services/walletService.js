@@ -1769,6 +1769,7 @@ export async function getEntityNetCharges({
   relatedEntityType = null,
   relatedEntityId = null,
   shopOrderId = null,
+  byUser = false,
 } = {}) {
   const runner = client || pool;
   const conditions = [];
@@ -1794,6 +1795,21 @@ export async function getEntityNetCharges({
   }
   if (!conditions.length) {
     return [];
+  }
+  // byUser groups the net by (user_id, currency) so each actual payer is
+  // refunded their OWN outstanding charge — without it a group booking's whole
+  // net is attributed to a single row, which the caller then refunds to the
+  // primary participant only (over-refunding them, stiffing the others).
+  if (byUser) {
+    const { rows } = await runner.query(
+      `SELECT user_id, currency, COALESCE(SUM(available_delta), 0) AS net
+         FROM wallet_transactions
+        WHERE status = 'completed' AND (${conditions.join(' OR ')})
+        GROUP BY user_id, currency
+        HAVING COALESCE(SUM(available_delta), 0) < 0`,
+      params
+    );
+    return rows.map((r) => ({ userId: r.user_id, currency: r.currency, amount: toNumeric(Math.abs(Number(r.net))) }));
   }
   const { rows } = await runner.query(
     `SELECT currency, COALESCE(SUM(available_delta), 0) AS net

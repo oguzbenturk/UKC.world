@@ -208,15 +208,58 @@ class BookingUpdateCascadeService {
    * size.
    */
   static async computeBookingTotalAmount(client, booking, pkgContext = null) {
-    let total = await this.computeLessonAmount(client, booking, pkgContext);
-    const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
-    // Mirror the existing convention from updateInstructorEarnings: only
-    // multiply when the booking is fully package-paid AND a true group.
-    // 'partial' bookings already had the cash portion (full group sum) added
-    // inside computeLessonAmount, so we don't multiply again.
-    if (booking.payment_status === 'package' && groupSize > 1) {
-      total = new Decimal(total).mul(groupSize).toDecimalPlaces(2).toNumber();
+    let total;
+
+    // Multi-participant bookings: value each participant by THEIR OWN package
+    // rate + their own cash, summed. The old code valued the whole group at the
+    // PRIMARY participant's per-hour rate × group_size (ignoring that each
+    // participant draws from a differently-priced package — G3) and, for partial
+    // groups, fed one person's package value + the WHOLE group's cash into
+    // partialLessonValue (whose single-person cash floor then swallowed the
+    // package hours — P4). Per-participant valuation fixes both.
+    const { rows: participants } = await client.query(
+      `SELECT user_id, payment_status, payment_amount, customer_package_id,
+              package_hours_used, cash_hours_used
+         FROM booking_participants WHERE booking_id = $1`,
+      [booking.id]
+    );
+
+    if (participants.length > 1) {
+      let sum = new Decimal(0);
+      for (const p of participants) {
+        if (p.payment_status === 'refunded') continue;
+        // Each participant attends the full booking duration but pays via their
+        // own package / cash. Build a pseudo-booking and reuse computeLessonAmount
+        // so package-rate, partial (partialLessonValue) and cash are all valued
+        // exactly as they are for a single booking.
+        const perParticipant = {
+          id: booking.id,
+          duration: booking.duration,
+          service_id: booking.service_id,
+          currency: booking.currency,
+          group_size: 1,
+          customer_package_id: p.customer_package_id,
+          payment_status: p.payment_status,
+          final_amount: p.payment_amount,
+          amount: p.payment_amount,
+          package_hours_used: p.package_hours_used,
+          cash_hours_used: p.cash_hours_used,
+        };
+        const v = await this.computeLessonAmount(client, perParticipant, null);
+        sum = sum.add(new Decimal(v || 0));
+      }
+      total = sum.toDecimalPlaces(2).toNumber();
+    } else {
+      total = await this.computeLessonAmount(client, booking, pkgContext);
+      const groupSize = Math.max(1, parseInt(booking.group_size) || 1);
+      // Single-row "group" (group_size>1 but no participant rows): keep the
+      // legacy package × group_size convention. 'partial' already had its cash
+      // folded inside computeLessonAmount, so we don't multiply it.
+      if (booking.payment_status === 'package' && groupSize > 1) {
+        total = new Decimal(total).mul(groupSize).toDecimalPlaces(2).toNumber();
+      }
     }
+
     const bookingDiscount = await getActiveDiscountAmount(client, WALLET_ENTITY_TYPE.BOOKING, booking.id);
     if (bookingDiscount > 0) {
       total = Math.max(0, new Decimal(total).sub(bookingDiscount).toDecimalPlaces(2).toNumber());
@@ -361,6 +404,19 @@ class BookingUpdateCascadeService {
    * `pkgContext` is forwarded to computeLessonAmount when present.
    */
   static async updateInstructorEarnings(client, booking, pkgContext = null) {
+    // A cancelled / no-show / declined booking must NOT carry instructor
+    // earnings. Without this, a status→cancelled edit that ALSO changes
+    // duration/amount re-created a non-zero earnings row (computeLessonAmount
+    // never checked status, S4). Drop the unpaid snapshot and stop.
+    const CANCELLED_EARNING_STATUSES = ['cancelled', 'canceled', 'no_show', 'no-show', 'noshow', 'declined', 'rejected'];
+    if (CANCELLED_EARNING_STATUSES.includes(String(booking.status || '').toLowerCase().trim())) {
+      await client.query(
+        `DELETE FROM instructor_earnings WHERE booking_id = $1 AND payroll_id IS NULL`,
+        [booking.id]
+      );
+      return { skipped: 'cancelled_status' };
+    }
+
     // Get current earnings record (need payroll_id to enforce immutable history)
     const existingEarnings = await client.query(
       'SELECT id, payroll_id, lesson_amount, total_earnings FROM instructor_earnings WHERE booking_id = $1',
@@ -745,26 +801,14 @@ class BookingUpdateCascadeService {
           return;
         }
 
-        // For individual bookings (not packages), update customer balance
-        if (booking.payment_status !== 'package') {
-          await client.query(`
-            UPDATE users
-            SET balance = balance - $1, updated_at = NOW()
-            WHERE id = $2
-          `, [amountDifference.toNumber(), booking.student_user_id]);
-
-          // Create transaction record for balance change
-          await client.query(`
-            INSERT INTO transactions (user_id, booking_id, type, amount, description, transaction_date)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-          `, [
-            booking.student_user_id,
-            booking.id,
-            amountDifference.gt(0) ? 'charge' : 'credit',
-            amountDifference.abs().toNumber(),
-            `Booking price adjustment: ${amountDifference.gt(0) ? 'increase' : 'decrease'} €${amountDifference.abs().toDecimalPlaces(2).toNumber()}`
-          ]);
-
+        // Package + partial bookings settle their own money in the booking
+        // routes / reconcile (package hours and the cash leg respectively), so
+        // skip them here to avoid a second adjustment. Only plain individual
+        // (cash/wallet) bookings are settled in this path.
+        if (booking.payment_status !== 'package' && booking.payment_status !== 'partial') {
+          // Single source of truth is the wallet ledger — the legacy raw
+          // `users.balance` write + `transactions` insert were removed (they
+          // double-credited against the wallet store; H16 / dual-ledger drift).
           // Mirror the price edit into the wallet ledger so the Financial
           // History view (which reads wallet_transactions) shows the new
           // price instead of the original booking_charge. Skips when the

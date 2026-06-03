@@ -187,7 +187,23 @@ const StudentPayments = () => {
   }, [error, notification, t]);
 
   const invoiceRows = useMemo(() => computeInvoiceRows(data?.invoices, overview?.payments), [data?.invoices, overview?.payments]);
-  const totals = useMemo(() => computeTotals(invoiceRows, storageCurrency, convertCurrency), [invoiceRows, storageCurrency, convertCurrency]);
+  const totals = useMemo(() => {
+    const pageTotals = computeTotals(invoiceRows, storageCurrency, convertCurrency);
+    // Prefer the backend's lifetime totals (computed over the FULL ledger) for
+    // the headline Total Paid / Total Charged cards — computeTotals only sees the
+    // current 10-row page, so it understated lifetime totals for customers with
+    // many transactions. Pending counts stay page-derived.
+    const summary = overview?.paymentSummary;
+    if (summary && (summary.totalPaid != null || summary.totalCharges != null)) {
+      return {
+        ...pageTotals,
+        totalPaid: Number(summary.totalPaid) || 0,
+        totalCharged: Number(summary.totalCharges ?? summary.totalSpent) || 0,
+        totalRefunded: Number(summary.totalRefunds) || pageTotals.totalRefunded,
+      };
+    }
+    return pageTotals;
+  }, [overview?.paymentSummary, invoiceRows, storageCurrency, convertCurrency]);
   const totalRecords = useMemo(() => computeTotalRecords(data?.pagination?.total, data?.total, invoiceRows.length), [data?.pagination?.total, data?.total, invoiceRows.length]);
   const totalPages = Math.ceil(totalRecords / 10);
 

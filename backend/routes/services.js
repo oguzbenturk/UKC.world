@@ -2145,9 +2145,44 @@ router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMi
       await setPackagePrices(client, id, [{ currencyCode: (primaryCurrency || 'EUR').toUpperCase(), price: parseFloat(primaryPrice) }]);
       allPrices = [{ currencyCode: (primaryCurrency || 'EUR').toUpperCase(), price: parseFloat(primaryPrice) }];
     }
-    
+
     await client.query('COMMIT');
-    
+
+    // K2: editing the TEMPLATE (package_hourly_rate / total_hours / price)
+    // changes the per-hour value that every customer_package instance derives
+    // its lesson value from at query time (loadPackageContext reads
+    // service_packages.*), so the frozen instructor_earnings + manager_commissions
+    // snapshots on each instance's bookings must be recomputed. Fire-and-forget
+    // after commit so the response isn't blocked by a template with many instances.
+    setImmediate(async () => {
+      try {
+        const { rows: cps } = await pool.query(
+          `SELECT id FROM customer_packages WHERE service_package_id = $1 AND COALESCE(status,'') <> 'cancelled'`,
+          [id]
+        );
+        if (cps.length) {
+          const Cascade = (await import('../services/bookingUpdateCascadeService.js')).default;
+          const { recomputeManagerCommissionsForPackage } = await import('../services/managerCommissionService.js');
+          for (const cp of cps) {
+            const c = await pool.connect();
+            try {
+              await c.query('BEGIN');
+              await recomputeManagerCommissionsForPackage(c, cp.id);
+              await Cascade.recomputeEarningsForPackageBookings(c, cp.id);
+              await c.query('COMMIT');
+            } catch (e) {
+              await c.query('ROLLBACK').catch(() => {});
+              logger.warn('Template-edit snapshot recompute failed for customer_package', { customerPackageId: cp.id, error: e.message });
+            } finally {
+              c.release();
+            }
+          }
+        }
+      } catch (recomputeErr) {
+        logger.warn('Failed to recompute snapshots after package template edit', { templateId: id, error: recomputeErr?.message });
+      }
+    });
+
     const updatedPackage = {
       id: rows[0].id,
       name: rows[0].name,

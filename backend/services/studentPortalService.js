@@ -138,6 +138,12 @@ export const computeTransactionAggregates = (transactions = []) => {
   return {
     balance: roundCurrency(balance),
     totalSpent: roundCurrency(netCharges),
+    // Lifetime totals over the FULL transaction set (the caller no longer
+    // truncates to 50), so the customer's headline "Total Paid" is accurate
+    // instead of summing only the most recent page.
+    totalPaid: roundCurrency(payments),
+    totalRefunds: roundCurrency(refunds),
+    totalCharges: roundCurrency(charges),
     lastPaymentAt
   };
 };
@@ -847,16 +853,26 @@ export async function getStudentOverview(studentId, options = {}) {
               .map((clause) => `(${clause})`)
               .join(' OR ');
 
+            // Exclude cancelled transactions and ghost "pending" credit-card records
+            // (no real balance impact) — identical to the canonical walletService filter.
+            // Without this, voided/cancelled charges inflated the student's "Lifetime Value" /
+            // "Total Spent" and appeared as phantom rows in their financial history.
             const transactionQuery = `
               SELECT DISTINCT ON (wt.id) ${transactionSelectFields.join(',\n                     ')}
                 FROM wallet_transactions wt
                 ${transactionJoins.join('\n                ')}
-               WHERE ${transactionPredicate}
+               WHERE (${transactionPredicate})
+                 AND wt.status != 'cancelled'
+                 AND NOT (wt.status = 'pending' AND wt.available_delta = 0 AND wt.payment_method = 'credit_card')
             ORDER BY wt.id, COALESCE(wt.transaction_date, wt.created_at) DESC, wt.created_at DESC`;
 
+            // No LIMIT here: computeTransactionAggregates() sums these rows for
+            // the customer's lifetime Total Paid / balance, so a LIMIT 50 made
+            // those headline totals wrong for anyone with >50 transactions. The
+            // on-screen list is sliced to 50 separately (see `payments` below),
+            // so only the aggregate needs the full set.
             const wrappedQuery = `SELECT * FROM (${transactionQuery}) sub
-              ORDER BY COALESCE(sub.effective_date, sub.created_at) DESC
-              LIMIT 50`;
+              ORDER BY COALESCE(sub.effective_date, sub.created_at) DESC`;
 
             return client.query(wrappedQuery, [normalizedStudentId]);
           })()
@@ -1380,6 +1396,9 @@ export async function getStudentOverview(studentId, options = {}) {
       instructorNotes,
       notifications,
       payments,
+      // Accurate lifetime payment totals (computed over the full ledger, not the
+      // 50-row display slice) so the customer-facing headline cards match admin.
+      paymentSummary: transactionSummary,
       recommendedProducts,
       recommendations: recommendedProducts,
       unratedBookings,

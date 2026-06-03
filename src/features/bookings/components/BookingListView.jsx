@@ -444,22 +444,30 @@ const BookingListView = () => {
   const getBookingPrice = useCallback((booking) => {
     if (!booking) return null;
 
-    const isPackage = !!booking.customer_package_id && booking.payment_status === 'package';
-    if (isPackage) {
+    // Subtract the booking-level discount everywhere (D4) so this list matches
+    // the detail drawer and the GET /:id display_amount.
+    const discount = Math.max(0, parseFloat(booking.total_discount_amount) || 0);
+
+    // Treat 'partial' like 'package' for the lesson VALUE display (P6): show the
+    // realized package-rate value of the full lesson, not the cash-only leg that
+    // final_amount holds for partials (which diverged from the commission base).
+    const isPackageOrPartial = !!booking.customer_package_id &&
+      (booking.payment_status === 'package' || booking.payment_status === 'partial');
+    if (isPackageOrPartial) {
       const totalHours = parseFloat(booking.package_total_hours);
       const packagePrice = parseFloat(booking.package_price);
       const duration = Number(booking.actualDuration) || Number(booking.duration) || 1;
       if (Number.isFinite(totalHours) && totalHours > 0 && Number.isFinite(packagePrice)) {
-        return (packagePrice / totalHours) * duration;
+        return Math.max(0, (packagePrice / totalHours) * duration - discount);
       }
     }
 
     const final = parseFloat(booking.final_amount);
-    if (Number.isFinite(final) && final > 0) return final;
+    if (Number.isFinite(final) && final > 0) return Math.max(0, final - discount);
     const amount = parseFloat(booking.amount);
-    if (Number.isFinite(amount) && amount > 0) return amount;
+    if (Number.isFinite(amount) && amount > 0) return Math.max(0, amount - discount);
     const price = parseFloat(booking.price);
-    if (Number.isFinite(price) && price > 0) return price;
+    if (Number.isFinite(price) && price > 0) return Math.max(0, price - discount);
     return null;
   }, []);
 

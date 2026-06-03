@@ -1232,6 +1232,7 @@
       "stats": {
         "lessonRevenue": "Ingresos de clases",
         "totalBookings": "Total reservas",
+        "completedBookings": "Reservas completadas",
         "instructorCommissions": "Comisiones instructores",
         "managerCommission": "Comisión del gerente",
         "netLessonRevenue": "Ingresos netos de clases"

@@ -1232,6 +1232,7 @@
       "stats": {
         "lessonRevenue": "Ders Geliri",
         "totalBookings": "Toplam Rezervasyon",
+        "completedBookings": "Tamamlanan Rezervasyon",
         "instructorCommissions": "Eğitmen Komisyonları",
         "managerCommission": "Yönetici Komisyonu",
         "netLessonRevenue": "Net Ders Geliri"

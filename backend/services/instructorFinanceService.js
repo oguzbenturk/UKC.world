@@ -9,21 +9,28 @@ const mapEarningRow = (row) => {
   const commissionType = row.commission_type || 'fixed';
   const groupSize = Math.max(1, toNumber(row.group_size) || 1);
 
-  // For combo/all-inclusive packages, derive lesson-only portion of the price
+  // For combo/all-inclusive packages, derive lesson-only portion of the price.
+  // `package_price` is already discount-adjusted (cp.purchase_price - cp_disc.amt).
   let effectivePackagePrice = toNumber(row.package_price);
+  // K3: the discount ratio (post-discount base / full price). The stored
+  // hourly-rate branch derives off the FULL rate, so we must re-apply this
+  // ratio or the displayed earnings ignore the package discount entirely
+  // (over-displaying vs the stored snapshot + manager commission).
+  const discountRatio = row.package_discount_ratio != null ? toNumber(row.package_discount_ratio) : 1;
   const isPackageOrPartial = (row.payment_status === 'package' || row.payment_status === 'partial') && effectivePackagePrice > 0;
   if (isPackageOrPartial) {
     const storedHourlyRate = toNumber(row.pkg_hourly_rate);
     const pkgTotalHours = toNumber(row.package_total_hours);
     if (storedHourlyRate > 0 && pkgTotalHours > 0) {
-      // Use explicitly stored per-hour lesson rate × total hours to get lesson portion
-      effectivePackagePrice = storedHourlyRate * pkgTotalHours;
+      // Stored per-hour lesson rate × total hours, scaled by the discount ratio.
+      effectivePackagePrice = storedHourlyRate * pkgTotalHours * (discountRatio || 1);
     } else {
-      // Fallback: subtract rental + accommodation costs from total price
+      // Fallback: subtract rental + accommodation costs (ratio-scaled, like the
+      // cascade) from the discount-adjusted base.
       const rentalCost = toNumber(row.pkg_rental_days) * toNumber(row.pkg_rental_daily_rate);
       const accomCost = toNumber(row.pkg_accom_nights) * toNumber(row.pkg_accom_nightly_rate);
       if (rentalCost + accomCost > 0) {
-        effectivePackagePrice = Math.max(0, effectivePackagePrice - rentalCost - accomCost);
+        effectivePackagePrice = Math.max(0, effectivePackagePrice - (rentalCost + accomCost) * (discountRatio || 1));
       }
     }
   }
@@ -138,6 +145,9 @@ export async function getInstructorEarningsData(
           THEN ROUND(GREATEST(cp.purchase_price - cp_disc.amt, 0) / cs_pkg.exchange_rate, 2)
           ELSE COALESCE(cp.purchase_price - cp_disc.amt, gb_sp.price)
         END as package_price,
+        CASE WHEN cp.purchase_price > 0
+             THEN GREATEST(cp.purchase_price - COALESCE(cp_disc.amt, 0), 0) / cp.purchase_price
+             ELSE 1 END as package_discount_ratio,
         COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
         cp.remaining_hours as package_remaining_hours,
         cp.used_hours as package_used_hours,
@@ -231,6 +241,202 @@ export async function getInstructorEarningsData(
   }
 }
 
+/**
+ * Lesson finance breakdown for the /finance/lessons page (Service Popularity +
+ * Instructor Performance) AND the headline lesson-revenue / instructor-commission
+ * totals. Reuses the SAME per-booking derivation as getInstructorEarningsData
+ * (mapEarningRow → deriveLessonAmount / partialLessonValue / deriveTotalEarnings)
+ * so the page reconciles exactly with instructor payroll: discounts are netted,
+ * package lessons are valued at their package-price share, partial (package+cash)
+ * bookings are valued without double-counting the cash hour, group/semi-private
+ * bookings are scaled by group_size, self-student bookings use the 45% override,
+ * and instructor_category_rates are honoured.
+ *
+ * `statuses` defaults to the finance "completed" set so it matches the headline
+ * cards (LEDGER_COMPLETED_BOOKING_STATUSES = completed/done/checked_out).
+ */
+export async function getLessonFinanceBreakdown({
+  startDate,
+  endDate,
+  statuses = ['completed', 'done', 'checked_out'],
+} = {}) {
+  const query = `
+    SELECT
+      b.instructor_user_id,
+      COALESCE(iu.first_name || ' ' || iu.last_name, iu.email) AS instructor_name,
+      srv.id AS service_id,
+      b.id as booking_id,
+      b.date as lesson_date,
+      b.start_hour,
+      b.duration as lesson_duration,
+      GREATEST(COALESCE(b.final_amount, b.amount, 0) - bk_disc.amt, 0) as base_amount,
+      b.final_amount,
+      b.payment_status,
+      b.status as booking_status,
+      b.currency,
+      b.group_size,
+      s.name as student_name,
+      srv.name as service_name,
+      (
+        SELECT string_agg(u.first_name || ' ' || u.last_name, ', ' ORDER BY bp.is_primary DESC, u.first_name)
+        FROM booking_participants bp
+        JOIN users u ON u.id = bp.user_id
+        WHERE bp.booking_id = b.id
+      ) as participant_names,
+      srv.price as service_price,
+      srv.duration as service_duration,
+      CASE
+        WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+          THEN 'semi-private-supervision'
+        ELSE srv.lesson_category_tag
+      END as lesson_category,
+      cp.package_name,
+      CASE
+        WHEN cp.currency IS NOT NULL AND cp.currency != 'EUR' AND cs_pkg.exchange_rate > 0
+        THEN ROUND(GREATEST(cp.purchase_price - cp_disc.amt, 0) / cs_pkg.exchange_rate, 2)
+        ELSE COALESCE(cp.purchase_price - cp_disc.amt, gb_sp.price)
+      END as package_price,
+      CASE WHEN cp.purchase_price > 0
+           THEN GREATEST(cp.purchase_price - COALESCE(cp_disc.amt, 0), 0) / cp.purchase_price
+           ELSE 1 END as package_discount_ratio,
+      COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
+      cp.remaining_hours as package_remaining_hours,
+      cp.used_hours as package_used_hours,
+      COALESCE(sp.sessions_count, gb_sp.sessions_count) as package_sessions_count,
+      COALESCE(sp.rental_days, 0) as pkg_rental_days,
+      COALESCE(sp.accommodation_nights, 0) as pkg_accom_nights,
+      COALESCE(rental_srv.price, 0) as pkg_rental_daily_rate,
+      COALESCE(accom_unit.price_per_night, 0) as pkg_accom_nightly_rate,
+      sp.package_hourly_rate as pkg_hourly_rate,
+      COALESCE(
+        CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+             THEN COALESCE(idc.self_student_commission_rate, 45) END,
+        bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0
+      ) as commission_rate,
+      COALESCE(
+        CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
+             THEN 'percentage' END,
+        bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed'
+      ) as commission_type
+    FROM bookings b
+    JOIN users iu ON iu.id = b.instructor_user_id
+    LEFT JOIN users s ON s.id = b.student_user_id
+    LEFT JOIN services srv ON srv.id = b.service_id
+    LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
+    LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+    LEFT JOIN services rental_srv ON rental_srv.id = sp.rental_service_id
+    LEFT JOIN accommodation_units accom_unit ON accom_unit.id = sp.accommodation_unit_id
+    LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
+    LEFT JOIN group_bookings gb ON gb.booking_id = b.id
+    LEFT JOIN service_packages gb_sp ON gb_sp.id = gb.package_id
+    LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
+    LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
+    LEFT JOIN instructor_category_rates icr ON icr.instructor_id = b.instructor_user_id AND icr.lesson_category = (
+      CASE
+        WHEN srv.lesson_category_tag = 'supervision' AND COALESCE(b.group_size, 1) > 1
+          THEN 'semi-private-supervision'
+        ELSE srv.lesson_category_tag
+      END
+    )
+    LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
+    ${discountSumLateral('bk_disc', 'booking', 'b.id')}
+    ${discountSumLateral('cp_disc', 'customer_package', 'cp.id')}
+    WHERE b.deleted_at IS NULL
+      AND b.instructor_user_id IS NOT NULL
+      AND b.status = ANY($1::text[])
+  `;
+
+  const params = [Array.isArray(statuses) && statuses.length ? statuses : ['completed']];
+  let q = query;
+  let idx = 2;
+  if (startDate) { q += ` AND b.date >= $${idx}`; params.push(startDate); idx += 1; }
+  if (endDate) { q += ` AND b.date <= $${idx}`; params.push(endDate); idx += 1; }
+
+  const { rows } = await pool.query(q, params);
+
+  const instructorMap = new Map();
+  const serviceMap = new Map();
+  let totalRevenue = 0;
+  let totalCommission = 0;
+  let totalBookings = 0;
+  let totalHours = 0;
+
+  for (const row of rows) {
+    const mapped = mapEarningRow(row);
+    const revenue = toNumber(mapped.lesson_amount);
+    const commission = toNumber(mapped.commission_amount);
+    const hours = toNumber(mapped.lesson_duration);
+
+    totalRevenue += revenue;
+    totalCommission += commission;
+    totalBookings += 1;
+    totalHours += hours;
+
+    const instId = row.instructor_user_id;
+    if (!instructorMap.has(instId)) {
+      instructorMap.set(instId, {
+        instructorId: instId,
+        name: row.instructor_name,
+        bookings: 0,
+        hours: 0,
+        revenue: 0,
+        commission: 0,
+      });
+    }
+    const inst = instructorMap.get(instId);
+    inst.bookings += 1;
+    inst.hours += hours;
+    inst.revenue += revenue;
+    inst.commission += commission;
+
+    const svcId = row.service_id;
+    if (svcId) {
+      if (!serviceMap.has(svcId)) {
+        serviceMap.set(svcId, { serviceId: svcId, name: row.service_name, bookings: 0, revenue: 0 });
+      }
+      const svc = serviceMap.get(svcId);
+      svc.bookings += 1;
+      svc.revenue += revenue;
+    }
+  }
+
+  const round2 = (n) => Number(toNumber(n).toFixed(2));
+
+  const services = Array.from(serviceMap.values())
+    .map((s) => ({
+      serviceId: s.serviceId,
+      name: s.name,
+      bookings: s.bookings,
+      revenue: round2(s.revenue),
+      avgPrice: s.bookings > 0 ? round2(s.revenue / s.bookings) : 0,
+    }))
+    .sort((a, b) => b.bookings - a.bookings)
+    .slice(0, 20);
+
+  const instructors = Array.from(instructorMap.values())
+    .map((i) => ({
+      instructorId: i.instructorId,
+      name: i.name,
+      bookings: i.bookings,
+      hours: round2(i.hours),
+      revenue: round2(i.revenue),
+      commission: round2(i.commission),
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 20);
+
+  return {
+    services,
+    instructors,
+    totals: {
+      revenue: round2(totalRevenue),
+      commission: round2(totalCommission),
+      bookings: totalBookings,
+      hours: round2(totalHours),
+    },
+  };
+}
+
 export async function getInstructorPayrollHistory(instructorId, options = {}) {
   const { limit } = options;
   const params = [instructorId];
@@ -315,6 +521,14 @@ export async function getAllInstructorBalances() {
         THEN ROUND(GREATEST(cp.purchase_price - cp_disc.amt, 0) / cs_pkg.exchange_rate, 2)
         ELSE COALESCE(cp.purchase_price - cp_disc.amt, gb_sp.price)
       END as package_price,
+      CASE WHEN cp.purchase_price > 0
+           THEN GREATEST(cp.purchase_price - COALESCE(cp_disc.amt, 0), 0) / cp.purchase_price
+           ELSE 1 END as package_discount_ratio,
+      sp.package_hourly_rate as pkg_hourly_rate,
+      COALESCE(sp.rental_days, 0) as pkg_rental_days,
+      COALESCE(sp.accommodation_nights, 0) as pkg_accom_nights,
+      COALESCE(rental_srv.price, 0) as pkg_rental_daily_rate,
+      COALESCE(accom_unit.price_per_night, 0) as pkg_accom_nightly_rate,
       COALESCE(cp.total_hours, gb_sp.total_hours) as package_total_hours,
       cp.remaining_hours as package_remaining_hours,
       cp.used_hours as package_used_hours,
@@ -337,6 +551,8 @@ export async function getAllInstructorBalances() {
     LEFT JOIN services srv ON srv.id = b.service_id
     LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
     LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+    LEFT JOIN services rental_srv ON rental_srv.id = sp.rental_service_id
+    LEFT JOIN accommodation_units accom_unit ON accom_unit.id = sp.accommodation_unit_id
     LEFT JOIN currency_settings cs_pkg ON cs_pkg.currency_code = cp.currency
     LEFT JOIN group_bookings gb ON gb.booking_id = b.id
     LEFT JOIN service_packages gb_sp ON gb_sp.id = gb.package_id
@@ -399,11 +615,28 @@ export async function getAllInstructorBalances() {
     // already discount-adjusted (cp.purchase_price - cp_disc.amt).
     const isPartialBal = row.payment_status === 'partial' && toNumber(row.package_price) > 0;
     const baseAmountBal = toNumber(row.base_amount);
+    // Derive the lesson-ONLY portion (combo packages subtract rental/accom; a
+    // stored hourly rate is used directly) scaled by the package discount ratio —
+    // matching mapEarningRow + the cascade. Previously this passed the FULL
+    // package_price straight in, over-valuing combo/hourly-rate package lessons.
+    let effPkgPriceBal = toNumber(row.package_price);
+    const ratioBal = row.package_discount_ratio != null ? toNumber(row.package_discount_ratio) : 1;
+    if ((row.payment_status === 'package' || row.payment_status === 'partial') && effPkgPriceBal > 0) {
+      const hrBal = toNumber(row.pkg_hourly_rate);
+      const thBal = toNumber(row.package_total_hours);
+      if (hrBal > 0 && thBal > 0) {
+        effPkgPriceBal = hrBal * thBal * (ratioBal || 1);
+      } else {
+        const rcBal = toNumber(row.pkg_rental_days) * toNumber(row.pkg_rental_daily_rate);
+        const acBal = toNumber(row.pkg_accom_nights) * toNumber(row.pkg_accom_nightly_rate);
+        if (rcBal + acBal > 0) effPkgPriceBal = Math.max(0, effPkgPriceBal - (rcBal + acBal) * (ratioBal || 1));
+      }
+    }
     let lessonAmount = deriveLessonAmount({
       paymentStatus: isPartialBal ? 'package' : row.payment_status,
       duration: lessonDuration,
       baseAmount: isPartialBal ? 0 : baseAmountBal,
-      packagePrice: toNumber(row.package_price),
+      packagePrice: effPkgPriceBal,
       packageTotalHours: toNumber(row.package_total_hours),
       packageRemainingHours: toNumber(row.package_remaining_hours),
       packageUsedHours: toNumber(row.package_used_hours),

@@ -549,79 +549,10 @@ export async function recomputeDiscountForAccommodationBooking(client, {
   };
 }
 
-// Re-derives a booking's discount amount after its final_amount/amount was
-// edited. The stored percent is preserved; only the absolute amount and any
-// outstanding wallet credit are reconciled to match the new base price.
-// Also cascades to instructor earnings + manager commission so payouts
-// derived from the discount stay consistent with the rebased value.
-export async function recomputeDiscountForBooking(client, {
-  bookingId,
-  newBasePrice,
-  currency,
-  createdBy,
-}) {
-  const { rows } = await client.query(
-    `SELECT id, customer_id, percent, amount, currency, reason
-       FROM discounts
-      WHERE entity_type = 'booking' AND entity_id = $1`,
-    [String(bookingId)]
-  );
-  if (!rows.length) {
-    return { adjusted: false, discount: null, oldAmount: 0, newAmount: 0, adjustment: null };
-  }
-
-  const discount = rows[0];
-  const oldAmount = Number(discount.amount) || 0;
-  const newAmount = computeDiscountAmount(newBasePrice, discount.percent);
-  const finalCurrency = currency || discount.currency || 'EUR';
-
-  if (newAmount === oldAmount) {
-    return { adjusted: false, discount, oldAmount, newAmount, adjustment: null };
-  }
-
-  const openCredit = await findOpenDiscountAdjustment(client, discount.id);
-  if (openCredit) {
-    await reverseDiscountAdjustment(client, openCredit, {
-      reason: 'Discount amount changed (booking price edit)',
-      createdBy,
-    });
-  }
-
-  const updated = await client.query(
-    `UPDATE discounts
-        SET amount = $1, currency = $2, updated_at = NOW()
-      WHERE id = $3
-  RETURNING *`,
-    [newAmount, finalCurrency, discount.id]
-  );
-
-  let adjustment = null;
-  if (newAmount > 0) {
-    adjustment = await postDiscountAdjustment(client, {
-      customerId: discount.customer_id,
-      amount: newAmount,
-      currency: finalCurrency,
-      discountId: discount.id,
-      entityType: WALLET_ENTITY_TYPE.BOOKING,
-      entityId: bookingId,
-      reason: discount.reason ? `${discount.reason} (rebased after price edit)` : 'Discount rebased after price edit',
-      createdBy,
-    });
-  }
-
-  // Manager commission + instructor earnings derive lesson_amount from
-  // (booking total − active discount). Now that the discount amount has
-  // moved, both downstreams need to be rebuilt against the new value.
-  await cascadeRecomputeForDiscountChange(client, WALLET_ENTITY_TYPE.BOOKING, bookingId);
-
-  return {
-    adjusted: true,
-    discount: updated.rows[0],
-    oldAmount,
-    newAmount,
-    adjustment,
-  };
-}
+// NOTE: the former single-row `recomputeDiscountForBooking` was removed (D5) —
+// it was exported but never called, and carried the pre-D3 phantom-credit flaw
+// (unconditional postDiscountAdjustment on unpaid bookings). The live booking
+// rebase is `recomputeBookingDiscountsForPriceEdit` below.
 
 // H8/H9/F7: rebase ALL of a booking's discount rows (entity-wide AND per-
 // participant) after its price was edited, then re-credit the customer wallet.
@@ -652,6 +583,16 @@ export async function recomputeBookingDiscountsForPriceEdit(client, { booking, c
     } catch { /* fall back to final_amount */ }
   }
 
+  // D3: only PAID bookings get a wallet discount_adjustment CREDIT (it refunds
+  // the over-charge). For an UNPAID booking the discount simply reduces what the
+  // customer still owes — posting a credit would be a phantom refund for money
+  // never paid. Mirrors the isPaid guard in applyDiscount.
+  let bookingIsPaid = false;
+  try {
+    const snap = await getEntitySnapshot(client, WALLET_ENTITY_TYPE.BOOKING, bookingId);
+    bookingIsPaid = !!snap?.isPaid;
+  } catch { /* default unpaid => no phantom credit */ }
+
   let participantShares = null;
   let rebased = 0;
   for (const d of discRows) {
@@ -681,7 +622,7 @@ export async function recomputeBookingDiscountsForPriceEdit(client, { booking, c
       });
     }
     await client.query(`UPDATE discounts SET amount = $1, updated_at = NOW() WHERE id = $2`, [newAmount, d.id]);
-    if (newAmount > 0) {
+    if (newAmount > 0 && bookingIsPaid) {
       await postDiscountAdjustment(client, {
         customerId: d.customer_id,
         amount: newAmount,

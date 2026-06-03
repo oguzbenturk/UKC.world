@@ -24,6 +24,7 @@ import {
   generateGenericInviteLink
 } from '../services/groupBookingService.js';
 import { pool } from '../db.js';
+import { recordTransaction, getEntityNetCharges } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
@@ -1212,33 +1213,97 @@ router.delete('/:id/participants/:participantId', authenticateJWT, async (req, r
       return res.status(400).json({ error: 'Cannot remove the organizer' });
     }
 
-    // If paid, process refund
-    if (participant.payment_status === 'paid' && participant.payment_method === 'wallet' && participant.user_id) {
-      await pool.query(`
-        UPDATE customer_wallets
-        SET available_balance = available_balance + $1, updated_at = NOW()
-        WHERE user_id = $2
-      `, [participant.amount_paid, participant.user_id]);
+    // Resolve the linked calendar booking so we can restore the participant's
+    // package hours and refund the exact wallet charge they actually paid.
+    const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
+    const bookingId = gbLink.rows[0]?.booking_id;
+
+    // G5: restore THIS participant's package hours (the old handler never did),
+    // and refund their OWN net wallet charge via the ledger for ANY payment
+    // method that hit the wallet (not just payment_method='wallet'). Done in one
+    // transaction so a failure doesn't half-remove the participant.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      if (bookingId && participant.user_id) {
+        // Read the calendar-side participant row for the exact hours drawn.
+        const { rows: bpRows } = await client.query(
+          `SELECT customer_package_id, payment_status, package_hours_used
+             FROM booking_participants WHERE booking_id = $1 AND user_id = $2`,
+          [bookingId, participant.user_id]
+        );
+        const bp = bpRows[0];
+        if (bp && bp.customer_package_id &&
+            (bp.payment_status === 'package' || bp.payment_status === 'partial')) {
+          const restoreHours = parseFloat(bp.package_hours_used);
+          if (Number.isFinite(restoreHours) && restoreHours > 0) {
+            await client.query(
+              `UPDATE customer_packages
+                  SET used_hours = GREATEST(0, COALESCE(used_hours,0) - $1),
+                      remaining_hours = LEAST(COALESCE(total_hours,0), COALESCE(remaining_hours,0) + $1),
+                      status = CASE WHEN COALESCE(remaining_hours,0) + $1 > 0 THEN 'active' ELSE status END,
+                      updated_at = NOW()
+                WHERE id = $2`,
+              [restoreHours, bp.customer_package_id]
+            );
+          }
+        }
+
+        // Refund the participant's OWN outstanding wallet charge for this booking
+        // (net of any prior refund), idempotent. No wallet charge => no refund.
+        try {
+          const nets = await getEntityNetCharges({ client, bookingId, byUser: true });
+          const mine = nets.filter((n) => n.userId === participant.user_id && n.amount > 0);
+          for (const n of mine) {
+            await recordTransaction({
+              client,
+              userId: participant.user_id,
+              amount: Math.abs(n.amount),
+              availableDelta: Math.abs(n.amount),
+              transactionType: 'booking_cancelled_refund',
+              status: 'completed',
+              direction: 'credit',
+              currency: n.currency || 'EUR',
+              description: 'Refund: removed from group booking',
+              entityType: 'booking',
+              relatedEntityType: 'booking',
+              relatedEntityId: bookingId,
+              bookingId,
+              idempotencyKey: `group_participant_removed:${bookingId}:${participant.user_id}:${n.currency}`,
+              metadata: { reason: 'group_participant_removed', participantId },
+              createdBy: userId,
+              allowNegative: true,
+            });
+          }
+        } catch (refundErr) {
+          logger.warn('Failed to refund removed group participant via ledger', { error: refundErr.message });
+        }
+
+        // Remove from booking_participants + resize the booking.
+        await client.query('DELETE FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, participant.user_id]);
+        await client.query('UPDATE bookings SET group_size = GREATEST(1, (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1)) WHERE id = $1', [bookingId]);
+      }
+
+      // Mark the group participant cancelled/refunded.
+      await client.query(
+        'UPDATE group_booking_participants SET status = $1, payment_status = CASE WHEN payment_status = $2 THEN $3 ELSE payment_status END, updated_at = NOW() WHERE id = $4',
+        ['cancelled', 'paid', 'refunded', participantId]
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
     }
 
-    // Remove participant from group_booking_participants
-    await pool.query(
-      'UPDATE group_booking_participants SET status = $1, payment_status = CASE WHEN payment_status = $2 THEN $3 ELSE payment_status END, updated_at = NOW() WHERE id = $4',
-      ['cancelled', 'paid', 'refunded', participantId]
-    );
-
-    // Also remove from booking_participants (calendar sync)
-    if (participant.user_id) {
+    if (bookingId) {
       try {
-        const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
-        const bookingId = gbLink.rows[0]?.booking_id;
-        if (bookingId) {
-          await pool.query('DELETE FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, participant.user_id]);
-          await pool.query('UPDATE bookings SET group_size = GREATEST(1, (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1)) WHERE id = $1', [bookingId]);
-          await recomputeManagerCommissionAfterGroupChange(bookingId);
-        }
+        await recomputeManagerCommissionAfterGroupChange(bookingId);
       } catch (syncErr) {
-        logger.warn('Failed to sync booking_participants on remove', { error: syncErr.message });
+        logger.warn('Failed to recompute manager commission on participant remove', { error: syncErr.message });
       }
     }
 

@@ -1232,6 +1232,7 @@
       "stats": {
         "lessonRevenue": "Доход от уроков",
         "totalBookings": "Всего бронирований",
+        "completedBookings": "Завершённые бронирования",
         "instructorCommissions": "Комиссии инструкторов",
         "managerCommission": "Комиссия менеджера",
         "netLessonRevenue": "Чистый доход от уроков"

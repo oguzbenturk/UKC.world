@@ -1234,6 +1234,7 @@
       "stats": {
         "lessonRevenue": "Lesson Revenue",
         "totalBookings": "Total Bookings",
+        "completedBookings": "Completed Bookings",
         "instructorCommissions": "Instructor Commissions",
         "managerCommission": "Manager Commission",
         "netLessonRevenue": "Net Lesson Revenue"

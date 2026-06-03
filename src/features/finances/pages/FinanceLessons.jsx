@@ -118,7 +118,7 @@ const FinanceLessons = () => {
     if (!summaryData) {
       return [
         { key: 'lessons', label: t('manager:financePages.lessons.stats.lessonRevenue'), value: '--', accent: 'indigo' },
-        { key: 'bookings', label: t('manager:financePages.lessons.stats.totalBookings'), value: '--', accent: 'emerald' },
+        { key: 'bookings', label: t('manager:financePages.lessons.stats.completedBookings'), value: '--', accent: 'emerald' },
         { key: 'commission', label: t('manager:financePages.lessons.stats.instructorCommissions'), value: '--', accent: 'amber' },
         { key: 'managerCommission', label: t('manager:financePages.lessons.stats.managerCommission'), value: '--', accent: 'rose' },
         { key: 'net', label: t('manager:financePages.lessons.stats.netLessonRevenue'), value: '--', accent: 'slate' }
@@ -131,14 +131,16 @@ const FinanceLessons = () => {
     const bookingsData = summaryData.bookings || {};
 
     const lessonRevenue = Number(revenue.lesson_revenue || 0);
-    const totalBookings = Number(bookingsData.completed_bookings) || Number(bookingsData.total_bookings) || 0;
+    // Revenue/commission on this page are completed-only, so the count must be completed too
+    // (keeps Avg Booking Value coherent). No fallback to total_bookings — that silently swapped metrics.
+    const totalBookings = Number(bookingsData.completed_bookings) || 0;
     const instructorCommission = Number(netRevenueData.commission_total || 0);
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
     const netRevenue = lessonRevenue - instructorCommission - managerCommission;
 
     return [
       { key: 'lessons', label: t('manager:financePages.lessons.stats.lessonRevenue'), value: formatCurrency(lessonRevenue), accent: 'indigo' },
-      { key: 'bookings', label: t('manager:financePages.lessons.stats.totalBookings'), value: totalBookings.toLocaleString(), accent: 'emerald' },
+      { key: 'bookings', label: t('manager:financePages.lessons.stats.completedBookings'), value: totalBookings.toLocaleString(), accent: 'emerald' },
       { key: 'commission', label: t('manager:financePages.lessons.stats.instructorCommissions'), value: formatCurrency(instructorCommission), accent: 'amber' },
       { key: 'managerCommission', label: t('manager:financePages.lessons.stats.managerCommission'), value: formatCurrency(managerCommission), accent: 'rose' },
       { key: 'net', label: t('manager:financePages.lessons.stats.netLessonRevenue'), value: formatCurrency(netRevenue), accent: 'slate' }

@@ -4,7 +4,7 @@ import { computeCashNetRevenue } from '../services/cashModeAggregator.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { getInstructorEarningsData, getInstructorPayrollHistory, getAllInstructorBalances } from '../services/instructorFinanceService.js';
+import { getInstructorEarningsData, getInstructorPayrollHistory, getAllInstructorBalances, getLessonFinanceBreakdown } from '../services/instructorFinanceService.js';
 import { resolveActorId } from '../utils/auditUtils.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
 import {
@@ -729,6 +729,10 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
             ELSE 0
           END), 0) as total_income,
           COALESCE(sum(CASE
+            -- D2: discount credits are subtracted ONCE via the discounts-table
+            -- total (totalDiscounts) below. Counting the discount_adjustment
+            -- credit here too double-subtracted the discount on PAID items.
+            WHEN transaction_type IN ('discount_adjustment', 'discount_adjustment_reversal') THEN 0
             WHEN direction = 'debit' THEN abs(amount)
             WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -abs(amount)
             ELSE 0
@@ -751,6 +755,7 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
             ELSE 0
           END), 0) as income,
           COALESCE(sum(CASE
+            WHEN transaction_type IN ('discount_adjustment', 'discount_adjustment_reversal') THEN 0
             WHEN direction = 'debit' THEN abs(amount)
             WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -abs(amount)
             ELSE 0
@@ -2210,7 +2215,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
       netRevenue,
       balancesResult,
       bookingsResult,
-      commissionResult,
+      lessonFinance,
       walletChargesResult,
       membershipResult,
       packageResult,
@@ -2236,11 +2241,13 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           AND ${activeFinanceTxnFilter()}
       `, [dateStart, dateEnd, PAYMENT_TYPES, REFUND_TYPES, EXCLUDED_REVENUE_TYPES]),
 
-      // 2. Rental revenue
+      // 2. Rental revenue (net of rental discounts — total_price is gross; discounts
+      //    live in the separate discounts table, matching dashboardSummaryService).
       pool.query(`
-        SELECT COALESCE(SUM(total_price), 0) AS rental_revenue,
+        SELECT COALESCE(SUM(GREATEST(COALESCE(rentals.total_price, 0) - rt_disc.amt, 0)), 0) AS rental_revenue,
           COUNT(*) AS rental_count
         FROM rentals
+        ${discountSumLateral('rt_disc', 'rental', 'rentals.id')}
         WHERE (
           (rental_date IS NOT NULL AND rental_date >= $1::date AND rental_date <= $2::date)
           OR (
@@ -2302,14 +2309,21 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
             b.id,
             regexp_replace(lower(trim(b.status)), '[^a-z0-9]+', '_', 'g') AS normalized_status,
             regexp_replace(lower(trim(b.payment_status)), '[^a-z0-9]+', '_', 'g') AS normalized_payment_status,
-            COALESCE(
-              NULLIF(b.final_amount, 0),
-              NULLIF(b.amount, 0),
-              COALESCE(inst.hourly_rate, 0) * COALESCE(b.duration, 0),
-              0
-            ) AS revenue_amount
+            CASE
+              -- Package-drawn lessons: recognise each lesson's share of the (discount-net)
+              -- package price, matching the lesson-breakdown charts and dashboardSummaryService.
+              WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0
+                THEN GREATEST((GREATEST(COALESCE(cp.purchase_price, 0) - cp_disc.amt, 0) / cp.total_hours) * COALESCE(b.duration, 0), 0)
+              WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
+                THEN GREATEST(GREATEST(COALESCE(cp.purchase_price, 0) - cp_disc.amt, 0) / sp.sessions_count, 0)
+              -- Cash / standalone lessons: gross booking price minus the active booking discount.
+              ELSE GREATEST(COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) - bk_disc.amt, 0)
+            END AS revenue_amount
           FROM bookings b
-          LEFT JOIN users inst ON inst.id = b.instructor_user_id
+          LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
+          LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
+          ${discountSumLateral('bk_disc', 'booking', 'b.id')}
+          ${discountSumLateral('cp_disc', 'customer_package', 'cp.id')}
           WHERE b.date >= $1::date
             AND b.date <= $2::date
             AND b.deleted_at IS NULL
@@ -2324,46 +2338,12 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         FROM normalized
       `, [dateStart, dateEnd, LEDGER_NEGATIVE_STATUSES, LEDGER_COMPLETED_BOOKING_STATUSES, ['cancelled', 'canceled']]),
 
-      // 6. Instructor commission. When no commission row is configured the result is 0
-      // (previously this defaulted to a hard-coded 50/h or 50% — wildly inflating payouts
-      // for any instructor with missing config).
-      pool.query(`
-        SELECT
-          COALESCE(SUM(
-            CASE
-              WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) * b.duration
-              WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
-                ((cp.purchase_price / cp.total_hours) * b.duration) *
-                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
-              WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
-                (cp.purchase_price / sp.sessions_count) *
-                COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
-              WHEN bcc.commission_type = 'fixed' THEN
-                COALESCE(bcc.commission_value, 0) * b.duration
-              WHEN isc.commission_type = 'fixed' THEN
-                COALESCE(isc.commission_value, 0) * b.duration
-              WHEN idc.commission_type = 'fixed' THEN
-                COALESCE(idc.commission_value, 0) * b.duration
-              WHEN bcc.commission_type = 'percentage' THEN
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 0) / 100
-              WHEN isc.commission_type = 'percentage' THEN
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 0) / 100
-              WHEN idc.commission_type = 'percentage' THEN
-                COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 0) / 100
-              ELSE 0
-            END
-          ), 0) AS total_commission
-        FROM bookings b
-        LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
-        LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-        LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
-        LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
-        LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-        WHERE b.date >= $1::date AND b.date <= $2::date
-          AND b.deleted_at IS NULL
-          AND regexp_replace(lower(trim(b.status)), '[^a-z0-9]+', '_', 'g') = ANY($3::text[])
-      `, [dateStart, dateEnd, LEDGER_COMPLETED_BOOKING_STATUSES]),
+      // 6. Lesson revenue + instructor commission, via the SAME canonical per-booking
+      // derivation as instructor payroll and the /lesson-breakdown charts (discount-net base,
+      // package-price share, partial cash handling, group scaling, self-student 45% override,
+      // instructor_category_rates, currency normalisation). Guarantees the headline cards
+      // reconcile exactly with the breakdown table and the instructor's own earnings view.
+      getLessonFinanceBreakdown({ startDate: dateStart, endDate: dateEnd }),
 
       // 7. Wallet charges (booking_charge, rental_charge, accommodation_charge)
       pool.query(`
@@ -2377,12 +2357,15 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           AND ${activeFinanceTxnFilter()}
       `, [dateStart, dateEnd]),
 
-      // 8. Membership revenue
+      // 8. Membership revenue (net of member_purchase discounts; offering_price is gross).
+      //    purchased_at is TIMESTAMPTZ, so use a half-open day range on the end date —
+      //    `<= $2::date` collapses to 00:00 and drops same-day purchases (matches the breakdown).
       pool.query(`
-        SELECT COALESCE(SUM(offering_price), 0) AS membership_revenue,
+        SELECT COALESCE(SUM(GREATEST(COALESCE(member_purchases.offering_price, 0) - mp_disc.amt, 0)), 0) AS membership_revenue,
           COUNT(*) AS membership_count
         FROM member_purchases
-        WHERE purchased_at >= $1::date AND purchased_at <= $2::date
+        ${discountSumLateral('mp_disc', 'member_purchase', 'member_purchases.id')}
+        WHERE purchased_at >= $1::date AND purchased_at < ($2::date + interval '1 day')
           AND payment_status = 'completed'
       `, [dateStart, dateEnd]),
 
@@ -2440,10 +2423,13 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
     ]);
 
     // ── Extract values from parallel results ─────────────────────
-    const lessonRevenue = parseFloat(bookingsResult.rows[0]?.booking_revenue) || 0;
+    // Canonical lesson revenue & instructor commission (same derivation as instructor payroll
+    // and the /lesson-breakdown charts) — replaces the earlier SQL approximations so the headline
+    // cards reconcile exactly and correctly handle partial/group/self-student/category-rate/currency.
+    const lessonRevenue = Number(lessonFinance?.totals?.revenue) || 0;
     const rentalRevenue = parseFloat(rentalResult.rows[0].rental_revenue) || 0;
     const rentalCount = parseInt(rentalResult.rows[0].rental_count) || 0;
-    const instructorCommission = parseFloat(commissionResult.rows[0]?.total_commission) || 0;
+    const instructorCommission = Number(lessonFinance?.totals?.commission) || 0;
     const walletLessonCharges = parseFloat(walletChargesResult.rows[0]?.lesson_charges) || 0;
     const walletRentalCharges = parseFloat(walletChargesResult.rows[0]?.rental_charges) || 0;
     const walletAccommodationCharges = parseFloat(walletChargesResult.rows[0]?.accommodation_charges) || 0;
@@ -2454,18 +2440,24 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
     const shopRevenue = parseFloat(shopResult.rows[0]?.shop_revenue) || 0;
     const shopOrderCount = parseInt(shopResult.rows[0]?.shop_order_count) || 0;
 
-    // Use the higher of: booking table revenue OR wallet charges for lessons
-    // This handles cases where bookings may be paid via package (no wallet charge) or cash (wallet charge)
-    const effectiveLessonRevenue = Math.max(lessonRevenue, walletLessonCharges);
-    
+    // Booking query #5 now values BOTH cash lessons (final_amount, net of booking discount) and
+    // package-drawn lessons (their share of the discount-net package price), so it is the canonical
+    // net lesson revenue. The old Math.max(walletLessonCharges) heuristic is dropped: it re-introduced
+    // gross (pre-discount) amounts because wallet booking_charge rows are never reduced by the
+    // separate discount_adjustment credit.
+    const effectiveLessonRevenue = lessonRevenue;
+
     // For rentals, use rentals table as primary source, wallet charges as fallback
     const effectiveRentalRevenue = Math.max(rentalRevenue, walletRentalCharges);
-    
+
     // Other revenue: accommodation charges (not wallet deposits, which are just customer funds)
     const otherRevenue = walletAccommodationCharges;
-    
-    // Total revenue = actual services consumed, not wallet deposits
-    const totalRevenue = effectiveLessonRevenue + effectiveRentalRevenue + otherRevenue + totalMembershipRevenue + shopRevenue;
+
+    // Total revenue = actual services consumed, not wallet deposits.
+    // Package revenue is recognised via lesson CONSUMPTION inside effectiveLessonRevenue (each
+    // package-drawn lesson contributes its share of the package price), so package PURCHASES
+    // (packageRevenue) are intentionally NOT added here — doing so would double-count packages.
+    const totalRevenue = effectiveLessonRevenue + effectiveRentalRevenue + otherRevenue + membershipRevenue + shopRevenue;
 
     const revenueResult = {
       rows: [{
@@ -2622,124 +2614,18 @@ router.get('/lesson-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
     const dateStart = startDate || '1900-01-01';
     const dateEnd = endDate || '2100-01-01';
 
-    // Service popularity: group bookings by service
-    // For package bookings (amount=0), attribute proportional revenue from the package purchase price
-    const serviceQuery = `
-      SELECT 
-        s.id AS service_id,
-        s.name AS service_name,
-        COUNT(b.id) AS booking_count,
-        COALESCE(SUM(
-          CASE 
-            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 
-              THEN (cp.purchase_price / cp.total_hours) * b.duration
-            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
-              THEN cp.purchase_price / sp.sessions_count
-            ELSE COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0)
-          END
-        ), 0) AS total_revenue,
-        COALESCE(AVG(
-          CASE 
-            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 
-              THEN (cp.purchase_price / cp.total_hours) * b.duration
-            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
-              THEN cp.purchase_price / sp.sessions_count
-            ELSE COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0)
-          END
-        ), 0) AS avg_price
-      FROM bookings b
-      JOIN services s ON s.id = b.service_id
-      LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
-      LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-      WHERE b.created_at >= $1::date AND b.created_at < ($2::date + interval '1 day')
-        AND b.deleted_at IS NULL
-      GROUP BY s.id, s.name
-      ORDER BY booking_count DESC
-      LIMIT 20
-    `;
-    const serviceResult = await pool.query(serviceQuery, [dateStart, dateEnd]);
-
-    // Instructor performance: group bookings by instructor
-    // Commission logic matches /finances/summary for consistency
-    const instructorQuery = `
-      SELECT 
-        u.id AS instructor_id,
-        COALESCE(u.first_name || ' ' || u.last_name, u.email) AS instructor_name,
-        COUNT(b.id) AS booking_count,
-        COALESCE(SUM(b.duration), 0) AS total_hours,
-        COALESCE(SUM(
-          CASE 
-            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 
-              THEN (cp.purchase_price / cp.total_hours) * b.duration
-            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0
-              THEN cp.purchase_price / sp.sessions_count
-            ELSE COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0)
-          END
-        ), 0) AS total_revenue,
-        COALESCE(SUM(
-          CASE 
-            -- Package bookings with fixed hourly rate commission
-            WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-              COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) * b.duration
-            -- Package bookings with percentage commission (total_hours based)
-            WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
-              ((cp.purchase_price / cp.total_hours) * b.duration) * 
-              COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
-            -- Package bookings with percentage commission (sessions_count based)
-            WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
-              (cp.purchase_price / sp.sessions_count) * 
-              COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 50) / 100
-            -- Standalone bookings with fixed hourly rate
-            WHEN bcc.commission_type = 'fixed' THEN 
-              COALESCE(bcc.commission_value, 0) * b.duration
-            WHEN isc.commission_type = 'fixed' THEN 
-              COALESCE(isc.commission_value, 0) * b.duration
-            WHEN idc.commission_type = 'fixed' THEN 
-              COALESCE(idc.commission_value, 0) * b.duration
-            -- Standalone bookings with percentage commission
-            WHEN bcc.commission_type = 'percentage' THEN 
-              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 50) / 100
-            WHEN isc.commission_type = 'percentage' THEN 
-              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 50) / 100
-            WHEN idc.commission_type = 'percentage' THEN 
-              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 50) / 100
-            -- Fallback: 50% of lesson amount
-            ELSE 
-              COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * 0.50
-          END
-        ), 0) AS total_commission
-      FROM bookings b
-      JOIN users u ON u.id = b.instructor_user_id
-      LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
-      LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-      LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
-      LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = b.instructor_user_id AND isc.service_id = b.service_id
-      LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
-      WHERE b.created_at >= $1::date AND b.created_at < ($2::date + interval '1 day')
-        AND b.deleted_at IS NULL
-      GROUP BY u.id, u.first_name, u.last_name, u.email
-      ORDER BY total_revenue DESC
-      LIMIT 20
-    `;
-    const instructorResult = await pool.query(instructorQuery, [dateStart, dateEnd]);
+    // Service popularity + instructor performance now come from the SAME canonical
+    // per-booking derivation as instructor payroll (deriveLessonAmount / partialLessonValue /
+    // deriveTotalEarnings with discount-net base, package-price share, partial cash handling,
+    // group scaling, self-student 45% override and instructor_category_rates). This guarantees
+    // the charts reconcile exactly with the headline Lesson Revenue / Instructor Commissions
+    // cards AND with the instructor's own earnings view.
+    const breakdown = await getLessonFinanceBreakdown({ startDate: dateStart, endDate: dateEnd });
 
     res.json({
       success: true,
-      services: serviceResult.rows.map(r => ({
-        serviceId: r.service_id,
-        name: r.service_name,
-        bookings: parseInt(r.booking_count),
-        revenue: parseFloat(r.total_revenue),
-        avgPrice: parseFloat(r.avg_price)
-      })),
-      instructors: instructorResult.rows.map(r => ({
-        instructorId: r.instructor_id,
-        name: r.instructor_name,
-        bookings: parseInt(r.booking_count),
-        hours: parseFloat(r.total_hours),
-        revenue: parseFloat(r.total_revenue),
-        commission: parseFloat(r.total_commission)
-      }))
+      services: breakdown.services,
+      instructors: breakdown.instructors,
     });
   } catch (error) {
     logger.error('Error fetching lesson breakdown:', error);
@@ -2778,11 +2664,12 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
         s.id AS service_id,
         s.name AS service_name,
         COUNT(r.id) AS rental_count,
-        COALESCE(SUM(r.total_price), 0) AS total_revenue,
-        COALESCE(AVG(r.total_price), 0) AS avg_price
+        COALESCE(SUM(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0)), 0) AS total_revenue,
+        COALESCE(AVG(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0)), 0) AS avg_price
       FROM rentals r
       CROSS JOIN LATERAL jsonb_array_elements_text(r.equipment_ids) AS eid
       JOIN services s ON s.id = eid::uuid
+      ${discountSumLateral('rt_disc', 'rental', 'r.id')}
       WHERE ${rentalDateFilter}
         AND r.equipment_ids IS NOT NULL
         AND jsonb_array_length(r.equipment_ids) > 0
@@ -2797,8 +2684,9 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
       SELECT 
         TO_CHAR(COALESCE(r.rental_date, r.start_date), 'YYYY-MM') AS month,
         COUNT(r.id) AS rental_count,
-        COALESCE(SUM(r.total_price), 0) AS revenue
+        COALESCE(SUM(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0)), 0) AS revenue
       FROM rentals r
+      ${discountSumLateral('rt_disc', 'rental', 'r.id')}
       WHERE ${rentalDateFilter}
       GROUP BY month
       ORDER BY month
@@ -2810,8 +2698,9 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
       SELECT 
         r.payment_status,
         COUNT(r.id) AS count,
-        COALESCE(SUM(r.total_price), 0) AS revenue
+        COALESCE(SUM(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0)), 0) AS revenue
       FROM rentals r
+      ${discountSumLateral('rt_disc', 'rental', 'r.id')}
       WHERE ${rentalDateFilter}
       GROUP BY r.payment_status
       ORDER BY count DESC
@@ -2860,9 +2749,10 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
         mp.offering_id,
         mp.offering_name AS name,
         COUNT(mp.id) AS purchase_count,
-        COALESCE(SUM(mp.offering_price), 0) AS total_revenue,
-        COALESCE(AVG(mp.offering_price), 0) AS avg_price
+        COALESCE(SUM(GREATEST(COALESCE(mp.offering_price, 0) - mp_disc.amt, 0)), 0) AS total_revenue,
+        COALESCE(AVG(GREATEST(COALESCE(mp.offering_price, 0) - mp_disc.amt, 0)), 0) AS avg_price
       FROM member_purchases mp
+      ${discountSumLateral('mp_disc', 'member_purchase', 'mp.id')}
       WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
       GROUP BY mp.offering_id, mp.offering_name
@@ -2876,8 +2766,9 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
       SELECT 
         TO_CHAR(mp.purchased_at, 'YYYY-MM') AS month,
         COUNT(mp.id) AS purchase_count,
-        COALESCE(SUM(mp.offering_price), 0) AS revenue
+        COALESCE(SUM(GREATEST(COALESCE(mp.offering_price, 0) - mp_disc.amt, 0)), 0) AS revenue
       FROM member_purchases mp
+      ${discountSumLateral('mp_disc', 'member_purchase', 'mp.id')}
       WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
       GROUP BY month
@@ -2890,8 +2781,9 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
       SELECT 
         mp.payment_method,
         COUNT(mp.id) AS count,
-        COALESCE(SUM(mp.offering_price), 0) AS revenue
+        COALESCE(SUM(GREATEST(COALESCE(mp.offering_price, 0) - mp_disc.amt, 0)), 0) AS revenue
       FROM member_purchases mp
+      ${discountSumLateral('mp_disc', 'member_purchase', 'mp.id')}
       WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
       GROUP BY mp.payment_method
@@ -2963,7 +2855,7 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
         au.name AS unit_name,
         au.type AS unit_type,
         COUNT(ab.id)::int AS bookings,
-        COALESCE(SUM(ab.total_price), 0)::numeric AS revenue,
+        COALESCE(SUM(GREATEST(COALESCE(ab.total_price, 0) - ab_disc.amt, 0)), 0)::numeric AS revenue,
         COALESCE(SUM(
           CASE WHEN ab.check_out_date IS NOT NULL AND ab.check_in_date IS NOT NULL
                THEN (ab.check_out_date::date - ab.check_in_date::date)
@@ -2971,6 +2863,7 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
         ), 0)::int AS total_nights
       FROM accommodation_bookings ab
       JOIN accommodation_units au ON au.id = ab.unit_id
+      ${discountSumLateral('ab_disc', 'accommodation_booking', 'ab.id')}
       WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
       GROUP BY au.id, au.name, au.type
       ORDER BY revenue DESC
@@ -2982,13 +2875,14 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
       SELECT
         TO_CHAR(ab.check_in_date, 'YYYY-MM') AS month,
         COUNT(ab.id)::int AS bookings,
-        COALESCE(SUM(ab.total_price), 0)::numeric AS revenue,
+        COALESCE(SUM(GREATEST(COALESCE(ab.total_price, 0) - ab_disc.amt, 0)), 0)::numeric AS revenue,
         COALESCE(SUM(
           CASE WHEN ab.check_out_date IS NOT NULL AND ab.check_in_date IS NOT NULL
                THEN (ab.check_out_date::date - ab.check_in_date::date)
                ELSE 0 END
         ), 0)::int AS total_nights
       FROM accommodation_bookings ab
+      ${discountSumLateral('ab_disc', 'accommodation_booking', 'ab.id')}
       WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
       GROUP BY TO_CHAR(ab.check_in_date, 'YYYY-MM')
       ORDER BY month ASC
@@ -3000,8 +2894,9 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
       SELECT
         COALESCE(ab.status, 'unknown') AS status,
         COUNT(ab.id)::int AS count,
-        COALESCE(SUM(ab.total_price), 0)::numeric AS revenue
+        COALESCE(SUM(GREATEST(COALESCE(ab.total_price, 0) - ab_disc.amt, 0)), 0)::numeric AS revenue
       FROM accommodation_bookings ab
+      ${discountSumLateral('ab_disc', 'accommodation_booking', 'ab.id')}
       WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
       GROUP BY ab.status
       ORDER BY revenue DESC

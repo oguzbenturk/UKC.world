@@ -15,7 +15,8 @@ const LessonAnalytics = ({ summaryData, chartData = [] }) => {
     const netRevenueData = summaryData.netRevenue || {};
     const bookingsData = summaryData.bookings || {};
 
-    const totalBookings = Number(bookingsData.completed_bookings) || Number(bookingsData.total_bookings) || 0;
+    // Completed-only count (matches the completed-only revenue) so Avg Booking Value stays coherent.
+    const totalBookings = Number(bookingsData.completed_bookings) || 0;
     const lessonRevenue = Number(revenue.lesson_revenue || 0);
     const instructorCommission = Number(netRevenueData.commission_total || 0);
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
@@ -63,7 +64,7 @@ const LessonAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="h-full">
             <Statistic
-              title="Total Bookings"
+              title="Completed Bookings"
               value={lessonMetrics.totalBookings}
               prefix={<UserOutlined />}
               valueStyle={{ color: '#3f8600' }}

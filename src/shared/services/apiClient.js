@@ -82,39 +82,73 @@ const apiClient = axios.create({
   },
 });
 
-// --- Silent refresh state ---
-let isRefreshing = false;
-let refreshSubscribers = [];
+// --- Token-change subscribers (keep the AuthContext refresh scheduler aligned) ---
+const tokenChangeListeners = [];
 
-const subscribeTokenRefresh = (cb) => {
-  refreshSubscribers.push(cb);
+export const onTokenChange = (cb) => {
+  if (typeof cb === 'function') tokenChangeListeners.push(cb);
+  return () => {
+    const i = tokenChangeListeners.indexOf(cb);
+    if (i >= 0) tokenChangeListeners.splice(i, 1);
+  };
 };
 
-const onRefreshed = (newToken) => {
-  refreshSubscribers.forEach((cb) => {
-    try { cb(newToken); } catch {}
+function notifyTokenChange(token) {
+  tokenChangeListeners.forEach((cb) => {
+    try { cb(token); } catch { /* ignore */ }
   });
-  refreshSubscribers = [];
-};
+}
 
-const onRefreshFailed = (error) => {
-  refreshSubscribers.forEach((cb) => {
-    try { cb(null, error); } catch {}
-  });
-  refreshSubscribers = [];
-};
+// --- Silent session refresh (single-flight, cross-tab coordinated) ---
+let refreshPromise = null;
 
-// Use raw axios (no interceptors) to avoid recursion
-async function refreshAuthToken(currentToken) {
+// The actual refresh call. Cookie-authenticated: the httpOnly refresh token travels
+// via withCredentials, and there is NO Authorization header — so this works even
+// when the access token has already expired (the old /refresh-token couldn't).
+// Raw axios is used to avoid interceptor recursion.
+async function performSessionRefresh() {
   const baseUrl = resolveApiBaseUrl();
-  const url = baseUrl ? `${baseUrl}/api/auth/refresh-token` : '/api/auth/refresh-token';
-  const headers = currentToken ? { Authorization: `Bearer ${currentToken}` } : {};
-  const res = await axios.post(url, {}, { headers, withCredentials: true });
-  return res?.data?.token;
+  const url = baseUrl ? `${baseUrl}/api/auth/refresh-session` : '/api/auth/refresh-session';
+  const res = await axios.post(url, {}, { withCredentials: true });
+  return res?.data || {};
+}
+
+// Single-flight wrapper: concurrent 401s AND the proactive AuthContext timer all
+// await one in-flight refresh. navigator.locks serializes across tabs that share the
+// same httpOnly refresh cookie, preventing rotation races (the server also has a
+// reuse grace window as a backstop).
+export function refreshSession() {
+  if (refreshPromise) return refreshPromise;
+
+  const exec = async () => {
+    const data = await performSessionRefresh();
+    if (data?.token) {
+      inMemoryAccessToken = data.token;
+      try {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('lastTokenRefreshAt', String(Date.now()));
+      } catch { /* ignore */ }
+      apiClient.defaults.headers.Authorization = `Bearer ${data.token}`;
+      notifyTokenChange(data.token);
+    }
+    return data;
+  };
+
+  // navigator.locks serializes refreshes across tabs that share the httpOnly refresh
+  // cookie. On browsers without it (older Safari / some WebViews) two tabs can race;
+  // that's safe because the server bounds it with a tight reuse grace window + a
+  // per-token sibling cap (see refreshTokenService.rotateRefreshToken).
+  const runner = (typeof navigator !== 'undefined' && navigator.locks?.request)
+    ? navigator.locks.request('plannivo-token-refresh', exec)
+    : exec();
+
+  refreshPromise = Promise.resolve(runner).finally(() => { refreshPromise = null; });
+  return refreshPromise;
 }
 
 export const setAccessToken = (token) => {
   inMemoryAccessToken = token || null;
+  notifyTokenChange(inMemoryAccessToken);
 };
 
 export const getAccessToken = () => inMemoryAccessToken;
@@ -231,6 +265,7 @@ apiClient.interceptors.response.use(
           '/services/categories/list',
           '/auth/login',
           '/auth/refresh',
+          '/auth/refresh-session',
           '/auth/me'
         ];
 
@@ -243,46 +278,25 @@ apiClient.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        // Try silent refresh once per request
+        // Try a single silent session refresh per request. refreshSession() is
+        // single-flight (and cross-tab serialized), so concurrent 401s all await
+        // one refresh call. It is cookie-authenticated, so it succeeds even when the
+        // access token has fully expired.
         if (!originalRequest._retry) {
           originalRequest._retry = true;
-          const currentToken = inMemoryAccessToken || localStorage.getItem('token');
-
-          // If a refresh is already in progress, queue this request
-          if (isRefreshing) {
-            return new Promise((resolve, reject) => {
-              subscribeTokenRefresh((newToken, refreshErr) => {
-                if (refreshErr || !newToken) {
-                  reject(error);
-                  return;
-                }
-                originalRequest.headers = originalRequest.headers || {};
-                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                resolve(apiClient(originalRequest));
-              });
-            });
-          }
-
-          // Start refresh
-          isRefreshing = true;
-          return refreshAuthToken(currentToken)
-            .then((newToken) => {
-              if (newToken) {
-                inMemoryAccessToken = newToken;
-                localStorage.setItem('token', newToken);
-                apiClient.defaults.headers.Authorization = `Bearer ${newToken}`;
-                onRefreshed(newToken);
-                // Retry original request with new token
-                originalRequest.headers = originalRequest.headers || {};
-                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                return apiClient(originalRequest);
+          return refreshSession()
+            .then((data) => {
+              const newToken = data?.token;
+              if (!newToken) {
+                throw new Error('No token returned from refresh');
               }
-              throw new Error('No token returned from refresh');
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return apiClient(originalRequest);
             })
             .catch((refreshErr) => {
-              onRefreshFailed(refreshErr);
               // eslint-disable-next-line no-console
-              console.warn('🔒 Session expired and refresh failed - clearing auth and redirecting');
+              console.warn('🔒 Session refresh failed - clearing auth and redirecting', refreshErr?.message || refreshErr);
               inMemoryAccessToken = null;
               localStorage.removeItem('token');
               localStorage.removeItem('user');
@@ -293,14 +307,9 @@ apiClient.interceptors.response.use(
               error.authMessage = 'Your session has expired. Please log in again.';
               window.dispatchEvent(new Event('sessionExpired'));
               if (window.location.pathname !== '/login') {
-                // eslint-disable-next-line no-console
-                console.log('🔄 Redirecting to login page after failed refresh');
                 window.location.href = '/login';
               }
               return Promise.reject(error);
-            })
-            .finally(() => {
-              isRefreshing = false;
             });
         }
 

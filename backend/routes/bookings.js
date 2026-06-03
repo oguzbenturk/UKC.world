@@ -109,7 +109,11 @@ const rateLimitBookingUpdates = (req, res, next) => {
   next();
 };
 
-const COMPLETED_BOOKING_STATUSES = new Set(['completed']);
+// S3: keep this aligned with the cascade's earnings-creation set
+// (['completed','done','checked_out']). Previously only 'completed' created a
+// manager commission, so a 'done'/'checked_out' completion paid the instructor
+// but left the manager with no commission row for that lesson.
+const COMPLETED_BOOKING_STATUSES = new Set(['completed', 'done', 'checked_out']);
 
 const resolveServiceType = (serviceRow) => {
   if (!serviceRow) {
@@ -215,69 +219,329 @@ const resolveServiceType = (serviceRow) => {
     };
   }
 
+  // Helper: restore the EXACT package hours a booking drew, on cancel/delete.
+  // Participant-aware and partial-aware: restores each participant's recorded
+  // `package_hours_used` (NOT the full booking duration), covering both 'package'
+  // and 'partial' participants; falls back to the booking-level recorded split
+  // when there are no participant rows. Legacy rows with no recorded hours fall
+  // back to `duration` for pure-package bookings and 0 for partials (so we never
+  // invent hours that were never drawn). Returns the restore results.
+  async function restoreBookingPackageHours(client, booking) {
+    const duration = parseFloat(booking.duration) || 0;
+    const results = [];
+    const { rows: parts } = await client.query(
+      `SELECT id, customer_package_id, payment_status, package_hours_used
+         FROM booking_participants WHERE booking_id = $1`,
+      [booking.id]
+    );
+    const partsWithPkg = parts.filter((p) => p.customer_package_id &&
+      (p.payment_status === 'package' || p.payment_status === 'partial'));
+    if (partsWithPkg.length > 0) {
+      for (const p of partsWithPkg) {
+        const recorded = parseFloat(p.package_hours_used);
+        const restoreHours = Number.isFinite(recorded) ? recorded
+          : (p.payment_status === 'package' ? duration : 0);
+        if (restoreHours > 0) {
+          const r = await restoreHoursToPackage(client, p.customer_package_id, restoreHours);
+          if (r) results.push(r);
+        }
+      }
+      return results;
+    }
+    if (booking.customer_package_id &&
+        (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
+      const recorded = parseFloat(booking.package_hours_used);
+      const restoreHours = Number.isFinite(recorded) ? recorded
+        : (booking.payment_status === 'package' ? duration : 0);
+      if (restoreHours > 0) {
+        const r = await restoreHoursToPackage(client, booking.customer_package_id, restoreHours);
+        if (r) results.push(r);
+      }
+    }
+    return results;
+  }
+
+  // Helper: re-consume the EXACT recorded package hours when a deleted booking
+  // is restored (inverse of restoreBookingPackageHours). Uses each participant's
+  // recorded package_hours_used (partial-aware) instead of the full duration,
+  // and flips the package to 'used_up' if it hits zero.
+  async function reconsumeBookingPackageHours(client, booking) {
+    const duration = parseFloat(booking.duration) || 0;
+    const consume = async (pkgId, hours) => {
+      if (!pkgId || !(hours > 0)) return;
+      await client.query(
+        `UPDATE customer_packages
+            SET used_hours = COALESCE(used_hours,0) + $1,
+                remaining_hours = GREATEST(0, COALESCE(remaining_hours,0) - $1),
+                status = CASE WHEN GREATEST(0, COALESCE(remaining_hours,0) - $1) <= 0 AND status = 'active'
+                              THEN 'used_up' ELSE status END,
+                updated_at = NOW()
+          WHERE id = $2`,
+        [hours, pkgId]
+      );
+    };
+    const { rows: parts } = await client.query(
+      `SELECT customer_package_id, payment_status, package_hours_used
+         FROM booking_participants WHERE booking_id = $1`,
+      [booking.id]
+    );
+    const partsWithPkg = parts.filter((p) => p.customer_package_id &&
+      (p.payment_status === 'package' || p.payment_status === 'partial'));
+    if (partsWithPkg.length > 0) {
+      for (const p of partsWithPkg) {
+        const recorded = parseFloat(p.package_hours_used);
+        const hours = Number.isFinite(recorded) ? recorded : (p.payment_status === 'package' ? duration : 0);
+        await consume(p.customer_package_id, hours);
+      }
+      return;
+    }
+    if (booking.customer_package_id &&
+        (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
+      const recorded = parseFloat(booking.package_hours_used);
+      const hours = Number.isFinite(recorded) ? recorded : (booking.payment_status === 'package' ? duration : 0);
+      await consume(booking.customer_package_id, hours);
+    }
+  }
+
+  // Helper: re-activate a restored booking's manager commission (the delete set
+  // it 'cancelled'); leaves paid-out rows untouched.
+  async function reactivateManagerCommissionForBooking(client, bookingId) {
+    await client.query(
+      `UPDATE manager_commissions
+          SET status = 'pending', updated_at = NOW()
+        WHERE source_type = 'booking' AND source_id = $1 AND status = 'cancelled'`,
+      [String(bookingId)]
+    );
+  }
+
+  // Helper: refund each payer their OWN outstanding wallet charge for a booking.
+  // Uses getEntityNetCharges({ byUser: true }) so a group booking refunds every
+  // participant the net they actually paid (not the lump sum to the primary),
+  // refunds nothing for cash/gateway bookings (no wallet charge => no phantom
+  // credit), and is idempotent per (reason, booking, user, currency) so retries
+  // never double-refund. Returns the total amount refunded.
+  async function refundBookingNetChargesPerUser(client, booking, { transactionType = 'booking_cancelled_refund', reason = 'booking_cancelled', actorId = null } = {}) {
+    const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true });
+    let totalRefunded = 0;
+    for (const n of nets) {
+      if (!n.userId || !(n.amount > 0)) continue;
+      await recordWalletTransaction({
+        client,
+        userId: n.userId,
+        amount: Math.abs(n.amount),
+        availableDelta: Math.abs(n.amount),
+        transactionType,
+        status: 'completed',
+        direction: 'credit',
+        currency: n.currency || 'EUR',
+        description: `Refund: ${reason.replace(/_/g, ' ')}`,
+        entityType: 'booking',
+        relatedEntityType: 'booking',
+        relatedEntityId: booking.id,
+        bookingId: booking.id,
+        idempotencyKey: `${reason}:${booking.id}:${n.userId}:${n.currency}`,
+        metadata: { reason, bookingId: booking.id },
+        createdBy: actorId,
+        allowNegative: true,
+      });
+      totalRefunded += Math.abs(n.amount);
+    }
+    return totalRefunded;
+  }
+
+  // Helper: drop the instructor_earnings snapshot for a booking that is no
+  // longer billable (cancelled / deleted), so it stops counting as instructor
+  // cost in snapshot-based aggregates (finances.js, cashModeAggregator). Never
+  // touches a row already settled in payroll (payroll_id IS NOT NULL).
+  async function clearInstructorEarningsForBooking(client, bookingId) {
+    const { rowCount } = await client.query(
+      `DELETE FROM instructor_earnings WHERE booking_id = $1 AND payroll_id IS NULL`,
+      [bookingId]
+    );
+    return rowCount;
+  }
+
+  // Helper: move a single package's hours to cover `newTargetHours` of a booking
+  // under the "package-first, then cash" policy. `basePkg` is how many hours this
+  // booking already draws from the package. We fill as much of the new duration
+  // from the package as it can still cover (already-drawn + currently-remaining),
+  // overflow stays cash. Returns { newPkg, newCash, adjustment }.
+  async function applyPackageFirstDelta(client, pkgId, basePkg, newTargetHours) {
+    const { rows } = await client.query(
+      `SELECT total_hours, used_hours, remaining_hours FROM customer_packages WHERE id = $1`,
+      [pkgId]
+    );
+    if (!rows.length) return { newPkg: basePkg, newCash: Math.max(0, newTargetHours - basePkg), adjustment: null };
+    const r = rows[0];
+    const totalH = parseFloat(r.total_hours) || 0;
+    const usedH = parseFloat(r.used_hours) || 0;
+    const remaining = r.remaining_hours != null ? (parseFloat(r.remaining_hours) || 0) : Math.max(0, totalH - usedH);
+    const maxCover = basePkg + remaining;            // hours this package could fund
+    const newPkg = Math.max(0, Math.min(newTargetHours, maxCover));
+    const pkgDelta = newPkg - basePkg;
+    let adjustment = null;
+    if (pkgDelta > 0.0001) {
+      adjustment = await consumeHoursFromPackage(client, pkgId, pkgDelta, { allowNegative: false });
+    } else if (pkgDelta < -0.0001) {
+      adjustment = await restoreHoursToPackage(client, pkgId, Math.abs(pkgDelta));
+    }
+    return { newPkg, newCash: Math.max(0, newTargetHours - newPkg), adjustment };
+  }
+
   // Helper: reconcile a single booking's duration change with the linked
-  // customer_package(s). Called from PUT /:id whenever `duration` is edited so
-  // packages stay in sync with the booking ledger — same invariant the delete
-  // and cancel paths already maintain via restoreHoursToPackage.
+  // customer_package(s) AND its cash leg. Called from PUT /:id whenever
+  // `duration` is edited. Policy: PACKAGE FIRST, THEN CASH — the new duration is
+  // funded from remaining package hours first, any overflow becomes cash. Covers
+  // 'package' AND 'partial' bookings (the latter was previously skipped entirely,
+  // leaving used_hours frozen and the cash leg stale). For partial bookings the
+  // cash leg (final_amount) is recomputed and the wallet delta settled here, so
+  // the cascade's updateCustomerBalance intentionally skips partial/package.
   async function reconcilePackageHoursOnDurationChange(client, booking, oldDuration, newDuration) {
     const oldD = parseFloat(oldDuration) || 0;
     const newD = parseFloat(newDuration) || 0;
     const delta = newD - oldD;
     if (Math.abs(delta) < 0.0001) return [];
 
-    // Find the package(s) this booking actually consumes hours from. Prefer
-    // the participant-level link when present (multi-user bookings); fall back
-    // to the booking row's customer_package_id.
+    const adjustments = [];
+
+    // ── Participant path (group / multi-user): reconcile every package-drawing
+    //    participant (package OR partial) under the package-first policy. Group
+    //    per-participant CASH-leg settlement on a duration edit is left to the
+    //    explicit price-edit fan-out; here we keep the package ledger correct.
     const participantsRes = await client.query(
       `SELECT id, customer_package_id, payment_status, package_hours_used
          FROM booking_participants
-        WHERE booking_id = $1 AND customer_package_id IS NOT NULL AND payment_status = 'package'`,
+        WHERE booking_id = $1 AND customer_package_id IS NOT NULL
+          AND payment_status IN ('package', 'partial')`,
       [booking.id]
     );
 
-    const adjustments = [];
-
     if (participantsRes.rows.length > 0) {
-      // Spread delta evenly across participants paying by package — same
-      // convention used elsewhere when the booking total is split.
-      const perParticipantDelta = delta / participantsRes.rows.length;
       for (const p of participantsRes.rows) {
-        if (delta > 0) {
-          const r = await consumeHoursFromPackage(client, p.customer_package_id, perParticipantDelta, { allowNegative: false });
-          if (r?.error === 'insufficient_hours') {
-            const err = new Error(`Package has only ${r.available}h remaining; cannot extend booking by ${perParticipantDelta}h.`);
-            err.status = 400;
-            err.code = 'package_insufficient_hours';
-            throw err;
-          }
-          if (r) adjustments.push({ ...r, participantId: p.id });
-        } else {
-          const r = await restoreHoursToPackage(client, p.customer_package_id, Math.abs(perParticipantDelta));
-          if (r) adjustments.push({ ...r, participantId: p.id });
-        }
-        // Keep package_hours_used on the participant in sync so a later delete
-        // restores the right amount.
-        const currentTracked = parseFloat(p.package_hours_used) || oldD;
-        await client.query(
-          `UPDATE booking_participants
-              SET package_hours_used = $1, updated_at = NOW()
-            WHERE id = $2`,
-          [currentTracked + perParticipantDelta, p.id]
-        );
-      }
-    } else if (booking.customer_package_id && booking.payment_status === 'package') {
-      if (delta > 0) {
-        const r = await consumeHoursFromPackage(client, booking.customer_package_id, delta, { allowNegative: false });
-        if (r?.error === 'insufficient_hours') {
-          const err = new Error(`Package has only ${r.available}h remaining; cannot extend booking by ${delta}h.`);
-          err.status = 400;
-          err.code = 'package_insufficient_hours';
+        const recorded = parseFloat(p.package_hours_used);
+        const basePkg = Number.isFinite(recorded) ? recorded : (p.payment_status === 'package' ? oldD : 0);
+        const res = await applyPackageFirstDelta(client, p.customer_package_id, basePkg, newD);
+        if (res.adjustment?.error === 'insufficient_hours') {
+          const err = new Error(`Package has only ${res.adjustment.available}h remaining.`);
+          err.status = 400; err.code = 'package_insufficient_hours';
           throw err;
         }
-        if (r) adjustments.push(r);
-      } else {
-        const r = await restoreHoursToPackage(client, booking.customer_package_id, Math.abs(delta));
-        if (r) adjustments.push(r);
+        if (res.adjustment) adjustments.push({ ...res.adjustment, participantId: p.id });
+        await client.query(
+          `UPDATE booking_participants
+              SET package_hours_used = $1, cash_hours_used = $2,
+                  payment_status = CASE WHEN $2 > 0 THEN 'partial' WHEN $1 > 0 THEN 'package' ELSE payment_status END,
+                  updated_at = NOW()
+            WHERE id = $3`,
+          [res.newPkg, res.newCash, p.id]
+        );
+      }
+      return adjustments;
+    }
+
+    // ── Single booking path: 'package' OR 'partial' (calendar / POST /) ──────
+    if (!booking.customer_package_id ||
+        (booking.payment_status !== 'package' && booking.payment_status !== 'partial')) {
+      return adjustments;
+    }
+
+    // Per-hour cash rate: prefer the booking's own realized rate, else the
+    // service hourly price. Used both to reconstruct a legacy partial's split
+    // and to price the new cash leg.
+    let serviceHourly = 0;
+    try {
+      const { rows: svc } = await client.query('SELECT price, duration FROM services WHERE id = $1', [booking.service_id]);
+      if (svc.length) {
+        const sp = parseFloat(svc[0].price) || 0;
+        const sd = parseFloat(svc[0].duration) || 1;
+        serviceHourly = sd > 0 ? sp / sd : sp;
+      }
+    } catch { /* ignore */ }
+
+    const oldFinal = parseFloat(booking.final_amount) || 0;
+    const recordedPkg = parseFloat(booking.package_hours_used);
+    const recordedCash = parseFloat(booking.cash_hours_used);
+    let perHourCash = (Number.isFinite(recordedCash) && recordedCash > 0 && oldFinal > 0)
+      ? oldFinal / recordedCash
+      : serviceHourly;
+    if (!(perHourCash > 0)) perHourCash = serviceHourly;
+
+    // Resolve how many hours the booking currently draws from the package.
+    let basePkg;
+    if (Number.isFinite(recordedPkg)) {
+      basePkg = recordedPkg;
+    } else if (booking.payment_status === 'partial' && perHourCash > 0 && oldFinal > 0) {
+      basePkg = Math.max(0, oldD - oldFinal / perHourCash); // legacy reconstruction
+    } else {
+      basePkg = booking.payment_status === 'package' ? oldD : 0;
+    }
+
+    const oldCashLeg = booking.payment_status === 'partial' ? oldFinal : 0;
+
+    const res = await applyPackageFirstDelta(client, booking.customer_package_id, basePkg, newD);
+    if (res.adjustment?.error === 'insufficient_hours') {
+      const err = new Error(`Package has only ${res.adjustment.available}h remaining.`);
+      err.status = 400; err.code = 'package_insufficient_hours';
+      throw err;
+    }
+    if (res.adjustment) adjustments.push(res.adjustment);
+
+    const newPkg = res.newPkg;
+    const newCash = res.newCash;
+    const newCashLeg = parseFloat((newCash * perHourCash).toFixed(2));
+    const newPaymentStatus = newPkg <= 0 ? 'paid' : (newCash > 0.0001 ? 'partial' : 'package');
+
+    // For 'package' (cash leg 0) keep final_amount under the cascade's package
+    // sync (it writes the lesson value). For 'partial'/'paid', final_amount is
+    // the cash leg the customer actually owes.
+    if (newPaymentStatus === 'package') {
+      await client.query(
+        `UPDATE bookings SET package_hours_used = $1, cash_hours_used = 0,
+            payment_status = 'package', updated_at = NOW() WHERE id = $2`,
+        [newPkg, booking.id]
+      );
+    } else {
+      await client.query(
+        `UPDATE bookings SET package_hours_used = $1, cash_hours_used = $2,
+            final_amount = $3, amount = $3, payment_status = $4, updated_at = NOW()
+          WHERE id = $5`,
+        [newPkg, newCash, newCashLeg, newPaymentStatus, booking.id]
+      );
+    }
+
+    // Reflect on the in-memory booking so the post-update refetch / cascade see
+    // the reconciled values.
+    booking.package_hours_used = newPkg;
+    booking.cash_hours_used = newCash;
+    booking.payment_status = newPaymentStatus;
+    if (newPaymentStatus !== 'package') { booking.final_amount = newCashLeg; booking.amount = newCashLeg; }
+
+    // Settle the cash-leg delta on the wallet (single posting point; the cascade
+    // skips partial/package). Charge if the customer now owes more, refund if less.
+    const cashDelta = parseFloat((newCashLeg - oldCashLeg).toFixed(2));
+    if (booking.student_user_id && Math.abs(cashDelta) > 0.009) {
+      try {
+        await recordWalletTransaction({
+          client,
+          userId: booking.student_user_id,
+          amount: -cashDelta,                 // owe more => debit; owe less => credit
+          availableDelta: -cashDelta,
+          transactionType: 'booking_charge_adjustment',
+          status: 'completed',
+          direction: cashDelta > 0 ? 'debit' : 'credit',
+          currency: booking.currency || 'EUR',
+          description: cashDelta > 0
+            ? `Partial lesson cash leg increased: €${Math.abs(cashDelta)}`
+            : `Partial lesson cash leg reduced: €${Math.abs(cashDelta)}`,
+          entityType: 'booking',
+          relatedEntityType: 'booking',
+          relatedEntityId: booking.id,
+          bookingId: booking.id,
+          metadata: { reason: 'duration_edit_cash_leg', oldCashLeg, newCashLeg, newPkgHours: newPkg, newCashHours: newCash },
+          allowNegative: true,
+        });
+      } catch (walletErr) {
+        logger.warn('Failed to settle partial cash-leg on duration edit', { bookingId: booking.id, error: walletErr.message });
       }
     }
 
@@ -1442,7 +1706,12 @@ router.get('/:id', authenticateJWT, async (req, res) => {
         (COALESCE(cp.purchase_price, 0) - COALESCE(d_pkg.amount, 0)) as package_price,
         (SELECT COALESCE(SUM(amount), 0) FROM discounts
            WHERE entity_type = 'booking' AND entity_id = b.id::text) as total_discount_amount,
-        COALESCE(b.final_amount, b.amount, srv.price, 0) as display_amount,
+        -- D4: subtract the booking-level discount so display_amount matches the
+        -- detail drawer (BookingDetailModal.getDisplayPrice) and the list view,
+        -- instead of showing the pre-discount price on this surface only.
+        GREATEST(COALESCE(b.final_amount, b.amount, srv.price, 0) - (
+          SELECT COALESCE(SUM(amount), 0) FROM discounts
+           WHERE entity_type = 'booking' AND entity_id = b.id::text), 0) as display_amount,
         COALESCE(
           CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
                THEN COALESCE(idc.self_student_commission_rate, 45) END,
@@ -1976,21 +2245,35 @@ router.post('/',
       }
     }
     
+    // D1: the wallet must be charged NET of any manual discount. The booking row
+    // already stores the net price (calculatedFinalAmount = finalAmount −
+    // discount_amount), but the charge below previously used the GROSS finalAmount,
+    // overcharging the customer by the discount. netChargeable is the amount the
+    // customer actually owes; final_amount (net) stays the single discounted figure
+    // the salary paths read, so there is no double-subtraction.
+    const manualDiscount = Math.max(0, parseFloat(req.body.discount_amount) || 0);
+    const netChargeable = Math.max(0, finalAmount - manualDiscount);
+
     // Defer transactions until booking exists, so we can attach booking_id
-    const isHybridPayment = requestedPaymentMethod === 'wallet_hybrid' && use_package === false && finalAmount > 0;
-    const isCreditCardPayment = (requestedPaymentMethod === 'credit_card' && use_package === false && finalAmount > 0) || isHybridPayment;
+    const isHybridPayment = requestedPaymentMethod === 'wallet_hybrid' && use_package === false && netChargeable > 0;
+    const isCreditCardPayment = (requestedPaymentMethod === 'credit_card' && use_package === false && netChargeable > 0) || isHybridPayment;
     let hybridWalletDeducted = 0;
     const pendingTransactions = [];
     if (student_user_id && use_package === false) {
       if (isHybridPayment) {
-        // Hybrid: deduct what we can from wallet, charge the rest via Iyzico
+        // Hybrid: deduct what we can from wallet, charge the rest via Iyzico.
+        // Read availability against the SAME currency the debit will hit
+        // (walletTransactionCurrency = EUR, the storage currency) — not the
+        // user's preferred_currency. Otherwise a non-EUR-preferred user's EUR
+        // wallet was ignored (availability read returned 0 → whole amount wrongly
+        // routed to the card).
         try {
           const balResult = await client.query(
             `SELECT available_amount FROM wallet_balances WHERE user_id = $1 AND currency = $2 FOR UPDATE`,
-            [student_user_id, walletCurrency || 'EUR']
+            [student_user_id, walletTransactionCurrency]
           );
           const walletAvailable = parseFloat(balResult.rows[0]?.available_amount) || 0;
-          hybridWalletDeducted = Math.min(walletAvailable, finalAmount);
+          hybridWalletDeducted = Math.min(walletAvailable, netChargeable);
 
           if (hybridWalletDeducted > 0) {
             pendingTransactions.push({
@@ -2004,7 +2287,7 @@ router.post('/',
                 paymentMethod: 'wallet_hybrid',
                 bookingDate: date,
                 walletPortion: hybridWalletDeducted,
-                cardPortion: finalAmount - hybridWalletDeducted,
+                cardPortion: netChargeable - hybridWalletDeducted,
                 source: 'student_booking_wizard'
               }
             });
@@ -2023,10 +2306,10 @@ router.post('/',
         // Set to 'waiting_payment' to ensure the lesson doesn't appear on the confirmed calendar
         finalPaymentStatus = 'waiting_payment';
         finalNotes = (finalNotes ? finalNotes + ' | ' : '') + `Bank Transfer requested | Bank Account ID: ${req.body.bank_account_id || 'Not specified'}`;
-      } else if (finalAmount > 0) {
+      } else if (netChargeable > 0) {
         pendingTransactions.push({
           userId: student_user_id,
-          amount: -Math.abs(finalAmount),
+          amount: -Math.abs(netChargeable),
           type: 'booking_charge',
           description: `Individual lesson charge: ${date} ${start_hour}:00 (${bookingDuration}h)${voucherDiscount > 0 ? ` (voucher discount: ${voucherDiscount})` : ''}`,
           status: 'completed',
@@ -2074,12 +2357,17 @@ router.post('/',
       'checkin_notes',
       'checkout_notes',
       'customer_package_id',
-      'group_size'
+      'group_size',
+      'package_hours_used',
+      'cash_hours_used'
     ];
 
     // Calculate final amount
     const discountAmount = req.body.discount_amount || 0;
     const calculatedFinalAmount = finalAmount - discountAmount;
+    // POST / has no partial path: a package booking draws the full duration from
+    // the package (cash 0); everything else is cash-only (no package hours).
+    const isFullPackageBooking = finalPaymentStatus === 'package' && !!usedPackageId;
 
     const bookingValues = [
       date,
@@ -2101,7 +2389,9 @@ router.post('/',
       req.body.checkin_notes || '',
       req.body.checkout_notes || '',
       usedPackageId, // Include the package ID that was used
-      (partner_user_id && partnerPackageUsed) ? 2 : 1 // group_size: 2 if partner included
+      (partner_user_id && partnerPackageUsed) ? 2 : 1, // group_size: 2 if partner included
+      isFullPackageBooking ? parseFloat(duration) : null, // package_hours_used
+      isFullPackageBooking ? 0 : null // cash_hours_used
     ];
 
     const { columns: bookingInsertColumns, values: bookingInsertValues } = appendCreatedBy(bookingColumns, bookingValues, actorId);
@@ -2253,6 +2543,20 @@ router.post('/',
       }
     }
       await client.query('COMMIT');
+
+    // Seed the instructor_earnings snapshot at creation (S1), matching POST
+    // /group and POST /calendar. Without this, a single booking had NO earnings
+    // row until a later edit/completion, so payroll/commission views showed €0.
+    try {
+      await BookingUpdateCascadeService.cascadeBookingUpdate(
+        booking,
+        { _custom_commission_changed: true }
+      );
+    } catch (cascadeError) {
+      logger.warn('Failed to cascade instructor earnings after single booking creation', {
+        bookingId: booking.id, error: cascadeError?.message
+      });
+    }
 
     // Redeem voucher if one was applied
     let voucherRedemptionInfo = null;
@@ -3141,6 +3445,14 @@ router.post('/group',
       mainBookingPaymentStatus = 'paid';
     }
     
+    // Booking-level hour split = sum across participants (per-participant rows
+    // remain the authoritative source for group reversal; this is a convenience
+    // total for booking-level readers). NULL when no package hours were drawn.
+    const groupPackageHoursTotal = processedParticipants.reduce(
+      (sum, p) => sum + (parseFloat(p.packageHoursUsed) || 0), 0);
+    const groupCashHoursTotal = processedParticipants.reduce(
+      (sum, p) => sum + (parseFloat(p.cashHoursUsed) || 0), 0);
+
     // Insert main booking record
     const groupBookingColumns = [
       'date',
@@ -3158,7 +3470,9 @@ router.post('/group',
       'service_id',
       'group_size',
       'max_participants',
-      'customer_package_id'
+      'customer_package_id',
+      'package_hours_used',
+      'cash_hours_used'
     ];
 
     const groupBookingValues = [
@@ -3177,7 +3491,9 @@ router.post('/group',
       service_id,
       Number.parseInt(groupSize, 10),
       Math.max(Number.parseInt(groupSize, 10), 10),
-      mainBookingCustomerPackageId
+      mainBookingCustomerPackageId,
+      groupPackageHoursTotal > 0 ? groupPackageHoursTotal : null,
+      groupCashHoursTotal > 0 ? groupCashHoursTotal : null
     ];
 
     const { columns: groupBookingInsertColumns, values: groupBookingInsertValues } = appendCreatedBy(groupBookingColumns, groupBookingValues, actorId);
@@ -3768,6 +4084,10 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
   }
       
   let chosenPackageId = customerPackageId || null;
+  // Track the exact package/cash hour split so delete/cancel/duration-edit can
+  // restore precisely instead of guessing `duration`. NULL = not package-linked.
+  let packageHoursUsedForBooking = null;
+  let cashHoursUsedForBooking = null;
   if (use_package === true) {
         // If a specific package was requested, validate it matches and has some hours remaining
         if (customerPackageId) {
@@ -3853,6 +4173,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
               fallbackToCash();
             } else {
               chosenPackageId = customerPackageId;
+              packageHoursUsedForBooking = consumeFromPackage;
+              cashHoursUsedForBooking = cashHours;
               if (cashHours > 0) {
                 finalPaymentStatus = 'partial';
                 const hourly = servicePrice || (parseFloat(amount) || 0);
@@ -3935,6 +4257,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
               AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
           `, [newUsed, newRemaining, normalizedDate, pkg.id, consumeFromPackage]);
           chosenPackageId = pkg.id;
+          packageHoursUsedForBooking = consumeFromPackage;
+          cashHoursUsedForBooking = cashHours;
 
           if (cashHours > 0) {
             finalPaymentStatus = 'partial';
@@ -4011,6 +4335,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         'checkin_notes',
         'checkout_notes',
         'customer_package_id',
+        'package_hours_used',
+        'cash_hours_used',
         'created_at',
         'updated_at'
       ];
@@ -4037,6 +4363,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         '',
         '',
         chosenPackageId,
+        packageHoursUsedForBooking,
+        cashHoursUsedForBooking,
         new Date(),
         new Date()
       ];
@@ -4338,20 +4666,30 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       );
       const participants = partsRes.rows;
       if (participants.length > 1) {
-        const perParticipant = Math.round((newTotal / participants.length) * 100) / 100;
+        // Split the new cash total across only the CASH-paying participants
+        // (G4). Package participants owe €0 cash and must NOT dilute the per-head
+        // share (the old code divided by ALL participants, undersizing each cash
+        // payer's share); refunded participants are out.
+        const cashPayers = participants.filter(
+          (p) => p.payment_status === 'paid' || p.payment_status === 'partial'
+        );
+        const divisor = cashPayers.length || 1;
+        const perParticipant = Math.round((newTotal / divisor) * 100) / 100;
 
-        for (const p of participants) {
-          if (p.payment_status === 'package' || p.payment_status === 'refunded') continue;
-
+        for (const p of cashPayers) {
           const oldShare = parseFloat(p.payment_amount) || 0;
           const diff = perParticipant - oldShare;
 
-          if (p.payment_status === 'paid' && diff !== 0 && p.user_id) {
+          // Settle the delta on the wallet for EVERY cash payer — 'paid' AND
+          // 'partial' (the old code only settled 'paid', so a 'partial'
+          // participant's recorded share changed with no money movement).
+          if (diff !== 0 && p.user_id) {
             try {
-              await recordLegacyTransaction({
+              await recordWalletTransaction({
                 userId: p.user_id,
                 amount: -diff,
-                transactionType: diff > 0 ? 'booking_charge' : 'booking_cancelled_refund',
+                availableDelta: -diff,
+                transactionType: diff > 0 ? 'booking_charge' : 'booking_charge_adjustment',
                 status: 'completed',
                 direction: diff > 0 ? 'debit' : 'credit',
                 description: diff > 0
@@ -4936,6 +5274,24 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       });
     }
 
+    // A pure reschedule (date change) doesn't alter amounts, so it never trips the
+    // financial cascade above — but the manager commission's period attribution must
+    // follow the lesson to its new date. Finance reports filter lesson revenue by
+    // booking.date and manager commission by mc.source_date, so a cross-month reschedule
+    // would otherwise strand the commission in the old month. Sync it post-commit.
+    const oldDateStr = currentBooking?.date ? String(currentBooking.date).slice(0, 10) : null;
+    const newDateStr = updatedBooking?.date ? String(updatedBooking.date).slice(0, 10) : null;
+    if (newDateStr && oldDateStr !== newDateStr) {
+      setImmediate(async () => {
+        try {
+          const { updateManagerCommissionSourceDate } = await import('../services/managerCommissionService.js');
+          await updateManagerCommissionSourceDate(pool, { sourceType: 'booking', sourceId: booking.id, newDate: newDateStr });
+        } catch (err) {
+          logger.warn('Failed to sync manager commission source_date on reschedule', { error: err?.message });
+        }
+      });
+    }
+
     // Note: transaction already committed above; do not commit again here
 
   } catch (error) {
@@ -5478,95 +5834,28 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
   const duration = parseFloat(booking.duration) || 0;
   const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
 
-  const packagesUpdated = [];
-  let totalHoursRestored = 0;
+  // Restore the EXACT recorded package hours (partial-aware, per-participant).
+  const packagesUpdated = duration > 0 ? await restoreBookingPackageHours(client, booking) : [];
+  let totalHoursRestored = packagesUpdated.reduce((s, p) => s + (parseFloat(p.hoursRestored) || 0), 0);
 
-  if (duration > 0) {
-    const { rows: participantRows } = await client.query(
-      `SELECT user_id, customer_package_id, payment_status, package_hours_used FROM booking_participants WHERE booking_id = $1`,
-      [bookingId]
-    );
-    // Restore precisely per participant
-    for (const row of participantRows) {
-      if (row && row.customer_package_id && row.payment_status === 'package') {
-        const restoreHours = parseFloat(row.package_hours_used) || parseFloat(duration);
-        const restored = await restoreHoursToPackage(client, row.customer_package_id, restoreHours);
-        if (restored) {
-          packagesUpdated.push(restored);
-          totalHoursRestored += restored.hoursRestored;
-        }
-      }
-    }
-    // Fallback to main booking package if no participant records exist (also handles bookings where payment_status was incorrectly saved)
-    if (packagesUpdated.length === 0 && booking.customer_package_id) {
-      const restored = await restoreHoursToPackage(client, booking.customer_package_id, parseFloat(duration));
-      if (restored) {
-        packagesUpdated.push(restored);
-        totalHoursRestored += restored.hoursRestored;
-      }
-    }
-  }
-
+  // Refund each payer their OWN outstanding wallet charge (per-user, net of any
+  // prior refund, idempotent). No wallet charge => no refund (no phantom credit
+  // for cash/gateway). Package hours already restored above don't double as cash.
   let balanceRefunded = 0;
-  let refundType = 'none';
-  if (bookingAmount > 0 && studentId) {
-    if (totalHoursRestored > 0) {
-      refundType = 'package_hours_restored';
-    } else if (booking.payment_status === 'package' || booking.customer_package_id) {
-      refundType = 'package_booking_no_refund';
-    } else {
-      balanceRefunded = bookingAmount;
-      refundType = 'balance_refund';
-    }
-  }
-
-  if (balanceRefunded > 0) {
+  let refundType = totalHoursRestored > 0 ? 'package_hours_restored' : 'none';
+  if (studentId) {
     try {
-      // Refund what the wallet was ACTUALLY charged, in the original currency and only
-      // the outstanding portion (fixes wrong-currency + hybrid over-refund + double
-      // refund across the two delete paths). If the booking has no wallet charge on the
-      // ledger (card/cash/pre-ledger), keep the legacy EUR store-credit behaviour.
-      const netCharges = await getEntityNetCharges({ client, bookingId });
-      const chargeProbe = await client.query(
-        `SELECT 1 FROM wallet_transactions WHERE booking_id = $1 AND available_delta < 0 AND status = 'completed' LIMIT 1`,
-        [bookingId]
-      );
-      const refunds = chargeProbe.rows.length > 0
-        ? netCharges
-        : [{ currency: 'EUR', amount: balanceRefunded }];
-      let refundedTotal = 0;
-      for (const rc of refunds) {
-        await recordWalletTransaction({
-          userId: studentId,
-          amount: rc.amount,
-          currency: rc.currency,
-          transactionType: 'booking_deleted_refund',
-          description: `Booking deleted refund: ${booking.date}`,
-          metadata: {
-            origin: 'delete_booking_helper',
-            bookingId,
-            reason,
-            packagesUpdated: packagesUpdated.map((pkg) => ({
-              packageId: pkg.packageId,
-              hours: pkg.hoursRestored
-            }))
-          },
-          relatedEntityType: 'booking',
-          relatedEntityId: bookingId,
-          createdBy: deletingUserId,
-          allowNegative: true, // Allow refund even if wallet has negative balance
-          idempotencyKey: `booking-deleted-refund:${bookingId}:${rc.currency}`,
-          client
-        });
-        refundedTotal += rc.amount;
+      balanceRefunded = await refundBookingNetChargesPerUser(client, booking, {
+        transactionType: 'booking_deleted_refund',
+        reason: 'booking_deleted',
+        actorId: deletingUserId,
+      });
+      if (balanceRefunded > 0) {
+        refundType = totalHoursRestored > 0 ? 'package_hours_and_cash_refunded' : 'balance_refund';
       }
-      balanceRefunded = refundedTotal;
     } catch (walletError) {
       logger?.error?.('Failed to record wallet refund for booking helper delete', {
-        bookingId,
-        studentId,
-        amount: balanceRefunded,
-        error: walletError?.message
+        bookingId, studentId, error: walletError?.message,
       });
       throw walletError;
     }
@@ -5598,6 +5887,9 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
       ]
     );
   }
+
+  // Drop the (unpaid) instructor_earnings snapshot for the deleted booking.
+  await clearInstructorEarningsForBooking(client, bookingId);
 
   await client.query(
     `UPDATE bookings SET deleted_at = NOW(), deleted_by = $1, deletion_reason = $2, updated_at = NOW() WHERE id = $3 AND deleted_at IS NULL`,
@@ -5646,128 +5938,31 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
         const duration = parseFloat(booking.duration) || 0;
         const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
         
-        // 1. RESTORE PACKAGE HOURS (participant-aware)
-        const packagesUpdated = [];
-        let totalHoursRestored = 0;
+        // 1. RESTORE PACKAGE HOURS (participant- and partial-aware; exact recorded hours)
+        const packagesUpdated = duration > 0 ? await restoreBookingPackageHours(client, booking) : [];
+        let totalHoursRestored = packagesUpdated.reduce((s, p) => s + (parseFloat(p.hoursRestored) || 0), 0);
 
-        if (duration > 0) {
-            // Collect participant package usages for this booking
-            const { rows: participantRows } = await client.query(
-              `SELECT user_id, customer_package_id, payment_status
-               FROM booking_participants
-               WHERE booking_id = $1`,
-              [bookingId]
-            );
-
-            // Build list of package IDs to restore based on participants who used packages
-            const participantPackageIds = participantRows
-              .filter(r => r && r.payment_status === 'package' && r.customer_package_id)
-              .map(r => r.customer_package_id);
-
-            // If no participant records indicate package usage, fall back to main booking's package
-            const packageIdsToRestore = new Set(participantPackageIds);
-            if (packageIdsToRestore.size === 0 && booking.payment_status === 'package' && booking.customer_package_id) {
-              packageIdsToRestore.add(booking.customer_package_id);
-            }
-
-            if (packageIdsToRestore.size > 0) {
-              for (const pkgId of packageIdsToRestore) {
-                const restored = await restoreHoursToPackage(client, pkgId, parseFloat(duration));
-                if (restored) {
-                  packagesUpdated.push(restored);
-                  totalHoursRestored += restored.hoursRestored;
-                }
-              }
-            } else {
-              logger.info('No participant package usages found to restore');
-            }
-        }
-        
-        // 2. PROCESS BALANCE REFUND based on payment method
+        // 2. REFUND each payer their OWN outstanding wallet charge (per-user, net of
+        //    prior refunds, idempotent). No wallet charge => no refund, so cash/gateway
+        //    bookings and pure-package bookings never get a phantom credit, and a group
+        //    refunds every participant the share they actually paid (not a lump to the primary).
         let balanceRefunded = 0;
-        let refundType = 'none';
-        
-    if (bookingAmount > 0 && studentId) {
-      logger.info('Processing balance refund for booking deletion');
-      logger.debug?.(`Booking details: amount=${bookingAmount}, payment_status=${booking.payment_status}, customer_package_id=${booking.customer_package_id}`);
-            
-            // CRITICAL FIX: Only refund balance if this was actually a CASH/INDIVIDUAL payment
-            // Check both package hour restoration AND original payment method
-            if (totalHoursRestored > 0) {
-                // Package hours were restored - no additional balance refund needed
-                refundType = 'package_hours_restored';
-                logger.info(`Package booking - ${totalHoursRestored}h restored, no balance refund needed`);
-            } else if (booking.payment_status === 'package' || booking.customer_package_id) {
-                // This was a package booking, but no hours were restored (possibly package deleted or error)
-                // DO NOT refund balance - the customer never paid cash for this booking
-                refundType = 'package_booking_no_refund';
-                logger.warn('PACKAGE BOOKING with failed hour restoration - NO balance refund (customer never paid cash)');
-                logger.info(`Preventing incorrect refund for package booking amount=${bookingAmount}`);
-            } else {
-                // This was genuinely an individual cash payment - refund to balance
-                balanceRefunded = bookingAmount;
-                refundType = 'balance_refund';
-                
-                const walletMetadata = {
-                  bookingId,
-                  deletionReason: reason,
-                  refundType,
-                  packagesUpdated: packagesUpdated.map((pkg) => ({
-                    packageId: pkg.packageId,
-                    hours: pkg.hoursRestored
-                  }))
-                };
-
-                try {
-                  let transactionDescription = `Booking deleted: ${booking.date}`;
-                  if (totalHoursRestored > 0) {
-                    transactionDescription += ` (${totalHoursRestored}h restored to packages)`;
-                  }
-                  if (balanceRefunded > 0) {
-                    transactionDescription += ` (€${balanceRefunded} refunded)`;
-                  }
-                  transactionDescription += ` - ${reason}`;
-
-                  // Refund the ACTUAL wallet charge in its original currency, outstanding
-                  // portion only (currency-correct + hybrid-safe + double-refund-safe).
-                  // Fall back to legacy EUR store-credit only when no wallet charge exists.
-                  const netCharges = await getEntityNetCharges({ client, bookingId });
-                  const chargeProbe = await client.query(
-                    `SELECT 1 FROM wallet_transactions WHERE booking_id = $1 AND available_delta < 0 AND status = 'completed' LIMIT 1`,
-                    [bookingId]
-                  );
-                  const refunds = chargeProbe.rows.length > 0
-                    ? netCharges
-                    : [{ currency: 'EUR', amount: balanceRefunded }];
-                  let refundedTotal = 0;
-                  for (const rc of refunds) {
-                    await recordWalletTransaction({
-                      userId: studentId,
-                      amount: rc.amount,
-                      currency: rc.currency,
-                      transactionType: 'booking_deleted_refund',
-                      status: 'completed',
-                      description: transactionDescription,
-                      metadata: walletMetadata,
-                      relatedEntityType: 'booking',
-                      relatedEntityId: bookingId,
-                      createdBy: deletingUserId,
-                      allowNegative: true, // Allow refund even if wallet has negative balance
-                      idempotencyKey: `booking-deleted-refund:${bookingId}:${rc.currency}`,
-                      client
-                    });
-                    refundedTotal += rc.amount;
-                  }
-                  balanceRefunded = refundedTotal;
-                } catch (walletError) {
-                  logger.error('Failed to record wallet refund for booking deletion', {
-                    bookingId,
-                    studentId,
-                    amount: balanceRefunded,
-                    error: walletError?.message
-                  });
-                  throw walletError;
+        let refundType = totalHoursRestored > 0 ? 'package_hours_restored' : 'none';
+        if (studentId) {
+            try {
+                balanceRefunded = await refundBookingNetChargesPerUser(client, booking, {
+                  transactionType: 'booking_deleted_refund',
+                  reason: 'booking_deleted',
+                  actorId: deletingUserId,
+                });
+                if (balanceRefunded > 0) {
+                  refundType = totalHoursRestored > 0 ? 'package_hours_and_cash_refunded' : 'balance_refund';
                 }
+            } catch (walletError) {
+                logger.error('Failed to record wallet refund for booking deletion', {
+                  bookingId, studentId, error: walletError?.message,
+                });
+                throw walletError;
             }
         }
         
@@ -5809,6 +6004,10 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
             logger.info('Created financial event for audit trail');
         }
         
+    // 4b. Drop the (unpaid) instructor_earnings snapshot for the deleted booking
+    //     so it stops counting as instructor cost in snapshot-based aggregates.
+    await clearInstructorEarningsForBooking(client, bookingId);
+
     // 5. SOFT DELETE THE BOOKING
     const _deleteResult = await client.query(`
       UPDATE bookings
@@ -6026,19 +6225,12 @@ router.post('/undo-delete', authenticateJWT, authorizeRoles(['admin', 'manager']
           }
         }
 
-        // Re-deduct any restored package hours (best-effort)
-        if (item.totalHoursRestored > 0 && item.booking?.customer_package_id) {
-          const pkgId = item.booking.customer_package_id;
-          // Deduct hours back
-          await client.query(
-            `UPDATE customer_packages
-             SET used_hours = GREATEST(0, COALESCE(used_hours,0) + $1),
-                 remaining_hours = GREATEST(0, COALESCE(remaining_hours,0) - $1),
-                 updated_at = NOW()
-             WHERE id = $2`,
-            [item.booking.duration || item.totalHoursRestored, pkgId]
-          );
+        // Re-deduct the EXACT recorded package hours (partial-aware, per-participant)
+        // and re-activate the manager commission the delete had cancelled.
+        if (item.booking) {
+          await reconsumeBookingPackageHours(client, item.booking);
         }
+        await reactivateManagerCommissionForBooking(client, item.id);
 
         restoredIds.push(item.id);
       }
@@ -6119,32 +6311,10 @@ router.post('/restore-latest', authenticateJWT, authorizeRoles(['admin', 'manage
       }
     }
 
-    // Re-deduct package hours if it was a package booking
-    const duration = parseFloat(booking.duration) || 0;
-    if (duration > 0) {
-      // Participant-aware
-      const { rows: bpRows } = await client.query(
-        `SELECT customer_package_id, payment_status FROM booking_participants WHERE booking_id = $1`,
-        [booking.id]
-      );
-      const pkgIds = bpRows
-        .filter(r => r && r.payment_status === 'package' && r.customer_package_id)
-        .map(r => r.customer_package_id);
-      const setIds = new Set(pkgIds);
-      if (setIds.size === 0 && booking.payment_status === 'package' && booking.customer_package_id) {
-        setIds.add(booking.customer_package_id);
-      }
-      for (const pkgId of setIds) {
-        await client.query(
-          `UPDATE customer_packages
-           SET used_hours = COALESCE(used_hours,0) + $1,
-               remaining_hours = GREATEST(0, COALESCE(remaining_hours,0) - $1),
-               updated_at = NOW()
-           WHERE id = $2`,
-          [duration, pkgId]
-        );
-      }
-    }
+    // Re-deduct the EXACT recorded package hours (partial-aware) and re-activate
+    // the manager commission the delete had cancelled.
+    await reconsumeBookingPackageHours(client, booking);
+    await reactivateManagerCommissionForBooking(client, booking.id);
 
     await client.query('COMMIT');
     return res.json({ success: true, restoredId: booking.id });
@@ -6222,30 +6392,10 @@ router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin', 'manager']
       }
     }
 
-    const duration = parseFloat(booking.duration) || 0;
-    if (duration > 0) {
-      const { rows: bpRows } = await client.query(
-        `SELECT customer_package_id, payment_status FROM booking_participants WHERE booking_id = $1`,
-        [id]
-      );
-      const pkgIds = bpRows
-        .filter(r => r && r.payment_status === 'package' && r.customer_package_id)
-        .map(r => r.customer_package_id);
-      const setIds = new Set(pkgIds);
-      if (setIds.size === 0 && booking.payment_status === 'package' && booking.customer_package_id) {
-        setIds.add(booking.customer_package_id);
-      }
-      for (const pkgId of setIds) {
-        await client.query(
-          `UPDATE customer_packages
-           SET used_hours = COALESCE(used_hours,0) + $1,
-               remaining_hours = GREATEST(0, COALESCE(remaining_hours,0) - $1),
-               updated_at = NOW()
-           WHERE id = $2`,
-          [duration, pkgId]
-        );
-      }
-    }
+    // Re-deduct the EXACT recorded package hours (partial-aware) and re-activate
+    // the manager commission the delete had cancelled.
+    await reconsumeBookingPackageHours(client, booking);
+    await reactivateManagerCommissionForBooking(client, booking.id);
 
     await client.query('COMMIT');
     return res.json({ success: true, restoredId: id });
@@ -6432,79 +6582,11 @@ router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager'])
       return res.status(400).json({ message: 'Booking is already cancelled' });
     }
     
-    // Restore package hours (participant-aware)
-    const packagesUpdated = [];
-    if (duration > 0) {
-      // Look at participant package usages for this booking
-      const { rows: bpRows } = await client.query(
-        `SELECT customer_package_id, payment_status, package_hours_used
-         FROM booking_participants WHERE booking_id = $1`,
-        [id]
-      );
-      let restoredAny = false;
-      for (const r of bpRows) {
-        if (r && r.payment_status === 'package' && r.customer_package_id) {
-          const restoreHours = parseFloat(r.package_hours_used) || parseFloat(duration);
-          const { rows: pkgRows } = await client.query(
-            `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
-             FROM customer_packages WHERE id = $1`,
-            [r.customer_package_id]
-          );
-          if (pkgRows.length === 0) continue;
-          const pkg = pkgRows[0];
-          const newUsed = Math.max(0, (parseFloat(pkg.used_hours) || 0) - restoreHours);
-          const newRemaining = Math.min(parseFloat(pkg.total_hours) || 0, (parseFloat(pkg.remaining_hours) || 0) + restoreHours);
-          const newStatus = newRemaining > 0 ? 'active' : pkg.status;
-          const { rows: upd } = await client.query(
-            `UPDATE customer_packages
-             SET used_hours = $1, remaining_hours = $2, status = $3, updated_at = NOW()
-             WHERE id = $4
-             RETURNING package_name, used_hours, remaining_hours, status`,
-            [newUsed, newRemaining, newStatus, r.customer_package_id]
-          );
-          if (upd.length > 0) {
-            const up = upd[0];
-            packagesUpdated.push({
-              packageName: up.package_name,
-              hoursRestored: restoreHours,
-              newUsedHours: up.used_hours,
-              newRemainingHours: up.remaining_hours
-            });
-            restoredAny = true;
-          }
-        }
-      }
-      if (!restoredAny && booking.customer_package_id) {
-        const restoreHours = parseFloat(duration);
-        const { rows: pkgRows } = await client.query(
-          `SELECT id, package_name, total_hours, used_hours, remaining_hours, status
-           FROM customer_packages WHERE id = $1`,
-          [booking.customer_package_id]
-        );
-        if (pkgRows.length > 0) {
-          const pkg = pkgRows[0];
-          const newUsed = Math.max(0, (parseFloat(pkg.used_hours) || 0) - restoreHours);
-          const newRemaining = Math.min(parseFloat(pkg.total_hours) || 0, (parseFloat(pkg.remaining_hours) || 0) + restoreHours);
-          const newStatus = newRemaining > 0 ? 'active' : pkg.status;
-          const { rows: upd } = await client.query(
-            `UPDATE customer_packages
-             SET used_hours = $1, remaining_hours = $2, status = $3, updated_at = NOW()
-             WHERE id = $4
-             RETURNING package_name, used_hours, remaining_hours, status`,
-            [newUsed, newRemaining, newStatus, booking.customer_package_id]
-          );
-          if (upd.length > 0) {
-            const up = upd[0];
-            packagesUpdated.push({
-              packageName: up.package_name,
-              hoursRestored: restoreHours,
-              newUsedHours: up.used_hours,
-              newRemainingHours: up.remaining_hours
-            });
-          }
-        }
-      }
-    }
+    // Restore the EXACT recorded package hours (participant- and partial-aware).
+    // Previously this loop filtered payment_status === 'package' (skipping partial
+    // participants) and the fallback restored the full booking `duration` instead
+    // of the hours actually drawn.
+    const packagesUpdated = duration > 0 ? await restoreBookingPackageHours(client, booking) : [];
     
     // Mark booking as cancelled
     const cancelResult = await client.query(
@@ -6522,82 +6604,41 @@ router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager'])
     
     // Create financial event record for audit trail
     const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
+    const totalHoursRestored = packagesUpdated.reduce((sum, pkg) => sum + (parseFloat(pkg.hoursRestored) || 0), 0);
     let balanceRefunded = 0;
-    let refundType = 'none';
-    
-    // Process balance refund based on payment method
-    if (bookingAmount > 0 && booking.student_user_id) {
-        if (booking.package_id || booking.payment_method === 'package') {
-            // Package booking - no balance refund needed as hours are restored
-            refundType = 'package_hours_restored';
-        } else {
-            // Individual lesson payment - refund to balance
-            balanceRefunded = bookingAmount;
-            refundType = 'balance_refund';
-            
-            // Add refund to user balance
-            await client.query(`
-                UPDATE users 
-                SET balance = COALESCE(balance, 0) + $1,
-                    updated_at = NOW()
-                WHERE id = $2
-            `, [balanceRefunded, booking.student_user_id]);
-            
-            logger.info(`Refunded €${balanceRefunded} to user balance for cancelled booking`);
-        }
-    }
-    
-    // Create financial transaction record
-    let transactionDescription = `Booking cancelled: ${booking.date}`;
-    if (packagesUpdated.length > 0) {
-        const totalHoursRestored = packagesUpdated.reduce((sum, pkg) => sum + pkg.hoursRestored, 0);
-        transactionDescription += ` (${totalHoursRestored}h restored to packages)`;
-    }
-    if (balanceRefunded > 0) {
-        transactionDescription += ` (€${balanceRefunded} refunded)`;
-    }
-    transactionDescription += ` - ${cancellation_reason}`;
-    
-    if (balanceRefunded > 0) {
-      const walletMetadata = {
-        bookingId: booking.id,
-        cancellationReason: cancellation_reason,
-        refundType,
-        packagesUpdated: packagesUpdated.map((pkg) => ({
-          packageName: pkg.packageName,
-          hoursRestored: pkg.hoursRestored
-        }))
-      };
+    let refundType = totalHoursRestored > 0 ? 'package_hours_restored' : 'none';
 
+    // Refund each payer their OWN outstanding wallet charge (per-user, net of any
+    // prior refund, idempotent, currency-correct). Replaces the old logic which
+    // (a) guarded on the non-existent columns booking.package_id / payment_method
+    // so package cancels still cash-refunded, (b) raw-mutated users.balance AND
+    // posted a wallet credit (dual-ledger drift), and (c) refunded the full
+    // final_amount instead of the actual charge. No wallet charge => no refund.
+    if (booking.student_user_id) {
       try {
-        await recordLegacyTransaction({
-          userId: booking.student_user_id,
-          amount: balanceRefunded,
+        balanceRefunded = await refundBookingNetChargesPerUser(client, booking, {
           transactionType: 'booking_cancelled_refund',
-          status: 'completed',
-          direction: 'credit',
-          description: transactionDescription,
-          metadata: walletMetadata,
-          entityType: 'booking',
-          relatedEntityType: 'booking',
-          relatedEntityId: booking.id,
-          bookingId: booking.id,
-          createdBy: actorId,
-          client
+          reason: 'booking_cancelled',
+          actorId,
         });
+        if (balanceRefunded > 0) {
+          refundType = totalHoursRestored > 0 ? 'package_hours_and_cash_refunded' : 'balance_refund';
+        }
       } catch (walletError) {
         logger.error('Failed to record wallet refund for cancelled booking', {
-          bookingId: booking.id,
-          studentId: booking.student_user_id,
-          amount: balanceRefunded,
-          error: walletError?.message
+          bookingId: booking.id, studentId: booking.student_user_id, error: walletError?.message,
         });
         throw walletError;
       }
     }
-    
+
+    // Drop the instructor_earnings snapshot so a cancelled lesson stops counting
+    // as instructor cost in snapshot-based aggregates (manager commission is
+    // cancelled separately below).
+    await clearInstructorEarningsForBooking(client, booking.id);
+
     await client.query('COMMIT');
-    
+
     // Fire-and-forget cancel manager commission
     try {
       const { cancelCommission } = await import('../services/managerCommissionService.js');
@@ -6786,54 +6827,24 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       });
     }
     
-    // === Refund logic when cancelling ===
+    // === Refund + hour restore when cancelling ===
     if (status === 'cancelled') {
       const duration = parseFloat(booking.duration) || 0;
 
-      // 1) Restore package hours (participant-aware, same pattern as POST /:id/cancel)
+      // 1) Restore the EXACT recorded package hours (participant- and partial-aware).
       if (duration > 0) {
-        const { rows: bpRows } = await client.query(
-          `SELECT customer_package_id, payment_status, package_hours_used
-           FROM booking_participants WHERE booking_id = $1`,
-          [id]
-        );
-        let restoredAny = false;
-        for (const r of bpRows) {
-          if (r && r.payment_status === 'package' && r.customer_package_id) {
-            const restoreHours = parseFloat(r.package_hours_used) || duration;
-            const result = await restoreHoursToPackage(client, r.customer_package_id, restoreHours);
-            if (result) restoredAny = true;
-          }
-        }
-        // Fallback: check booking-level package (also handles bookings where payment_status was incorrectly saved)
-        if (!restoredAny && booking.customer_package_id) {
-          await restoreHoursToPackage(client, booking.customer_package_id, duration);
-        }
+        await restoreBookingPackageHours(client, booking);
       }
 
-      // 2) Refund wallet balance for non-package individual payments
-      const bookingAmount = parseFloat(booking.final_amount || booking.amount) || 0;
-      if (bookingAmount > 0 && booking.student_user_id && booking.payment_method !== 'package' && booking.payment_status !== 'package' && !booking.package_id) {
-        await client.query(
-          `UPDATE users SET balance = COALESCE(balance, 0) + $1, updated_at = NOW() WHERE id = $2`,
-          [bookingAmount, booking.student_user_id]
-        );
-
+      // 2) Refund each payer their OWN outstanding wallet charge (per-user, net,
+      //    idempotent). Replaces the raw users.balance write + full-final_amount
+      //    refund + dead booking.package_id guard. No wallet charge => no refund.
+      if (booking.student_user_id) {
         try {
-          await recordLegacyTransaction({
-            userId: booking.student_user_id,
-            amount: bookingAmount,
+          await refundBookingNetChargesPerUser(client, booking, {
             transactionType: 'booking_cancelled_refund',
-            status: 'completed',
-            direction: 'credit',
-            description: `Booking cancelled (declined): ${booking.date}`,
-            metadata: { bookingId: booking.id, cancelledVia: 'status_update' },
-            entityType: 'booking',
-            relatedEntityType: 'booking',
-            relatedEntityId: booking.id,
-            bookingId: booking.id,
-            createdBy: req.user.id,
-            client
+            reason: 'booking_cancelled',
+            actorId: req.user.id,
           });
         } catch (walletError) {
           logger.error('Failed to record wallet refund on status-cancel', {
@@ -6841,9 +6852,19 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
           });
           throw walletError;
         }
-
-        logger.info(`PATCH status cancel: Refunded €${bookingAmount} to user ${booking.student_user_id}`);
       }
+
+      // 3) Drop the (unpaid) instructor_earnings snapshot and cancel the manager
+      //    commission so a declined lesson stops counting as either cost or income.
+      await clearInstructorEarningsForBooking(client, booking.id);
+      await client.query(
+        `UPDATE manager_commissions
+            SET status = 'cancelled',
+                notes = COALESCE(notes || ' | ', '') || $1,
+                updated_at = NOW()
+          WHERE source_type = 'booking' AND source_id = $2 AND status = 'pending'`,
+        ['Cancelled: Booking declined via status update', String(id)]
+      );
 
       // Update canceled_at timestamp
       await client.query(
@@ -6972,7 +6993,40 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     }
     
     await client.query('COMMIT');
-    
+
+    // S2: when this status patch COMPLETES a lesson, seed the instructor_earnings
+    // snapshot AND the manager commission — exactly like PUT /:id does. Without
+    // this, completing via PATCH (a public, whitelisted-status endpoint) created
+    // no earnings and no commission. Gated on a true transition into a completed
+    // status so a redundant patch doesn't double-fire.
+    {
+      const prevStatus = String(booking.status || '').toLowerCase().trim();
+      const nextStatus = String(status || '').toLowerCase().trim();
+      if (COMPLETED_BOOKING_STATUSES.has(nextStatus) && !COMPLETED_BOOKING_STATUSES.has(prevStatus)) {
+        const completedBooking = { ...booking, status };
+        setImmediate(async () => {
+          try {
+            await BookingUpdateCascadeService.cascadeBookingUpdate(
+              completedBooking,
+              { status, _previous: { status: booking.status } }
+            );
+          } catch (cascadeError) {
+            logger.warn('Failed to cascade earnings after status-patch completion', {
+              bookingId: booking.id, error: cascadeError?.message
+            });
+          }
+          try {
+            const { recordBookingCommission } = await import('../services/managerCommissionService.js');
+            await recordBookingCommission({ ...completedBooking, student_name: null, instructor_name: null, service_name: null });
+          } catch (commissionError) {
+            logger.warn('Failed to record manager commission after status-patch completion', {
+              bookingId: booking.id, error: commissionError?.message
+            });
+          }
+        });
+      }
+    }
+
     // Emit real-time notification to the student after commit
     if ((status === 'confirmed' || status === 'cancelled') && booking.student_user_id) {
       try {
@@ -7124,25 +7178,27 @@ router.post('/:id/decline-partner', authenticateJWT, async (req, res) => {
     }
 
     const booking = result.rows[0];
-    const duration = parseFloat(booking.duration) || 0;
 
-    // Refund package hours to ALL participants
-    const allParticipants = await client.query(
-      `SELECT user_id, customer_package_id, package_hours_used FROM booking_participants WHERE booking_id = $1`,
-      [id]
-    );
-
-    for (const p of allParticipants.rows) {
-      if (p.customer_package_id && duration > 0) {
-        const restoreHours = parseFloat(p.package_hours_used) || duration;
-        await restoreHoursToPackage(client, p.customer_package_id, restoreHours);
-      }
-    }
+    // Restore the EXACT recorded package hours (partial-aware) to every
+    // participant. The old inline loop used `package_hours_used || duration`,
+    // which over-restored the FULL booking duration to a participant that drew 0
+    // package hours (e.g. a partial/cash payer) — inventing free hours.
+    await restoreBookingPackageHours(client, booking);
 
     // Cancel the booking
     await client.query(
       `UPDATE bookings SET status = 'cancelled', canceled_at = NOW(), cancellation_reason = 'Partner declined', updated_at = NOW() WHERE id = $1`,
       [id]
+    );
+
+    // Drop the (unpaid) instructor_earnings snapshot and cancel the manager
+    // commission so a declined booking stops counting as cost or income.
+    await clearInstructorEarningsForBooking(client, booking.id);
+    await client.query(
+      `UPDATE manager_commissions
+          SET status = 'cancelled', updated_at = NOW()
+        WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+      [String(id)]
     );
 
     await client.query('COMMIT');

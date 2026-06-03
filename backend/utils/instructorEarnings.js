@@ -153,9 +153,15 @@ export const deriveTotalEarnings = ({ lessonAmount, commissionRate, commissionTy
   }
   
   let earnings;
-  if (commissionType === 'fixed') {
-    // Fixed rate: commission_value is the hourly rate (e.g., €40/hour)
+  if (commissionType === 'fixed' || commissionType === 'fixed_per_hour') {
+    // Fixed per hour: commission_value is the hourly rate (e.g., €40/hour).
+    // (Aligns with computeInstructorEarnings, which treats 'fixed' and
+    // 'fixed_per_hour' identically — previously these were silently valued as a
+    // percentage here, badly under/over-paying fixed-rate instructors.)
     earnings = rate * duration;
+  } else if (commissionType === 'fixed_per_lesson') {
+    // Flat amount per lesson regardless of duration.
+    earnings = rate;
   } else {
     // Percentage: commission_value is a percentage of the lesson amount
     if (amount <= 0) {

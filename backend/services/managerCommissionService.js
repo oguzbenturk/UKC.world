@@ -476,15 +476,18 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
   if (!pkgRes.rows.length) return summary;
   const pkg = pkgRes.rows[0];
 
-  // Convert package price to EUR if stored in another currency.
-  let pkgPriceEur = toNumber(pkg.purchase_price);
-  if (pkg.currency && pkg.currency !== 'EUR' && toNumber(pkg.exchange_rate) > 0) {
-    pkgPriceEur = Math.round((pkgPriceEur / toNumber(pkg.exchange_rate)) * 100) / 100;
-  }
+  // Keep the package price in its NATIVE currency here. `newSourceAmount` is
+  // converted to EUR exactly ONCE, per booking, near the end (booking currency
+  // ≈ package currency). Pre-converting here caused a double conversion for
+  // non-EUR packages: effectiveLessonPrice became EUR, then the per-booking
+  // CurrencyService.convertCurrency(..., bookingCurrency, 'EUR') divided by the
+  // FX rate a second time, understating source_amount. source_amount is stored
+  // in the native currency to match recordBookingCommission.
+  let pkgPriceNative = toNumber(pkg.purchase_price);
 
-  // Full (pre-discount) EUR price, kept for the hourly-rate discount-ratio
+  // Full (pre-discount) native price, kept for the hourly-rate discount-ratio
   // scaling below (L5).
-  const pkgFullPriceEur = pkgPriceEur;
+  const pkgFullPriceNative = pkgPriceNative;
 
   // Subtract any active per-package discount so manager commission tracks
   // actual realized revenue, not the headline pre-discount price.
@@ -494,17 +497,17 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
   );
   if (discRows.length) {
     const discountAmount = toNumber(discRows[0].amount);
-    pkgPriceEur = Math.max(0, pkgPriceEur - discountAmount);
+    pkgPriceNative = Math.max(0, pkgPriceNative - discountAmount);
   }
 
   // Derive the lesson-only portion of the package.
   const storedHourlyRate = toNumber(pkg.package_hourly_rate);
   const pkgTotalHours = toNumber(pkg.total_hours) || toNumber(pkg.sp_total_hours);
-  let effectiveLessonPrice = pkgPriceEur;
+  let effectiveLessonPrice = pkgPriceNative;
   if (storedHourlyRate > 0 && pkgTotalHours > 0) {
     // L5: scale by the discount ratio so a package discount still flows through
     // (ratio = 1 when no discount).
-    const ratio = pkgFullPriceEur > 0 ? pkgPriceEur / pkgFullPriceEur : 1;
+    const ratio = pkgFullPriceNative > 0 ? pkgPriceNative / pkgFullPriceNative : 1;
     effectiveLessonPrice = storedHourlyRate * pkgTotalHours * ratio;
   } else {
     let rentalCost = 0;
@@ -524,7 +527,15 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
       } catch { /* ignore */ }
     }
     if (rentalCost + accomCost > 0) {
-      effectiveLessonPrice = Math.max(0, pkgPriceEur - rentalCost - accomCost);
+      // K1: scale the rental/accommodation deduction by the discount ratio, the
+      // same way the instructor-earnings path (computeLessonAmount) does. Without
+      // this, a discounted combo package subtracted the FULL undiscounted
+      // rental/accom cost from an already-discounted base, so the manager
+      // source_amount diverged below the instructor lesson_amount for the same
+      // booking. ratio = 1 when there is no discount, so non-discounted packages
+      // are unchanged.
+      const ratio = pkgFullPriceNative > 0 ? pkgPriceNative / pkgFullPriceNative : 1;
+      effectiveLessonPrice = Math.max(0, pkgPriceNative - (rentalCost + accomCost) * ratio);
     }
   }
 
@@ -926,6 +937,37 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
     oldCommissionAmount,
     newCommissionAmount,
   };
+}
+
+/**
+ * Re-attribute a commission's period when its source entity is rescheduled to a
+ * new date. A pure date change does not alter the commission amount (so the
+ * discount/amount recompute path leaves it untouched), but finance reports filter
+ * manager commission by `source_date` while lesson revenue filters by booking.date
+ * — so without this the commission stays stranded in the original month while its
+ * revenue moves. Updates the live (non-cancelled) commission rows for the entity.
+ * Skips already-paid-out rows so historical payouts are not retroactively moved.
+ *
+ * @param {import('pg').PoolClient|import('pg').Pool} db - pool or transaction client
+ * @param {{ sourceType: string, sourceId: string, newDate: string|Date }} params
+ * @returns {Promise<{ updated: number }>}
+ */
+export async function updateManagerCommissionSourceDate(db, { sourceType, sourceId, newDate }) {
+  if (!newDate) return { updated: 0 };
+  const dateStr = String(newDate).slice(0, 10); // 'YYYY-MM-DD' (timezone-safe)
+  const periodMonth = dateStr.slice(0, 7);       // 'YYYY-MM'
+  const { rowCount } = await db.query(
+    `UPDATE manager_commissions
+        SET source_date = $1,
+            period_month = $2,
+            updated_at = NOW()
+      WHERE source_type = $3
+        AND source_id = $4
+        AND status <> 'cancelled'
+        AND payout_id IS NULL`,
+    [dateStr, periodMonth, sourceType, String(sourceId)]
+  );
+  return { updated: rowCount };
 }
 
 /**

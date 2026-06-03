@@ -91,7 +91,10 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(CANCELLED_LESSON_STATUSES)}]) THEN 1 ELSE 0 END)::int AS cancelled,
       COALESCE(SUM(duration), 0)::numeric AS total_hours,
       COALESCE(SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_LESSON_STATUSES)}]) THEN duration ELSE 0 END), 0)::numeric AS completed_hours,
-      COALESCE(SUM(GREATEST(COALESCE(final_amount, 0) - bk_disc.amt, 0)), 0)::numeric AS total_revenue
+      -- Only completed lessons contribute to revenue; previously cancelled /
+      -- pending bookings' final_amount inflated the headline total_revenue.
+      COALESCE(SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_LESSON_STATUSES)}])
+                        THEN GREATEST(COALESCE(final_amount, 0) - bk_disc.amt, 0) ELSE 0 END), 0)::numeric AS total_revenue
     FROM bookings
     ${discountSumLateral('bk_disc', 'booking', 'bookings.id')}
     ${bookingConditions.length ? `WHERE ${bookingConditions.join(' AND ')}` : ''}

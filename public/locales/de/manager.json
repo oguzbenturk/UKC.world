@@ -1232,6 +1232,7 @@
       "stats": {
         "lessonRevenue": "Unterrichtseinnahmen",
         "totalBookings": "Buchungen gesamt",
+        "completedBookings": "Abgeschlossene Buchungen",
         "instructorCommissions": "Instructor-Provisionen",
         "managerCommission": "Manager-Provision",
         "netLessonRevenue": "Netto-Unterrichtseinnahmen"
