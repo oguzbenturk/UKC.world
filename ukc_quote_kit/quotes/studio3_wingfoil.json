@@ -1,0 +1,313 @@
+{
+  "language": "en",
+
+  "brand": {
+    "title": "DUOTONE PRO CENTER URLA",
+    "subtitle": "UKC  -  Urla, Izmir, Turkey",
+    "website": "ukc.plannivo.com",
+    "footer_left": "Duotone Pro Center Urla  (UKC)  |  Urla, Izmir, Turkey"
+  },
+
+  "prepared_for": "",
+  "quote_date": "",
+
+  "intro": {
+    "en": "Thank you for your interest in UKC. We have prepared the following exclusive summer package for you, combining accommodation in a peaceful olive grove with professional Wing Foil instruction at a special cash-payment price.",
+    "fr": "Merci de l'intérêt que vous portez à UKC. Nous avons préparé pour vous le forfait estival exclusif suivant, alliant un hébergement au cœur d'une oliveraie paisible à des cours de Wing Foil professionnels, à un tarif spécial en cas de paiement comptant.",
+    "de": "Vielen Dank für Ihr Interesse an UKC. Wir haben das folgende exklusive Sommerpaket für Sie zusammengestellt, das eine Unterkunft in einem ruhigen Olivenhain mit professionellem Wing-Foil-Unterricht zu einem besonderen Barzahlungspreis verbindet.",
+    "tr": "UKC'ye gösterdiğiniz ilgi için teşekkür ederiz. Huzurlu bir zeytinlik içinde konaklama ile profesyonel Wing Foil eğitimini bir araya getiren bu özel yaz paketini, nakit ödemeye özel fiyatıyla sizin için hazırladık."
+  },
+
+  "package_items": [
+    {
+      "item": {
+        "en": "Studio 3\nAccommodation",
+        "fr": "Studio 3\nHébergement",
+        "de": "Studio 3\nUnterkunft",
+        "tr": "Studio 3\nKonaklama"
+      },
+      "details": {
+        "en": "August 3 - 8  (5 Nights)\nCosy studio set in a peaceful olive grove",
+        "fr": "3 - 8 août  (5 nuits)\nStudio douillet niché dans une oliveraie paisible",
+        "de": "3. - 8. August  (5 Nächte)\nGemütliches Studio in einem ruhigen Olivenhain",
+        "tr": "3 - 8 Ağustos  (5 Gece)\nZeytinlik içinde stüdyo; tesise 5-10 dk araç mesafesinde"
+      },
+      "regular": "250 EUR",
+      "cash": "225 EUR"
+    },
+    {
+      "item": {
+        "en": "Wing Foil\nLesson Course",
+        "fr": "Cours de\nWing Foil",
+        "de": "Wing-Foil-\nKurs",
+        "tr": "Wing Foil\nDers Paketi"
+      },
+      "details": {
+        "en": "6 Hours total  (2h/day over 3 days)\nCertified Duotone instructors + equipment",
+        "fr": "6 heures au total  (2h/jour sur 3 jours)\nMoniteurs Duotone certifiés + matériel",
+        "de": "Insgesamt 6 Stunden  (2 Std./Tag an 3 Tagen)\nZertifizierte Duotone-Instruktoren + Ausrüstung",
+        "tr": "Toplam 6 saat  (3 gün boyunca günde 2 saat)\nSertifikalı Duotone eğitmenler + ekipman"
+      },
+      "regular": {
+        "en": "420 EUR\n(70 EUR/h)",
+        "fr": "420 EUR\n(70 EUR/h)",
+        "de": "420 EUR\n(70 EUR/Std.)",
+        "tr": "420 EUR\n(70 EUR/saat)"
+      },
+      "cash": {
+        "en": "450 EUR\n(75 EUR/h)",
+        "fr": "450 EUR\n(75 EUR/h)",
+        "de": "450 EUR\n(75 EUR/Std.)",
+        "tr": "450 EUR\n(75 EUR/saat)"
+      }
+    },
+    {
+      "item": {
+        "en": "Practice Rental\n(per lesson day)",
+        "fr": "Location pratique\n(par jour de cours)",
+        "de": "Übungsverleih\n(pro Kurstag)",
+        "tr": "Pratik Kiralama\n(ders günü başına)"
+      },
+      "details": {
+        "en": "Self-practice after each lesson session\nNormally 70 EUR/day -> discounted for you",
+        "fr": "Pratique libre après chaque cours\nNormalement 70 EUR/jour -> remise pour vous",
+        "de": "Eigenes Üben nach jeder Unterrichtseinheit\nNormalerweise 70 EUR/Tag -> für Sie ermäßigt",
+        "tr": "Her dersten sonra serbest pratik\nNormalde 70 EUR/gün -> size özel indirimli"
+      },
+      "regular": {
+        "en": "70 EUR/day", "fr": "70 EUR/jour", "de": "70 EUR/Tag", "tr": "70 EUR/gün"
+      },
+      "cash": {
+        "en": "50 EUR/day", "fr": "50 EUR/jour", "de": "50 EUR/Tag", "tr": "50 EUR/gün"
+      }
+    }
+  ],
+
+  "price_summary": {
+    "regular_total": "750 EUR",
+    "savings": "75 EUR",
+    "cash_price": "675 EUR",
+    "regular_sub": {
+      "en": "Standard list price", "fr": "Prix catalogue standard",
+      "de": "Regulärer Listenpreis", "tr": "Standart liste fiyatı"
+    },
+    "savings_sub": {
+      "en": "10% cash discount", "fr": "10% de remise au comptant",
+      "de": "10% Barzahlungsrabatt", "tr": "%10 nakit indirimi"
+    },
+    "cash_sub": {
+      "en": "Studio 3 (5 nights) + 6h Wing Foil",
+      "fr": "Studio 3 (5 nuits) + 6h de Wing Foil",
+      "de": "Studio 3 (5 Nächte) + 6 Std. Wing Foil",
+      "tr": "Studio 3 (5 gece) + 6 saat Wing Foil"
+    }
+  },
+
+  "included": [
+    {
+      "title": {
+        "en": "ACCOMMODATION", "fr": "HÉBERGEMENT", "de": "UNTERKUNFT", "tr": "KONAKLAMA"
+      },
+      "sub": {
+        "en": "Studio 3  |  Aug 3-8  (5 Nights)",
+        "fr": "Studio 3  |  3-8 août  (5 nuits)",
+        "de": "Studio 3  |  3.-8. Aug.  (5 Nächte)",
+        "tr": "Studio 3  |  3-8 Ağu  (5 Gece)"
+      },
+      "desc": {
+        "en": "Comfortable studio set in a tranquil olive grove. Check in August 3, check out August 8. A peaceful, green retreat surrounded by olive trees, a short ride from the center.",
+        "fr": "Studio confortable niché dans une oliveraie tranquille. Arrivée le 3 août, départ le 8 août. Une retraite paisible et verdoyante entourée d'oliviers, à quelques minutes du centre.",
+        "de": "Komfortables Studio in einem ruhigen Olivenhain. Check-in am 3. August, Check-out am 8. August. Ein friedlicher, grüner Rückzugsort, umgeben von Olivenbäumen, nur eine kurze Fahrt vom Center entfernt.",
+        "tr": "Tesiste değil, sakin bir zeytinlik içinde konforlu stüdyo. 3 Ağustos giriş, 8 Ağustos çıkış. Zeytin ağaçlarıyla çevrili huzurlu bir ortam; tesise 5-10 dk araç mesafesinde (sürüş hızına göre değişebilir)."
+      }
+    },
+    {
+      "title": {
+        "en": "WING FOIL INSTRUCTION", "fr": "COURS DE WING FOIL",
+        "de": "WING-FOIL-UNTERRICHT", "tr": "WING FOIL EĞİTİMİ"
+      },
+      "sub": {
+        "en": "6 Hours  |  2h/Day x 3 Days",
+        "fr": "6 heures  |  2h/jour x 3 jours",
+        "de": "6 Std.  |  2 Std./Tag x 3 Tage",
+        "tr": "6 Saat  |  Günde 2 Saat x 3 Gün"
+      },
+      "desc": {
+        "en": "Certified Duotone Pro Center instructors guide you through the full progression. All Duotone equipment provided. Beginner-friendly, safety-first approach.",
+        "fr": "Les moniteurs certifiés du Duotone Pro Center vous accompagnent tout au long de votre progression. Tout le matériel Duotone est fourni. Accessible aux débutants, sécurité avant tout.",
+        "de": "Zertifizierte Instruktoren des Duotone Pro Center begleiten Sie durch den gesamten Lernfortschritt. Die gesamte Duotone-Ausrüstung wird gestellt. Anfängerfreundlich, Sicherheit an erster Stelle.",
+        "tr": "Sertifikalı Duotone Pro Center eğitmenleri, tüm gelişim sürecinde size rehberlik eder. Tüm Duotone ekipmanı sağlanır. Yeni başlayanlara uygun, önce güvenlik yaklaşımı."
+      }
+    },
+    {
+      "title": {
+        "en": "PRACTICE RENTAL", "fr": "LOCATION PRATIQUE",
+        "de": "ÜBUNGSVERLEIH", "tr": "PRATİK KİRALAMA"
+      },
+      "sub": {
+        "en": "50 EUR/Day  (after lessons)",
+        "fr": "50 EUR/jour  (après les cours)",
+        "de": "50 EUR/Tag  (nach dem Unterricht)",
+        "tr": "50 EUR/Gün  (derslerden sonra)"
+      },
+      "desc": {
+        "en": "Continue riding on your own after each lesson at a discounted rate. Normally 70 EUR/day - exclusively 50 EUR/day for package holders.",
+        "fr": "Continuez à rider seul après chaque cours à tarif réduit. Normalement 70 EUR/jour - exclusivement 50 EUR/jour pour les détenteurs du forfait.",
+        "de": "Üben Sie nach jedem Unterricht eigenständig zum vergünstigten Preis weiter. Normalerweise 70 EUR/Tag - exklusiv 50 EUR/Tag für Paketinhaber.",
+        "tr": "Her dersten sonra indirimli fiyatla kendi başınıza pratik yapmaya devam edin. Normalde 70 EUR/gün - paket sahiplerine özel 50 EUR/gün."
+      }
+    },
+    {
+      "title": {
+        "en": "PRO CENTER ACCESS", "fr": "ACCÈS PRO CENTER",
+        "de": "PRO-CENTER-ZUGANG", "tr": "PRO CENTER ERİŞİMİ"
+      },
+      "sub": {
+        "en": "Full UKC Facility", "fr": "Toutes les installations UKC",
+        "de": "Gesamte UKC-Anlage", "tr": "Tüm UKC Tesisi"
+      },
+      "desc": {
+        "en": "Access to our beach facility, changing rooms, briefing areas, and the full atmosphere of a certified Duotone Pro Center in Urla, Izmir.",
+        "fr": "Accès à notre base de plage, aux vestiaires, aux espaces de briefing et à toute l'ambiance d'un Duotone Pro Center certifié à Urla, Izmir.",
+        "de": "Zugang zu unserer Strandanlage, den Umkleideräumen, den Briefing-Bereichen und der gesamten Atmosphäre eines zertifizierten Duotone Pro Center in Urla, Izmir.",
+        "tr": "Plaj tesisimize, soyunma odalarına, brifing alanlarına ve Urla, İzmir'deki sertifikalı bir Duotone Pro Center'ın tüm atmosferine erişim."
+      }
+    }
+  ],
+
+  "schedule_note": {
+    "en": "* Practice rental is optional. Lesson schedule subject to wind and weather conditions.",
+    "fr": "* La location pratique est optionnelle. Le programme des cours dépend du vent et des conditions météo.",
+    "de": "* Der Übungsverleih ist optional. Der Unterrichtsplan hängt von Wind und Wetter ab.",
+    "tr": "* Pratik kiralama isteğe bağlıdır. Ders programı rüzgar ve hava koşullarına tabidir."
+  },
+  "schedule": [
+    {
+      "day": { "en": "Day 1", "fr": "Jour 1", "de": "Tag 1", "tr": "Gün 1" },
+      "date": { "en": "3 Aug", "fr": "3 août", "de": "3. Aug.", "tr": "3 Ağu" },
+      "activity": {
+        "en": "Check-in  |  Welcome & orientation",
+        "fr": "Arrivée  |  Accueil & orientation",
+        "de": "Check-in  |  Begrüßung & Einführung",
+        "tr": "Giriş  |  Karşılama & oryantasyon"
+      },
+      "rental": "-", "cost": "-", "highlight": false
+    },
+    {
+      "day": { "en": "Day 2", "fr": "Jour 2", "de": "Tag 2", "tr": "Gün 2" },
+      "date": { "en": "4 Aug", "fr": "4 août", "de": "4. Aug.", "tr": "4 Ağu" },
+      "activity": {
+        "en": "Wing Foil Lesson  (2h)", "fr": "Cours de Wing Foil  (2h)",
+        "de": "Wing-Foil-Unterricht  (2 Std.)", "tr": "Wing Foil Dersi  (2 saat)"
+      },
+      "rental": "50 EUR", "cost": "50 EUR", "highlight": true
+    },
+    {
+      "day": { "en": "Day 3", "fr": "Jour 3", "de": "Tag 3", "tr": "Gün 3" },
+      "date": { "en": "5 Aug", "fr": "5 août", "de": "5. Aug.", "tr": "5 Ağu" },
+      "activity": {
+        "en": "Wing Foil Lesson  (2h)", "fr": "Cours de Wing Foil  (2h)",
+        "de": "Wing-Foil-Unterricht  (2 Std.)", "tr": "Wing Foil Dersi  (2 saat)"
+      },
+      "rental": "50 EUR", "cost": "50 EUR", "highlight": true
+    },
+    {
+      "day": { "en": "Day 4", "fr": "Jour 4", "de": "Tag 4", "tr": "Gün 4" },
+      "date": { "en": "6 Aug", "fr": "6 août", "de": "6. Aug.", "tr": "6 Ağu" },
+      "activity": {
+        "en": "Wing Foil Lesson  (2h)", "fr": "Cours de Wing Foil  (2h)",
+        "de": "Wing-Foil-Unterricht  (2 Std.)", "tr": "Wing Foil Dersi  (2 saat)"
+      },
+      "rental": "50 EUR", "cost": "50 EUR", "highlight": true
+    },
+    {
+      "day": { "en": "Day 5", "fr": "Jour 5", "de": "Tag 5", "tr": "Gün 5" },
+      "date": { "en": "7 Aug", "fr": "7 août", "de": "7. Aug.", "tr": "7 Ağu" },
+      "activity": {
+        "en": "Free day  |  Explore Urla / beach",
+        "fr": "Journée libre  |  Découverte d'Urla / plage",
+        "de": "Freier Tag  |  Urla / Strand erkunden",
+        "tr": "Serbest gün  |  Urla'yı keşfet / plaj"
+      },
+      "rental": "-", "cost": "-", "highlight": false
+    },
+    {
+      "day": { "en": "Day 6", "fr": "Jour 6", "de": "Tag 6", "tr": "Gün 6" },
+      "date": { "en": "8 Aug", "fr": "8 août", "de": "8. Aug.", "tr": "8 Ağu" },
+      "activity": { "en": "Check-out", "fr": "Départ", "de": "Check-out", "tr": "Çıkış" },
+      "rental": "-", "cost": "-", "highlight": false
+    }
+  ],
+
+  "benefits": [
+    {
+      "title": { "en": "SAVE 75 EUR", "fr": "ÉCONOMISEZ 75 EUR", "de": "75 EUR SPAREN", "tr": "75 EUR TASARRUF" },
+      "desc": {
+        "en": "10% off everything when you pay in cash - 75 EUR back in your pocket vs. standard pricing.",
+        "fr": "10% de remise sur tout en payant comptant - 75 EUR de gagnés par rapport au tarif standard.",
+        "de": "10% Rabatt auf alles bei Barzahlung - 75 EUR gespart gegenüber dem Normalpreis.",
+        "tr": "Nakit ödemede her şeyde %10 indirim - standart fiyata göre cebinizde 75 EUR."
+      }
+    },
+    {
+      "title": { "en": "OLIVE-GROVE RETREAT", "fr": "SÉJOUR EN OLIVERAIE", "de": "RUHE IM OLIVENHAIN", "tr": "ZEYTİNLİKTE HUZUR" },
+      "desc": {
+        "en": "A calm stay among the olive trees, just a 5-10 minute drive from the center. Private transfer can be arranged on request.",
+        "fr": "Un séjour paisible parmi les oliviers, à seulement 5-10 minutes en voiture du centre. Un transfert privé peut être organisé sur demande.",
+        "de": "Ein ruhiger Aufenthalt zwischen Olivenbäumen, nur 5-10 Autominuten vom Center entfernt. Bei Bedarf kann ein privater Transfer organisiert werden.",
+        "tr": "Zeytin ağaçlarının arasında sakin bir konaklama; tesise yalnızca 5-10 dk araç mesafesinde. İhtiyaç halinde özel araç ile servis de sağlanabilir."
+      }
+    },
+    {
+      "title": { "en": "DISCOUNTED RENTAL", "fr": "LOCATION À PRIX RÉDUIT", "de": "VERGÜNSTIGTER VERLEIH", "tr": "İNDİRİMLİ KİRALAMA" },
+      "desc": {
+        "en": "Practice rental at 50 EUR/day vs. the standard 70 EUR/day. More water time, less cost.",
+        "fr": "Location pratique à 50 EUR/jour au lieu de 70 EUR/jour. Plus de temps sur l'eau, moins cher.",
+        "de": "Übungsverleih für 50 EUR/Tag statt 70 EUR/Tag. Mehr Zeit auf dem Wasser, weniger Kosten.",
+        "tr": "Standart 70 EUR/gün yerine 50 EUR/gün pratik kiralama. Suda daha fazla zaman, daha az maliyet."
+      }
+    },
+    {
+      "title": { "en": "PRO INSTRUCTION", "fr": "ENCADREMENT PRO", "de": "PROFI-UNTERRICHT", "tr": "PROFESYONEL EĞİTİM" },
+      "desc": {
+        "en": "Certified Duotone instructors, world-class equipment, and a proven teaching method.",
+        "fr": "Moniteurs Duotone certifiés, matériel de classe mondiale et une méthode d'enseignement éprouvée.",
+        "de": "Zertifizierte Duotone-Instruktoren, erstklassige Ausrüstung und eine bewährte Lehrmethode.",
+        "tr": "Sertifikalı Duotone eğitmenler, dünya standartlarında ekipman ve kanıtlanmış bir öğretim yöntemi."
+      }
+    }
+  ],
+
+  "terms": [
+    {
+      "en": "Cash discount (10%) applies when full payment is made in cash at time of booking confirmation.",
+      "fr": "La remise au comptant (10%) s'applique lorsque le paiement intégral est effectué en espèces à la confirmation de la réservation.",
+      "de": "Der Barzahlungsrabatt (10%) gilt bei vollständiger Barzahlung zum Zeitpunkt der Buchungsbestätigung.",
+      "tr": "Nakit indirimi (%10), rezervasyon onayı sırasında ödemenin tamamı nakit yapıldığında geçerlidir."
+    },
+    {
+      "en": "Practice rental (50 EUR/day) is optional and is not included in the 675 EUR base package price.",
+      "fr": "La location pratique (50 EUR/jour) est optionnelle et n'est pas incluse dans le prix de base du forfait de 675 EUR.",
+      "de": "Der Übungsverleih (50 EUR/Tag) ist optional und nicht im Grundpreis des Pakets von 675 EUR enthalten.",
+      "tr": "Pratik kiralama (50 EUR/gün) isteğe bağlıdır ve 675 EUR'luk temel paket fiyatına dahil değildir."
+    },
+    {
+      "en": "Lesson schedule may be adjusted due to wind or weather conditions at instructor discretion.",
+      "fr": "Le programme des cours peut être modifié en fonction du vent ou des conditions météo, à la discrétion du moniteur.",
+      "de": "Der Unterrichtsplan kann aufgrund von Wind- oder Wetterbedingungen nach Ermessen des Instruktors angepasst werden.",
+      "tr": "Ders programı, eğitmenin takdirine bağlı olarak rüzgar veya hava koşulları nedeniyle değiştirilebilir."
+    },
+    {
+      "en": "Studio 3 dates are fixed: August 3-8. Dates are non-transferable.",
+      "fr": "Les dates du Studio 3 sont fixes : du 3 au 8 août. Les dates ne sont pas transférables.",
+      "de": "Die Termine für Studio 3 sind fix: 3. - 8. August. Die Termine sind nicht übertragbar.",
+      "tr": "Studio 3 tarihleri sabittir: 3-8 Ağustos. Tarihler devredilemez."
+    },
+    {
+      "en": "This quotation is valid for 7 days from the date of issue.",
+      "fr": "Ce devis est valable 7 jours à compter de sa date d'émission.",
+      "de": "Dieses Angebot ist 7 Tage ab Ausstellungsdatum gültig.",
+      "tr": "Bu teklif, düzenlenme tarihinden itibaren 7 gün geçerlidir."
+    }
+  ]
+}

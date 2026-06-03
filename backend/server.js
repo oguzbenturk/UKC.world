@@ -85,6 +85,8 @@ import memberOfferingsRouter from './routes/memberOfferings.js';
 import repairRequestsRouter from './routes/repairRequests.js';
 import marketingRouter from './routes/marketing.js';
 import quickLinksRouter from './routes/quickLinks.js';
+import proposalsRouter from './routes/proposals.js';
+import publicProposalsRouter from './routes/publicProposals.js';
 import userRelationshipsRouter from './routes/userRelationships.js';
 import chatRouter from './routes/chat.js';
 import shopOrdersRouter from './routes/shopOrders.js';
@@ -1377,6 +1379,8 @@ app.use('/api/member-offerings', memberOfferingsRouter);
 app.use('/api/repair-requests', repairRequestsRouter);
 app.use('/api/marketing', authenticateJWT, marketingRouter);
 app.use('/api/quick-links', authenticateJWT, quickLinksRouter);
+app.use('/api/proposals', authenticateJWT, proposalsRouter); // Teklif Hazırla — authed CRUD
+app.use('/api/public/proposals', publicProposalsRouter); // Public proposal view (no auth, share-code gated)
 app.use('/api/form-templates', authenticateJWT, formTemplatesRouter);
 app.use('/api/form-submissions', authenticateJWT, formSubmissionsRouter);
 app.use('/api/public/forms', publicFormsRouter); // Public form access

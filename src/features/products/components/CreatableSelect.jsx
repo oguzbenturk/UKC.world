@@ -35,6 +35,10 @@ const CreatableSelect = ({
   allowClear = true,
   createLabel = 'Add new',
   createPlaceholder = 'Type new value...',
+  // When true, show a small emoji field alongside the name input so the created
+  // entry gets its own icon. The icon is passed as the 4th arg to onCreateNew.
+  iconInput = false,
+  defaultIcon = '📦',
   hierarchical = false,
   // When true (default), the new entry's value is a lowercased slug derived
   // from the label. Set to false for label-as-value cases (e.g. Brand) where
@@ -44,6 +48,7 @@ const CreatableSelect = ({
   ...rest
 }) => {
   const [newItemName, setNewItemName] = useState('');
+  const [newItemIcon, setNewItemIcon] = useState('');
   const [selectedParent, setSelectedParent] = useState('__none__');
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -70,15 +75,17 @@ const CreatableSelect = ({
       : trimmed;
 
     const parentValue = selectedParent === '__none__' ? null : selectedParent;
+    const icon = iconInput ? (newItemIcon.trim() || defaultIcon) : undefined;
 
     setCreating(true);
     try {
       if (onCreateNew) {
-        await onCreateNew(slug, trimmed, parentValue);
+        await onCreateNew(slug, trimmed, parentValue, icon);
       }
       // Select the newly created value
       onChange?.(slug);
       setNewItemName('');
+      setNewItemIcon('');
       setSelectedParent('__none__');
     } catch {
       // Failed to create — caller handles the error
@@ -118,9 +125,9 @@ const CreatableSelect = ({
       <Option key={opt.value} value={opt.value} label={String(opt.label ?? opt.value)} style={opt.style}>
         <div className="flex items-center justify-between w-full">
           <span>{opt.label}</span>
-          {onDelete && (
+          {onDelete && opt.deletable !== false && (
             <Popconfirm
-              title="Delete this subcategory?"
+              title="Delete this item?"
               description="Products using it will keep the value but it won't appear in the list."
               onConfirm={(e) => handleDelete(e, opt.value)}
               onCancel={(e) => e?.stopPropagation?.()}
@@ -225,12 +232,29 @@ const CreatableSelect = ({
               </select>
             )}
             <Space.Compact style={{ width: '100%' }}>
+              {iconInput && (
+                <Input
+                  placeholder={defaultIcon}
+                  value={newItemIcon}
+                  onChange={(e) => setNewItemIcon(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  size="small"
+                  maxLength={4}
+                  style={{ width: 44, textAlign: 'center', flex: '0 0 44px' }}
+                  disabled={creating}
+                />
+              )}
               <Input
                 ref={inputRef}
                 placeholder={createPlaceholder}
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
                 onKeyDown={handleKeyDown}
+                // Stop the mousedown from bubbling to the footer wrapper, whose
+                // preventDefault would otherwise cancel focus and make the input
+                // impossible to type into (Add button then stays disabled).
+                onMouseDown={(e) => e.stopPropagation()}
                 size="small"
                 style={{ flex: 1 }}
                 disabled={creating}

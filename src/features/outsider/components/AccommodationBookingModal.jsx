@@ -41,6 +41,7 @@ import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { PAY_AT_CENTER_ALLOWED_ROLES } from '@/shared/utils/roleUtils';
 import apiClient, { resolveApiBaseUrl, getAccessToken } from '@/shared/services/apiClient';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
+import { extractUnitMeta, computeAccommodationPrice, resolveNightlyRate } from '@/shared/utils/accommodationPricing';
 
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
@@ -187,69 +188,21 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const nights = checkIn && checkOut ? checkOut.diff(checkIn, 'day') : 0;
 
   // Extract extended pricing meta from amenities
-  const unitMeta = useMemo(() => {
-    const amenities = unit?.amenities || unitDetail?.amenities || [];
-    if (!Array.isArray(amenities)) return {};
-    const entry = amenities.find(a => typeof a === 'string' && a.startsWith('__meta__'));
-    if (!entry) return {};
-    try { return JSON.parse(entry.slice(8)); } catch { return {}; }
-  }, [unit?.amenities, unitDetail?.amenities]);
+  const unitMeta = useMemo(
+    () => extractUnitMeta({ amenities: unit?.amenities || unitDetail?.amenities || [] }),
+    [unit?.amenities, unitDetail?.amenities],
+  );
 
-  // Calculate total with weekend / holiday / discount pricing
-  const priceBreakdown = useMemo(() => {
-    if (!checkIn || !checkOut || nights <= 0) return { total: 0, weekendNights: 0, holidayNights: 0, discount: null };
-    const weekendPrice = unitMeta.weekend_price ? parseFloat(unitMeta.weekend_price) : null;
-    const holidays = Array.isArray(unitMeta.holiday_pricing) ? unitMeta.holiday_pricing : [];
-    const discounts = Array.isArray(unitMeta.custom_discounts) ? unitMeta.custom_discounts : [];
-
-    let subtotal = 0;
-    let weekendNights = 0;
-    let holidayNights = 0;
-
-    for (let i = 0; i < nights; i++) {
-      const nightDate = checkIn.add(i, 'day');
-      const dateStr = nightDate.format('YYYY-MM-DD');
-      const dayOfWeek = nightDate.day(); // 0=Sun, 5=Fri, 6=Sat
-
-      const holidayMatch = holidays.find(h =>
-        h.start_date && h.end_date && h.price_per_night &&
-        dateStr >= h.start_date && dateStr <= h.end_date
-      );
-
-      if (holidayMatch) {
-        subtotal += parseFloat(holidayMatch.price_per_night);
-        holidayNights++;
-      } else if (weekendPrice && (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6)) {
-        subtotal += weekendPrice;
-        weekendNights++;
-      } else {
-        subtotal += pricePerNight;
-      }
-    }
-
-    // Apply best matching length-of-stay discount
-    let discount = null;
-    if (discounts.length > 0) {
-      const eligible = discounts
-        .filter(d => d.min_nights && nights >= d.min_nights && d.discount_value > 0)
-        .sort((a, b) => (b.min_nights || 0) - (a.min_nights || 0));
-      if (eligible.length > 0) discount = eligible[0];
-    }
-
-    let total = subtotal;
-    if (discount) {
-      if (discount.discount_type === 'percentage') {
-        total = subtotal * (1 - discount.discount_value / 100);
-      } else {
-        total = subtotal - (discount.discount_value * nights);
-      }
-      total = Math.max(0, total);
-    }
-
-    return { total: Math.round(total * 100) / 100, subtotal, weekendNights, holidayNights, discount };
-  }, [checkIn, checkOut, nights, pricePerNight, unitMeta]);
+  // Calculate total with weekend / holiday / occupancy / discount pricing
+  // (shared engine — matches the server exactly).
+  const priceBreakdown = useMemo(
+    () => computeAccommodationPrice({ checkIn, checkOut, basePrice: pricePerNight, meta: unitMeta, guests: guestsCount }),
+    [checkIn, checkOut, pricePerNight, unitMeta, guestsCount],
+  );
 
   const totalPrice = priceBreakdown.total;
+  // Standard nightly rate resolved for the current occupancy (for headline / per-night display).
+  const nightlyRate = resolveNightlyRate(unitMeta, pricePerNight, guestsCount);
 
   const formatPrice = (eurPrice) => {
     const eurFormatted = formatCurrency(eurPrice, 'EUR');
@@ -464,9 +417,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
               {isHotel ? t('outsider:accommodationBooking.header.requestDates') : t('outsider:accommodationBooking.header.selectAndPay')}
             </p>
           </div>
-          {pricePerNight > 0 && (
+          {nightlyRate > 0 && (
             <div className="text-right shrink-0">
-              <span className="text-blue-400 text-lg font-bold">{formatPrice(pricePerNight)}</span>
+              <span className="text-blue-400 text-lg font-bold">{formatPrice(nightlyRate)}</span>
               <span className="text-white/30 text-xs block">{t('outsider:accommodationBooking.header.perNight')}</span>
             </div>
           )}
@@ -763,7 +716,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                       {nights > 0
                         ? (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0)
                           ? `${nights} night${nights !== 1 ? 's' : ''} (${t('outsider:accommodationBooking.summary.mixedRates')})`
-                          : `${formatPrice(pricePerNight)} × ${nights} night${nights !== 1 ? 's' : ''}`
+                          : `${formatPrice(nightlyRate)} × ${nights} night${nights !== 1 ? 's' : ''}`
                         : t('outsider:accommodationBooking.summary.selectDates')}
                     </p>
                   </div>
@@ -778,7 +731,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     {priceBreakdown.weekendNights > 0 && (
                       <div className="flex justify-between">
                         <span>{priceBreakdown.weekendNights} weekend night{priceBreakdown.weekendNights !== 1 ? 's' : ''}</span>
-                        <span>{formatPrice(unitMeta.weekend_price)}/night</span>
+                        <span>{formatPrice(priceBreakdown.weekendRate ?? unitMeta.weekend_price)}/night</span>
                       </div>
                     )}
                     {priceBreakdown.holidayNights > 0 && (
@@ -790,7 +743,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     {(nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights) > 0 && (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0) && (
                       <div className="flex justify-between">
                         <span>{nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights} standard night{(nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights) !== 1 ? 's' : ''}</span>
-                        <span>{formatPrice(pricePerNight)}/night</span>
+                        <span>{formatPrice(priceBreakdown.standardRate ?? pricePerNight)}/night</span>
                       </div>
                     )}
                     {priceBreakdown.discount && (

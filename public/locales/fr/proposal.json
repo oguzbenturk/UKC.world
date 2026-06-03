@@ -1,0 +1,259 @@
+{
+  "quickAction": {
+    "title": "Créer un devis",
+    "description": "Créez un devis personnalisé et partagez-le",
+    "create": "Nouveau devis",
+    "all": "Tous les devis"
+  },
+  "list": {
+    "title": "Devis",
+    "new": "Nouveau devis",
+    "search": "Rechercher par titre ou destinataire",
+    "empty": "Aucun devis pour le moment",
+    "emptyHint": "Créez votre premier devis pour combiner des services en une offre personnalisée.",
+    "columns": {
+      "title": "Titre",
+      "preparedFor": "Préparé pour",
+      "status": "Statut",
+      "total": "Prix comptant",
+      "validUntil": "Valable jusqu'au",
+      "views": "Vues",
+      "updated": "Mis à jour",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Modifier",
+      "duplicate": "Dupliquer",
+      "copyLink": "Copier le lien",
+      "linkCopied": "Lien public copié",
+      "delete": "Supprimer",
+      "openPublic": "Ouvrir la vue publique"
+    },
+    "confirmDelete": "Supprimer ce devis ?",
+    "deleted": "Devis supprimé",
+    "duplicated": "Devis dupliqué"
+  },
+  "builder": {
+    "newTitle": "Nouveau devis",
+    "editTitle": "Modifier le devis",
+    "back": "Retour aux devis",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "previewPdf": "Aperçu PDF",
+    "downloadPdf": "Télécharger le PDF",
+    "openPublic": "Ouvrir le lien public",
+    "copyLink": "Copier le lien",
+    "linkCopied": "Lien public copié",
+    "contentLanguage": "Langue d'édition",
+    "preview": "Aperçu en direct",
+    "unsaved": "Vous avez des modifications non enregistrées",
+    "meta": {
+      "title": "Titre interne",
+      "titlePlaceholder": "ex. Studio 3 Wing Foil — Ahmet",
+      "preparedFor": "Préparé pour",
+      "preparedForPlaceholder": "Nom du client affiché sur le PDF",
+      "customer": "Lier à un client",
+      "language": "Langue par défaut",
+      "currency": "Devise",
+      "validUntil": "Valable jusqu'au",
+      "status": "Statut"
+    },
+    "sections": {
+      "intro": "Introduction",
+      "package_items": "Aperçu du forfait",
+      "price_summary": "Récapitulatif des prix",
+      "included": "Ce qui est inclus",
+      "schedule": "Programme de la semaine",
+      "benefits": "Avantages",
+      "terms": "Conditions générales"
+    },
+    "intro": {
+      "label": "Paragraphe d'introduction",
+      "placeholder": "Merci de l'intérêt que vous portez à UKC…"
+    },
+    "items": {
+      "title": "Aperçu du forfait",
+      "addManual": "Ajouter une ligne",
+      "fromCatalog": "Ajouter depuis le catalogue",
+      "item": "Élément",
+      "details": "Détails",
+      "regular": "Prix normal",
+      "cash": "Prix comptant",
+      "empty": "Aucun élément. Ajoutez depuis le catalogue ou une ligne manuelle.",
+      "remove": "Retirer",
+      "source": "Du catalogue"
+    },
+    "priceSummary": {
+      "title": "Récapitulatif des prix",
+      "regularTotal": "Total normal",
+      "savings": "Vous économisez",
+      "cashPrice": "Prix comptant",
+      "auto": "Auto",
+      "manual": "Manuel",
+      "regularSub": "Légende sous le total normal",
+      "savingsSub": "Légende sous l'économie",
+      "cashSub": "Légende sous le prix comptant"
+    },
+    "included": {
+      "title": "Ce qui est inclus",
+      "add": "Ajouter une carte",
+      "cardTitle": "Titre",
+      "sub": "Sous-titre",
+      "desc": "Description",
+      "empty": "Aucune carte pour le moment.",
+      "remove": "Retirer"
+    },
+    "schedule": {
+      "title": "Programme de la semaine",
+      "add": "Ajouter un jour",
+      "day": "Jour",
+      "date": "Date",
+      "activity": "Activité",
+      "rental": "Location",
+      "cost": "Coût/jour",
+      "highlight": "Mettre en avant",
+      "empty": "Aucun jour pour le moment.",
+      "remove": "Retirer",
+      "note": "Note de bas de page (ex. clause météo)"
+    },
+    "benefits": {
+      "title": "Avantages",
+      "add": "Ajouter un avantage",
+      "benefitTitle": "Titre",
+      "desc": "Description",
+      "empty": "Aucun avantage pour le moment.",
+      "remove": "Retirer"
+    },
+    "terms": {
+      "title": "Conditions générales",
+      "add": "Ajouter une clause",
+      "term": "Clause",
+      "empty": "Aucune clause pour le moment.",
+      "remove": "Retirer"
+    }
+  },
+  "catalog": {
+    "title": "Ajouter depuis le catalogue",
+    "services": "Cours et services",
+    "packages": "Forfaits",
+    "accommodation": "Hébergement",
+    "rentals": "Locations",
+    "search": "Rechercher…",
+    "add": "Ajouter",
+    "empty": "Aucun résultat.",
+    "loading": "Chargement…"
+  },
+  "status": {
+    "draft": "Brouillon",
+    "sent": "Envoyé",
+    "accepted": "Accepté",
+    "expired": "Expiré",
+    "declined": "Refusé"
+  },
+  "public": {
+    "downloadPdf": "Télécharger le PDF",
+    "accept": "Accepter cette offre",
+    "accepted": "Offre acceptée — merci !",
+    "acceptConfirm": "Accepter cette offre ?",
+    "expired": "Cette offre a expiré",
+    "expiredHint": "Veuillez nous contacter pour un devis à jour.",
+    "language": "Langue",
+    "notFound": "Devis introuvable",
+    "preparedFor": "Préparé pour"
+  },
+  "pdf": {
+    "quotation": "DEVIS",
+    "prepared_for": "Préparé pour",
+    "footer_right": "Contactez-nous pour réserver votre place.",
+    "sec_overview": "APERÇU DU FORFAIT",
+    "sec_price": "RÉCAPITULATIF DES PRIX",
+    "sec_included": "CE QUI EST INCLUS",
+    "sec_schedule": "PROGRAMME DE LA SEMAINE",
+    "sec_benefits": "POURQUOI CHOISIR CE FORFAIT",
+    "sec_terms": "CONDITIONS GÉNÉRALES",
+    "th_item": "Élément",
+    "th_details": "Détails",
+    "th_regular": "Prix normal",
+    "th_cash": "Prix comptant",
+    "ps_regular": "TOTAL NORMAL",
+    "ps_save": "VOUS ÉCONOMISEZ",
+    "ps_cash": "PRIX COMPTANT",
+    "sh_day": "Jour",
+    "sh_date": "Date",
+    "sh_activity": "Activité",
+    "sh_rental": "Location",
+    "sh_cost": "Coût/jour"
+  },
+  "gen": {
+    "intro": "Merci de l'intérêt que vous portez à UKC. Nous avons préparé pour vous le forfait suivant, combinant nos services à un tarif spécial en cas de paiement comptant.",
+    "detail": {
+      "accommodation": "{{nights}} nuits  ({{range}})",
+      "lesson": "{{hours}} heures au total  ({{perDay}}h/jour sur {{days}} jours)",
+      "rental": "{{days}} jours de location pratique",
+      "package": "Forfait complet"
+    },
+    "regularSub": "Prix catalogue standard",
+    "savingsSub": "{{pct}}% de remise au comptant",
+    "summaryBit": { "nights": "{{nights}} nuits", "hours": "{{hours}}h de cours", "people": "{{count}} personnes" },
+    "includedSub": {
+      "accommodation": "{{nights}} nuits",
+      "lesson": "{{hours}} heures",
+      "rental": "{{days}} jours"
+    },
+    "includedDesc": {
+      "accommodation": "Hébergement confortable pour votre séjour, dans un cadre paisible proche du centre.",
+      "lesson": "Des moniteurs certifiés vous accompagnent tout au long de votre progression. Tout le matériel est fourni. Accessible aux débutants, sécurité avant tout.",
+      "rental": "Continuez à pratiquer seul à tarif réduit après chaque session."
+    },
+    "schedule": {
+      "day": "Jour {{n}}",
+      "checkin": "Arrivée  |  Accueil & orientation",
+      "checkout": "Départ",
+      "lesson": "Cours  ({{hours}}h)",
+      "free": "Journée libre  |  découverte & détente"
+    },
+    "scheduleNote": "* La location pratique est optionnelle. Le programme des cours dépend du vent et des conditions météo.",
+    "benefits": {
+      "save": { "title": "ÉCONOMISEZ {{amount}}", "desc": "{{pct}}% de remise au comptant — {{amount}} de gagnés par rapport au tarif standard." },
+      "location": { "title": "EMPLACEMENT IDÉAL", "desc": "Un séjour calme et confortable à quelques minutes du centre." },
+      "rental": { "title": "LOCATION À PRIX RÉDUIT", "desc": "Location pratique à {{cash}}/jour pour les détenteurs du forfait. Plus de temps sur l'eau, moins cher." },
+      "pro": { "title": "ENCADREMENT PRO", "desc": "Moniteurs certifiés, matériel de classe mondiale et une méthode d'enseignement éprouvée." }
+    },
+    "terms": {
+      "cash": "La remise au comptant ({{pct}}%) s'applique lorsque le paiement intégral est effectué en espèces à la confirmation.",
+      "rental": "La location pratique ({{cash}}/jour) est optionnelle et non incluse dans le prix de base du forfait.",
+      "weather": "Le programme des cours peut être modifié selon le vent ou la météo, à la discrétion du moniteur.",
+      "dates": "Dates d'hébergement : {{from}} – {{to}}.",
+      "validity": "Ce devis est valable {{days}} jours à compter de sa date d'émission."
+    }
+  },
+  "wizard": {
+    "title": "Création rapide",
+    "tab": { "generate": "Générer", "template": "Depuis un modèle", "blank": "Vierge" },
+    "preparedFor": "Nom du client",
+    "customer": "Lier à un client (optionnel)",
+    "language": "Langue",
+    "currency": "Devise",
+    "startDate": "Date de début",
+    "discount": "Remise comptant %",
+    "validDays": "Valable (jours)",
+    "hoursPerDay": "Heures de cours par jour",
+    "services": "Services",
+    "addService": "Ajouter un service",
+    "package": "Forfait",
+    "accommodation": "Hébergement",
+    "lesson": "Cours",
+    "rental": "Location",
+    "people": "Nombre de personnes",
+    "addOther": "Ajouter un autre service",
+    "selectService": "Sélectionner…",
+    "qty": { "nights": "nuits", "hours": "heures", "days": "jours", "count": "qté" },
+    "generate": "Générer le devis",
+    "noServices": "Ajoutez au moins un service pour générer.",
+    "template": { "pick": "Choisir un modèle", "use": "Utiliser le modèle", "empty": "Aucun modèle enregistré." },
+    "blank": { "desc": "Partez d'un devis vierge et remplissez-le vous-même.", "create": "Créer un vierge" },
+    "saveAsTemplate": "Enregistrer comme modèle",
+    "savedTemplate": "Enregistré comme modèle"
+  }
+}

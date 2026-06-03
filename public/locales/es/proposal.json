@@ -1,0 +1,259 @@
+{
+  "quickAction": {
+    "title": "Crear presupuesto",
+    "description": "Cree un presupuesto de marca y compártalo",
+    "create": "Nuevo presupuesto",
+    "all": "Todos los presupuestos"
+  },
+  "list": {
+    "title": "Presupuestos",
+    "new": "Nuevo presupuesto",
+    "search": "Buscar por título o destinatario",
+    "empty": "Aún no hay presupuestos",
+    "emptyHint": "Cree su primer presupuesto para combinar servicios en una oferta de marca.",
+    "columns": {
+      "title": "Título",
+      "preparedFor": "Preparado para",
+      "status": "Estado",
+      "total": "Precio en efectivo",
+      "validUntil": "Válido hasta",
+      "views": "Vistas",
+      "updated": "Actualizado",
+      "actions": "Acciones"
+    },
+    "actions": {
+      "edit": "Editar",
+      "duplicate": "Duplicar",
+      "copyLink": "Copiar enlace",
+      "linkCopied": "Enlace público copiado",
+      "delete": "Eliminar",
+      "openPublic": "Abrir vista pública"
+    },
+    "confirmDelete": "¿Eliminar este presupuesto?",
+    "deleted": "Presupuesto eliminado",
+    "duplicated": "Presupuesto duplicado"
+  },
+  "builder": {
+    "newTitle": "Nuevo presupuesto",
+    "editTitle": "Editar presupuesto",
+    "back": "Volver a los presupuestos",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "previewPdf": "Vista previa PDF",
+    "downloadPdf": "Descargar PDF",
+    "openPublic": "Abrir enlace público",
+    "copyLink": "Copiar enlace",
+    "linkCopied": "Enlace público copiado",
+    "contentLanguage": "Idioma de edición",
+    "preview": "Vista previa en vivo",
+    "unsaved": "Tiene cambios sin guardar",
+    "meta": {
+      "title": "Título interno",
+      "titlePlaceholder": "ej. Studio 3 Wing Foil — Ahmet",
+      "preparedFor": "Preparado para",
+      "preparedForPlaceholder": "Nombre del cliente mostrado en el PDF",
+      "customer": "Vincular a cliente",
+      "language": "Idioma predeterminado",
+      "currency": "Moneda",
+      "validUntil": "Válido hasta",
+      "status": "Estado"
+    },
+    "sections": {
+      "intro": "Introducción",
+      "package_items": "Resumen del paquete",
+      "price_summary": "Resumen de precios",
+      "included": "Qué incluye",
+      "schedule": "Programa semanal",
+      "benefits": "Ventajas",
+      "terms": "Términos y condiciones"
+    },
+    "intro": {
+      "label": "Párrafo de apertura",
+      "placeholder": "Gracias por su interés en UKC…"
+    },
+    "items": {
+      "title": "Resumen del paquete",
+      "addManual": "Agregar fila",
+      "fromCatalog": "Agregar del catálogo",
+      "item": "Servicio",
+      "details": "Detalles",
+      "regular": "Precio normal",
+      "cash": "Precio en efectivo",
+      "empty": "Aún no hay elementos. Agregue del catálogo o una fila manual.",
+      "remove": "Quitar",
+      "source": "Del catálogo"
+    },
+    "priceSummary": {
+      "title": "Resumen de precios",
+      "regularTotal": "Total normal",
+      "savings": "Usted ahorra",
+      "cashPrice": "Precio en efectivo",
+      "auto": "Auto",
+      "manual": "Manual",
+      "regularSub": "Leyenda bajo el total normal",
+      "savingsSub": "Leyenda bajo el ahorro",
+      "cashSub": "Leyenda bajo el precio en efectivo"
+    },
+    "included": {
+      "title": "Qué incluye",
+      "add": "Agregar tarjeta",
+      "cardTitle": "Título",
+      "sub": "Subtítulo",
+      "desc": "Descripción",
+      "empty": "Aún no hay tarjetas.",
+      "remove": "Quitar"
+    },
+    "schedule": {
+      "title": "Programa semanal",
+      "add": "Agregar día",
+      "day": "Día",
+      "date": "Fecha",
+      "activity": "Actividad",
+      "rental": "Alquiler",
+      "cost": "Costo/día",
+      "highlight": "Destacar",
+      "empty": "Aún no hay días.",
+      "remove": "Quitar",
+      "note": "Nota al pie (ej. aviso meteorológico)"
+    },
+    "benefits": {
+      "title": "Ventajas",
+      "add": "Agregar ventaja",
+      "benefitTitle": "Título",
+      "desc": "Descripción",
+      "empty": "Aún no hay ventajas.",
+      "remove": "Quitar"
+    },
+    "terms": {
+      "title": "Términos y condiciones",
+      "add": "Agregar cláusula",
+      "term": "Cláusula",
+      "empty": "Aún no hay cláusulas.",
+      "remove": "Quitar"
+    }
+  },
+  "catalog": {
+    "title": "Agregar del catálogo",
+    "services": "Clases y servicios",
+    "packages": "Paquetes",
+    "accommodation": "Alojamiento",
+    "rentals": "Alquileres",
+    "search": "Buscar…",
+    "add": "Agregar",
+    "empty": "No se encontró nada.",
+    "loading": "Cargando…"
+  },
+  "status": {
+    "draft": "Borrador",
+    "sent": "Enviado",
+    "accepted": "Aceptado",
+    "expired": "Vencido",
+    "declined": "Rechazado"
+  },
+  "public": {
+    "downloadPdf": "Descargar PDF",
+    "accept": "Aceptar esta oferta",
+    "accepted": "Oferta aceptada — ¡gracias!",
+    "acceptConfirm": "¿Aceptar esta oferta?",
+    "expired": "Esta oferta ha vencido",
+    "expiredHint": "Contáctenos para un presupuesto actualizado.",
+    "language": "Idioma",
+    "notFound": "Presupuesto no encontrado",
+    "preparedFor": "Preparado para"
+  },
+  "pdf": {
+    "quotation": "PRESUPUESTO",
+    "prepared_for": "Preparado para",
+    "footer_right": "Contáctenos para reservar su lugar.",
+    "sec_overview": "RESUMEN DEL PAQUETE",
+    "sec_price": "RESUMEN DE PRECIOS",
+    "sec_included": "QUÉ INCLUYE",
+    "sec_schedule": "PROGRAMA SEMANAL",
+    "sec_benefits": "POR QUÉ ESTE PAQUETE",
+    "sec_terms": "TÉRMINOS Y CONDICIONES",
+    "th_item": "Servicio",
+    "th_details": "Detalles",
+    "th_regular": "Precio normal",
+    "th_cash": "Precio en efectivo",
+    "ps_regular": "TOTAL NORMAL",
+    "ps_save": "USTED AHORRA",
+    "ps_cash": "PRECIO EN EFECTIVO",
+    "sh_day": "Día",
+    "sh_date": "Fecha",
+    "sh_activity": "Actividad",
+    "sh_rental": "Alquiler",
+    "sh_cost": "Costo/día"
+  },
+  "gen": {
+    "intro": "Gracias por su interés en UKC. Hemos preparado para usted el siguiente paquete, combinando nuestros servicios a un precio especial por pago en efectivo.",
+    "detail": {
+      "accommodation": "{{nights}} noches  ({{range}})",
+      "lesson": "{{hours}} horas en total  ({{perDay}}h/día durante {{days}} días)",
+      "rental": "{{days}} días de alquiler para práctica",
+      "package": "Paquete completo"
+    },
+    "regularSub": "Precio de lista estándar",
+    "savingsSub": "{{pct}}% de descuento en efectivo",
+    "summaryBit": { "nights": "{{nights}} noches", "hours": "{{hours}}h de clases", "people": "{{count}} personas" },
+    "includedSub": {
+      "accommodation": "{{nights}} noches",
+      "lesson": "{{hours}} horas",
+      "rental": "{{days}} días"
+    },
+    "includedDesc": {
+      "accommodation": "Alojamiento cómodo para su estancia, en un entorno tranquilo cerca del centro.",
+      "lesson": "Instructores certificados le guían en toda la progresión. Se proporciona todo el equipo. Apto para principiantes, la seguridad primero.",
+      "rental": "Siga practicando por su cuenta a precio reducido después de cada sesión."
+    },
+    "schedule": {
+      "day": "Día {{n}}",
+      "checkin": "Llegada  |  Bienvenida y orientación",
+      "checkout": "Salida",
+      "lesson": "Clase  ({{hours}}h)",
+      "free": "Día libre  |  explorar y relajarse"
+    },
+    "scheduleNote": "* El alquiler para práctica es opcional. El programa de clases está sujeto al viento y las condiciones meteorológicas.",
+    "benefits": {
+      "save": { "title": "AHORRE {{amount}}", "desc": "{{pct}}% de descuento al pagar en efectivo — {{amount}} en su bolsillo frente al precio estándar." },
+      "location": { "title": "UBICACIÓN IDEAL", "desc": "Una estancia tranquila y cómoda a pocos minutos del centro." },
+      "rental": { "title": "ALQUILER CON DESCUENTO", "desc": "Alquiler para práctica a {{cash}}/día para titulares del paquete. Más tiempo en el agua, menos costo." },
+      "pro": { "title": "INSTRUCCIÓN PRO", "desc": "Instructores certificados, equipo de primer nivel y un método de enseñanza probado." }
+    },
+    "terms": {
+      "cash": "El descuento en efectivo ({{pct}}%) se aplica al pagar el total en efectivo en la confirmación de la reserva.",
+      "rental": "El alquiler para práctica ({{cash}}/día) es opcional y no está incluido en el precio base del paquete.",
+      "weather": "El programa de clases puede ajustarse por el viento o el clima a criterio del instructor.",
+      "dates": "Fechas de alojamiento: {{from}} – {{to}}.",
+      "validity": "Este presupuesto es válido por {{days}} días desde la fecha de emisión."
+    }
+  },
+  "wizard": {
+    "title": "Creación rápida",
+    "tab": { "generate": "Generar", "template": "Desde plantilla", "blank": "En blanco" },
+    "preparedFor": "Nombre del cliente",
+    "customer": "Vincular a cliente (opcional)",
+    "language": "Idioma",
+    "currency": "Moneda",
+    "startDate": "Fecha de inicio",
+    "discount": "Descuento efectivo %",
+    "validDays": "Válido (días)",
+    "hoursPerDay": "Horas de clase por día",
+    "services": "Servicios",
+    "addService": "Agregar servicio",
+    "package": "Paquete",
+    "accommodation": "Alojamiento",
+    "lesson": "Clase",
+    "rental": "Alquiler",
+    "people": "Número de personas",
+    "addOther": "Agregar otro servicio",
+    "selectService": "Seleccionar…",
+    "qty": { "nights": "noches", "hours": "horas", "days": "días", "count": "cant." },
+    "generate": "Generar presupuesto",
+    "noServices": "Agregue al menos un servicio para generar.",
+    "template": { "pick": "Elegir una plantilla", "use": "Usar plantilla", "empty": "Aún no hay plantillas guardadas." },
+    "blank": { "desc": "Comience desde un presupuesto vacío y complételo usted mismo.", "create": "Crear en blanco" },
+    "saveAsTemplate": "Guardar como plantilla",
+    "savedTemplate": "Guardado como plantilla"
+  }
+}

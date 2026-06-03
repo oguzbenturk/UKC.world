@@ -40,7 +40,8 @@ import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
 import apiClient from '@/shared/services/apiClient';
 import { realTimeService } from '@/shared/services/realTimeService';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
-import { CATEGORY_OPTIONS, getSubcategories } from '@/shared/constants/productCategories';
+import { getSubcategories } from '@/shared/constants/productCategories';
+import { useProductCategories } from '@/shared/hooks/useProductCategories';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -181,6 +182,9 @@ const OrderManagement = ({ embedded = false }) => {
     setFilters((f) => (f.search === debouncedSearch ? f : { ...f, search: debouncedSearch }));
     setPagination((p) => (p.current === 1 ? p : { ...p, current: 1 }));
   }, [debouncedSearch]);
+
+  // Category filter options — built-in + custom, merged from the DB.
+  const { options: mergedCategories } = useProductCategories();
 
   // Subcategory options for the currently selected category (children indented).
   const subcategoryOptions = useMemo(() => {
@@ -547,7 +551,7 @@ const OrderManagement = ({ embedded = false }) => {
             }}
             options={[
               { value: 'all', label: 'All Categories' },
-              ...CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: `${c.icon} ${c.label}` })),
+              ...mergedCategories.map((c) => ({ value: c.value, label: `${c.icon || ''} ${c.label}`.trim() })),
             ]}
           />
           {subcategoryOptions.length > 0 && (

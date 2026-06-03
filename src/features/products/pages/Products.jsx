@@ -50,16 +50,12 @@ import dayjs from 'dayjs';
 import { useData } from '@/shared/hooks/useData';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
-import { CATEGORY_OPTIONS, getSubcategories } from '@/shared/constants/productCategories';
+import { getSubcategories } from '@/shared/constants/productCategories';
+import { useProductCategories } from '@/shared/hooks/useProductCategories';
 import { useTranslation } from 'react-i18next';
 
 const { Option } = Select;
 const { Search } = Input;
-
-const PRODUCT_CATEGORIES = [
-  { value: 'all', label: 'All Categories', icon: '📦' },
-  ...CATEGORY_OPTIONS,
-];
 
 // Compact inline stat badge
 const StatBadge = ({ title, value, icon, iconClass = 'text-slate-400' }) => (
@@ -329,6 +325,13 @@ const Products = () => {
     setFilters((prev) => (prev.search === debouncedSearch ? prev : { ...prev, search: debouncedSearch }));
     setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
   }, [debouncedSearch]);
+
+  // Category filter options — built-in + custom, merged from the DB.
+  const { options: mergedCategories } = useProductCategories();
+  const categoryFilterOptions = useMemo(() => ([
+    { value: 'all', label: 'All Categories', icon: '📦' },
+    ...mergedCategories,
+  ]), [mergedCategories]);
 
   // Subcategory options for the currently selected category (children indented).
   const subcategoryOptions = useMemo(() => {
@@ -774,9 +777,9 @@ const Products = () => {
               style={{ width: '100%' }}
               showSearch
               optionFilterProp="label"
-              options={PRODUCT_CATEGORIES.map((category) => ({
+              options={categoryFilterOptions.map((category) => ({
                 value: category.value,
-                label: `${category.icon} ${category.label}`,
+                label: `${category.icon || ''} ${category.label}`.trim(),
               }))}
             />
           </Col>

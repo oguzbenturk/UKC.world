@@ -7,6 +7,7 @@ import {
   DownOutlined,
   CalendarOutlined,
   PlusCircleOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import {
   LineChart,
@@ -249,6 +250,9 @@ const DashboardHeader = memo(({
                </Link>
                <Link to="/calendar/lessons" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
                  <CalendarOutlined /> Calendar
+               </Link>
+               <Link to="/proposals" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-teal-400 hover:text-teal-600 transition-colors">
+                 <FileTextOutlined /> Teklif
                </Link>
              </div>
 

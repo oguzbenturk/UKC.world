@@ -167,6 +167,11 @@ const MarketingPage = lazyWithRetry(() => import('../features/marketing/pages/Ma
 const QuickLinksPage = lazyWithRetry(() => import('../features/quicklinks/pages/QuickLinksPage'));
 const PublicQuickBooking = lazyWithRetry(() => import('../features/quicklinks/pages/PublicQuickBooking'));
 
+// Proposals (Teklif Hazırla)
+const ProposalsListPage = lazyWithRetry(() => import('../features/proposals/pages/ProposalsListPage'));
+const ProposalBuilderPage = lazyWithRetry(() => import('../features/proposals/pages/ProposalBuilderPage'));
+const PublicProposalView = lazyWithRetry(() => import('../features/proposals/pages/PublicProposalView'));
+
 // Form Builder
 const FormsListPage = lazyWithRetry(() => import('../features/forms/pages/FormsListPage'));
 const FormBuilderPage = lazyWithRetry(() => import('../features/forms/pages/FormBuilderPage'));
@@ -351,6 +356,9 @@ const AppRoutes = () => {
   
   {/* Public route for quick link registration */}
   <Route path="/quick/:linkCode" element={<PublicQuickBooking />} />
+
+  {/* Public route for proposal (teklif) viewing */}
+  <Route path="/teklif/:code" element={<PublicProposalView />} />
 
   {/* Public route for custom forms (short URL: /f/CODE) */}
   <Route path="/f/success/:linkCode" element={<FormSuccessPage />} />
@@ -543,6 +551,10 @@ const AppRoutes = () => {
         <Route path="/marketing" element={<MarketingPage />} />
         {/* Quick Links - managers and above */}
         <Route path="/quick-links" element={<QuickLinksPage />} />
+        {/* Proposals (Teklif Hazırla) - managers and above */}
+        <Route path="/proposals" element={<ProposalsListPage />} />
+        <Route path="/proposals/new" element={<ProposalsListPage />} />
+        <Route path="/proposals/:id" element={<ProposalBuilderPage />} />
         {/* Form Builder - managers and above */}
         <Route path="/forms" element={<FormsListPage />} />
         <Route path="/forms/builder/:id" element={<FormBuilderPage />} />

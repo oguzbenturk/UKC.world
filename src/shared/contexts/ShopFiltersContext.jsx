@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { PRODUCT_CATEGORIES, resolveCategory } from '@/shared/constants/productCategories';
+import { useProductCategories } from '@/shared/hooks/useProductCategories';
 
 // Sort options
 export const SORT_OPTIONS = [
@@ -33,6 +34,11 @@ export const ShopFiltersProvider = ({ children }) => {
     // All products for stable category counts
     const [allProducts, setAllProducts] = useState([]);
 
+    // Top-level categories (built-in + custom) from the DB. Calling the hook here
+    // — at the app-wide ShopFiltersProvider — also hydrates the category registry
+    // so display helpers resolve custom categories everywhere in the app.
+    const { options: mergedCategories } = useProductCategories();
+
     // Active filter count
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -45,23 +51,20 @@ export const ShopFiltersProvider = ({ children }) => {
         return count;
     }, [selectedCategory, selectedSubcategory, selectedBrand, searchText, showInStockOnly, priceRange]);
 
-    // Available categories — always built from PRODUCT_CATEGORIES constant
+    // Available categories — built-in + custom, merged from the DB.
     const availableCategories = useMemo(() => {
         const countMap = {};
-        let totalCount = 0;
         allProducts.forEach(p => {
             const rawCat = p.category || 'secondwind';
             const cat = resolveCategory(rawCat);
             countMap[cat] = (countMap[cat] || 0) + 1;
-            totalCount++;
         });
 
-        const categories = Object.values(PRODUCT_CATEGORIES)
-            .map(cat => ({
-                value: cat.value,
-                label: cat.label,
-                count: countMap[cat.value] || 0
-            }));
+        const categories = mergedCategories.map(cat => ({
+            value: cat.value,
+            label: cat.label,
+            count: countMap[cat.value] || 0
+        }));
 
         const featuredCount = allProducts.filter(p => p.is_featured).length;
 
@@ -69,7 +72,7 @@ export const ShopFiltersProvider = ({ children }) => {
             { value: 'featured', label: 'Featured', count: featuredCount },
             ...categories
         ];
-    }, [allProducts]);
+    }, [allProducts, mergedCategories]);
 
     // Handler functions
     const handleCategoryChange = useCallback((value, keepSubcategory = false) => {

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { 
-  BookOutlined, 
-  ShoppingCartOutlined, 
-  HomeOutlined, 
+import { useTranslation } from 'react-i18next';
+import {
+  BookOutlined,
+  ShoppingCartOutlined,
+  HomeOutlined,
   ToolOutlined,
   TeamOutlined,
   CrownOutlined,
@@ -11,7 +12,8 @@ import {
   GiftOutlined,
   DollarOutlined,
   SettingOutlined,
-  UserAddOutlined
+  UserAddOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 
 /**
@@ -23,7 +25,8 @@ import {
  * - `modal`: Modal identifier (renders as button, parent component handles modal)
  */
 export const useQuickActionConfig = (userPermissions = [], userRole = '', modalHandlers = {}) => {
-  
+  const { t } = useTranslation('proposal');
+
   // Normalize permissions to array (can be object with permission keys or array)
   const normalizePermissions = (perms) => {
     if (!perms) return [];
@@ -192,6 +195,21 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         order: 9
       },
 
+      // ===== TEKLİF HAZIRLA (Prepare Offer / Proposal) =====
+      {
+        id: 'proposal',
+        title: t('quickAction.title'),
+        description: t('quickAction.description'),
+        icon: FileTextOutlined,
+        color: 'teal',
+        permissions: ['services:read'],
+        primaryAction: createAction(t('quickAction.create'), '/proposals/new'),
+        secondaryActions: [
+          { label: t('quickAction.all'), to: '/proposals' }
+        ],
+        order: 10
+      },
+
       // ===== PACKAGES (HIDDEN FROM MAIN ORDER) =====
       {
         id: 'packages',
@@ -204,7 +222,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
         secondaryActions: [
           { label: 'Manage', to: '/services/packages' }
         ],
-        order: 10
+        order: 11
       },
 
       // ===== FINANCE (Admin/Manager only) =====
@@ -220,7 +238,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
           { label: 'Daily Ops', to: '/finance/daily-operations' },
           { label: 'Expenses', to: '/finance/expenses' }
         ],
-        order: 11
+        order: 12
       }
     ];
 
@@ -228,7 +246,7 @@ export const useQuickActionConfig = (userPermissions = [], userRole = '', modalH
     return allActions
       .filter(action => hasPermission(action.permissions))
       .sort((a, b) => a.order - b.order);
-  }, [permissionsArray, userRole, modalHandlers]);
+  }, [permissionsArray, userRole, modalHandlers, t]);
 
   return quickActions;
 };

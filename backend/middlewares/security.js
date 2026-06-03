@@ -399,6 +399,7 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/assistant',               // Public AI chat widget — no session cookie to steal
   '/api/telegram/webhook',        // Telegram webhook; protected by X-Telegram-Bot-Api-Secret-Token header
   '/api/public/warranty',         // UKC.Care public warranty submit + staff portal; rate limited, no session
+  '/api/public/proposals',        // Teklif public view + accept; anonymous visitor (no session), gated by unguessable share code
 ];
 
 /**

@@ -1,0 +1,259 @@
+{
+  "quickAction": {
+    "title": "Angebot erstellen",
+    "description": "Erstellen Sie ein gebrandetes Angebot und teilen Sie es",
+    "create": "Neues Angebot",
+    "all": "Alle Angebote"
+  },
+  "list": {
+    "title": "Angebote",
+    "new": "Neues Angebot",
+    "search": "Nach Titel oder Empfänger suchen",
+    "empty": "Noch keine Angebote",
+    "emptyHint": "Erstellen Sie Ihr erstes Angebot, um Leistungen zu einem gebrandeten Paket zu bündeln.",
+    "columns": {
+      "title": "Titel",
+      "preparedFor": "Erstellt für",
+      "status": "Status",
+      "total": "Barpreis",
+      "validUntil": "Gültig bis",
+      "views": "Aufrufe",
+      "updated": "Aktualisiert",
+      "actions": "Aktionen"
+    },
+    "actions": {
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren",
+      "copyLink": "Link kopieren",
+      "linkCopied": "Öffentlicher Link kopiert",
+      "delete": "Löschen",
+      "openPublic": "Öffentliche Ansicht öffnen"
+    },
+    "confirmDelete": "Dieses Angebot löschen?",
+    "deleted": "Angebot gelöscht",
+    "duplicated": "Angebot dupliziert"
+  },
+  "builder": {
+    "newTitle": "Neues Angebot",
+    "editTitle": "Angebot bearbeiten",
+    "back": "Zurück zu den Angeboten",
+    "save": "Speichern",
+    "saving": "Speichern…",
+    "saved": "Gespeichert",
+    "previewPdf": "PDF-Vorschau",
+    "downloadPdf": "PDF herunterladen",
+    "openPublic": "Öffentlichen Link öffnen",
+    "copyLink": "Link kopieren",
+    "linkCopied": "Öffentlicher Link kopiert",
+    "contentLanguage": "Bearbeitungssprache",
+    "preview": "Live-Vorschau",
+    "unsaved": "Sie haben ungespeicherte Änderungen",
+    "meta": {
+      "title": "Interner Titel",
+      "titlePlaceholder": "z. B. Studio 3 Wing Foil — Ahmet",
+      "preparedFor": "Erstellt für",
+      "preparedForPlaceholder": "Im PDF angezeigter Kundenname",
+      "customer": "Mit Kunde verknüpfen",
+      "language": "Standardsprache",
+      "currency": "Währung",
+      "validUntil": "Gültig bis",
+      "status": "Status"
+    },
+    "sections": {
+      "intro": "Einleitung",
+      "package_items": "Paketübersicht",
+      "price_summary": "Preisübersicht",
+      "included": "Leistungen im Überblick",
+      "schedule": "Wochenprogramm",
+      "benefits": "Vorteile",
+      "terms": "Allgemeine Bedingungen"
+    },
+    "intro": {
+      "label": "Einleitender Absatz",
+      "placeholder": "Vielen Dank für Ihr Interesse an UKC…"
+    },
+    "items": {
+      "title": "Paketübersicht",
+      "addManual": "Zeile hinzufügen",
+      "fromCatalog": "Aus Katalog hinzufügen",
+      "item": "Position",
+      "details": "Details",
+      "regular": "Normalpreis",
+      "cash": "Barpreis",
+      "empty": "Noch keine Positionen. Aus dem Katalog oder eine manuelle Zeile hinzufügen.",
+      "remove": "Entfernen",
+      "source": "Aus Katalog"
+    },
+    "priceSummary": {
+      "title": "Preisübersicht",
+      "regularTotal": "Normalpreis",
+      "savings": "Sie sparen",
+      "cashPrice": "Barpreis",
+      "auto": "Auto",
+      "manual": "Manuell",
+      "regularSub": "Beschriftung unter Normalpreis",
+      "savingsSub": "Beschriftung unter Ersparnis",
+      "cashSub": "Beschriftung unter Barpreis"
+    },
+    "included": {
+      "title": "Leistungen im Überblick",
+      "add": "Karte hinzufügen",
+      "cardTitle": "Titel",
+      "sub": "Untertitel",
+      "desc": "Beschreibung",
+      "empty": "Noch keine Karten.",
+      "remove": "Entfernen"
+    },
+    "schedule": {
+      "title": "Wochenprogramm",
+      "add": "Tag hinzufügen",
+      "day": "Tag",
+      "date": "Datum",
+      "activity": "Aktivität",
+      "rental": "Verleih",
+      "cost": "Tageskosten",
+      "highlight": "Hervorheben",
+      "empty": "Noch keine Tage.",
+      "remove": "Entfernen",
+      "note": "Fußnote (z. B. Wetterhinweis)"
+    },
+    "benefits": {
+      "title": "Vorteile",
+      "add": "Vorteil hinzufügen",
+      "benefitTitle": "Titel",
+      "desc": "Beschreibung",
+      "empty": "Noch keine Vorteile.",
+      "remove": "Entfernen"
+    },
+    "terms": {
+      "title": "Allgemeine Bedingungen",
+      "add": "Bedingung hinzufügen",
+      "term": "Bedingung",
+      "empty": "Noch keine Bedingungen.",
+      "remove": "Entfernen"
+    }
+  },
+  "catalog": {
+    "title": "Aus Katalog hinzufügen",
+    "services": "Kurse & Leistungen",
+    "packages": "Pakete",
+    "accommodation": "Unterkunft",
+    "rentals": "Verleih",
+    "search": "Suchen…",
+    "add": "Hinzufügen",
+    "empty": "Nichts gefunden.",
+    "loading": "Laden…"
+  },
+  "status": {
+    "draft": "Entwurf",
+    "sent": "Gesendet",
+    "accepted": "Angenommen",
+    "expired": "Abgelaufen",
+    "declined": "Abgelehnt"
+  },
+  "public": {
+    "downloadPdf": "PDF herunterladen",
+    "accept": "Dieses Angebot annehmen",
+    "accepted": "Angebot angenommen — vielen Dank!",
+    "acceptConfirm": "Dieses Angebot annehmen?",
+    "expired": "Dieses Angebot ist abgelaufen",
+    "expiredHint": "Bitte kontaktieren Sie uns für ein aktuelles Angebot.",
+    "language": "Sprache",
+    "notFound": "Angebot nicht gefunden",
+    "preparedFor": "Erstellt für"
+  },
+  "pdf": {
+    "quotation": "ANGEBOT",
+    "prepared_for": "Erstellt für",
+    "footer_right": "Kontaktieren Sie uns, um Ihren Platz zu reservieren.",
+    "sec_overview": "PAKETÜBERSICHT",
+    "sec_price": "PREISÜBERSICHT",
+    "sec_included": "LEISTUNGEN IM ÜBERBLICK",
+    "sec_schedule": "WOCHENPROGRAMM",
+    "sec_benefits": "WARUM DIESES PAKET ÜBERZEUGT",
+    "sec_terms": "ALLGEMEINE BEDINGUNGEN",
+    "th_item": "Position",
+    "th_details": "Details",
+    "th_regular": "Normalpreis",
+    "th_cash": "Barpreis",
+    "ps_regular": "NORMALPREIS",
+    "ps_save": "SIE SPAREN",
+    "ps_cash": "BARPREIS",
+    "sh_day": "Tag",
+    "sh_date": "Datum",
+    "sh_activity": "Aktivität",
+    "sh_rental": "Verleih",
+    "sh_cost": "Tageskosten"
+  },
+  "gen": {
+    "intro": "Vielen Dank für Ihr Interesse an UKC. Wir haben das folgende Paket für Sie zusammengestellt, das unsere Leistungen zu einem besonderen Barzahlungspreis verbindet.",
+    "detail": {
+      "accommodation": "{{nights}} Nächte  ({{range}})",
+      "lesson": "Insgesamt {{hours}} Stunden  ({{perDay}} Std./Tag an {{days}} Tagen)",
+      "rental": "{{days}} Tage Übungsverleih",
+      "package": "Komplettpaket"
+    },
+    "regularSub": "Regulärer Listenpreis",
+    "savingsSub": "{{pct}}% Barzahlungsrabatt",
+    "summaryBit": { "nights": "{{nights}} Nächte", "hours": "{{hours}} Std. Unterricht", "people": "{{count}} Personen" },
+    "includedSub": {
+      "accommodation": "{{nights}} Nächte",
+      "lesson": "{{hours}} Stunden",
+      "rental": "{{days}} Tage"
+    },
+    "includedDesc": {
+      "accommodation": "Komfortable Unterkunft für Ihren Aufenthalt, in ruhiger Lage nahe dem Zentrum.",
+      "lesson": "Zertifizierte Instruktoren begleiten Sie durch den gesamten Lernfortschritt. Die gesamte Ausrüstung wird gestellt. Anfängerfreundlich, Sicherheit an erster Stelle.",
+      "rental": "Üben Sie nach jeder Einheit eigenständig zum vergünstigten Preis weiter."
+    },
+    "schedule": {
+      "day": "Tag {{n}}",
+      "checkin": "Check-in  |  Begrüßung & Einführung",
+      "checkout": "Check-out",
+      "lesson": "Unterricht  ({{hours}} Std.)",
+      "free": "Freier Tag  |  erkunden & entspannen"
+    },
+    "scheduleNote": "* Der Übungsverleih ist optional. Der Unterrichtsplan hängt von Wind und Wetter ab.",
+    "benefits": {
+      "save": { "title": "{{amount}} SPAREN", "desc": "{{pct}}% Rabatt bei Barzahlung — {{amount}} gespart gegenüber dem Normalpreis." },
+      "location": { "title": "TOP-LAGE", "desc": "Ein ruhiger, komfortabler Aufenthalt nur eine kurze Fahrt vom Zentrum entfernt." },
+      "rental": { "title": "VERGÜNSTIGTER VERLEIH", "desc": "Übungsverleih für {{cash}}/Tag für Paketinhaber. Mehr Zeit auf dem Wasser, weniger Kosten." },
+      "pro": { "title": "PROFI-UNTERRICHT", "desc": "Zertifizierte Instruktoren, erstklassige Ausrüstung und eine bewährte Lehrmethode." }
+    },
+    "terms": {
+      "cash": "Der Barzahlungsrabatt ({{pct}}%) gilt bei vollständiger Barzahlung zum Zeitpunkt der Buchungsbestätigung.",
+      "rental": "Der Übungsverleih ({{cash}}/Tag) ist optional und nicht im Grundpreis des Pakets enthalten.",
+      "weather": "Der Unterrichtsplan kann aufgrund von Wind- oder Wetterbedingungen nach Ermessen des Instruktors angepasst werden.",
+      "dates": "Unterkunftstermine: {{from}} – {{to}}.",
+      "validity": "Dieses Angebot ist {{days}} Tage ab Ausstellungsdatum gültig."
+    }
+  },
+  "wizard": {
+    "title": "Schnell erstellen",
+    "tab": { "generate": "Generieren", "template": "Aus Vorlage", "blank": "Leer" },
+    "preparedFor": "Kundenname",
+    "customer": "Mit Kunde verknüpfen (optional)",
+    "language": "Sprache",
+    "currency": "Währung",
+    "startDate": "Startdatum",
+    "discount": "Barzahlungsrabatt %",
+    "validDays": "Gültig (Tage)",
+    "hoursPerDay": "Unterrichtsstunden pro Tag",
+    "services": "Leistungen",
+    "addService": "Leistung hinzufügen",
+    "package": "Paket",
+    "accommodation": "Unterkunft",
+    "lesson": "Unterricht",
+    "rental": "Verleih",
+    "people": "Personenanzahl",
+    "addOther": "Weitere Leistung hinzufügen",
+    "selectService": "Auswählen…",
+    "qty": { "nights": "Nächte", "hours": "Stunden", "days": "Tage", "count": "Anz." },
+    "generate": "Angebot generieren",
+    "noServices": "Fügen Sie mindestens eine Leistung hinzu, um zu generieren.",
+    "template": { "pick": "Vorlage wählen", "use": "Vorlage verwenden", "empty": "Noch keine Vorlagen gespeichert." },
+    "blank": { "desc": "Mit einem leeren Angebot beginnen und selbst ausfüllen.", "create": "Leeres erstellen" },
+    "saveAsTemplate": "Als Vorlage speichern",
+    "savedTemplate": "Als Vorlage gespeichert"
+  }
+}

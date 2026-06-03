@@ -425,6 +425,95 @@ router.delete('/subcategories/:category/:subcategory', authenticateJWT, authoriz
   }
 });
 
+// Get top-level product categories (built-in + custom)
+// Public endpoint - guests can view categories
+router.get('/categories', publicApiLimiter, cacheMiddleware(3600), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT value, display_name, icon, display_order, is_builtin
+       FROM product_categories
+       WHERE is_active = true
+       ORDER BY display_order, display_name`
+    );
+
+    res.json({ success: true, categories: result.rows });
+  } catch (error) {
+    logger.error('Error fetching categories:', error);
+    res.status(500).json({ error: true, message: 'Failed to fetch categories' });
+  }
+});
+
+// Create (or restore) a custom category (admin only)
+router.post('/categories', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
+  try {
+    const { value, display_name, icon = '📦' } = req.body;
+
+    // Normalise the value into a slug so it always matches products.category usage
+    const slug = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    if (!slug || !display_name) {
+      return res.status(400).json({
+        error: true,
+        message: 'value and display_name are required'
+      });
+    }
+
+    // Append after the existing categories
+    const orderResult = await pool.query(
+      `SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order FROM product_categories`
+    );
+    const nextOrder = orderResult.rows[0].next_order;
+
+    // Upsert — recreating a previously-deleted category reactivates it.
+    // is_builtin is never set here, so custom categories stay deletable.
+    const result = await pool.query(
+      `INSERT INTO product_categories (value, display_name, icon, display_order, is_active)
+       VALUES ($1, $2, $3, $4, true)
+       ON CONFLICT (value) DO UPDATE SET
+         display_name = EXCLUDED.display_name,
+         icon = EXCLUDED.icon,
+         is_active = true,
+         updated_at = NOW()
+       RETURNING value, display_name, icon, display_order, is_builtin`,
+      [slug, display_name, icon, nextOrder]
+    );
+
+    res.status(201).json({ success: true, category: result.rows[0] });
+  } catch (error) {
+    logger.error('Error creating category:', error);
+    res.status(500).json({ error: true, message: 'Failed to create category' });
+  }
+});
+
+// Delete (deactivate) a custom category (admin only). Built-ins are protected.
+router.delete('/categories/:value', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(PRODUCT_CACHE_PATTERNS), async (req, res) => {
+  try {
+    const { value } = req.params;
+
+    const existing = await pool.query(
+      `SELECT is_builtin FROM product_categories WHERE value = $1`,
+      [value]
+    );
+    if (existing.rows[0]?.is_builtin) {
+      return res.status(400).json({ error: true, message: 'Built-in categories cannot be deleted' });
+    }
+
+    await pool.query(
+      `UPDATE product_categories SET is_active = false, updated_at = NOW() WHERE value = $1`,
+      [value]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error deactivating category:', error);
+    res.status(500).json({ error: true, message: 'Failed to deactivate category' });
+  }
+});
+
 // Trigger external vendor product synchronization (ION, Duotone...)
 router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
   try {

@@ -37,7 +37,7 @@ import ShoppingCart from '@/features/students/components/ShoppingCart';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useAuth } from '@/shared/hooks/useAuth';
 import ProductCard from '@/features/dashboard/components/ProductCard';
-import { getHierarchicalSubcategories, hasSubcategories, PRODUCT_CATEGORIES, resolveCategory } from '@/shared/constants/productCategories';
+import { getHierarchicalSubcategories, hasSubcategories, PRODUCT_CATEGORIES, resolveCategory, getCategoryLabel } from '@/shared/constants/productCategories';
 import StickyNavBar from '@/shared/components/navigation/StickyNavBar';
 import { usePageSEO } from '@/shared/utils/seo';
 
@@ -528,7 +528,7 @@ const ShopPage = () => {
                     {/* Category rows */}
                     {treeCategoryOrder.map(cat => {
                         const { count } = productTree[cat];
-                        const catLabel = CATEGORY_LABELS[cat] || cat;
+                        const catLabel = CATEGORY_LABELS[cat] || getCategoryLabel(cat);
                         const isCatActive = selectedCategory === cat;
                         const isExpanded = sidebarExpandedCats[cat];
                         const topSubcats = getTopLevelSubcats(cat);
@@ -851,7 +851,7 @@ const ShopPage = () => {
                             : categoryProducts.slice(0, PRODUCTS_PER_CATEGORY_INITIAL);
                         const hasMore = categoryProducts.length > PRODUCTS_PER_CATEGORY_INITIAL;
                         const remainingCount = categoryProducts.length - PRODUCTS_PER_CATEGORY_INITIAL;
-                        const categoryLabel = CATEGORY_LABELS[category] || category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ');
+                        const categoryLabel = CATEGORY_LABELS[category] || getCategoryLabel(category);
 
                         return (
                             <div key={category} className="space-y-3">

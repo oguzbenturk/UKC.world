@@ -1,0 +1,259 @@
+{
+  "quickAction": {
+    "title": "Prepare Offer",
+    "description": "Build a branded price quote (teklif) and share it",
+    "create": "New Proposal",
+    "all": "All Proposals"
+  },
+  "list": {
+    "title": "Proposals",
+    "new": "New Proposal",
+    "search": "Search by title or recipient",
+    "empty": "No proposals yet",
+    "emptyHint": "Create your first teklif to combine services into a branded offer.",
+    "columns": {
+      "title": "Title",
+      "preparedFor": "Prepared for",
+      "status": "Status",
+      "total": "Cash price",
+      "validUntil": "Valid until",
+      "views": "Views",
+      "updated": "Updated",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "copyLink": "Copy link",
+      "linkCopied": "Public link copied",
+      "delete": "Delete",
+      "openPublic": "Open public view"
+    },
+    "confirmDelete": "Delete this proposal?",
+    "deleted": "Proposal deleted",
+    "duplicated": "Proposal duplicated"
+  },
+  "builder": {
+    "newTitle": "New Proposal",
+    "editTitle": "Edit Proposal",
+    "back": "Back to proposals",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "previewPdf": "Preview PDF",
+    "downloadPdf": "Download PDF",
+    "openPublic": "Open public link",
+    "copyLink": "Copy link",
+    "linkCopied": "Public link copied",
+    "contentLanguage": "Editing language",
+    "preview": "Live preview",
+    "unsaved": "You have unsaved changes",
+    "meta": {
+      "title": "Internal title",
+      "titlePlaceholder": "e.g. Studio 3 Wing Foil — Ahmet",
+      "preparedFor": "Prepared for",
+      "preparedForPlaceholder": "Customer name shown on the PDF",
+      "customer": "Link to customer",
+      "language": "Default language",
+      "currency": "Currency",
+      "validUntil": "Valid until",
+      "status": "Status"
+    },
+    "sections": {
+      "intro": "Intro",
+      "package_items": "Package overview",
+      "price_summary": "Price summary",
+      "included": "What's included",
+      "schedule": "Weekly schedule",
+      "benefits": "Benefits",
+      "terms": "Terms & conditions"
+    },
+    "intro": {
+      "label": "Opening paragraph",
+      "placeholder": "Thank you for your interest in UKC…"
+    },
+    "items": {
+      "title": "Package overview",
+      "addManual": "Add row",
+      "fromCatalog": "Add from catalog",
+      "item": "Item",
+      "details": "Details",
+      "regular": "Regular price",
+      "cash": "Cash price",
+      "empty": "No items yet. Add from the catalog or add a manual row.",
+      "remove": "Remove",
+      "source": "From catalog"
+    },
+    "priceSummary": {
+      "title": "Price summary",
+      "regularTotal": "Regular total",
+      "savings": "You save",
+      "cashPrice": "Cash price",
+      "auto": "Auto",
+      "manual": "Manual",
+      "regularSub": "Caption under regular total",
+      "savingsSub": "Caption under savings",
+      "cashSub": "Caption under cash price"
+    },
+    "included": {
+      "title": "What's included",
+      "add": "Add card",
+      "cardTitle": "Title",
+      "sub": "Subtitle",
+      "desc": "Description",
+      "empty": "No inclusion cards yet.",
+      "remove": "Remove"
+    },
+    "schedule": {
+      "title": "Weekly schedule",
+      "add": "Add day",
+      "day": "Day",
+      "date": "Date",
+      "activity": "Activity",
+      "rental": "Rental",
+      "cost": "Day cost",
+      "highlight": "Highlight",
+      "empty": "No schedule days yet.",
+      "remove": "Remove",
+      "note": "Footnote (e.g. weather disclaimer)"
+    },
+    "benefits": {
+      "title": "Benefits",
+      "add": "Add benefit",
+      "benefitTitle": "Title",
+      "desc": "Description",
+      "empty": "No benefits yet.",
+      "remove": "Remove"
+    },
+    "terms": {
+      "title": "Terms & conditions",
+      "add": "Add term",
+      "term": "Term",
+      "empty": "No terms yet.",
+      "remove": "Remove"
+    }
+  },
+  "catalog": {
+    "title": "Add from catalog",
+    "services": "Lessons & services",
+    "packages": "Packages",
+    "accommodation": "Accommodation",
+    "rentals": "Rentals",
+    "search": "Search…",
+    "add": "Add",
+    "empty": "Nothing found.",
+    "loading": "Loading…"
+  },
+  "status": {
+    "draft": "Draft",
+    "sent": "Sent",
+    "accepted": "Accepted",
+    "expired": "Expired",
+    "declined": "Declined"
+  },
+  "public": {
+    "downloadPdf": "Download PDF",
+    "accept": "Accept this offer",
+    "accepted": "Offer accepted — thank you!",
+    "acceptConfirm": "Accept this offer?",
+    "expired": "This offer has expired",
+    "expiredHint": "Please contact us for an up-to-date quote.",
+    "language": "Language",
+    "notFound": "Proposal not found",
+    "preparedFor": "Prepared for"
+  },
+  "pdf": {
+    "quotation": "QUOTATION",
+    "prepared_for": "Prepared for",
+    "footer_right": "Contact us to reserve your spot.",
+    "sec_overview": "PACKAGE OVERVIEW",
+    "sec_price": "PRICE SUMMARY",
+    "sec_included": "WHAT'S INCLUDED",
+    "sec_schedule": "WEEKLY SCHEDULE",
+    "sec_benefits": "WHY THIS PACKAGE IS A GREAT DEAL",
+    "sec_terms": "TERMS & CONDITIONS",
+    "th_item": "Item",
+    "th_details": "Details",
+    "th_regular": "Regular Price",
+    "th_cash": "Cash Price",
+    "ps_regular": "REGULAR TOTAL",
+    "ps_save": "YOU SAVE",
+    "ps_cash": "CASH PRICE",
+    "sh_day": "Day",
+    "sh_date": "Date",
+    "sh_activity": "Activity",
+    "sh_rental": "Rental",
+    "sh_cost": "Day Cost"
+  },
+  "gen": {
+    "intro": "Thank you for your interest in UKC. We have prepared the following package for you, combining our services at a special cash-payment price.",
+    "detail": {
+      "accommodation": "{{nights}} nights  ({{range}})",
+      "lesson": "{{hours}} hours total  ({{perDay}}h/day over {{days}} days)",
+      "rental": "{{days}} days of practice rental",
+      "package": "Complete package"
+    },
+    "regularSub": "Standard list price",
+    "savingsSub": "{{pct}}% cash discount",
+    "summaryBit": { "nights": "{{nights}} nights", "hours": "{{hours}}h lessons", "people": "{{count}} people" },
+    "includedSub": {
+      "accommodation": "{{nights}} nights",
+      "lesson": "{{hours}} hours",
+      "rental": "{{days}} days"
+    },
+    "includedDesc": {
+      "accommodation": "Comfortable accommodation for your stay, in a peaceful setting close to the center.",
+      "lesson": "Certified instructors guide you through the full progression. All equipment provided. Beginner-friendly, safety-first approach.",
+      "rental": "Continue practising on your own at a discounted rate after each session."
+    },
+    "schedule": {
+      "day": "Day {{n}}",
+      "checkin": "Check-in  |  Welcome & orientation",
+      "checkout": "Check-out",
+      "lesson": "Lesson  ({{hours}}h)",
+      "free": "Free day  |  explore & relax"
+    },
+    "scheduleNote": "* Practice rental is optional. Lesson schedule subject to wind and weather conditions.",
+    "benefits": {
+      "save": { "title": "SAVE {{amount}}", "desc": "{{pct}}% off when you pay in cash — {{amount}} back in your pocket vs. standard pricing." },
+      "location": { "title": "GREAT LOCATION", "desc": "A calm, comfortable stay just a short ride from the center." },
+      "rental": { "title": "DISCOUNTED RENTAL", "desc": "Practice rental at {{cash}}/day for package holders. More water time, less cost." },
+      "pro": { "title": "PRO INSTRUCTION", "desc": "Certified instructors, world-class equipment and a proven teaching method." }
+    },
+    "terms": {
+      "cash": "Cash discount ({{pct}}%) applies when full payment is made in cash at booking confirmation.",
+      "rental": "Practice rental ({{cash}}/day) is optional and not included in the base package price.",
+      "weather": "Lesson schedule may be adjusted due to wind or weather conditions at instructor discretion.",
+      "dates": "Accommodation dates: {{from}} – {{to}}.",
+      "validity": "This quotation is valid for {{days}} days from the date of issue."
+    }
+  },
+  "wizard": {
+    "title": "Quick Create",
+    "tab": { "generate": "Generate", "template": "From template", "blank": "Blank" },
+    "preparedFor": "Customer name",
+    "customer": "Link to customer (optional)",
+    "language": "Language",
+    "currency": "Currency",
+    "startDate": "Start date",
+    "discount": "Cash discount %",
+    "validDays": "Valid for (days)",
+    "hoursPerDay": "Lesson hours per day",
+    "services": "Services",
+    "addService": "Add service",
+    "package": "Package",
+    "accommodation": "Accommodation",
+    "lesson": "Lesson",
+    "rental": "Rental",
+    "people": "Number of people",
+    "addOther": "Add another service",
+    "selectService": "Select…",
+    "qty": { "nights": "nights", "hours": "hours", "days": "days", "count": "qty" },
+    "generate": "Generate teklif",
+    "noServices": "Add at least one service to generate.",
+    "template": { "pick": "Choose a template", "use": "Use template", "empty": "No templates saved yet." },
+    "blank": { "desc": "Start from an empty proposal and fill it in yourself.", "create": "Create blank" },
+    "saveAsTemplate": "Save as template",
+    "savedTemplate": "Saved as template"
+  }
+}

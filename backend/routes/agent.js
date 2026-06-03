@@ -23,6 +23,7 @@ import bookingNotificationService from '../services/bookingNotificationService.j
 import { recordTransaction } from '../services/walletService.js';
 import { logAuditEvent } from '../services/auditLogService.js';
 import { listSpots, getSpotReport, getAllSpotReports } from '../services/weather/index.js';
+import { extractUnitMeta, calculateTotalPrice } from '../services/accommodationPricingService.js';
 
 const router = express.Router();
 
@@ -1765,7 +1766,7 @@ router.post('/accommodation/bookings', verifyAgentIdentity, async (req, res) => 
     }
 
     const unitRes = await pool.query(
-      `SELECT id, name, price_per_night, status FROM accommodation_units WHERE id = $1`,
+      `SELECT id, name, price_per_night, status, amenities FROM accommodation_units WHERE id = $1`,
       [unitId],
     );
     if (!unitRes.rows.length) return res.status(404).json({ error: 'Accommodation unit not found' });
@@ -1774,11 +1775,17 @@ router.post('/accommodation/bookings', verifyAgentIdentity, async (req, res) => 
       return res.status(400).json({ error: `Unit is currently ${unit.status}` });
     }
 
-    const nights = Math.max(
-      1,
-      Math.ceil((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24)),
+    // Use the shared pricing engine so weekend / holiday / occupancy rates apply
+    // consistently with the standard booking flow.
+    const priceCalc = calculateTotalPrice(
+      new Date(checkInDate),
+      new Date(checkOutDate),
+      toNum(unit.price_per_night),
+      extractUnitMeta(unit),
+      guestsCount || 1,
     );
-    const totalPrice = toNum(unit.price_per_night) * nights;
+    const nights = Math.max(1, priceCalc.nights);
+    const totalPrice = priceCalc.total;
 
     const { rows } = await pool.query(
       `INSERT INTO accommodation_bookings

@@ -596,7 +596,7 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 		// Calculate total price with weekend/holiday/discount support
 		const meta = extractUnitMeta(unitData);
 		const basePrice = parseFloat(unitData.price_per_night);
-		const priceCalc = calculateTotalPrice(checkIn, checkOut, basePrice, meta);
+		const priceCalc = calculateTotalPrice(checkIn, checkOut, basePrice, meta, guests_count);
 		const nights = priceCalc.nights;
 		// Staff can override the calculated price via custom_price
 		const total_price = (isStaff && custom_price != null && !isNaN(parseFloat(custom_price)))
@@ -1013,7 +1013,7 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 		} else {
 			const meta = extractUnitMeta(unitData);
 			const basePrice = parseFloat(unitData.price_per_night);
-			newTotal = calculateTotalPrice(checkIn, checkOut, basePrice, meta).total;
+			newTotal = calculateTotalPrice(checkIn, checkOut, basePrice, meta, newGuests).total;
 		}
 
 		const oldTotal = parseFloat(current.total_price) || 0;

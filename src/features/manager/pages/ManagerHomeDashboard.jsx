@@ -6,7 +6,7 @@ import { Spin, Tag, Row, Col, Empty } from 'antd';
 import {
   DollarOutlined, RiseOutlined, FallOutlined, CalendarOutlined,
   PlusCircleOutlined, ShopOutlined, TeamOutlined, AppstoreOutlined,
-  ArrowRightOutlined, ThunderboltOutlined, ToolOutlined,
+  ArrowRightOutlined, ThunderboltOutlined, ToolOutlined, FileTextOutlined,
 } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
 import { getManagerDashboard } from '../services/managerCommissionApi';
@@ -52,7 +52,7 @@ function SectionCard({ title, icon, children, action }) {
 }
 
 export default function ManagerHomeDashboard() {
-  const { t } = useTranslation(['manager']);
+  const { t } = useTranslation(['manager', 'proposal']);
   const { businessCurrency, getCurrencySymbol } = useCurrency();
   const [earningsLoading, setEarningsLoading] = useState(true);
   const [earnings, setEarnings] = useState(null);
@@ -200,6 +200,12 @@ export default function ManagerHomeDashboard() {
               icon={<RiseOutlined />}
               label={t('manager:home.quickLinks.upcomingIncome', 'Upcoming Income')}
               accent="amber"
+            />
+            <QuickLink
+              to="/proposals"
+              icon={<FileTextOutlined />}
+              label={t('proposal:quickAction.title', 'Teklif Hazırla')}
+              accent="sky"
             />
             <QuickLink
               to="/customers"

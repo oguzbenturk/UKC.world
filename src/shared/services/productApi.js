@@ -111,6 +111,24 @@ export const productApi = {
     return response.data;
   },
 
+  // Get top-level product categories (built-in + custom). Returns the array directly.
+  getCategories: async () => {
+    const response = await apiClient.get('/products/categories');
+    return response.data?.categories || [];
+  },
+
+  // Create (or restore) a custom category (admin)
+  createCategory: async ({ value, display_name, icon }) => {
+    const response = await apiClient.post('/products/categories', { value, display_name, icon });
+    return response.data;
+  },
+
+  // Deactivate a custom category (admin)
+  deleteCategory: async (value) => {
+    const response = await apiClient.delete(`/products/categories/${encodeURIComponent(value)}`);
+    return response.data;
+  },
+
   // Get product by ID
   getProduct: async (id) => {
   const response = await apiClient.get(`/products/${id}`);

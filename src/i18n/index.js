@@ -15,7 +15,7 @@ export const i18nReady = i18n
     fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: SUPPORTED_LANGUAGES,
     load: 'languageOnly',
-    ns: ['common', 'errors', 'public', 'outsider', 'student', 'instructor', 'manager', 'admin'],
+    ns: ['common', 'errors', 'public', 'outsider', 'student', 'instructor', 'manager', 'admin', 'proposal'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

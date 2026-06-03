@@ -27,6 +27,7 @@ import {
   SettingOutlined,
   StarOutlined,
   CalendarOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
@@ -142,6 +143,9 @@ function PricingSummary({ formData }) {
       {formData.price_per_night ? (
         <>
           <div className="font-medium text-slate-700">€{parseFloat(formData.price_per_night).toFixed(0)}/night</div>
+          {formData.occupancy_pricing_enabled && (
+            <div>by guest count</div>
+          )}
           {formData.weekend_price && (
             <div>€{parseFloat(formData.weekend_price).toFixed(0)} weekend</div>
           )}
@@ -618,6 +622,57 @@ function DescriptionSection({ formData, onChange }) {
   );
 }
 
+// Reusable per-occupancy nightly-rate editor. Renders one row per guest count
+// (1..maxGuests); a blank row falls back to `fallbackPrice` at booking time.
+// Value shape: [{ guests, price_per_night }].
+function OccupancyRateTable({ value, onChange, maxGuests, fallbackPrice }) {
+  const rows = Math.min(Math.max(parseInt(maxGuests, 10) || 4, 1), 12);
+  const list = Array.isArray(value) ? value : [];
+  const fallback = fallbackPrice != null && fallbackPrice !== '' ? parseFloat(fallbackPrice) : null;
+
+  const getPrice = (g) => {
+    const e = list.find(o => Number(o.guests) === g);
+    return e && e.price_per_night != null && e.price_per_night !== '' ? e.price_per_night : undefined;
+  };
+  const setPrice = (g, price) => {
+    const next = list.filter(o => Number(o.guests) !== g);
+    if (price != null && price !== '') next.push({ guests: g, price_per_night: price });
+    next.sort((a, b) => Number(a.guests) - Number(b.guests));
+    onChange(next);
+  };
+
+  return (
+    <div className="rounded-lg border border-slate-200 overflow-hidden">
+      <div className="divide-y divide-slate-100">
+        {Array.from({ length: rows }, (_, i) => i + 1).map(g => (
+          <div key={g} className="flex items-center justify-between gap-3 px-3 py-2 bg-white">
+            <span className="text-sm text-slate-600 flex items-center gap-1.5">
+              <TeamOutlined className="text-slate-300" />
+              {g} {g === 1 ? 'guest' : 'guests'}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-sm">€</span>
+              <InputNumber
+                size="small"
+                min={0}
+                step={1}
+                value={getPrice(g)}
+                onChange={(val) => setPrice(g, val)}
+                placeholder={fallback != null ? String(Math.round(fallback)) : '—'}
+                className="w-24"
+              />
+              <span className="text-xs text-slate-400">/night</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-3 py-1.5 bg-slate-50 text-[11px] text-slate-400">
+        Leave a row blank to use the default rate{fallback != null ? ` (€${Math.round(fallback)})` : ''}.
+      </div>
+    </div>
+  );
+}
+
 function DiscountRow({ discount, index, pricePerNight, onUpdate, onRemove }) {
   const totalNights = discount.min_nights || 0;
   const amount = discount.discount_value || 0;
@@ -697,7 +752,7 @@ function DiscountRow({ discount, index, pricePerNight, onUpdate, onRemove }) {
   );
 }
 
-function HolidayRow({ holiday, index, onUpdate, onRemove }) {
+function HolidayRow({ holiday, index, onUpdate, onRemove, occupancyEnabled, maxGuests }) {
   return (
     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
       <div className="flex items-start justify-between">
@@ -756,6 +811,17 @@ function HolidayRow({ holiday, index, onUpdate, onRemove }) {
           <DeleteOutlined className="text-sm" />
         </button>
       </div>
+      {occupancyEnabled && (
+        <div className="mt-3">
+          <div className="text-xs font-medium text-slate-600 mb-1.5">Holiday rate per occupancy</div>
+          <OccupancyRateTable
+            value={holiday.occupancy_pricing}
+            onChange={(v) => onUpdate(index, 'occupancy_pricing', v)}
+            maxGuests={maxGuests}
+            fallbackPrice={holiday.price_per_night}
+          />
+        </div>
+      )}
       {holiday.start_date && holiday.end_date && holiday.price_per_night > 0 && (
         <div className="mt-3 bg-amber-50 text-amber-700 rounded-lg px-3 py-2 text-xs">
           {dayjs(holiday.start_date).format('MMM D')} – {dayjs(holiday.end_date).format('MMM D, YYYY')} • €{holiday.price_per_night}/night
@@ -768,6 +834,8 @@ function HolidayRow({ holiday, index, onUpdate, onRemove }) {
 function PricingSection({ formData, onChange }) {
   const customDiscounts = formData.custom_discounts || [];
   const holidayPricing = formData.holiday_pricing || [];
+  const occupancyEnabled = !!formData.occupancy_pricing_enabled;
+  const maxGuests = Math.min(Math.max(parseInt(formData.max_guests || formData.capacity || 4, 10) || 4, 1), 12);
 
   const updateDiscount = (index, field, value) => {
     const updated = [...customDiscounts];
@@ -813,7 +881,9 @@ function PricingSection({ formData, onChange }) {
       {/* Nightly Price */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-5">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Nightly Price *</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            {occupancyEnabled ? 'Standard Nightly Price *' : 'Nightly Price *'}
+          </label>
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold text-slate-400">€</span>
             <InputNumber
@@ -827,6 +897,39 @@ function PricingSection({ formData, onChange }) {
             />
             <span className="text-sm text-slate-500">per night</span>
           </div>
+          {occupancyEnabled && (
+            <p className="text-xs text-slate-400 mt-1">Default rate, used for any occupancy left blank below.</p>
+          )}
+        </div>
+
+        <Divider className="my-0" />
+
+        {/* Occupancy-based pricing */}
+        <div>
+          <div className="flex items-center justify-between">
+            <div className="pr-3">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                <TeamOutlined className="text-orange-500" /> Price varies by number of guests
+              </label>
+              <p className="text-xs text-slate-400 mt-0.5">Charge a different nightly rate for single, double, triple… occupancy.</p>
+            </div>
+            <Switch
+              size="small"
+              checked={occupancyEnabled}
+              onChange={(checked) => onChange('occupancy_pricing_enabled', checked)}
+            />
+          </div>
+          {occupancyEnabled && (
+            <div className="mt-3">
+              <div className="text-xs font-medium text-slate-600 mb-1.5">Nightly rate per occupancy</div>
+              <OccupancyRateTable
+                value={formData.occupancy_pricing}
+                onChange={(v) => onChange('occupancy_pricing', v)}
+                maxGuests={maxGuests}
+                fallbackPrice={formData.price_per_night}
+              />
+            </div>
+          )}
         </div>
 
         <Divider className="my-0" />
@@ -838,7 +941,10 @@ function PricingSection({ formData, onChange }) {
             <Switch
               size="small"
               checked={!!formData.weekend_price}
-              onChange={(checked) => onChange('weekend_price', checked ? formData.price_per_night : null)}
+              onChange={(checked) => {
+                onChange('weekend_price', checked ? formData.price_per_night : null);
+                if (!checked) onChange('weekend_occupancy_pricing', []);
+              }}
             />
           </div>
           {formData.weekend_price !== null && formData.weekend_price !== undefined && (
@@ -857,6 +963,17 @@ function PricingSection({ formData, onChange }) {
             </div>
           )}
           <p className="text-xs text-slate-400 mt-1">Set a different rate for Friday, Saturday, and Sunday nights.</p>
+          {occupancyEnabled && formData.weekend_price !== null && formData.weekend_price !== undefined && (
+            <div className="mt-3">
+              <div className="text-xs font-medium text-slate-600 mb-1.5">Weekend rate per occupancy</div>
+              <OccupancyRateTable
+                value={formData.weekend_occupancy_pricing}
+                onChange={(v) => onChange('weekend_occupancy_pricing', v)}
+                maxGuests={maxGuests}
+                fallbackPrice={formData.weekend_price ?? formData.price_per_night}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -921,6 +1038,8 @@ function PricingSection({ formData, onChange }) {
                 index={idx}
                 onUpdate={updateHoliday}
                 onRemove={removeHoliday}
+                occupancyEnabled={occupancyEnabled}
+                maxGuests={maxGuests}
               />
             ))}
           </div>
@@ -1190,6 +1309,9 @@ const DEFAULT_FORM_DATA = {
   image_url: null,
   images: [],
   weekend_price: null,
+  occupancy_pricing_enabled: false,
+  occupancy_pricing: [],
+  weekend_occupancy_pricing: [],
   custom_discounts: [],
   holiday_pricing: [],
   check_in_time: '14:00',
@@ -1220,6 +1342,9 @@ function parseJsonArray(raw) {
 
 const META_DEFAULTS = {
   weekend_price: null,
+  occupancy_pricing_enabled: false,
+  occupancy_pricing: [],
+  weekend_occupancy_pricing: [],
   custom_discounts: [],
   holiday_pricing: [],
   check_in_time: '14:00',
@@ -1261,6 +1386,12 @@ function buildFormDataFromUnit(unit) {
 function buildSavePayload(formData) {
   const meta = {
     weekend_price: formData.weekend_price,
+    occupancy_pricing_enabled: !!formData.occupancy_pricing_enabled,
+    occupancy_pricing: formData.occupancy_pricing || [],
+    // Drop weekend per-occupancy overrides unless there's a positive flat weekend
+    // rate, so a stale array can't silently re-enable weekend surcharges (the
+    // resolver treats a non-empty list as "weekend pricing active").
+    weekend_occupancy_pricing: formData.weekend_price > 0 ? (formData.weekend_occupancy_pricing || []) : [],
     custom_discounts: formData.custom_discounts || [],
     holiday_pricing: formData.holiday_pricing || [],
     check_in_time: formData.check_in_time,

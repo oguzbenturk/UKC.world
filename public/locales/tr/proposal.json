@@ -1,0 +1,259 @@
+{
+  "quickAction": {
+    "title": "Teklif Hazırla",
+    "description": "Markalı bir fiyat teklifi oluşturun ve paylaşın",
+    "create": "Yeni Teklif",
+    "all": "Tüm Teklifler"
+  },
+  "list": {
+    "title": "Teklifler",
+    "new": "Yeni Teklif",
+    "search": "Başlık veya alıcıya göre ara",
+    "empty": "Henüz teklif yok",
+    "emptyHint": "Hizmetleri markalı bir teklifte birleştirmek için ilk teklifinizi oluşturun.",
+    "columns": {
+      "title": "Başlık",
+      "preparedFor": "Hazırlanan kişi",
+      "status": "Durum",
+      "total": "Nakit fiyat",
+      "validUntil": "Geçerlilik",
+      "views": "Görüntüleme",
+      "updated": "Güncellendi",
+      "actions": "İşlemler"
+    },
+    "actions": {
+      "edit": "Düzenle",
+      "duplicate": "Çoğalt",
+      "copyLink": "Bağlantıyı kopyala",
+      "linkCopied": "Genel bağlantı kopyalandı",
+      "delete": "Sil",
+      "openPublic": "Genel görünümü aç"
+    },
+    "confirmDelete": "Bu teklif silinsin mi?",
+    "deleted": "Teklif silindi",
+    "duplicated": "Teklif çoğaltıldı"
+  },
+  "builder": {
+    "newTitle": "Yeni Teklif",
+    "editTitle": "Teklifi Düzenle",
+    "back": "Tekliflere dön",
+    "save": "Kaydet",
+    "saving": "Kaydediliyor…",
+    "saved": "Kaydedildi",
+    "previewPdf": "PDF Önizle",
+    "downloadPdf": "PDF İndir",
+    "openPublic": "Genel bağlantıyı aç",
+    "copyLink": "Bağlantıyı kopyala",
+    "linkCopied": "Genel bağlantı kopyalandı",
+    "contentLanguage": "Düzenleme dili",
+    "preview": "Canlı önizleme",
+    "unsaved": "Kaydedilmemiş değişiklikleriniz var",
+    "meta": {
+      "title": "Dahili başlık",
+      "titlePlaceholder": "örn. Studio 3 Wing Foil — Ahmet",
+      "preparedFor": "Hazırlanan kişi",
+      "preparedForPlaceholder": "PDF'de görünen müşteri adı",
+      "customer": "Müşteriye bağla",
+      "language": "Varsayılan dil",
+      "currency": "Para birimi",
+      "validUntil": "Geçerlilik tarihi",
+      "status": "Durum"
+    },
+    "sections": {
+      "intro": "Giriş",
+      "package_items": "Paket özeti",
+      "price_summary": "Fiyat özeti",
+      "included": "Neler dahil",
+      "schedule": "Haftalık program",
+      "benefits": "Avantajlar",
+      "terms": "Şartlar ve koşullar"
+    },
+    "intro": {
+      "label": "Açılış paragrafı",
+      "placeholder": "UKC'ye gösterdiğiniz ilgi için teşekkür ederiz…"
+    },
+    "items": {
+      "title": "Paket özeti",
+      "addManual": "Satır ekle",
+      "fromCatalog": "Katalogdan ekle",
+      "item": "Hizmet",
+      "details": "Detaylar",
+      "regular": "Normal fiyat",
+      "cash": "Nakit fiyat",
+      "empty": "Henüz öğe yok. Katalogdan ekleyin veya manuel satır ekleyin.",
+      "remove": "Kaldır",
+      "source": "Katalogdan"
+    },
+    "priceSummary": {
+      "title": "Fiyat özeti",
+      "regularTotal": "Normal toplam",
+      "savings": "Tasarruf",
+      "cashPrice": "Nakit fiyat",
+      "auto": "Otomatik",
+      "manual": "Manuel",
+      "regularSub": "Normal toplam altyazısı",
+      "savingsSub": "Tasarruf altyazısı",
+      "cashSub": "Nakit fiyat altyazısı"
+    },
+    "included": {
+      "title": "Neler dahil",
+      "add": "Kart ekle",
+      "cardTitle": "Başlık",
+      "sub": "Alt başlık",
+      "desc": "Açıklama",
+      "empty": "Henüz dahil kartı yok.",
+      "remove": "Kaldır"
+    },
+    "schedule": {
+      "title": "Haftalık program",
+      "add": "Gün ekle",
+      "day": "Gün",
+      "date": "Tarih",
+      "activity": "Aktivite",
+      "rental": "Kiralama",
+      "cost": "Günlük ücret",
+      "highlight": "Vurgula",
+      "empty": "Henüz program günü yok.",
+      "remove": "Kaldır",
+      "note": "Dipnot (örn. hava durumu uyarısı)"
+    },
+    "benefits": {
+      "title": "Avantajlar",
+      "add": "Avantaj ekle",
+      "benefitTitle": "Başlık",
+      "desc": "Açıklama",
+      "empty": "Henüz avantaj yok.",
+      "remove": "Kaldır"
+    },
+    "terms": {
+      "title": "Şartlar ve koşullar",
+      "add": "Madde ekle",
+      "term": "Madde",
+      "empty": "Henüz madde yok.",
+      "remove": "Kaldır"
+    }
+  },
+  "catalog": {
+    "title": "Katalogdan ekle",
+    "services": "Dersler ve hizmetler",
+    "packages": "Paketler",
+    "accommodation": "Konaklama",
+    "rentals": "Kiralama",
+    "search": "Ara…",
+    "add": "Ekle",
+    "empty": "Bir şey bulunamadı.",
+    "loading": "Yükleniyor…"
+  },
+  "status": {
+    "draft": "Taslak",
+    "sent": "Gönderildi",
+    "accepted": "Kabul edildi",
+    "expired": "Süresi doldu",
+    "declined": "Reddedildi"
+  },
+  "public": {
+    "downloadPdf": "PDF İndir",
+    "accept": "Bu teklifi kabul et",
+    "accepted": "Teklif kabul edildi — teşekkürler!",
+    "acceptConfirm": "Bu teklif kabul edilsin mi?",
+    "expired": "Bu teklifin süresi doldu",
+    "expiredHint": "Güncel bir teklif için lütfen bizimle iletişime geçin.",
+    "language": "Dil",
+    "notFound": "Teklif bulunamadı",
+    "preparedFor": "Hazırlanan kişi"
+  },
+  "pdf": {
+    "quotation": "TEKLİF",
+    "prepared_for": "Sayın",
+    "footer_right": "Yerinizi ayırtmak için bizimle iletişime geçin.",
+    "sec_overview": "PAKET ÖZETİ",
+    "sec_price": "FİYAT ÖZETİ",
+    "sec_included": "NELER DAHİL",
+    "sec_schedule": "HAFTALIK PROGRAM",
+    "sec_benefits": "NEDEN BU PAKET",
+    "sec_terms": "ŞARTLAR VE KOŞULLAR",
+    "th_item": "Hizmet",
+    "th_details": "Detaylar",
+    "th_regular": "Normal Fiyat",
+    "th_cash": "Nakit Fiyat",
+    "ps_regular": "NORMAL TOPLAM",
+    "ps_save": "TASARRUF",
+    "ps_cash": "NAKİT FİYAT",
+    "sh_day": "Gün",
+    "sh_date": "Tarih",
+    "sh_activity": "Aktivite",
+    "sh_rental": "Kiralama",
+    "sh_cost": "Günlük Ücret"
+  },
+  "gen": {
+    "intro": "UKC'ye gösterdiğiniz ilgi için teşekkür ederiz. Hizmetlerimizi nakit ödemeye özel fiyatıyla bir araya getiren aşağıdaki paketi sizin için hazırladık.",
+    "detail": {
+      "accommodation": "{{nights}} gece  ({{range}})",
+      "lesson": "Toplam {{hours}} saat  ({{days}} gün boyunca günde {{perDay}} saat)",
+      "rental": "{{days}} gün pratik kiralama",
+      "package": "Komple paket"
+    },
+    "regularSub": "Standart liste fiyatı",
+    "savingsSub": "%{{pct}} nakit indirimi",
+    "summaryBit": { "nights": "{{nights}} gece", "hours": "{{hours}} saat ders", "people": "{{count}} kişi" },
+    "includedSub": {
+      "accommodation": "{{nights}} gece",
+      "lesson": "{{hours}} saat",
+      "rental": "{{days}} gün"
+    },
+    "includedDesc": {
+      "accommodation": "Merkeze yakın, huzurlu bir ortamda konaklamanız için konforlu konaklama.",
+      "lesson": "Sertifikalı eğitmenler tüm gelişim sürecinde size rehberlik eder. Tüm ekipman sağlanır. Yeni başlayanlara uygun, önce güvenlik yaklaşımı.",
+      "rental": "Her dersten sonra indirimli fiyatla kendi başınıza pratik yapmaya devam edin."
+    },
+    "schedule": {
+      "day": "Gün {{n}}",
+      "checkin": "Giriş  |  Karşılama & oryantasyon",
+      "checkout": "Çıkış",
+      "lesson": "Ders  ({{hours}} saat)",
+      "free": "Serbest gün  |  keşfet & dinlen"
+    },
+    "scheduleNote": "* Pratik kiralama isteğe bağlıdır. Ders programı rüzgar ve hava koşullarına tabidir.",
+    "benefits": {
+      "save": { "title": "{{amount}} TASARRUF", "desc": "Nakit ödemede %{{pct}} indirim — standart fiyata göre cebinizde {{amount}}." },
+      "location": { "title": "HARİKA KONUM", "desc": "Merkeze kısa mesafede, sakin ve konforlu bir konaklama." },
+      "rental": { "title": "İNDİRİMLİ KİRALAMA", "desc": "Paket sahiplerine {{cash}}/gün pratik kiralama. Suda daha fazla zaman, daha az maliyet." },
+      "pro": { "title": "PROFESYONEL EĞİTİM", "desc": "Sertifikalı eğitmenler, dünya standartlarında ekipman ve kanıtlanmış öğretim yöntemi." }
+    },
+    "terms": {
+      "cash": "Nakit indirimi (%{{pct}}), rezervasyon onayı sırasında ödemenin tamamı nakit yapıldığında geçerlidir.",
+      "rental": "Pratik kiralama ({{cash}}/gün) isteğe bağlıdır ve temel paket fiyatına dahil değildir.",
+      "weather": "Ders programı, eğitmenin takdirine bağlı olarak rüzgar veya hava koşulları nedeniyle değiştirilebilir.",
+      "dates": "Konaklama tarihleri: {{from}} – {{to}}.",
+      "validity": "Bu teklif, düzenlenme tarihinden itibaren {{days}} gün geçerlidir."
+    }
+  },
+  "wizard": {
+    "title": "Hızlı Oluştur",
+    "tab": { "generate": "Oluştur", "template": "Şablondan", "blank": "Boş" },
+    "preparedFor": "Müşteri adı",
+    "customer": "Müşteriye bağla (isteğe bağlı)",
+    "language": "Dil",
+    "currency": "Para birimi",
+    "startDate": "Başlangıç tarihi",
+    "discount": "Nakit indirimi %",
+    "validDays": "Geçerlilik (gün)",
+    "hoursPerDay": "Günlük ders saati",
+    "services": "Hizmetler",
+    "addService": "Hizmet ekle",
+    "package": "Paket",
+    "accommodation": "Konaklama",
+    "lesson": "Ders",
+    "rental": "Kiralama",
+    "people": "Kişi sayısı",
+    "addOther": "Başka hizmet ekle",
+    "selectService": "Seçin…",
+    "qty": { "nights": "gece", "hours": "saat", "days": "gün", "count": "adet" },
+    "generate": "Teklif oluştur",
+    "noServices": "Oluşturmak için en az bir hizmet ekleyin.",
+    "template": { "pick": "Bir şablon seçin", "use": "Şablonu kullan", "empty": "Henüz kayıtlı şablon yok." },
+    "blank": { "desc": "Boş bir tekliften başlayıp kendiniz doldurun.", "create": "Boş oluştur" },
+    "saveAsTemplate": "Şablon olarak kaydet",
+    "savedTemplate": "Şablon olarak kaydedildi"
+  }
+}

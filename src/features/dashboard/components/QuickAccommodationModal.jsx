@@ -30,6 +30,7 @@ import {
 import apiClient from '@/shared/services/apiClient';
 import accommodationApi from '@/shared/services/accommodationApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { extractUnitMeta, computeAccommodationPrice, resolveNightlyRate } from '@/shared/utils/accommodationPricing';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
@@ -139,8 +140,13 @@ function QuickAccommodationModal({ open, onClose, onSuccess, editBooking = null 
     if (!selectedAccommodation) return 0;
     const dateRange = form.getFieldValue('date_range');
     if (!dateRange?.[0] || !dateRange?.[1]) return 0;
-    const nights = dateRange[1].diff(dateRange[0], 'day');
-    return (selectedAccommodation.price_per_night || 0) * nights;
+    return computeAccommodationPrice({
+      checkIn: dateRange[0],
+      checkOut: dateRange[1],
+      basePrice: selectedAccommodation.price_per_night,
+      meta: extractUnitMeta({ amenities: selectedAccommodation.amenities }),
+      guests: form.getFieldValue('guests_count') || 1,
+    }).total;
   }, [form, selectedAccommodation]);
 
   const handleSubmit = async (values) => {
@@ -348,6 +354,10 @@ function QuickAccommodationModal({ open, onClose, onSuccess, editBooking = null 
               const nights = dateRange?.[0] && dateRange?.[1]
                 ? dateRange[1].diff(dateRange[0], 'day')
                 : 0;
+              const guests = form.getFieldValue('guests_count') || 1;
+              const nightlyRate = selectedAccommodation
+                ? resolveNightlyRate(extractUnitMeta({ amenities: selectedAccommodation.amenities }), selectedAccommodation.price_per_night, guests)
+                : 0;
               const displayTotal = priceOverride !== null && priceOverride !== ''
                 ? parseFloat(priceOverride) || 0
                 : calculatedTotal;
@@ -362,7 +372,8 @@ function QuickAccommodationModal({ open, onClose, onSuccess, editBooking = null 
                       </span>
                       {nights > 0 && (
                         <p className="text-sm text-purple-600 mb-0">
-                          {nights} night{nights > 1 ? 's' : ''} × {formatCurrency(selectedAccommodation?.price_per_night || 0, businessCurrency)}
+                          {nights} night{nights > 1 ? 's' : ''} × {formatCurrency(nightlyRate, businessCurrency)}
+                          {guests > 1 ? ` · ${guests} guests` : ''}
                         </p>
                       )}
                     </div>

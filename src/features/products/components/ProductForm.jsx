@@ -40,8 +40,10 @@ import GallerySection from './GallerySection';
 import {
   getHierarchicalSubcategories,
   hasSubcategories,
-  CATEGORY_OPTIONS,
+  getCategoryIcon,
+  getCategoryLabel,
 } from '@/shared/constants/productCategories';
+import { useProductCategories } from '@/shared/hooks/useProductCategories';
 import { buildImagePayload } from '../utils/productImagePayload';
 
 const { Option } = Select;
@@ -270,15 +272,10 @@ const ProductForm = ({
   const [activeTab, setActiveTab] = useState('product');
   const [selectedCategory, setSelectedCategory] = useState(product?.category || null);
   const [extraSubcategories, setExtraSubcategories] = useState([]);
-  // Custom categories/brands the user creates inline. New value persists when
-  // the product is saved (both columns are free-text on `products`); subsequent
-  // form loads pick it up via the seed below when editing that product.
-  const [extraCategories, setExtraCategories] = useState(() => {
-    const cat = product?.category;
-    if (!cat) return [];
-    const known = CATEGORY_OPTIONS.some((c) => c.value === cat);
-    return known ? [] : [{ value: cat, label: cat }];
-  });
+  // Top-level categories (built-in + custom) loaded from the DB. Creating one
+  // persists via the API, so it reappears here — and everywhere else — automatically.
+  const { options: dbCategoryOptions, refresh: refreshCategories } = useProductCategories();
+  // Custom brands the user creates inline (brand remains a free-text column on products).
   const [extraBrands, setExtraBrands] = useState(() => {
     const brand = product?.brand;
     if (!brand) return [];
@@ -314,18 +311,28 @@ const ProductForm = ({
     [colorNames, colorImagesMap],
   );
 
-  // Category options for CreatableSelect
+  // Category options for CreatableSelect — built-in + custom, merged from the DB.
+  // `deletable` lets CreatableSelect show a delete affordance only on custom ones.
   const categoryOptions = useMemo(() => {
-    const base = CATEGORY_OPTIONS.map(cat => ({
+    const opts = dbCategoryOptions.map(cat => ({
       value: cat.value,
-      label: `${cat.icon} ${cat.label}`,
+      label: `${cat.icon || ''} ${cat.label}`.trim(),
+      icon: cat.icon,
+      deletable: cat.deletable,
     }));
-    const knownValues = new Set(base.map(o => o.value));
-    const extras = extraCategories
-      .filter(c => !knownValues.has(c.value))
-      .map(c => ({ value: c.value, label: c.label }));
-    return [...base, ...extras];
-  }, [extraCategories]);
+    // Ensure an existing product's category stays selectable even if it's a
+    // legacy free-text value not present in product_categories.
+    const cur = product?.category;
+    if (cur && !opts.some(o => o.value === cur)) {
+      opts.push({
+        value: cur,
+        label: `${getCategoryIcon(cur)} ${getCategoryLabel(cur)}`.trim(),
+        icon: getCategoryIcon(cur),
+        deletable: false,
+      });
+    }
+    return opts;
+  }, [dbCategoryOptions, product?.category]);
 
   const brandOptions = useMemo(() => {
     const all = [...BRANDS];
@@ -471,12 +478,30 @@ const ProductForm = ({
     setColorImagesMap(prev => { const copy = { ...prev }; delete copy[name]; return copy; });
   }, []);
 
-  const handleCreateCategory = useCallback(async (slug, label) => {
-    setExtraCategories((prev) =>
-      prev.some((c) => c.value === slug) ? prev : [...prev, { value: slug, label }]
-    );
-    message.success(t('manager:products.form.categoryCreated', { defaultValue: `Category "{{label}}" added`, label }));
-  }, [t]);
+  const handleCreateCategory = useCallback(async (slug, label, _parentValue, icon) => {
+    try {
+      await productApi.createCategory({ value: slug, display_name: label, icon });
+      await refreshCategories();
+      message.success(t('manager:products.form.categoryCreated', { defaultValue: `Category "{{label}}" added`, label }));
+    } catch {
+      message.error(t('manager:products.form.categoryCreateError', { defaultValue: 'Failed to create category' }));
+      throw new Error('creation failed');
+    }
+  }, [t, refreshCategories]);
+
+  const handleDeleteCategory = useCallback(async (value) => {
+    try {
+      await productApi.deleteCategory(value);
+      await refreshCategories();
+      if (form.getFieldValue('category') === value) {
+        form.setFieldValue('category', undefined);
+      }
+      message.success(t('manager:products.form.categoryRemoved', { defaultValue: 'Category removed' }));
+    } catch {
+      message.error(t('manager:products.form.categoryRemoveError', { defaultValue: 'Failed to remove category' }));
+      throw new Error('deletion failed');
+    }
+  }, [t, refreshCategories, form]);
 
   const handleCreateBrand = useCallback(async (value) => {
     setExtraBrands((prev) => (prev.includes(value) ? prev : [...prev, value]));
@@ -578,6 +603,8 @@ const ProductForm = ({
                   options={categoryOptions}
                   placeholder="Select or create"
                   onCreateNew={handleCreateCategory}
+                  onDelete={handleDeleteCategory}
+                  iconInput
                   createLabel="Create category"
                   createPlaceholder="e.g., Surfboards"
                 />

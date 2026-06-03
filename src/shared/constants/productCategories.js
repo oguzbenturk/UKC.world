@@ -141,6 +141,45 @@ export const CATEGORY_OPTIONS = Object.values(PRODUCT_CATEGORIES).map(cat => ({
   icon: cat.icon,
 }));
 
+// ─── Runtime registry for staff-created (custom) categories ───────────────────
+// The built-in categories above are the static baseline. Custom categories live
+// in the DB (product_categories table) and are loaded at runtime via the
+// useProductCategories() hook, which calls registerCustomCategories() to hydrate
+// this registry. The pure display helpers below (getCategoryLabel/Icon, resolve)
+// then consult it, so custom categories render with their icon/label EVERYWHERE —
+// even in components that read the constants directly instead of the hook.
+let CUSTOM_CATEGORIES = {};
+
+/**
+ * Replace the custom-category registry with the latest DB-sourced list.
+ * Built-in entries are ignored here (they already exist as constants).
+ * @param {Array<{value:string, display_name?:string, label?:string, icon?:string, is_builtin?:boolean}>} list
+ */
+export const registerCustomCategories = (list = []) => {
+  const next = {};
+  for (const c of list) {
+    if (!c || !c.value || c.is_builtin) continue;
+    if (PRODUCT_CATEGORIES[c.value]) continue; // never shadow a built-in
+    next[c.value] = {
+      value: c.value,
+      label: c.display_name || c.label || c.value,
+      icon: c.icon || '📦',
+    };
+  }
+  CUSTOM_CATEGORIES = next;
+};
+
+/** Custom categories currently in the registry, as an options array. */
+export const getCustomCategoryOptions = () =>
+  Object.values(CUSTOM_CATEGORIES).map(c => ({ value: c.value, label: c.label, icon: c.icon }));
+
+/**
+ * Built-in + custom categories merged into a single options array
+ * ({ value, label, icon }), built-ins first in their canonical order.
+ * Synchronous — reads the current registry state.
+ */
+export const getAllCategoryOptions = () => [...CATEGORY_OPTIONS, ...getCustomCategoryOptions()];
+
 /**
  * Get category label from category value
  * @param {string} categoryValue - Category value (e.g., 'kitesurf')
@@ -150,6 +189,8 @@ export const getCategoryLabel = (categoryValue) => {
   // Check new categories first
   const category = PRODUCT_CATEGORIES[categoryValue];
   if (category) return category.label;
+  // Then staff-created custom categories
+  if (CUSTOM_CATEGORIES[categoryValue]) return CUSTOM_CATEGORIES[categoryValue].label;
   // Check legacy mapping
   const mapped = LEGACY_CATEGORY_MAP[categoryValue];
   if (mapped) return PRODUCT_CATEGORIES[mapped]?.label || categoryValue;
@@ -164,6 +205,7 @@ export const getCategoryLabel = (categoryValue) => {
 export const getCategoryIcon = (categoryValue) => {
   const category = PRODUCT_CATEGORIES[categoryValue];
   if (category) return category.icon;
+  if (CUSTOM_CATEGORIES[categoryValue]) return CUSTOM_CATEGORIES[categoryValue].icon;
   const mapped = LEGACY_CATEGORY_MAP[categoryValue];
   if (mapped) return PRODUCT_CATEGORIES[mapped]?.icon || '📦';
   return '📦';
@@ -179,6 +221,9 @@ export const resolveCategory = (categoryValue) => {
   const lower = categoryValue.toLowerCase();
   if (PRODUCT_CATEGORIES[lower]) return lower;
   if (PRODUCT_CATEGORIES[categoryValue]) return categoryValue;
+  // Custom categories are their own canonical value — never legacy-map them.
+  if (CUSTOM_CATEGORIES[lower]) return lower;
+  if (CUSTOM_CATEGORIES[categoryValue]) return categoryValue;
   return LEGACY_CATEGORY_MAP[lower] || LEGACY_CATEGORY_MAP[categoryValue] || lower;
 };
 
