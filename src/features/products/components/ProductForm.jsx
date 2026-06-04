@@ -286,6 +286,19 @@ const ProductForm = ({
   const [colorInputVal, setColorInputVal] = useState('');
   const isEditing = !!product;
 
+  // Legacy-data guard. Many imported products carry a `colors` list (used for
+  // the storefront colour chips) but track stock per-SIZE only — their
+  // `variants` have a `label`+`quantity` but no `color` dimension. Feeding that
+  // into the colour×size matrix leaves every cell empty (the stock falls into
+  // the matrix's hidden "legacy" bucket), so the grid renders all zeros and a
+  // save would discard the real quantities. Detect that shape once at mount and
+  // fall back to the size-only table, which hydrates the quantities correctly.
+  // Colours still show as chips on the Product tab and are saved either way.
+  const [variantsAreSizeOnly] = useState(() => {
+    const vs = Array.isArray(product?.variants) ? product.variants : [];
+    return vs.length > 0 && !vs.some((v) => v && v.color);
+  });
+
   const watchedCategory = Form.useWatch('category', form);
   const prevWatchedCategoryRef = useRef(undefined);
 
@@ -303,6 +316,12 @@ const ProductForm = ({
 
   // Derived field config based on selected category
   const fieldConfig = useMemo(() => getFieldConfig(selectedCategory), [selectedCategory]);
+
+  // Use the colour×size matrix only when per-colour stock actually applies.
+  // A product whose existing stock is size-only (see `variantsAreSizeOnly`)
+  // stays on the size-only table even if it lists colours, so its quantities
+  // hydrate instead of showing an empty grid.
+  const useColorMatrix = colorNames.length > 0 && !variantsAreSizeOnly;
 
   // Photo count per colour — shown on each grid row so staff can see that a
   // colour's pictures are linked to its stock (e.g. "Blue 📷 3").
@@ -747,9 +766,10 @@ const ProductForm = ({
           {fieldConfig.showVariants && <div className="h-px bg-slate-100" />}
 
           {/* ── Variants ── */}
-          {/* Colours defined → colour×size stock grid (each cell is a combo,
-              e.g. 3 × XS Blue). No colours → the size-only variant table. */}
-          {fieldConfig.showVariants && colorNames.length > 0 && (
+          {/* Per-colour stock (colours listed AND not legacy size-only) →
+              colour×size grid, each cell a combo e.g. 3 × XS Blue. Otherwise
+              (no colours, or size-only stock) → the size-only variant table. */}
+          {fieldConfig.showVariants && useColorMatrix && (
             <>
               <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> {t('manager:products.form.colorSizeStock', { defaultValue: 'Colour × Size stock' })}</p>
               <Form.Item name="variants" noStyle>
@@ -762,7 +782,7 @@ const ProductForm = ({
               </Form.Item>
             </>
           )}
-          {fieldConfig.showVariants && colorNames.length === 0 && (
+          {fieldConfig.showVariants && !useColorMatrix && (
             <>
               <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400"><AppstoreOutlined /> {t('manager:products.form.sizeVariants')}</p>
               <Form.Item name="variants" noStyle>
