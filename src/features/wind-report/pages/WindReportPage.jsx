@@ -4,6 +4,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import { useAllReports } from '../hooks/useAllReports';
 import SpotCard from '../components/SpotCard';
+import UkcLiveStation from '../components/UkcLiveStation';
 import WeightPickerBar from '../components/WeightPickerBar';
 import { initialWeight } from '../utils/kiteSize';
 
@@ -93,6 +94,9 @@ const WindReportPage = () => {
             )}
           </div>
         </header>
+
+        {/* UKC's own live station — the real-time number at Gülbahçe */}
+        <UkcLiveStation />
 
         {/* Unified toolbar: weight + legend */}
         <div className="mb-5">

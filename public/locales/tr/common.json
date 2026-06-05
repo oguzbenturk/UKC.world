@@ -796,6 +796,29 @@
     "loading": "Tahmin yükleniyor…",
     "error": "Rüzgar verisi alınamadı. Lütfen tekrar deneyin.",
     "unit": { "knots": "kn", "kmh": "km/s", "ms": "m/s" },
+    "live": {
+      "label": "Şu an canlı",
+      "station": "Urla Kite Center · Gülbahçe",
+      "viaStation": "UKC istasyonu #{{id}}",
+      "gust": "Anlık",
+      "lull": "Sakin",
+      "temp": "Sıcaklık",
+      "dir": "Yön",
+      "updated": "Güncellendi {{time}}",
+      "justNow": "az önce",
+      "minsAgo_one": "{{count}} dk önce",
+      "minsAgo_other": "{{count}} dk önce",
+      "hrsAgo_one": "{{count}} sa önce",
+      "hrsAgo_other": "{{count}} sa önce",
+      "offline": "Canlı istasyon çevrimdışı — aşağıda tahmin gösteriliyor.",
+      "states": {
+        "calm": "Sakin",
+        "light": "Hafif",
+        "good": "İyi rüzgar",
+        "strong": "Kuvvetli",
+        "extreme": "Aşırı"
+      }
+    },
     "spots": {
       "alacati": "Alaçatı",
       "pirlanta": "Pırlanta Kitesurf Plajı",

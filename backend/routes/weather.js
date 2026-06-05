@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { listSpots, getSpotReport, getAllSpotReports } from '../services/weather/index.js';
+import { listSpots, getSpotReport, getAllSpotReports, getUkcLive } from '../services/weather/index.js';
 
 const router = express.Router();
 
@@ -72,6 +72,17 @@ router.get('/hourly', async (req, res) => {
 // GET /api/weather/spots — return the list of kite spots (name, coords, windguruSpotId)
 router.get('/spots', (_req, res) => {
   res.json({ spots: listSpots() });
+});
+
+// GET /api/weather/live — UKC's own Windguru station, current live reading (cached 5 min)
+router.get('/live', async (_req, res) => {
+  try {
+    const live = await getUkcLive();
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json(live);
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'Failed to fetch live station data' });
+  }
 });
 
 // GET /api/weather/report/:spotId — dual-purpose: single spot Windguru forecast as JSON

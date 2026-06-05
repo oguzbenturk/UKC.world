@@ -18,3 +18,9 @@ export const fetchAllReports = async ({ lang } = {}) => {
   const { data } = await apiClient.get('/weather/report', { params });
   return data;
 };
+
+/** UKC's own live Windguru station (current measured conditions at Gülbahçe). */
+export const fetchUkcLive = async () => {
+  const { data } = await apiClient.get('/weather/live');
+  return data;
+};

@@ -792,6 +792,29 @@
     "loading": "Loading forecast…",
     "error": "Could not load wind data. Please try again.",
     "unit": { "knots": "kt", "kmh": "km/h", "ms": "m/s" },
+    "live": {
+      "label": "Live now",
+      "station": "Urla Kite Center · Gülbahçe",
+      "viaStation": "UKC station #{{id}}",
+      "gust": "Gust",
+      "lull": "Lull",
+      "temp": "Temp",
+      "dir": "Direction",
+      "updated": "Updated {{time}}",
+      "justNow": "just now",
+      "minsAgo_one": "{{count}} min ago",
+      "minsAgo_other": "{{count}} mins ago",
+      "hrsAgo_one": "{{count}} hr ago",
+      "hrsAgo_other": "{{count}} hrs ago",
+      "offline": "Live station offline — showing forecast below.",
+      "states": {
+        "calm": "Calm",
+        "light": "Light",
+        "good": "Good wind",
+        "strong": "Strong",
+        "extreme": "Extreme"
+      }
+    },
     "spots": {
       "alacati": "Alaçatı",
       "pirlanta": "Pırlanta Kitesurf Beach",
