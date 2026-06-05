@@ -16,6 +16,7 @@ import PackagePurchaseModal from './PackagePurchaseModal';
 import AllInclusiveBookingModal from './AllInclusiveBookingModal';
 import DownwinderBookingModal from './DownwinderBookingModal';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import { analyticsService } from '@/shared/services/analyticsService';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 const normalize = (v) => String(v || '').toLowerCase();
@@ -397,6 +398,7 @@ const ExperiencePackagesPage = ({
         return;
       }
 
+      analyticsService.track('purchase', { type: 'package' });
       const roleUpgraded = data.roleUpgrade?.upgraded;
       if (roleUpgraded) {
         await refreshToken();
@@ -690,6 +692,7 @@ const ExperiencePackagesPage = ({
         onSuccess={() => {
           setShowIyzicoModal(false);
           setIyzicoPaymentUrl(null);
+          analyticsService.track('purchase', { type: 'package', method: 'card' });
           refetchWallet();
           queryClient.invalidateQueries({ queryKey: ['wallet'] });
           queryClient.invalidateQueries({ queryKey: ['customer-packages'] });

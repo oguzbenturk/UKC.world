@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
+import { analyticsService } from '@/shared/services/analyticsService';
 import dayjs from 'dayjs';
 import {
   Alert,
@@ -783,6 +784,7 @@ const RentalBookingModal = ({
             setSubmitting(false);
             return;
           }
+          analyticsService.track('purchase', { type: 'rental', method: paymentMethod });
           if (lastRes?.data?.roleUpgrade?.upgraded) {
             try { await refreshToken(); } catch { /* ignore */ }
           }
@@ -938,6 +940,7 @@ const RentalBookingModal = ({
         setShowIyzicoModal(false);
         setIyzicoPaymentUrl(null);
         setIyzicoDepositId(null);
+        analyticsService.track('purchase', { type: 'rental', method: 'card' });
         queryClient.invalidateQueries({ queryKey: ['wallet'] });
         queryClient.invalidateQueries({ queryKey: ['rentals'] });
         queryClient.invalidateQueries({ queryKey: ['student-booking'] });

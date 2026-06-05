@@ -19,6 +19,7 @@ import {
 import { usePageSEO } from '@/shared/utils/seo';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
+import { analyticsService } from '@/shared/services/analyticsService';
 import GoogleReviewsStrip from '@/shared/components/ui/GoogleReviewsStrip';
 
 /* ─────────────────────────────────────────────────── helpers ── */
@@ -216,6 +217,7 @@ const CareLandingPage = () => {
         trackingToken: result.trackingToken,
         id: result.data?.id,
       });
+      analyticsService.track('lead_submit', { type: 'repair' });
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'Failed to submit request';
       message.error(msg);

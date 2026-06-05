@@ -17,6 +17,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/shared/services/apiClient';
+import { analyticsService } from '@/shared/services/analyticsService';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
 import { usePageSEO } from '@/shared/utils/seo';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
@@ -152,6 +153,7 @@ const OutsiderBookingPage = () => {
         return;
       }
 
+      analyticsService.track('purchase', { type: 'package' });
       let description = `You have successfully purchased "${data.customerPackage.packageName}".`;
       
       // Add voucher discount info if applied

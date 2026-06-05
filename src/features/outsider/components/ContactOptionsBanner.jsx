@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WhatsAppOutlined, InstagramOutlined, FacebookOutlined, DownOutlined } from '@ant-design/icons';
+import { analyticsService } from '@/shared/services/analyticsService';
 
 // Instagram handles are proper names — never translated.
 const INSTAGRAM_OPTIONS = [
@@ -14,7 +15,7 @@ const WHATSAPP_OPTION_CONFIG = [
   { key: 'school', href: 'https://wa.me/905071389196' },
 ];
 
-const DropdownButton = ({ icon, label, color, bg, border, options, variant }) => {
+const DropdownButton = ({ icon, label, color, bg, border, options, variant, eventName }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -54,7 +55,10 @@ const DropdownButton = ({ icon, label, color, bg, border, options, variant }) =>
               href={opt.href}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                if (eventName) analyticsService.track(eventName, { href: opt.href, label: opt.label });
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-duotone-regular no-underline transition-colors first:rounded-t-xl last:rounded-b-xl ${
                 variant === 'light'
                   ? 'text-slate-700 hover:bg-slate-50'
@@ -101,6 +105,7 @@ const ContactOptionsBanner = ({ variant = 'dark' }) => {
           border="rgba(37,211,102,0.25)"
           options={whatsappOptions}
           variant={variant}
+          eventName="whatsapp_click"
         />
         <a
           href={FACEBOOK_OPTION.href}

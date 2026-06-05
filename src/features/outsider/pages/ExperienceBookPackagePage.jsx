@@ -23,6 +23,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import PackagePurchaseModal from '../components/PackagePurchaseModal';
+import { analyticsService } from '@/shared/services/analyticsService';
 import AllInclusiveBookingModal from '../components/AllInclusiveBookingModal';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 
@@ -156,6 +157,7 @@ const ExperienceBookPackagePage = () => {
         return;
       }
 
+      analyticsService.track('purchase', { type: 'package' });
       const description = buildSuccessMessage(data, formatCurrency);
       const roleUpgraded = data.roleUpgrade?.upgraded;
       
@@ -292,6 +294,7 @@ const ExperienceBookPackagePage = () => {
         onSuccess={() => {
           setShowIyzicoModal(false);
           setIyzicoPaymentUrl(null);
+          analyticsService.track('purchase', { type: 'package', method: 'card' });
           refetchWallet();
           queryClient.invalidateQueries({ queryKey: ['wallet'] });
           queryClient.invalidateQueries({ queryKey: ['customer-packages'] });
@@ -318,7 +321,7 @@ const ExperienceBookPackagePage = () => {
           {t('outsider:experienceBookPackage.help.description')}
         </Paragraph>
         <div className="flex justify-center gap-4 flex-wrap">
-          <Button icon={<PhoneOutlined />} href="tel:+905071389196">
+          <Button icon={<PhoneOutlined />} href="tel:+905071389196" onClick={() => analyticsService.track('call_click', { source: 'experience_help' })}>
             +90 507 138 91 96
           </Button>
           <Button href="mailto:ukcturkey@gmail.com">

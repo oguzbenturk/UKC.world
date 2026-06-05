@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
+import { analyticsService } from '@/shared/services/analyticsService';
 import dayjs from 'dayjs';
 import {
   Alert,
@@ -1577,6 +1578,7 @@ const QuickBookingModal = ({ open, onClose, packageData, serviceId, durationHour
           ? t('outsider:quickBooking.toasts.inviteSent', { name: partnerData.partnerName || 'Your partner' })
           : t('outsider:quickBooking.toasts.sessionsBooked', { count: successCount })
       );
+      analyticsService.track('purchase', { type: 'lesson', quantity: successCount });
       setStep(2);
     }
 

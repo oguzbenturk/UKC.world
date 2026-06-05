@@ -20,6 +20,7 @@ import {
 import { usePageSEO } from '@/shared/utils/seo';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import StudentBookingWizard from '@/features/students/components/StudentBookingWizard';
+import { analyticsService } from '@/shared/services/analyticsService';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -134,6 +135,7 @@ const StayBookingPage = () => {
             size="large"
             icon={<PhoneOutlined />}
             href="tel:+905071389196"
+            onClick={() => analyticsService.track('call_click', { source: 'stay_hero' })}
           >
             {t('outsider:stayBooking.hero.callReservations')}
           </Button>
@@ -260,7 +262,7 @@ const StayBookingPage = () => {
           {t('outsider:stayBooking.contact.description')}
         </Paragraph>
         <Space size="large">
-          <Button icon={<PhoneOutlined />} href="tel:+905071389196" size="large">
+          <Button icon={<PhoneOutlined />} href="tel:+905071389196" size="large" onClick={() => analyticsService.track('call_click', { source: 'stay_contact' })}>
             +90 507 138 91 96
           </Button>
           <Button icon="📧" href="mailto:ukcturkey@gmail.com" size="large">

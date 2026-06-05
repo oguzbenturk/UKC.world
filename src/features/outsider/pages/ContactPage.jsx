@@ -11,6 +11,7 @@ import {
   DownOutlined,
 } from '@ant-design/icons';
 import { usePageSEO } from '@/shared/utils/seo';
+import { analyticsService } from '@/shared/services/analyticsService';
 
 const ContactDropdown = ({ channel }) => {
   const [open, setOpen] = useState(false);
@@ -53,7 +54,10 @@ const ContactDropdown = ({ channel }) => {
               href={opt.href}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                if (channel.eventName) analyticsService.track(channel.eventName, { href: opt.href, label: opt.label });
+              }}
               className="flex items-center justify-between gap-3 px-4 py-3 text-sm no-underline transition-colors hover:bg-white/10"
             >
               <div>
@@ -91,6 +95,7 @@ const ContactPage = () => {
   const CONTACT_CHANNELS = [
     {
       key: 'whatsapp',
+      eventName: 'whatsapp_click',
       icon: <WhatsAppOutlined className="text-3xl" />,
       label: t('outsider:contact.channels.whatsapp.label'),
       value: t('outsider:contact.channels.whatsapp.value'),
@@ -127,6 +132,7 @@ const ContactPage = () => {
     },
     {
       key: 'phone',
+      eventName: 'call_click',
       icon: <PhoneOutlined className="text-3xl" />,
       label: t('outsider:contact.channels.phone.label'),
       value: t('outsider:contact.channels.phone.value'),
@@ -167,6 +173,7 @@ const ContactPage = () => {
                 href={ch.href}
                 target={ch.key !== 'phone' && ch.key !== 'email' ? '_blank' : undefined}
                 rel="noopener noreferrer"
+                onClick={() => { if (ch.eventName) analyticsService.track(ch.eventName, { href: ch.href }); }}
                 className={`group flex flex-col gap-4 p-6 sm:p-7 rounded-2xl border bg-white/5 backdrop-blur-sm transition-all duration-200 ${ch.bg} no-underline`}
               >
                 <div className={`${ch.color}`}>{ch.icon}</div>

@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { analyticsService } from '@/shared/services/analyticsService';
 import {
   Alert,
   Button,
@@ -170,6 +171,7 @@ const PartnerStep = ({ serviceId, packageData, durationHours, onDone, onBack, ow
     onSuccess: () => {
       setSubmitted(true);
       message.success('Request submitted! We\'ll match you with a partner.');
+      analyticsService.track('lead_submit', { type: 'partner_match' });
     },
     onError: (err) => {
       message.error(err.response?.data?.error || err.message || 'Failed to submit request');

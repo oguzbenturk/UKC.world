@@ -30,6 +30,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
+import { analyticsService } from '@/shared/services/analyticsService';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -322,6 +323,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
         setShowIyzicoModal(true);
         return;
       }
+      analyticsService.track('purchase', { type: 'accommodation', method: paymentMethod });
       msg.success(
         paymentMethod === 'pay_later'
           ? t('outsider:accommodationBooking.toasts.confirmedPayAtCenter')
@@ -845,6 +847,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
         onSuccess={() => {
           setShowIyzicoModal(false);
           setIyzicoPaymentUrl(null);
+          analyticsService.track('purchase', { type: 'accommodation', method: 'card' });
           msg.success(t('outsider:accommodationBooking.toasts.paymentSuccess'));
           queryClient.invalidateQueries({ queryKey: ['accommodation-unit-detail', unit?.id] });
           queryClient.invalidateQueries({ queryKey: ['accommodation'] });
