@@ -16,6 +16,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
 
 const EXPERIENCE_TYPE_LABELS = {
   all_inclusive: 'All Inclusive',
@@ -100,21 +101,36 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
   }, [visible, pkg?.id]);
 
   const fallback = getFallbackImage(disciplineKey);
-  /** Stay bundles: accommodation gallery only (no service/package marketing image). */
+  /**
+   * Gallery order (admin-driven): the image uploaded for the package in admin is the
+   * main/hero photo, followed by the room/accommodation unit photos, then the selected
+   * service photo (lesson, or rental for rental bundles). De-duped + URL-resolved.
+   */
   const displayImages = useMemo(() => {
     if (!activePkg) return [fallback];
+    const rev = imageRevisionFromRecord(activePkg);
+    const resolve = (u) => (u ? resolvePublicUploadUrl(u, rev) : '');
+
+    // 1. Admin-uploaded package cover — the main photo.
+    const pkgCoverUrl = activePkg.imageUrl || activePkg.image_url;
+    // 2. Room / accommodation unit photos.
     const accomCoverUrl = activePkg.accommodationImageUrl || activePkg.accommodation_image_url;
-    const accomCover = accomCoverUrl ? [accomCoverUrl] : [];
     const accomGallery = toImageArray(activePkg.accommodationImages || activePkg.accommodation_images);
-    const accomOnly = [...accomCover, ...accomGallery].filter(Boolean);
-    let list;
-    if (pkgIncludesStay(activePkg)) {
-      list = Array.from(new Set(accomOnly));
-    } else {
-      const pkgCoverUrl = activePkg.imageUrl || activePkg.image_url;
-      const pkgCover = pkgCoverUrl ? [pkgCoverUrl] : [];
-      list = Array.from(new Set([...accomOnly, ...pkgCover].filter(Boolean)));
-    }
+    // 3. Selected service photo(s) — lesson first, then rental for combined bundles.
+    const lessonServiceUrl = activePkg.lessonServiceImageUrl || activePkg.lesson_service_image_url;
+    const rentalServiceUrl = activePkg.rentalServiceImageUrl || activePkg.rental_service_image_url;
+
+    const ordered = [
+      pkgCoverUrl,
+      accomCoverUrl,
+      ...accomGallery,
+      lessonServiceUrl,
+      rentalServiceUrl,
+    ]
+      .map(resolve)
+      .filter(Boolean);
+
+    const list = Array.from(new Set(ordered));
     return list.length > 0 ? list : [fallback];
   }, [activePkg, fallback]);
 
@@ -169,6 +185,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
       animationKey={activePkg.id}
       ariaLabelledBy="experience-detail-modal-title"
       maxWidthClass="max-w-[1040px]"
+      escEnabled={!previewVisible}
     >
       <div className="flex flex-col lg:flex-row min-h-0 w-full">
           {/* ── LEFT: Gallery + Details (same sections as before; chrome matches package modal) ── */}

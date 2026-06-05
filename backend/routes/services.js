@@ -266,7 +266,9 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
         ls.max_participants as linked_max_participants,
         ls.includes as linked_includes,
         ls.level as linked_service_level,
+        ls.image_url as linked_lesson_service_image_url,
         rs.name as linked_rental_service_name,
+        rs.image_url as linked_rental_service_image_url,
         au.name as linked_accommodation_unit_name,
         au.type as linked_accommodation_unit_type,
         au.category as linked_accommodation_unit_category,
@@ -275,7 +277,19 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
       FROM service_packages p
       LEFT JOIN services ls ON ls.id = p.lesson_service_id
       LEFT JOIN services rs ON rs.id = p.rental_service_id
-      LEFT JOIN accommodation_units au ON au.id = p.accommodation_unit_id
+      -- Resolve the linked unit by id, but fall back to a name match when the
+      -- package only stored accommodation_unit_name (older packages have a NULL
+      -- accommodation_unit_id). LATERAL + LIMIT 1 avoids duplicate package rows.
+      LEFT JOIN LATERAL (
+        SELECT u.*
+        FROM accommodation_units u
+        WHERE (p.accommodation_unit_id IS NOT NULL AND u.id = p.accommodation_unit_id)
+           OR (p.accommodation_unit_id IS NULL
+               AND p.accommodation_unit_name IS NOT NULL
+               AND lower(u.name) = lower(p.accommodation_unit_name))
+        ORDER BY (u.id = p.accommodation_unit_id) DESC NULLS LAST
+        LIMIT 1
+      ) au ON true
       WHERE (
         p.includes_lessons = true
         OR p.includes_rental = true
@@ -316,6 +330,8 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
       const accommodationUnitCategory = row.linked_accommodation_unit_category || null;
       const accommodationImageUrl = row.linked_accommodation_image_url || null;
       const accommodationImages = row.linked_accommodation_images || [];
+      const lessonServiceImageUrl = row.linked_lesson_service_image_url || null;
+      const rentalServiceImageUrl = row.linked_rental_service_image_url || null;
 
       return {
         id: row.id,
@@ -348,6 +364,8 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
         accommodationUnitCategory,
         accommodationImageUrl,
         accommodationImages,
+        lessonServiceImageUrl,
+        rentalServiceImageUrl,
         rentalServiceName,
         // Event-specific fields
         eventStartDate: row.event_start_date || null,

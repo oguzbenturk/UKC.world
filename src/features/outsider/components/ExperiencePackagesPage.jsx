@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Tag, Segmented } from 'antd';
-import { RocketOutlined, CalendarOutlined } from '@ant-design/icons';
+import { CalendarOutlined } from '@ant-design/icons';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import AcademyLessonPackageCard from './AcademyLessonPackageCard';
 import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
@@ -518,18 +518,6 @@ const ExperiencePackagesPage = ({
           </p>
 
           <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
-            <Button
-              type="primary"
-              icon={<RocketOutlined />}
-              className="!h-12 !px-8 !text-base font-duotone-bold !rounded-md shadow-lg transition-all duration-150 hover:scale-[1.02] active:scale-95"
-              style={{ background: '#4b4f54', color: '#00a8c4', border: '1px solid rgba(0,168,196,0.5)', boxShadow: '0 0 12px rgba(0,168,196,0.2)' }}
-              onClick={() => {
-                if (!requireAuthForPurchase()) return;
-                navigate('/experience/book-package');
-              }}
-            >
-              Buy Package
-            </Button>
             <Button
               icon={<CalendarOutlined />}
               className="!h-12 !px-8 !text-base font-duotone-bold !rounded-md !border-slate-300 !text-slate-700"

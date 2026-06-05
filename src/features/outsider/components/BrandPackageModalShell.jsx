@@ -16,6 +16,13 @@ export default function BrandPackageModalShell({
   ariaLabelledBy,
   maxWidthClass = 'max-w-[900px]',
   maxHeightClass = 'max-h-[min(90dvh,90vh)]',
+  /**
+   * When false, the shell ignores Escape. Used by modals that host an antd
+   * Image lightbox (rendered to document.body): a native keydown on Escape would
+   * otherwise close the lightbox AND this shell in one keystroke, since rc-dialog's
+   * synthetic stopPropagation does not stop the native event reaching our listener.
+   */
+  escEnabled = true,
   children,
 }) {
   const panelRef = useRef(null);
@@ -60,13 +67,13 @@ export default function BrandPackageModalShell({
   }, [shouldRender]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || !escEnabled) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, escEnabled]);
 
   useEffect(() => {
     if (open && paintOpen && panelRef.current) {
