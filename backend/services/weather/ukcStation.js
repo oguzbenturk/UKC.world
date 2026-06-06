@@ -7,14 +7,16 @@ import { getCached, setCached } from './cache.js';
  *
  * Unlike windguruScraper.js (which scrapes the public *forecast*), this hits the
  * Windguru Station API `station_data_current` for the station UKC owns, returning
- * the real-time measured wind/temp. The read-only password only grants access to
- * current data (station_info is blocked), so exposing it is low-risk — but we proxy
- * it through the backend anyway to keep it out of client code and to cache it.
+ * the real-time measured wind/temp. We proxy it through the backend to keep the
+ * station credential out of client code and to cache responses.
  *
- * Override the station via env: UKC_WINDGURU_STATION_ID / UKC_WINDGURU_STATION_PASSWORD.
+ * The station password is a SECRET and must be supplied via the environment —
+ * never hardcode it (it ends up in git history). Set:
+ *   UKC_WINDGURU_STATION_ID       (the station id, e.g. 539 — not secret)
+ *   UKC_WINDGURU_STATION_PASSWORD (the station read password — secret, required)
  */
 const STATION_ID = process.env.UKC_WINDGURU_STATION_ID || '539';
-const STATION_PASSWORD = process.env.UKC_WINDGURU_STATION_PASSWORD || 'urlakite';
+const STATION_PASSWORD = process.env.UKC_WINDGURU_STATION_PASSWORD;
 const CACHE_KEY = `windguru:station:${STATION_ID}:current`;
 const TTL_MS = 5 * 60 * 1000; // station updates ~every few minutes; 5-min cache is plenty
 
@@ -46,6 +48,13 @@ const windState = (kts) => {
 let inflight = null;
 
 const fetchFromWindguru = async () => {
+  if (!STATION_PASSWORD) {
+    throw new Error(
+      'UKC_WINDGURU_STATION_PASSWORD is not set — the live wind station cannot be queried. ' +
+        'Set it in the backend environment.'
+    );
+  }
+
   const url =
     `https://www.windguru.cz/int/wgsapi.php?id_station=${encodeURIComponent(STATION_ID)}` +
     `&password=${encodeURIComponent(STATION_PASSWORD)}&q=station_data_current`;
