@@ -204,9 +204,9 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
       maxWidthClass="max-w-[1040px]"
       escEnabled={!previewVisible}
     >
-      <div className="flex flex-col lg:flex-row min-h-0 w-full">
+      <div className="flex flex-col lg:flex-row lg:min-h-0 w-full">
         {/* ── LEFT: Gallery + Details ── */}
-        <div className="lg:w-[55%] bg-slate-50 flex flex-col min-h-0 pkg-modal-scroll">
+        <div className="lg:w-[55%] bg-slate-50 flex flex-col lg:min-h-0 pkg-modal-scroll">
 
           {/* Photo Gallery */}
           <div className="relative shrink-0 aspect-[5/4] max-h-[22rem] sm:max-h-[24rem] overflow-hidden bg-slate-100">
@@ -391,7 +391,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
         </div>
 
         {/* ── RIGHT: Booking Rail ── */}
-        <div className="lg:w-[45%] bg-white border-t border-slate-100 lg:border-t-0 lg:border-l lg:border-slate-100 p-5 sm:p-6 lg:p-8 flex flex-col min-h-0 pkg-modal-scroll">
+        <div className="lg:w-[45%] bg-white border-t border-slate-100 lg:border-t-0 lg:border-l lg:border-slate-100 p-5 sm:p-6 lg:p-8 flex flex-col lg:min-h-0 pkg-modal-scroll">
           <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-slate-900 mb-5 flex items-center gap-2">
             <ClockCircleOutlined style={{ color: ACCENT }} /> Choose your stay
           </h3>

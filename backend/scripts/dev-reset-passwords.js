@@ -31,6 +31,7 @@ const ACCOUNTS = [
   'sashaantonioli@plannivo.com',
   'siyabendsanli@plannivo.com',
   'ufukgurbuz@plannivo.com',
+  'zeynepmelekerenn@gmail.com',
 ].map(email => ({ email, password: DEV_PASSWORD }));
 
 console.log('Resetting dev passwords...\n');

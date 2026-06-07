@@ -28,6 +28,7 @@ import {
   revokeFamily,
   revokeByRawToken
 } from '../services/refreshTokenService.js';
+import { getSessionRevokedAfter } from '../services/sessionService.js';
 
 const router = express.Router();
 
@@ -319,6 +320,21 @@ export const authenticateJWT = async (req, res, next) => {
       if (isBlacklisted) {
         return res.status(401).json({
           error: 'Token has been revoked. Please log in again.',
+          code: ERROR_CODES.AUTH_TOKEN_REVOKED,
+        });
+      }
+    }
+
+    // Force re-auth when the user's role/permissions changed mid-session. The role is
+    // baked into this token at login; if an admin changed it since, a marker makes us
+    // reject the stale token so the client re-authenticates (the refresh-token flow
+    // mints a token with the new role, or the user logs in again). Without this, the
+    // old role lingers in the token and instructor/role-gated routes return 403.
+    if (verified.id && verified.iat) {
+      const revokedAfter = await getSessionRevokedAfter(verified.id);
+      if (revokedAfter && verified.iat < revokedAfter) {
+        return res.status(401).json({
+          error: 'Your access level changed. Please sign in again.',
           code: ERROR_CODES.AUTH_TOKEN_REVOKED,
         });
       }

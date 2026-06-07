@@ -406,6 +406,20 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
       }
       balance = Math.round(totalEur * 100) / 100;
 
+      // No-wallet legacy debt: pre-wallet customers imported from the old app keep
+      // their unpaid balance ONLY in users.balance (negative, no wallet rows, no ledger
+      // — see backend/scripts/import_customers_to_prod.mjs). Surface it for STAFF so the
+      // admin drawer matches the admin Customers list (both now show the real debt). We
+      // scope this to staff so the customer's own view is untouched: their profile
+      // already overrides display with the wallet sum (StudentProfile), so F15 keeps the
+      // customer page at wallet-truth (€0). A customer WITH any wallet row always trusts
+      // the wallet sum (which may legitimately be 0), never users.balance, so a stale
+      // mirror is never resurfaced — only a genuinely wallet-less account uses this path.
+      const isStaffViewer = ['admin', 'manager', 'receptionist'].includes(req.user?.role);
+      if (walletRows.length === 0 && isStaffViewer) {
+        balance = Math.round(parseFloat(account.db_balance || 0) * 100) / 100;
+      }
+
       // Fetch EUR wallet summary for ancillary fields (totalSpent, timestamps).
       // Override `available` with the aggregate total so the wallet response object
       // reflects the correct multi-currency balance.
@@ -422,14 +436,14 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
         }
       }
 
-      // F15: do NOT fall back to legacy users.balance. The student portal reads
-      // the wallet (showing €0 when there are no wallet rows), so falling back
-      // here made the admin show a legacy debt (e.g. −€1191) that the customer's
-      // own page showed as €0 — a direct contradiction on the same account. Admin
-      // now reads the same wallet truth as the student. Genuine pre-wallet debt
-      // must be MIGRATED into the wallet ledger as an opening-balance transaction
-      // (see the F15 audit) so it shows consistently on BOTH surfaces, rather than
-      // only on admin via this legacy column.
+      // F15 (revised 2026-06-07): legacy users.balance is no longer hidden
+      // unconditionally. STAFF viewing a wallet-less customer now see the real
+      // imported debt (handled just above) so the admin drawer matches the admin
+      // Customers list. The customer's OWN surfaces still read wallet-truth
+      // (StudentProfile overrides display with the wallet sum), so they see €0 with
+      // no on-page contradiction. The fully-consistent end state remains MIGRATING
+      // these debts into the wallet ledger as opening-balance transactions; until
+      // then this staff-only fallback keeps admin views honest about who owes money.
     } catch (aggErr) {
       logger.error('Error aggregating wallet balances:', { userId: id, error: aggErr?.message });
       // Fallback: single-currency query for EUR

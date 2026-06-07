@@ -11,6 +11,7 @@ import { sanitizeUser } from '../utils/sanitizeUser.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { sendVerificationEmail } from '../services/emailVerificationService.js';
+import { invalidateUserSessions } from '../services/sessionService.js';
 
 // Any user create/update must bust the /students and /for-booking caches so
 // freshly-added customers show up in booking/rental search immediately.
@@ -314,10 +315,19 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     const currentUserId = req.user?.id; // The authenticated user
 
     // Base filters: students, outsiders, trusted_customers, exclude soft-deleted users
-    // balanceColumn mirrors the CASE expression in the SELECT so WHERE filters stay consistent.
-    // wb_eur = EUR wallet (most customers); wb_pref = non-EUR wallet (converted to EUR in SELECT).
-    // For WHERE-clause filtering, using the EUR wallet + legacy u.balance fallback is sufficient.
-    const balanceColumn = 'COALESCE(wb_eur.available_amount, u.balance, 0)';
+    // balanceColumn MUST be byte-identical to the SELECT balance expression so the
+    // sign / payment-status WHERE filters match the value shown in the column.
+    // Primary source = wbal.bal_eur (LATERAL sum of EVERY wallet row → EUR, same math
+    // as GET /finances/accounts/:id, so wallet customers match the drawer). wbal.bal_eur
+    // is NULL *only* when the customer has NO wallet rows at all (SUM over zero rows),
+    // and 0 when a wallet exists but nets to zero — so plain COALESCE falls back to
+    // legacy users.balance ONLY for pre-wallet customers (their imported debt lives
+    // solely in users.balance). A customer WITH a wallet — even a €0 one — trusts the
+    // wallet and ignores users.balance, which can be a stale mirror (walletService's
+    // mirrorLegacyBalance) e.g. Deniz/Tan showed a stale 35 while the wallet is 0.
+    // Do NOT wrap bal_eur in NULLIF(...,0): that would conflate "wallet nets to 0"
+    // with "no wallet" and resurrect the stale users.balance.
+    const balanceColumn = 'COALESCE(wbal.bal_eur, u.balance, 0)';
     const whereClauses = ["r.name IN ('student', 'outsider', 'trusted_customer')", "u.deleted_at IS NULL"];
     const params = [];
 
@@ -376,8 +386,10 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
 
     const currencyParamIndex = params.length + 1;
 
-    // Compose SQL - join wallet_balances on user's preferred_currency, then convert to EUR
-    // for consistent display. Falls back to u.balance (legacy mirror, should be EUR).
+    // Compose SQL - balance = sum of EVERY wallet_balances row converted to EUR
+    // (wbal LATERAL, same math as GET /finances/accounts/:id so wallet customers match
+    // the customer drawer), falling back to legacy users.balance only for pre-wallet
+    // customers whose imported debt lives solely in users.balance (no wallet rows).
     const sql = `
       SELECT 
         u.id,
@@ -385,33 +397,37 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
         u.email,
         u.phone,
         r.name AS role,
-        CASE
-          -- Non-EUR wallet (non-zero): convert to EUR + add any EUR wallet balance.
-          -- This handles multi-currency scenarios where admin deposited EUR while the
-          -- customer's preferred wallet is a different currency (e.g. TRY).
-          WHEN wb_pref.available_amount IS NOT NULL AND wb_pref.available_amount != 0
-               AND cs.exchange_rate IS NOT NULL AND cs.exchange_rate > 0
-            THEN ROUND((wb_pref.available_amount / cs.exchange_rate + COALESCE(wb_eur.available_amount, 0))::numeric, 2)
-          -- EUR wallet only (non-zero): use directly
-          WHEN wb_eur.available_amount IS NOT NULL AND wb_eur.available_amount != 0
-            THEN wb_eur.available_amount
-          -- No wallet or all-zero wallets: fall back to legacy u.balance
-          -- (u.balance can be negative for pre-wallet customers who owe money)
-          ELSE COALESCE(u.balance, 0)
-        END AS balance,
+        -- Primary = sum of every wallet row → EUR (wbal LATERAL below), identical to
+        -- the drawer's GET /finances/accounts/:id so wallet customers match exactly.
+        -- bal_eur is NULL only when there are NO wallet rows; it is 0 when a wallet
+        -- exists but nets to zero. So plain COALESCE uses legacy users.balance ONLY for
+        -- pre-wallet customers (imported debt with no wallet rows), while a customer who
+        -- HAS a wallet — even a €0 one — trusts the wallet and ignores the (possibly
+        -- stale) users.balance mirror. No NULLIF: a €0 wallet must NOT fall through.
+        ROUND(COALESCE(wbal.bal_eur, u.balance, 0)::numeric, 2) AS balance,
         COALESCE(u.preferred_currency, $${currencyParamIndex}) AS preferred_currency,
         u.created_at,
         COALESCE(pb.pending_count, 0)::int AS pending_count
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      LEFT JOIN wallet_balances wb_eur
-        ON wb_eur.user_id = u.id AND wb_eur.currency = 'EUR'
-      LEFT JOIN wallet_balances wb_pref
-        ON wb_pref.user_id = u.id
-       AND wb_pref.currency = COALESCE(u.preferred_currency, 'EUR')
-       AND COALESCE(u.preferred_currency, 'EUR') != 'EUR'
-      LEFT JOIN currency_settings cs
-        ON cs.currency_code = wb_pref.currency
+      LEFT JOIN LATERAL (
+        -- Sum EVERY wallet row converted to EUR — identical math to the
+        -- aggregate in GET /finances/accounts/:id (the drawer's source).
+        -- Missing exchange rate falls back to 1:1 so a balance is never
+        -- silently dropped. Returns NULL when the customer has no wallet rows,
+        -- which lets the SELECT/WHERE defer to legacy users.balance.
+        SELECT SUM(
+          CASE
+            WHEN wb.currency = 'EUR' THEN wb.available_amount
+            WHEN cs.exchange_rate IS NOT NULL AND cs.exchange_rate > 0
+              THEN wb.available_amount / cs.exchange_rate
+            ELSE wb.available_amount
+          END
+        ) AS bal_eur
+        FROM wallet_balances wb
+        LEFT JOIN currency_settings cs ON cs.currency_code = wb.currency
+        WHERE wb.user_id = u.id
+      ) wbal ON true
       LEFT JOIN (
         SELECT b.student_user_id AS uid, COUNT(*)::int AS pending_count
         FROM bookings b
@@ -694,7 +710,14 @@ router.put('/:id', authenticateJWT, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
 
     const updatedUser = rows[0];
-    
+
+    // If the role changed, invalidate the target user's existing sessions so their
+    // stale access token (which still encodes the OLD role) can't keep hitting
+    // role-gated routes with 403. Forces a clean re-auth into the new role.
+    if (updateData.role_id && updateData.role_id !== currentUserData.role_id) {
+      await invalidateUserSessions(req.params.id, { reason: 'role_change' });
+    }
+
     // Broadcast real-time event for user update, especially important for instructors
     if (req.socketService) {
       try {
@@ -1481,7 +1504,14 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
     );
     
     const updatedUser = updateResult.rows[0];
-    
+
+    // Role changed → invalidate the user's existing sessions so their stale access
+    // token (still encoding the OLD role) can't keep hitting role-gated routes with
+    // 403. Forces a clean re-auth into the new role.
+    if (targetRoleId !== currentUser.role_id) {
+      await invalidateUserSessions(id, { reason: 'role_promote' });
+    }
+
     // Broadcast real-time event for role change
     if (req.socketService) {
       try {

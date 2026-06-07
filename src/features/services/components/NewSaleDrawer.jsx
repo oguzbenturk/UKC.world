@@ -469,7 +469,10 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           placeholder="Search and add products..."
           showSearch
           size="large"
-          optionFilterProp="children"
+          filterOption={(input, option) => {
+            const q = (input || '').toLowerCase();
+            return (option?.searchText || '').toLowerCase().includes(q);
+          }}
           className="w-full mb-3"
           value={null}
           loading={loadingProducts}
@@ -479,7 +482,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           notFoundContent={loadingProducts ? <Spin size="small" /> : 'No products found'}
         >
           {products.filter(p => p.stock_quantity > 0).map(p => (
-            <Select.Option key={p.id} value={p.id}>
+            <Select.Option key={p.id} value={p.id} searchText={`${p.name || ''} ${p.brand || ''} ${p.sku || ''}`}>
               <div className="flex items-center gap-2">
                 {p.image_url ? (
                   <Avatar src={p.image_url} shape="square" size={24} className="!rounded shrink-0" />

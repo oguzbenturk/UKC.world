@@ -187,9 +187,9 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
       maxWidthClass="max-w-[1040px]"
       escEnabled={!previewVisible}
     >
-      <div className="flex flex-col lg:flex-row min-h-0 w-full">
+      <div className="flex flex-col lg:flex-row lg:min-h-0 w-full">
           {/* ── LEFT: Gallery + Details (same sections as before; chrome matches package modal) ── */}
-          <div className="lg:w-[60%] bg-slate-50 flex flex-col min-h-0 pkg-modal-scroll">
+          <div className="lg:w-[60%] bg-slate-50 flex flex-col lg:min-h-0 pkg-modal-scroll">
 
             {/* Photo gallery */}
             <div className="relative shrink-0 aspect-[5/4] max-h-[22rem] sm:max-h-[24rem] lg:max-h-[26rem] overflow-hidden">
@@ -422,7 +422,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
           </div>
 
           {/* ── RIGHT: Booking Panel ── */}
-          <div className="lg:w-[40%] bg-white border-t border-slate-100 lg:border-t-0 lg:border-l lg:border-slate-100 p-5 sm:p-6 lg:p-8 flex flex-col min-h-0 pkg-modal-scroll">
+          <div className="lg:w-[40%] bg-white border-t border-slate-100 lg:border-t-0 lg:border-l lg:border-slate-100 p-5 sm:p-6 lg:p-8 flex flex-col lg:min-h-0 pkg-modal-scroll">
             <h3 className="text-lg sm:text-xl font-duotone-bold-extended text-slate-900 mb-4 flex items-center gap-2">
               <RocketOutlined className="text-[#00a8c4]" /> Package Details
             </h3>

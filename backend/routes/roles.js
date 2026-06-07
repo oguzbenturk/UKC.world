@@ -4,6 +4,7 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles, invalidateRolePermissionsCache } from '../middlewares/authorize.js';
 import permissionService from '../services/permissionService.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
+import { invalidateUserSessions } from '../services/sessionService.js';
 
 const router = express.Router();
 
@@ -159,6 +160,11 @@ router.patch('/:id/assign', authenticateJWT, authorizeRoles(['admin']), async (r
       'UPDATE users SET role_id = $1, updated_at = NOW() WHERE id = $2 RETURNING id, role_id',
       [req.params.id, user_id]
     );
+
+    // New role → invalidate the user's existing sessions so their stale access token
+    // (still encoding the OLD role) can't keep hitting role-gated routes with 403.
+    await invalidateUserSessions(user_id, { reason: 'role_assign' });
+
     res.json({ message: 'Role assigned', user: upd.rows[0], role: roleRes.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to assign role', details: err.message });
