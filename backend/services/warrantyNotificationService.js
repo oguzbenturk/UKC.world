@@ -2,6 +2,7 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { sendEmail } from './emailService.js';
 import { dispatchNotification } from './notificationDispatcherUnified.js';
+import * as warrantyService from './warrantyService.js';
 import { buildWarrantyClaimSubmittedEmail } from './emailTemplates/warrantyClaimSubmitted.js';
 import {
   buildWarrantyStatusChangeEmail,
@@ -9,6 +10,7 @@ import {
 } from './emailTemplates/warrantyStatusChange.js';
 import { buildWarrantyStaffLinkEmail } from './emailTemplates/warrantyStaffLink.js';
 import { buildWarrantyClaimClosedEmail } from './emailTemplates/warrantyClaimClosed.js';
+import { buildWarrantyActivityDigestEmail } from './emailTemplates/warrantyActivityDigest.js';
 
 // Customer-facing emails — claimant is NOT a registered user, so we go
 // straight through sendEmail and force skipConsentCheck. These are all
@@ -197,6 +199,125 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
+// ─── Activity digest (assigned staff + admins) ───────────────────────────────
+//
+// Every claim change (status, note, media, manufacturer claim number, staff
+// assignment…) queues a digest for the claim. Changes within a short debounce
+// window are bundled into ONE email per recipient — a customer who uploads a
+// video and writes an explanation in one sitting produces a single notification,
+// not three. Recipients never get their own actions back.
+//
+// Robustness: the watermark (warranty_claims.last_activity_notified_at) is the
+// source of truth for "what has been emailed". The in-memory timer is only a
+// scheduler — if the process restarts and a timer is lost, the next activity's
+// flush still picks up the un-watermarked events. Worst case is a delayed
+// internal email, never a lost customer-facing one (those are separate).
+
+const DIGEST_DEBOUNCE_MS = Number(process.env.WARRANTY_DIGEST_DEBOUNCE_MS) || 180_000; // 3 min
+const _digestTimers = new Map(); // claimId -> NodeJS.Timeout
+
+export function queueClaimActivityDigest(claimId) {
+  if (!claimId) return;
+  const existing = _digestTimers.get(claimId);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    _digestTimers.delete(claimId);
+    flushClaimActivityDigest(claimId).catch((err) =>
+      logger.error('Warranty: activity digest flush failed', { claimId, error: err.message })
+    );
+  }, DIGEST_DEBOUNCE_MS);
+  // Don't keep the event loop alive solely for a pending digest.
+  if (typeof timer.unref === 'function') timer.unref();
+  _digestTimers.set(claimId, timer);
+}
+
+function recipientAuthored(event, recipient) {
+  if (recipient.staffLinkId && event.actor_staff_link_id === recipient.staffLinkId) return true;
+  if (recipient.userId && event.actor_user_id === recipient.userId) return true;
+  return false;
+}
+
+function digestSummaryLine(events) {
+  const n = events.length;
+  if (n === 1) {
+    const e = events[0];
+    if (e.event_type === 'status_change') return `Status: ${e.metadata?.from || ''} → ${e.metadata?.to || ''}`;
+    if (e.event_type === 'note') return 'New note added';
+    if (e.event_type === 'media_added') return 'New file uploaded';
+    if (e.event_type === 'claim_number_set') return 'Manufacturer claim # recorded';
+    return 'Case updated';
+  }
+  return `${n} updates on this case`;
+}
+
+export async function flushClaimActivityDigest(claimId) {
+  const data = await warrantyService.getActivityForDigest(claimId);
+  if (!data || !data.claim) return { sent: 0 };
+  const { claim, events, latestTs } = data;
+  if (!events.length) return { sent: 0 };
+
+  // Don't notify about deleted claims.
+  if (claim.deleted_at) {
+    await warrantyService.markActivityNotified(claimId, latestTs);
+    return { sent: 0 };
+  }
+
+  const recipients = await warrantyService.listClaimRecipients(claimId);
+  if (!recipients.length) {
+    await warrantyService.markActivityNotified(claimId, latestTs);
+    return { sent: 0 };
+  }
+
+  let sent = 0;
+  for (const recipient of recipients) {
+    if (!recipient.email) continue;
+    // Exclude the recipient's own actions — you don't get emailed about what you did.
+    const relevant = events.filter((event) => !recipientAuthored(event, recipient));
+    if (!relevant.length) continue;
+
+    try {
+      const { subject, html, text } = buildWarrantyActivityDigestEmail({ claim, events: relevant, recipient });
+      await sendEmail({
+        to: recipient.email,
+        subject,
+        html,
+        text,
+        userId: recipient.userId || null,
+        notificationType: 'warranty_claim_activity',
+        skipConsentCheck: true
+      });
+      sent += 1;
+    } catch (err) {
+      logger.warn('Warranty: activity digest email failed', {
+        claimId, email: recipient.email, error: err.message
+      });
+    }
+
+    // Internal users also get an in-app (and, where enabled, Telegram) ping.
+    if (recipient.userId) {
+      dispatchNotification({
+        userId: recipient.userId,
+        type: 'warranty_claim_activity',
+        title: `Warranty update · ${claim.product_name}`,
+        message: digestSummaryLine(relevant),
+        data: {
+          claimId: claim.id,
+          cta: { label: 'Open claim', href: `/admin/warranty/${claim.id}` }
+        },
+        idempotencyKey: `warranty:${claim.id}:activity:${latestTs}:${recipient.userId}`,
+        checkPreference: false
+      }).catch((err) =>
+        logger.warn('Warranty: activity in-app dispatch failed', {
+          userId: recipient.userId, error: err.message
+        })
+      );
+    }
+  }
+
+  await warrantyService.markActivityNotified(claimId, latestTs);
+  return { sent };
+}
+
 export default {
   notifyClaimSubmittedToCustomer,
   resendCustomerLink,
@@ -204,5 +325,7 @@ export default {
   notifyClaimClosedToCustomer,
   notifyCustomerUpdate,
   notifyStaffLinkSent,
-  notifyClaimSubmittedToAdmins
+  notifyClaimSubmittedToAdmins,
+  queueClaimActivityDigest,
+  flushClaimActivityDigest
 };

@@ -234,6 +234,9 @@ router.patch(
       audit('status_change', req.params.id, req, {
         from: result.previous, to: result.next, note: req.body.note || null
       });
+      // Customer gets the status email; assigned staff + admins get the bundled
+      // activity digest (excluding the admin who made this change).
+      notify.queueClaimActivityDigest(req.params.id);
       notify.notifyStatusChangeToCustomer(result.claim, {
         previous: result.previous,
         next: result.next,
@@ -267,6 +270,7 @@ router.post(
       audit('note_added', req.params.id, req, {
         visible_to_customer: Boolean(req.body.visible_to_customer)
       });
+      notify.queueClaimActivityDigest(req.params.id);
       return res.status(201).json(event);
     } catch (err) {
       return res.status(err.statusCode || 500).json({ error: err.message });
@@ -286,6 +290,7 @@ router.post(
         actorUserId: req.user.id
       });
       audit('customer_update_sent', req.params.id, req);
+      notify.queueClaimActivityDigest(req.params.id);
       notify.notifyCustomerUpdate(claim, { body: req.body.body }).catch((err) =>
         logger.warn('Warranty: customer update email failed', { error: err.message })
       );
@@ -320,6 +325,7 @@ router.post(
     try {
       const claim = await warrantyService.closeClaim(req.params.id, { actorUserId: req.user.id });
       audit('claim_closed', req.params.id, req);
+      notify.queueClaimActivityDigest(req.params.id);
       notify.notifyClaimClosedToCustomer(claim).catch((err) =>
         logger.warn('Warranty: closed email failed', { error: err.message })
       );
@@ -363,10 +369,62 @@ router.delete(
       audit('media_deleted', req.params.id, req, {
         media_id: removed.id, kind: removed.kind, original_name: removed.original_name
       });
+      notify.queueClaimActivityDigest(req.params.id);
       return res.status(204).end();
     } catch (err) {
       return res.status(err.statusCode || 500).json({ error: err.message });
     }
+  }
+);
+
+// ─── Manufacturer claim number (admin override) ──────────────────────────────
+//
+// Admins can set or correct the manufacturer claim number even when a staff
+// member set it first (the staff portal locks it to whoever entered it). This
+// reassigns ownership to the admin and locks staff out until an admin changes
+// it again. The override is recorded in the timeline.
+
+router.patch(
+  '/:id/claim-number',
+  param('id').isUUID(),
+  [body('claim_number_external').isString().trim().isLength({ min: 1, max: 120 })],
+  async (req, res) => {
+    if (sendValidationErrors(req, res)) return;
+    try {
+      const result = await warrantyService.setAdminClaimNumber(req.params.id, {
+        claimNumberExternal: req.body.claim_number_external,
+        actorUserId: req.user.id
+      });
+      audit('claim_number_set', req.params.id, req, {
+        claim_number_external: req.body.claim_number_external.trim(),
+        overrode: result.overrode
+      });
+      notify.queueClaimActivityDigest(req.params.id);
+      return res.json(result.claim);
+    } catch (err) {
+      return res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  }
+);
+
+// ─── Media ZIP export ─────────────────────────────────────────────────────────
+//
+// Streams every photo/video on the claim as a single ZIP, foldered by uploader
+// (Customer/ vs Team/) with a manifest.csv preserving the exact role + name.
+
+router.get(
+  '/:id/media/archive',
+  param('id').isUUID(),
+  async (req, res) => {
+    if (sendValidationErrors(req, res)) return;
+    const claim = await warrantyService.getClaimById(req.params.id);
+    if (!claim) return res.status(404).json({ error: 'Warranty claim not found' });
+    const mediaItems = await warrantyService.listClaimMedia(claim.id);
+    if (!mediaItems.length) {
+      return res.status(404).json({ error: 'No media to download' });
+    }
+    audit('media_archive_downloaded', req.params.id, req, { count: mediaItems.length });
+    return media.streamClaimMediaArchive(res, { claim, media: mediaItems });
   }
 );
 
@@ -391,6 +449,9 @@ router.post(
       });
       const claim = await warrantyService.getClaimById(req.params.id);
       audit('staff_link_created', req.params.id, req, { staff_link_id: link.id });
+      // Tell existing staff + admins a new member joined; the invitee gets their
+      // own portal link via notifyStaffLinkSent.
+      notify.queueClaimActivityDigest(req.params.id);
       notify.notifyStaffLinkSent(claim, link).catch((err) =>
         logger.warn('Warranty: staff invite email failed', { error: err.message })
       );
@@ -411,6 +472,7 @@ router.delete(
         actorUserId: req.user.id
       });
       audit('staff_link_revoked', req.params.id, req, { staff_link_id: link.id });
+      notify.queueClaimActivityDigest(req.params.id);
       return res.status(204).end();
     } catch (err) {
       return res.status(err.statusCode || 500).json({ error: err.message });

@@ -15,6 +15,7 @@ import CurrencyService from '../services/currencyService.js';
 import { addTag } from '../services/userTagService.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
+import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 
 const router = express.Router();
 
@@ -163,9 +164,14 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       receipt_url
     } = req.body;
 
-    // Allow admin/manager to create orders on behalf of a customer
-    const isAdmin = ['admin', 'manager', 'super_admin', 'owner'].includes(req.user.role);
-    if (overrideUserId && isAdmin) {
+    // Front-desk staff (admin/manager/owner/super_admin + front_desk/receptionist)
+    // may create an order on behalf of a customer AND let that customer's wallet go
+    // negative — same rule as bookings/rentals/accommodation. Backdating stays
+    // admin-level only (see canBackdate below), so receptionists can sell but not
+    // rewrite order history.
+    const isStaffSeller = isStaffNegativeBalanceRole(req.user.role);
+    const canBackdate = ['admin', 'manager', 'super_admin', 'owner'].includes(req.user.role);
+    if (overrideUserId && isStaffSeller) {
       userId = overrideUserId;
     }
 
@@ -177,8 +183,8 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
     const buyerRole = buyerRoleRows[0]?.role_name || null;
     const buyerIsTrusted = buyerRole === 'trusted_customer';
 
-    // allowNegativeBalance: admin override OR buyer is trusted_customer
-    const canGoNegative = (allowNegativeBalance === true && isAdmin) || buyerIsTrusted;
+    // allowNegativeBalance: staff seller override OR buyer is trusted_customer
+    const canGoNegative = (allowNegativeBalance === true && isStaffSeller) || buyerIsTrusted;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Order must contain at least one item' });
@@ -379,8 +385,8 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       ? { totalDeductedEUR: hybridWalletDeducted, plan: walletDeductionPlan }
       : null;
 
-    // Allow admin/manager to backdate orders
-    const orderCreatedAt = (isAdmin && overrideCreatedAt) ? new Date(overrideCreatedAt) : new Date();
+    // Allow admin/manager to backdate orders (not receptionists)
+    const orderCreatedAt = (canBackdate && overrideCreatedAt) ? new Date(overrideCreatedAt) : new Date();
 
     // Deposit fields
     const depositPct = parseInt(deposit_percent, 10) || 0;

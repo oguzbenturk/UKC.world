@@ -186,12 +186,15 @@ router.get(
         closed_at: claim.closed_at
       },
       events,
+      // uploaded_by_kind lets the customer gallery group "Your uploads" vs
+      // "From the UKC team" — uploader name is intentionally withheld here.
       media: mediaItems.map((m) => ({
         id: m.id,
         kind: m.kind,
         original_name: m.original_name,
         size_bytes: m.size_bytes,
         mime_type: m.mime_type,
+        uploaded_by_kind: m.uploaded_by_kind,
         created_at: m.created_at
       }))
     });
@@ -269,9 +272,27 @@ router.get(
         original_name: m.original_name,
         size_bytes: m.size_bytes,
         mime_type: m.mime_type,
+        uploaded_by_kind: m.uploaded_by_kind,
+        uploader_name: m.uploader_name,
         created_at: m.created_at
       }))
     });
+  }
+);
+
+// Defined BEFORE /staff/:code/media/:mediaId so the literal "archive" segment
+// is not captured by the :mediaId param.
+router.get(
+  '/staff/:code/media/archive',
+  warrantyLookupRateLimit,
+  loadStaffLinkByToken,
+  async (req, res) => {
+    const claim = req.warrantyClaim;
+    const mediaItems = await warrantyService.listClaimMedia(claim.id);
+    if (!mediaItems.length) {
+      return res.status(404).json({ error: 'No media to download' });
+    }
+    return media.streamClaimMediaArchive(res, { claim, media: mediaItems });
   }
 );
 
@@ -316,6 +337,7 @@ router.post(
         actorKind: 'staff',
         actorStaffLinkId: req.staffLink.id
       });
+      notify.queueClaimActivityDigest(req.warrantyClaim.id);
       return res.status(201).json(event);
     } catch (err) {
       return res.status(err.statusCode || 500).json({ error: err.message });
@@ -360,6 +382,7 @@ router.post(
         });
         attached.push(record);
       }
+      notify.queueClaimActivityDigest(claim.id);
       return res.status(201).json({ uploaded: attached });
     } catch (err) {
       logger.error('Warranty: staff upload failed', { error: err.message });
@@ -377,9 +400,9 @@ router.patch(
     if (sendValidationErrors(req, res)) return;
     try {
       const result = await warrantyService.setStaffClaimNumber(req.staffLink.id, {
-        claimNumberExternal: req.body.claim_number_external,
-        actorStaffLinkId: req.staffLink.id
+        claimNumberExternal: req.body.claim_number_external
       });
+      notify.queueClaimActivityDigest(req.warrantyClaim.id);
       return res.json(result);
     } catch (err) {
       return res.status(err.statusCode || 500).json({ error: err.message });
@@ -409,6 +432,7 @@ router.patch(
           note: req.body.note || null
         }
       );
+      notify.queueClaimActivityDigest(req.warrantyClaim.id);
       notify.notifyStatusChangeToCustomer(result.claim, {
         previous: result.previous,
         next: result.next,

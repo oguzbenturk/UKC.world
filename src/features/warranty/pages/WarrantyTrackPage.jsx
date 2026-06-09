@@ -405,6 +405,9 @@ export default function WarrantyTrackPage() {
                   variant="dark"
                   media={media}
                   mediaUrlFor={(id) => customerMediaUrl(code, id)}
+                  grouped
+                  customerSectionLabel={t('public:warranty.track.yourUploads', 'Your uploads')}
+                  teamSectionLabel={t('public:warranty.track.teamUploads', 'From the UKC team')}
                   emptyMessage={t('public:warranty.track.mediaEmpty', 'You did not attach any photos or videos.')}
                 />
               )}

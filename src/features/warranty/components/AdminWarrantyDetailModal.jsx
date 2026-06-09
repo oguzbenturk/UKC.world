@@ -5,7 +5,8 @@ import {
 } from 'antd';
 import {
   ReloadOutlined, MailOutlined, CloseCircleOutlined,
-  DeleteOutlined, UserAddOutlined, LinkOutlined, ApiOutlined
+  DeleteOutlined, UserAddOutlined, LinkOutlined, ApiOutlined,
+  DownloadOutlined, EditOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -23,9 +24,10 @@ import {
   useDeleteClaim,
   useDeleteMedia,
   useCreateStaffLink,
-  useRevokeStaffLink
+  useRevokeStaffLink,
+  useAdminSetClaimNumber
 } from '../hooks/useWarranty';
-import { customerMediaUrl } from '../services/warrantyApi';
+import { customerMediaUrl, downloadAdminMediaArchive } from '../services/warrantyApi';
 
 const { TextArea } = Input;
 
@@ -91,9 +93,21 @@ function ClaimBody({ data, claimId, onClose }) {
 
   const [statusValue, setStatusValue] = useState(undefined);
   const [statusNote, setStatusNote] = useState('');
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [noteForm] = Form.useForm();
   const [updateForm] = Form.useForm();
   const [staffForm] = Form.useForm();
+
+  const handleDownloadArchive = async () => {
+    setArchiveBusy(true);
+    try {
+      await downloadAdminMediaArchive(claimId, claim.customer_token);
+    } catch (err) {
+      message.error(err?.response?.data?.error || 'Failed to download media archive');
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
 
   const activeStaffLinks = useMemo(
     () => staffLinks.filter((l) => !l.revoked_at),
@@ -149,7 +163,7 @@ function ClaimBody({ data, claimId, onClose }) {
     {
       key: 'overview',
       label: t('admin:warranty.detail.tabs.overview', 'Overview'),
-      children: <OverviewTab claim={claim} />
+      children: <OverviewTab claim={claim} claimId={claimId} />
     },
     {
       key: 'timeline',
@@ -163,6 +177,13 @@ function ClaimBody({ data, claimId, onClose }) {
         <WarrantyMediaGallery
           media={media}
           mediaUrlFor={(id) => customerMediaUrl(claim.customer_token, id)}
+          grouped
+          showUploader
+          headerExtra={media.length > 0 ? (
+            <Button icon={<DownloadOutlined />} loading={archiveBusy} onClick={handleDownloadArchive}>
+              {t('admin:warranty.media.downloadZip', 'Download all (ZIP)')}
+            </Button>
+          ) : null}
           canDelete
           onDelete={(id) => deleteMedia.mutate(id, {
             onSuccess: () => message.success(t('admin:warranty.actions.mediaDeleted', 'Media deleted.'))
@@ -277,7 +298,70 @@ function ClaimBody({ data, claimId, onClose }) {
   );
 }
 
-function OverviewTab({ claim }) {
+function AdminClaimNumberField({ claim, claimId }) {
+  const { t } = useTranslation(['admin', 'public']);
+  const setClaimNumber = useAdminSetClaimNumber(claimId);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(claim.external_claim_number || '');
+
+  const current = claim.external_claim_number;
+  const owner = claim.external_claim_number_set_by_name;
+  const setAt = claim.external_claim_number_set_at;
+
+  const save = async () => {
+    const v = value.trim();
+    if (!v) return;
+    try {
+      await setClaimNumber.mutateAsync(v);
+      setEditing(false);
+      message.success(t('admin:warranty.claimNumber.saved', 'Manufacturer claim # saved.'));
+    } catch (err) {
+      message.error(err?.response?.data?.error || 'Failed to save claim number');
+    }
+  };
+
+  if (editing) {
+    return (
+      <Space.Compact style={{ width: '100%', maxWidth: 360 }}>
+        <Input
+          value={value}
+          autoFocus
+          maxLength={120}
+          onChange={(e) => setValue(e.target.value)}
+          onPressEnter={save}
+          placeholder={t('admin:warranty.claimNumber.placeholder', 'e.g. RMA-1234')}
+        />
+        <Button type="primary" loading={setClaimNumber.isPending} onClick={save}>
+          {t('admin:warranty.actions.save', 'Save')}
+        </Button>
+        <Button onClick={() => { setValue(current || ''); setEditing(false); }}>
+          {t('admin:warranty.actions.cancel', 'Cancel')}
+        </Button>
+      </Space.Compact>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span>{current || '—'}</span>
+      {owner && (
+        <span className="text-[11px] text-slate-400">
+          {t('admin:warranty.claimNumber.setBy', 'set by {{name}}{{when}}', {
+            name: owner,
+            when: setAt ? ` · ${dayjs(setAt).format('YYYY-MM-DD')}` : ''
+          })}
+        </span>
+      )}
+      <Button size="small" type="link" icon={<EditOutlined />} onClick={() => { setValue(current || ''); setEditing(true); }}>
+        {current
+          ? t('admin:warranty.claimNumber.override', 'Override')
+          : t('admin:warranty.claimNumber.set', 'Set')}
+      </Button>
+    </div>
+  );
+}
+
+function OverviewTab({ claim, claimId }) {
   const { t } = useTranslation(['admin', 'public']);
   return (
     <>
@@ -308,7 +392,7 @@ function OverviewTab({ claim }) {
           { key: 'purchase', label: t('admin:warranty.detail.fields.purchase', 'Purchase'),
             children: `${claim.purchase_date ? dayjs(claim.purchase_date).format('YYYY-MM-DD') : '—'}${claim.purchase_location ? ` · ${claim.purchase_location}` : ''}` },
           { key: 'mfr', label: t('admin:warranty.detail.fields.mfrClaim', 'Manufacturer claim #'),
-            children: claim.external_claim_number || '—' },
+            children: <AdminClaimNumberField claim={claim} claimId={claimId} /> },
           { key: 'submitted', label: t('admin:warranty.detail.fields.submitted', 'Submitted'),
             children: `${dayjs(claim.created_at).format('YYYY-MM-DD HH:mm')} · ${claim.preferred_language?.toUpperCase()}` },
           { key: 'closed', label: t('admin:warranty.detail.fields.closed', 'Closed at'),

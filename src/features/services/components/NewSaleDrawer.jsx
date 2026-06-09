@@ -210,6 +210,10 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
   const [allowNegativeBalance, setAllowNegativeBalance] = useState(false);
 
   const isAdminOrManager = ['admin', 'manager', 'super_admin', 'owner'].includes(user?.role?.toLowerCase?.());
+  // Front-desk staff (receptionist / front_desk) may also sell on behalf of a
+  // customer and allow a negative wallet balance, matching admins. Backdating
+  // (canSelectPastDates) stays admin/manager-only.
+  const isStaffSeller = isAdminOrManager || ['front_desk', 'receptionist'].includes(user?.role?.toLowerCase?.());
   const canSelectPastDates = isAdminOrManager;
 
   // Load customers
@@ -371,7 +375,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           selected_color: item.selected_color || undefined,
         })),
         payment_method: 'wallet',
-        allowNegativeBalance: isAdminOrManager && allowNegativeBalance ? true : undefined,
+        allowNegativeBalance: isStaffSeller && allowNegativeBalance ? true : undefined,
         notes: values.notes || undefined,
         shipping_address: values.shipping_address || undefined,
         // Send custom date if admin picked one (backend will use it for created_at)
@@ -556,7 +560,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           />
         </Form.Item>
 
-        {isAdminOrManager && (
+        {isStaffSeller && (
           <div className="border border-amber-200 rounded-lg p-3 space-y-2 mb-3">
             <label className="flex items-center gap-2 cursor-pointer text-sm">
               <Checkbox

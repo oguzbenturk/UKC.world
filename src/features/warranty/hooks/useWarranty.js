@@ -135,6 +135,14 @@ export function useDeleteMedia(claimId) {
   });
 }
 
+export function useAdminSetClaimNumber(claimId) {
+  const invalidate = useInvalidateClaim(claimId);
+  return useMutation({
+    mutationFn: (claimNumber) => api.setAdminClaimNumber(claimId, claimNumber),
+    onSuccess: invalidate
+  });
+}
+
 export function useCreateStaffLink(claimId) {
   const invalidate = useInvalidateClaim(claimId);
   return useMutation({

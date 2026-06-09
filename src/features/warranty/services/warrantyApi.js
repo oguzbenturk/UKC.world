@@ -72,6 +72,12 @@ export async function setStaffStatus(code, { status, note }) {
   return data;
 }
 
+// Public/token-authenticated — a direct link is fine (token is in the path).
+export function staffMediaArchiveUrl(code) {
+  const base = apiClient.defaults.baseURL || '/api';
+  return `${base}/public/warranty/staff/${encodeURIComponent(code)}/media/archive`;
+}
+
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
 export async function adminCreateClaim(formData, { onUploadProgress } = {}) {
@@ -138,6 +144,31 @@ export async function deleteClaim(id) {
 export async function deleteMedia(id, mediaId) {
   const { data } = await apiClient.delete(`/warranty/admin/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}`);
   return data;
+}
+
+export async function setAdminClaimNumber(id, claimNumber) {
+  const { data } = await apiClient.patch(`/warranty/admin/${encodeURIComponent(id)}/claim-number`, {
+    claim_number_external: claimNumber
+  });
+  return data;
+}
+
+// Admin archive is JWT-protected, so a plain <a href> can't carry the auth
+// header — fetch it as a blob and trigger a client-side download.
+export async function downloadAdminMediaArchive(id, customerToken) {
+  const res = await apiClient.get(`/warranty/admin/${encodeURIComponent(id)}/media/archive`, {
+    responseType: 'blob',
+    timeout: UPLOAD_TIMEOUT_MS
+  });
+  const blob = new Blob([res.data], { type: 'application/zip' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `warranty-${customerToken || id}-media.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }
 
 export async function createStaffLink(id, { staffName, staffEmail, staffUserId }) {

@@ -279,10 +279,30 @@ const VariantMatrix = ({
                 setSizeInput('');
               }
             }}
+            // Commit on blur too, so a typed size (e.g. a shoe size "42") isn't
+            // silently lost when the user taps away — mobile soft keyboards often
+            // don't fire the Enter keydown this relied on.
+            onBlur={() => {
+              if (sizeInput.trim()) {
+                addSize(sizeInput);
+                setSizeInput('');
+              }
+            }}
             placeholder={t('manager:products.variantMatrix.customSize', { defaultValue: 'Custom size...' })}
             size="small"
             style={{ width: 110 }}
           />
+          {/* Explicit Add button (mirrors the colour input) so the size can be
+              committed by tap, not only by pressing Enter. preventDefault on
+              mousedown keeps input focus so onBlur above doesn't double-add. */}
+          <Button
+            size="small"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { addSize(sizeInput); setSizeInput(''); }}
+            disabled={!sizeInput.trim()}
+          >
+            {t('manager:products.variantMatrix.addSize', { defaultValue: 'Add' })}
+          </Button>
         </div>
       </div>
 

@@ -460,9 +460,17 @@ const AppRoutes = () => {
         <Route path="/wind-report" element={<WindReportPage />} />
       </Route>
 
-      {/* Dashboard routes for staff */}
-      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER]} />}>
+      {/* /dashboard serves EVERY staff role — DashboardRouter picks the admin vs
+          front-desk view. Guard with staffOnly (NOT a fixed role list): every custom
+          role's landingRoute is /dashboard (see resolveLandingRoute), so a role-list
+          guard that denied front-desk/receptionist/custom roles (or any staff whose
+          permissions hadn't loaded yet) bounced them /dashboard -> /login -> /dashboard
+          forever — the "history.replaceState() more than 100 times per 10 seconds" loop. */}
+      <Route element={<ProtectedRoute staffOnly />}>
         <Route path="/dashboard" element={<DashboardRouter />} />
+      </Route>
+      {/* Instructor dashboard keeps the stricter standard-staff role list. */}
+      <Route element={<ProtectedRoute allowedRoles={[ROLES.INSTRUCTOR, ROLES.MANAGER, ROLES.ADMIN, ROLES.DEVELOPER]} />}>
         <Route
           path="/instructor/dashboard"
           element={<InstructorDashboard />}

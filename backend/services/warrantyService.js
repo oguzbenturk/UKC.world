@@ -67,6 +67,9 @@ const CLAIM_COLUMNS = `
   product_name, product_brand, product_model, product_serial,
   purchase_date, purchase_location, issue_description, preferred_language,
   total_bytes, photo_count, video_count, external_claim_number,
+  external_claim_number_set_by_user_id, external_claim_number_set_by_staff_link_id,
+  external_claim_number_set_by_name, external_claim_number_set_at,
+  last_activity_notified_at,
   submitted_ip, submitted_user_agent,
   created_at, updated_at, deleted_at, closed_at
 `;
@@ -361,15 +364,28 @@ export async function addCustomerUpdate(claimId, { body, actorUserId }) {
   return { event: rows[0], claim: exists };
 }
 
-export async function getClaimEvents(claimId, { visibleToCustomerOnly = false } = {}) {
+export async function getClaimEvents(claimId, { visibleToCustomerOnly = false, since = null } = {}) {
+  const params = [claimId];
+  let sinceClause = '';
+  if (since) {
+    params.push(since);
+    sinceClause = `AND e.created_at > $${params.length}`;
+  }
+  // LEFT JOIN resolves the actor's display name so the timeline can show
+  // "who" did each action (staff member name or admin name). Customer-actor
+  // events resolve to NULL here and render as the generic "Customer" badge.
   const { rows } = await pool.query(
-    `SELECT id, event_type, actor_kind, actor_user_id, actor_staff_link_id,
-            visible_to_customer, body, metadata, created_at
-     FROM warranty_claim_events
-     WHERE claim_id = $1
-       ${visibleToCustomerOnly ? 'AND visible_to_customer = TRUE' : ''}
-     ORDER BY created_at ASC`,
-    [claimId]
+    `SELECT e.id, e.event_type, e.actor_kind, e.actor_user_id, e.actor_staff_link_id,
+            e.visible_to_customer, e.body, e.metadata, e.created_at,
+            COALESCE(u.name, sl.staff_name) AS actor_name
+     FROM warranty_claim_events e
+     LEFT JOIN users u ON u.id = e.actor_user_id
+     LEFT JOIN warranty_staff_links sl ON sl.id = e.actor_staff_link_id
+     WHERE e.claim_id = $1
+       ${visibleToCustomerOnly ? 'AND e.visible_to_customer = TRUE' : ''}
+       ${sinceClause}
+     ORDER BY e.created_at ASC`,
+    params
   );
   return rows;
 }
@@ -425,11 +441,19 @@ const MEDIA_COLUMNS = `
 `;
 
 export async function listClaimMedia(claimId) {
+  // Resolve the uploader's display name (staff member or admin) so galleries
+  // and the ZIP manifest can attribute each file. Customer uploads have no
+  // user/staff-link and surface uploader_name = NULL.
   const { rows } = await pool.query(
-    `SELECT ${MEDIA_COLUMNS}
-     FROM warranty_claim_media
-     WHERE claim_id = $1
-     ORDER BY created_at ASC`,
+    `SELECT m.id, m.claim_id, m.kind, m.filename, m.original_name, m.size_bytes,
+            m.mime_type, m.storage_path, m.uploaded_by_kind, m.uploaded_by_user_id,
+            m.uploaded_by_staff_link_id, m.created_at,
+            COALESCE(u.name, sl.staff_name) AS uploader_name
+     FROM warranty_claim_media m
+     LEFT JOIN users u ON u.id = m.uploaded_by_user_id
+     LEFT JOIN warranty_staff_links sl ON sl.id = m.uploaded_by_staff_link_id
+     WHERE m.claim_id = $1
+     ORDER BY m.created_at ASC`,
     [claimId]
   );
   return rows;
@@ -654,7 +678,7 @@ export async function getStaffLinkByToken(token) {
   return rows[0] || null;
 }
 
-export async function setStaffClaimNumber(linkId, { claimNumberExternal, actorStaffLinkId }) {
+export async function setStaffClaimNumber(linkId, { claimNumberExternal }) {
   if (!claimNumberExternal || !claimNumberExternal.trim()) {
     throw new ValidationError('Claim number is required');
   }
@@ -665,11 +689,10 @@ export async function setStaffClaimNumber(linkId, { claimNumberExternal, actorSt
     await client.query('BEGIN');
 
     const { rows: linkRows } = await client.query(
-      `UPDATE warranty_staff_links
-         SET claim_number_external = $1
-       WHERE id = $2 AND revoked_at IS NULL
-       RETURNING ${STAFF_LINK_COLUMNS}`,
-      [trimmed, linkId]
+      `SELECT id, claim_id, staff_name, staff_user_id
+         FROM warranty_staff_links
+        WHERE id = $1 AND revoked_at IS NULL`,
+      [linkId]
     );
     if (linkRows.length === 0) {
       throw new NotFoundError('Staff link not found or revoked');
@@ -677,32 +700,204 @@ export async function setStaffClaimNumber(linkId, { claimNumberExternal, actorSt
     const link = linkRows[0];
 
     const { rows: claimRows } = await client.query(
+      `SELECT id, external_claim_number, external_claim_number_set_by_staff_link_id
+         FROM warranty_claims
+        WHERE id = $1 AND deleted_at IS NULL
+        FOR UPDATE`,
+      [link.claim_id]
+    );
+    if (claimRows.length === 0) {
+      throw new NotFoundError('Warranty claim not found');
+    }
+    const current = claimRows[0];
+
+    // Ownership lock — once a manufacturer claim number exists, only the staff
+    // link that originally set it may change it. An admin can still override
+    // via setAdminClaimNumber(); doing so reassigns ownership to the admin and
+    // locks every staff link out (set_by_staff_link_id becomes NULL).
+    const ownedByThisLink = current.external_claim_number_set_by_staff_link_id === linkId;
+    if (current.external_claim_number && current.external_claim_number.trim() && !ownedByThisLink) {
+      throw new AppError(
+        'This manufacturer claim number was set by another team member and is locked. Ask an admin to change it.',
+        403
+      );
+    }
+
+    await client.query(
+      `UPDATE warranty_staff_links SET claim_number_external = $1 WHERE id = $2`,
+      [trimmed, linkId]
+    );
+
+    const { rows: updatedClaim } = await client.query(
       `UPDATE warranty_claims
-         SET external_claim_number = $1
-       WHERE id = $2 AND deleted_at IS NULL
-       RETURNING ${CLAIM_COLUMNS}`,
-      [trimmed, link.claim_id]
+          SET external_claim_number = $1,
+              external_claim_number_set_by_staff_link_id = $2,
+              external_claim_number_set_by_user_id = $3,
+              external_claim_number_set_by_name = $4,
+              external_claim_number_set_at = NOW()
+        WHERE id = $5 AND deleted_at IS NULL
+        RETURNING ${CLAIM_COLUMNS}`,
+      [trimmed, linkId, link.staff_user_id || null, link.staff_name, link.claim_id]
     );
 
     await client.query(
       `INSERT INTO warranty_claim_events
         (claim_id, event_type, actor_kind, actor_staff_link_id,
          visible_to_customer, body, metadata)
-       VALUES ($1, 'note', 'staff', $2, TRUE,
+       VALUES ($1, 'claim_number_set', 'staff', $2, TRUE,
                'Manufacturer claim number recorded: ' || $3::text,
                $4::jsonb)`,
-      [link.claim_id, actorStaffLinkId, trimmed,
+      [link.claim_id, linkId, trimmed,
        JSON.stringify({ claim_number_external: trimmed })]
     );
 
     await client.query('COMMIT');
-    return { link, claim: claimRows[0] || null };
+
+    const { rows: linkOut } = await pool.query(
+      `SELECT ${STAFF_LINK_COLUMNS} FROM warranty_staff_links WHERE id = $1`,
+      [linkId]
+    );
+    return { link: linkOut[0] || null, claim: updatedClaim[0] || null };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
   }
+}
+
+// Admin override for the manufacturer claim number. Unlike the staff path this
+// bypasses the ownership lock (admins are trusted to correct mistakes) and
+// reassigns ownership to the acting admin, which locks staff links out until an
+// admin changes it again. The override is recorded in the timeline.
+export async function setAdminClaimNumber(claimId, { claimNumberExternal, actorUserId }) {
+  if (!claimNumberExternal || !claimNumberExternal.trim()) {
+    throw new ValidationError('Claim number is required');
+  }
+  const trimmed = claimNumberExternal.trim();
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: claimRows } = await client.query(
+      `SELECT id, external_claim_number, external_claim_number_set_by_name
+         FROM warranty_claims
+        WHERE id = $1 AND deleted_at IS NULL
+        FOR UPDATE`,
+      [claimId]
+    );
+    if (claimRows.length === 0) {
+      throw new NotFoundError('Warranty claim not found');
+    }
+    const previous = claimRows[0];
+
+    let actorName = null;
+    if (actorUserId) {
+      const { rows: userRows } = await client.query(
+        `SELECT name FROM users WHERE id = $1`,
+        [actorUserId]
+      );
+      actorName = userRows[0]?.name || null;
+    }
+
+    const { rows: updated } = await client.query(
+      `UPDATE warranty_claims
+          SET external_claim_number = $1,
+              external_claim_number_set_by_user_id = $2,
+              external_claim_number_set_by_staff_link_id = NULL,
+              external_claim_number_set_by_name = $3,
+              external_claim_number_set_at = NOW()
+        WHERE id = $4 AND deleted_at IS NULL
+        RETURNING ${CLAIM_COLUMNS}`,
+      [trimmed, actorUserId || null, actorName, claimId]
+    );
+
+    const overrode = Boolean(
+      previous.external_claim_number &&
+      previous.external_claim_number.trim() &&
+      previous.external_claim_number.trim() !== trimmed
+    );
+
+    await client.query(
+      `INSERT INTO warranty_claim_events
+        (claim_id, event_type, actor_kind, actor_user_id,
+         visible_to_customer, body, metadata)
+       VALUES ($1, 'claim_number_set', 'admin', $2, TRUE,
+               'Manufacturer claim number recorded: ' || $3::text,
+               $4::jsonb)`,
+      [claimId, actorUserId || null, trimmed,
+       JSON.stringify({
+         claim_number_external: trimmed,
+         ...(overrode ? { overrode_previous: previous.external_claim_number, override_by: previous.external_claim_number_set_by_name || null } : {})
+       })]
+    );
+
+    await client.query('COMMIT');
+    return { claim: updated[0] || null, overrode };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Activity notification helpers ───────────────────────────────────────────
+
+/**
+ * Recipients for activity-digest emails on a claim: the active (non-revoked)
+ * staff links assigned to this claim, de-duplicated by lowercased email.
+ *
+ * Admins/managers are intentionally NOT included on every change — they still
+ * receive the one-time "new warranty claim submitted" notification, but the
+ * per-change digest is scoped to the people actually working the case so it
+ * doesn't flood the whole management team.
+ *
+ * Each entry: { channel:'staff', email, name, userId, staffLinkId, token }
+ */
+export async function listClaimRecipients(claimId) {
+  const { rows } = await pool.query(
+    `SELECT id AS staff_link_id, staff_token, staff_name, staff_email, staff_user_id
+       FROM warranty_staff_links
+      WHERE claim_id = $1 AND revoked_at IS NULL`,
+    [claimId]
+  );
+
+  const byEmail = new Map();
+  for (const s of rows) {
+    if (!s.staff_email) continue;
+    byEmail.set(s.staff_email.toLowerCase(), {
+      channel: 'staff',
+      email: s.staff_email,
+      name: s.staff_name,
+      userId: s.staff_user_id || null,
+      staffLinkId: s.staff_link_id,
+      token: s.staff_token
+    });
+  }
+  return Array.from(byEmail.values());
+}
+
+/**
+ * Load everything the activity digest needs for one claim: the claim, the
+ * events created since the last digest watermark, and the timestamp of the
+ * newest such event (the watermark to advance to once emails are sent).
+ */
+export async function getActivityForDigest(claimId) {
+  const claim = await getClaimById(claimId);
+  if (!claim) return null;
+  const events = await getClaimEvents(claimId, { since: claim.last_activity_notified_at || null });
+  const latestTs = events.length ? events[events.length - 1].created_at : null;
+  return { claim, events, latestTs };
+}
+
+export async function markActivityNotified(claimId, throughTs) {
+  if (!claimId || !throughTs) return;
+  await pool.query(
+    `UPDATE warranty_claims SET last_activity_notified_at = $2 WHERE id = $1`,
+    [claimId, throughTs]
+  );
 }
 
 export default {
@@ -731,5 +926,9 @@ export default {
   createStaffLink,
   revokeStaffLink,
   getStaffLinkByToken,
-  setStaffClaimNumber
+  setStaffClaimNumber,
+  setAdminClaimNumber,
+  listClaimRecipients,
+  getActivityForDigest,
+  markActivityNotified
 };

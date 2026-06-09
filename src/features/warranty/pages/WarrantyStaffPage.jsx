@@ -5,6 +5,7 @@ import {
   Tag, Space, message, Card
 } from 'antd';
 import dayjs from 'dayjs';
+import { DownloadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import CareBrandShell from '../components/CareBrandShell';
 import WarrantyStatusBadge from '../components/WarrantyStatusBadge';
@@ -19,7 +20,7 @@ import {
   useStaffClaimNumber,
   useStaffUpload
 } from '../hooks/useWarranty';
-import { staffMediaUrl } from '../services/warrantyApi';
+import { staffMediaUrl, staffMediaArchiveUrl } from '../services/warrantyApi';
 
 const { TextArea } = Input;
 
@@ -64,6 +65,12 @@ export default function WarrantyStaffPage() {
   }
 
   const { claim, events, media, staffLink, allowedStatuses } = query.data;
+
+  // The manufacturer claim number locks to whoever first entered it. This staff
+  // member can only edit it if they set it (or it isn't set yet). An admin
+  // override also locks staff out (owner becomes a user, not this link).
+  const claimNumberOwnedByMe = claim.external_claim_number_set_by_staff_link_id === staffLink.id;
+  const claimNumberLocked = Boolean(claim.external_claim_number) && !claimNumberOwnedByMe;
 
   const handleNoteSubmit = async (values) => {
     try {
@@ -152,21 +159,37 @@ export default function WarrantyStaffPage() {
       <Divider orientation="left" plain>
         {t('public:warranty.staff.claimNumberSection', 'Manufacturer claim number')}
       </Divider>
-      <Space.Compact className="w-full">
-        <Input
-          value={claimNumberValue}
-          onChange={(e) => setClaimNumberValue(e.target.value)}
-          placeholder={claim.external_claim_number || t('public:warranty.staff.claimNumberPlaceholder', 'e.g. RMA-1234')}
-          maxLength={120}
+      {claimNumberLocked ? (
+        <Alert
+          type="info"
+          showIcon
+          message={t('public:warranty.staff.claimNumberLockedTitle', 'Claim # {{value}}', {
+            value: claim.external_claim_number
+          })}
+          description={t('public:warranty.staff.claimNumberLocked',
+            'This manufacturer claim number was set by {{name}} and is locked. Ask an admin if it needs to change.', {
+              name: claim.external_claim_number_set_by_name || t('public:warranty.staff.anotherMember', 'another team member')
+            })}
         />
-        <Button
-          type="primary"
-          loading={claimNumberMutation.isPending}
-          onClick={handleClaimNumberSubmit}
-        >
-          {t('public:warranty.staff.claimNumberSave', 'Save')}
-        </Button>
-      </Space.Compact>
+      ) : (
+        <Space.Compact className="w-full">
+          <Input
+            value={claimNumberValue}
+            onChange={(e) => setClaimNumberValue(e.target.value)}
+            placeholder={claim.external_claim_number || t('public:warranty.staff.claimNumberPlaceholder', 'e.g. RMA-1234')}
+            maxLength={120}
+          />
+          <Button
+            type="primary"
+            loading={claimNumberMutation.isPending}
+            onClick={handleClaimNumberSubmit}
+          >
+            {claimNumberOwnedByMe
+              ? t('public:warranty.staff.claimNumberUpdate', 'Update')
+              : t('public:warranty.staff.claimNumberSave', 'Save')}
+          </Button>
+        </Space.Compact>
+      )}
 
       <Divider orientation="left" plain>
         {t('public:warranty.staff.statusSection', 'Status update')}
@@ -256,7 +279,22 @@ export default function WarrantyStaffPage() {
       <Divider orientation="left" plain>
         {t('public:warranty.staff.galleryHeading', 'Existing media')}
       </Divider>
-      <WarrantyMediaGallery media={media} mediaUrlFor={(id) => staffMediaUrl(code, id)} />
+      <WarrantyMediaGallery
+        media={media}
+        mediaUrlFor={(id) => staffMediaUrl(code, id)}
+        grouped
+        showUploader
+        headerExtra={media.length > 0 ? (
+          <Button
+            icon={<DownloadOutlined />}
+            href={staffMediaArchiveUrl(code)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('public:warranty.staff.downloadZip', 'Download all (ZIP)')}
+          </Button>
+        ) : null}
+      />
     </CareBrandShell>
   );
 }

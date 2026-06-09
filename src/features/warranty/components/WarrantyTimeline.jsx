@@ -14,6 +14,7 @@ const EVENT_DOT_COLOR = {
   staff_assigned:   '#8b5cf6',
   staff_revoked:    '#a78bfa',
   link_resent:      '#0ea5e9',
+  claim_number_set: '#0891b2',
   claim_closed:     '#475569',
   claim_deleted:    '#dc2626'
 };
@@ -43,6 +44,10 @@ function formatEventBody(event, t) {
       return t('public:warranty.timeline.mediaRemoved', 'Removed {{kind}}: {{name}}', {
         kind: event.metadata?.kind || 'file',
         name: event.metadata?.original_name || ''
+      });
+    case 'claim_number_set':
+      return t('public:warranty.timeline.claimNumberSet', 'Manufacturer claim # recorded: {{value}}', {
+        value: event.metadata?.claim_number_external || (event.body || '')
       });
     case 'staff_assigned':
       return t('public:warranty.timeline.staffAssigned', 'Warranty team member assigned.');
@@ -99,7 +104,7 @@ export default function WarrantyTimeline({ events = [], mode = 'public' }) {
             {mode !== 'public' && (
               <>
                 {!event.visible_to_customer && <Tag color="default">Internal</Tag>}
-                <ActorBadge actorKind={event.actor_kind} />
+                <ActorBadge actorKind={event.actor_kind} actorName={event.actor_name} />
               </>
             )}
           </div>

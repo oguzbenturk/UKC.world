@@ -3,10 +3,17 @@ import path from 'path';
 import fs from 'fs';
 import fsp from 'fs/promises';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../middlewares/errorHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// archiver is a CommonJS module. Load it via createRequire (Node ESM has no
+// default-interop guarantee for CJS) and lazily inside streamClaimMediaArchive
+// so simply importing this module — e.g. in unit tests that never build a ZIP —
+// doesn't pull archiver into Jest's experimental-vm-modules loader.
+const nodeRequire = createRequire(import.meta.url);
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -274,6 +281,80 @@ export function absoluteMediaPath(storagePath) {
   return path.join(UPLOAD_ROOT, storagePath);
 }
 
+// ─── ZIP export ──────────────────────────────────────────────────────────────
+
+function sanitizeArchiveName(name) {
+  const cleaned = String(name || 'file')
+    .replace(/[/\\?%*:|"<> -]/g, '_')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+  return cleaned || 'file';
+}
+
+function csvCell(value) {
+  const s = value == null ? '' : String(value);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/**
+ * Stream a claim's media to the response as a single ZIP. Files are foldered by
+ * who uploaded them — `Customer/` for customer submissions, `Team/` for staff
+ * and admin uploads — and a `manifest.csv` records the exact role, uploader
+ * name, kind, size and timestamp of every file (so the precise staff/admin
+ * split is preserved even though both share the Team/ folder).
+ *
+ * `media` rows are expected from warrantyService.listClaimMedia (enriched with
+ * uploaded_by_kind + uploader_name). The response headers are set here; the
+ * caller must not have written a body yet.
+ */
+export function streamClaimMediaArchive(res, { claim, media = [] }) {
+  const archiver = nodeRequire('archiver');
+  const base = sanitizeArchiveName(`warranty-${claim.customer_token || claim.id}`);
+  const archive = archiver('zip', { zlib: { level: 6 } });
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${base}-media.zip"`);
+
+  archive.on('warning', (err) => {
+    logger.warn('Warranty zip warning', { claimId: claim.id, error: err.message });
+  });
+  archive.on('error', (err) => {
+    logger.error('Warranty zip failed', { claimId: claim.id, error: err.message });
+    try { res.destroy(err); } catch { /* response already torn down */ }
+  });
+
+  archive.pipe(res);
+
+  const manifest = [
+    ['folder', 'file', 'uploader_role', 'uploader_name', 'kind', 'size_bytes', 'uploaded_at', 'original_name']
+      .map(csvCell).join(',')
+  ];
+
+  let index = 0;
+  for (const m of media) {
+    const abs = absoluteMediaPath(m.storage_path);
+    if (!abs || !fs.existsSync(abs)) continue;
+    index += 1;
+    const folder = m.uploaded_by_kind === 'customer' ? 'Customer' : 'Team';
+    const safe = `${String(index).padStart(2, '0')}-${sanitizeArchiveName(m.original_name)}`;
+    archive.file(abs, { name: `${folder}/${safe}` });
+    manifest.push([
+      folder,
+      safe,
+      m.uploaded_by_kind || '',
+      m.uploader_name || (m.uploaded_by_kind === 'customer' ? (claim.customer_name || 'Customer') : ''),
+      m.kind || '',
+      m.size_bytes != null ? String(m.size_bytes) : '',
+      m.created_at ? new Date(m.created_at).toISOString() : '',
+      m.original_name || ''
+    ].map(csvCell).join(','));
+  }
+
+  archive.append(`${manifest.join('\n')}\n`, { name: 'manifest.csv' });
+  archive.finalize();
+}
+
 export default {
   MAX_PHOTO_SIZE,
   MAX_VIDEO_SIZE,
@@ -290,6 +371,7 @@ export default {
   deleteMediaFile,
   purgeClaimFiles,
   absoluteMediaPath,
+  streamClaimMediaArchive,
   claimDir,
   ensureClaimDir,
   relativeStoragePath

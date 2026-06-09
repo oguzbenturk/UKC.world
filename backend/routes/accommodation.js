@@ -22,6 +22,7 @@ import {
   PAYMENT_STATUS,
   TX_DIRECTION,
 } from '../constants/transactions.js';
+import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 
 const router = Router();
 
@@ -524,18 +525,17 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 		} = req.body;
 		const isDeposit = !!(deposit_percent && deposit_amount);
 
-		// Staff (admin, manager, front_desk) can book for any user
-		// Regular users can only book for themselves
+		// Desk staff (admin/manager/owner/front_desk/receptionist) can book for any
+		// user and push the guest's wallet negative — same rule as bookings/rentals.
+		// Regular users can only book for themselves.
+		// NOTE: receptionist was previously dropped here because the old check used
+		// startsWith('front_desk'); the shared role helper now matches it.
 		const userRole = (req.user.user_role || req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim();
-		const isStaff = (
-			userRole === 'admin' ||
-			userRole === 'manager' ||
-			userRole.startsWith('front_desk')
-		);
+		const isStaff = isStaffNegativeBalanceRole(userRole);
 		const guest_id = (isStaff && requestedGuestId) ? requestedGuestId : req.user.id;
 
-		// Only trusted customers / staff can use pay_later
-		const PAY_LATER_ROLES = ['admin', 'manager', 'trusted_customer'];
+		// Trusted customers and desk staff can use pay_later
+		const PAY_LATER_ROLES = ['admin', 'manager', 'front_desk', 'receptionist', 'trusted_customer'];
 		if (payment_method === 'pay_later' && !PAY_LATER_ROLES.includes(userRole)) {
 			await client.query('ROLLBACK');
 			return res.status(403).json({ error: 'Pay Later is only available for trusted customers.' });
@@ -617,7 +617,10 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 					[guest_id]
 				);
 				const guestIsTrusted = guestRoleRows[0]?.role_name === 'trusted_customer';
-				if ((balance?.available || 0) < total_price && !guestIsTrusted) {
+				// Staff booking on behalf of a customer may overdraft the wallet, just
+				// like the lesson/rental desk flows.
+				const allowNeg = guestIsTrusted || isStaff;
+				if ((balance?.available || 0) < total_price && !allowNeg) {
 					await client.query('ROLLBACK');
 					return res.status(400).json({ error: `Insufficient wallet balance. Required: €${total_price.toFixed(2)}, Available: €${(balance?.available || 0).toFixed(2)}` });
 				}
@@ -629,7 +632,7 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 					currency: 'EUR',
 					client,
 					description: `Accommodation booking: ${unitData.name || 'Unit'} (${nights} night${nights !== 1 ? 's' : ''})`,
-					allowNegative: guestIsTrusted
+					allowNegative: allowNeg
 				});
 				walletTxId = lockResult?.id || null;
 				paymentStatus = PAYMENT_STATUS.PAID;
