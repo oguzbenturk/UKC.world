@@ -396,11 +396,19 @@ const resolveServiceType = (serviceRow) => {
   // leaving used_hours frozen and the cash leg stale). For partial bookings the
   // cash leg (final_amount) is recomputed and the wallet delta settled here, so
   // the cascade's updateCustomerBalance intentionally skips partial/package.
-  async function reconcilePackageHoursOnDurationChange(client, booking, oldDuration, newDuration) {
+  async function reconcilePackageHoursOnDurationChange(client, booking, oldDuration, newDuration, preEditBooking = null) {
     const oldD = parseFloat(oldDuration) || 0;
     const newD = parseFloat(newDuration) || 0;
     const delta = newD - oldD;
     if (Math.abs(delta) < 0.0001) return [];
+
+    // Old-state reads (recorded split, charged cash leg, payment status) must
+    // come from the row as it was BEFORE the PUT's raw UPDATE: the caller may
+    // edit price and duration in one request, and the post-update row then
+    // reports the request's NEW amount as the "old" cash leg — settling the
+    // wallet against a number the customer never paid (€47.50 charged, €28
+    // refunded — Işık Aslan Dede, June 2026).
+    const pre = preEditBooking || booking;
 
     const adjustments = [];
 
@@ -441,7 +449,7 @@ const resolveServiceType = (serviceRow) => {
 
     // ── Single booking path: 'package' OR 'partial' (calendar / POST /) ──────
     if (!booking.customer_package_id ||
-        (booking.payment_status !== 'package' && booking.payment_status !== 'partial')) {
+        (pre.payment_status !== 'package' && pre.payment_status !== 'partial')) {
       return adjustments;
     }
 
@@ -458,9 +466,9 @@ const resolveServiceType = (serviceRow) => {
       }
     } catch { /* ignore */ }
 
-    const oldFinal = parseFloat(booking.final_amount) || 0;
-    const recordedPkg = parseFloat(booking.package_hours_used);
-    const recordedCash = parseFloat(booking.cash_hours_used);
+    const oldFinal = parseFloat(pre.final_amount) || 0;
+    const recordedPkg = parseFloat(pre.package_hours_used);
+    const recordedCash = parseFloat(pre.cash_hours_used);
     let perHourCash = (Number.isFinite(recordedCash) && recordedCash > 0 && oldFinal > 0)
       ? oldFinal / recordedCash
       : serviceHourly;
@@ -470,13 +478,27 @@ const resolveServiceType = (serviceRow) => {
     let basePkg;
     if (Number.isFinite(recordedPkg)) {
       basePkg = recordedPkg;
-    } else if (booking.payment_status === 'partial' && perHourCash > 0 && oldFinal > 0) {
+    } else if (pre.payment_status === 'partial' && perHourCash > 0 && oldFinal > 0) {
       basePkg = Math.max(0, oldD - oldFinal / perHourCash); // legacy reconstruction
     } else {
-      basePkg = booking.payment_status === 'package' ? oldD : 0;
+      basePkg = pre.payment_status === 'package' ? oldD : 0;
     }
 
-    const oldCashLeg = booking.payment_status === 'partial' ? oldFinal : 0;
+    // The cash leg to settle against is what the wallet was ACTUALLY charged
+    // (net of prior refunds/adjustments), not the recorded final_amount —
+    // the two drift apart when a price edit on a 'partial' booking skipped
+    // wallet settlement, and refunding the drifted figure shortchanges the
+    // customer. Falls back to the recorded amount if the ledger is unreadable.
+    let oldCashLeg = pre.payment_status === 'partial' ? oldFinal : 0;
+    try {
+      const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true });
+      const own = nets.find((n) => n.userId === booking.student_user_id &&
+        (n.currency || 'EUR') === (booking.currency || 'EUR'));
+      // No net row = nothing outstanding on the wallet (already refunded, or
+      // the leg was settled outside the wallet) — settle against 0 so we
+      // never refund money the ledger doesn't hold.
+      oldCashLeg = own && Number.isFinite(own.amount) ? Math.max(0, own.amount) : 0;
+    } catch { /* ledger unreadable — keep the recorded fallback */ }
 
     const res = await applyPackageFirstDelta(client, booking.customer_package_id, basePkg, newD);
     if (res.adjustment?.error === 'insufficient_hours') {
@@ -492,9 +514,21 @@ const resolveServiceType = (serviceRow) => {
     const newPaymentStatus = newPkg <= 0 ? 'paid' : (newCash > 0.0001 ? 'partial' : 'package');
 
     // For 'package' (cash leg 0) keep final_amount under the cascade's package
-    // sync (it writes the lesson value). For 'partial'/'paid', final_amount is
-    // the cash leg the customer actually owes.
-    if (newPaymentStatus === 'package') {
+    // sync (it writes the lesson value) — UNLESS the booking is flipping from
+    // 'partial': final_amount then still holds the stale cash leg, nothing
+    // later rewrites it (the package sync only runs on package-level edits),
+    // and the booking keeps displaying a cash charge that no longer exists.
+    // For 'partial'/'paid', final_amount is the cash leg the customer owes.
+    const flippedFromCashLeg = newPaymentStatus === 'package' &&
+      (pre.payment_status === 'partial' || oldCashLeg > 0);
+    if (flippedFromCashLeg) {
+      await client.query(
+        `UPDATE bookings SET package_hours_used = $1, cash_hours_used = 0,
+            final_amount = 0, amount = 0,
+            payment_status = 'package', updated_at = NOW() WHERE id = $2`,
+        [newPkg, booking.id]
+      );
+    } else if (newPaymentStatus === 'package') {
       await client.query(
         `UPDATE bookings SET package_hours_used = $1, cash_hours_used = 0,
             payment_status = 'package', updated_at = NOW() WHERE id = $2`,
@@ -515,6 +549,7 @@ const resolveServiceType = (serviceRow) => {
     booking.cash_hours_used = newCash;
     booking.payment_status = newPaymentStatus;
     if (newPaymentStatus !== 'package') { booking.final_amount = newCashLeg; booking.amount = newCashLeg; }
+    else if (flippedFromCashLeg) { booking.final_amount = 0; booking.amount = 0; }
 
     // Settle the cash-leg delta on the wallet (single posting point; the cascade
     // skips partial/package). Charge if the customer now owes more, refund if less.
@@ -4621,7 +4656,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       if (Math.abs(newDuration - oldDuration) > 0.0001) {
         try {
           packageHourAdjustments = await reconcilePackageHoursOnDurationChange(
-            client, booking, oldDuration, newDuration
+            client, booking, oldDuration, newDuration, currentBooking
           );
           if (packageHourAdjustments.length > 0) {
             logger.info('Reconciled customer_packages.used_hours after duration edit', {
