@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo, Component } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo, useRef, Component } from 'react';
 import { Drawer, Select, Spin, Alert, Checkbox, Modal, AutoComplete, App } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -572,11 +572,21 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   );
 
   // ── Fetch ALL packages per participant (for package indicators) ──
+  // The per-user cache must be INVALIDATED when the participant count changes:
+  // the filter below removes semi-private/group packages while there's a single
+  // participant, so a participant added FIRST had their semi-private package
+  // cached away — adding a second person never refetched it, the package never
+  // appeared in the picker, and 2-person package bookings silently consumed
+  // only one side's hours (the "only organizer's package consumed" bug).
+  const lastPkgFetchCount = useRef(0);
   useEffect(() => {
     if (!formData.participants?.length) return;
+    const countNow = Math.max(formData.participants.length, 1);
+    const countChanged = lastPkgFetchCount.current !== countNow;
+    lastPkgFetchCount.current = countNow;
     const fetchAllPkgs = async () => {
       for (const p of formData.participants) {
-        if (!p.userId || allUserPackages[p.userId]) continue;
+        if (!p.userId || (!countChanged && allUserPackages[p.userId])) continue;
         try {
           const response = await apiClient.get(`/users/${p.userId}/packages`);
           let active = (response.data || []).filter(isPackageBookable);
