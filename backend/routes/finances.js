@@ -2188,7 +2188,7 @@ router.use('/transactions/:id', (req, res, next) => {
  * GET /api/finances/summary
  * Get comprehensive financial summary with analytics
  */
-router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(60, (req) => `api:finances:summary:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}:${req.query.serviceType || 'all'}:${req.query.mode || 'cash'}`), async (req, res) => {
+router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(60, (req) => `api:finances:summary:${req.query.startDate || 'all'}:${req.query.endDate || 'all'}:${req.query.serviceType || 'all'}:${req.query.mode || 'accrual'}`), async (req, res) => {
   try {
   const { startDate, endDate, serviceType, mode = 'accrual' } = req.query;
 

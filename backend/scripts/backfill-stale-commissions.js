@@ -121,6 +121,32 @@ async function recomputePackageRental(client, commissionRow) {
   const diffs = [];
 
   try {
+    // ─── 0. Orphan cleanup (backstop) ──────────────────────────────────────
+    // Old delete/cancel flows left 'pending' commissions and unpaid earnings
+    // rows attached to soft-deleted or cancelled bookings. The live flows now
+    // clean up in-transaction; this phase catches anything that slipped past.
+    const { rowCount: orphanCms } = await client.query(`
+      UPDATE manager_commissions mc
+         SET status = 'cancelled',
+             notes = COALESCE(mc.notes || ' | ', '') || 'Cancelled: orphan on deleted/cancelled booking (backfill)',
+             updated_at = NOW()
+       WHERE mc.status = 'pending'
+         AND mc.source_type = 'booking'
+         AND EXISTS (
+           SELECT 1 FROM bookings b
+            WHERE b.id::text = mc.source_id
+              AND (b.deleted_at IS NOT NULL OR b.status = 'cancelled')
+         )
+    `);
+    const { rowCount: orphanIes } = await client.query(`
+      DELETE FROM instructor_earnings ie
+       USING bookings b
+       WHERE ie.booking_id = b.id
+         AND ie.payroll_id IS NULL
+         AND (b.deleted_at IS NOT NULL OR b.status = 'cancelled')
+    `);
+    console.log(`\n[0/2] Orphan backstop: cancelled ${orphanCms} pending commission(s), deleted ${orphanIes} unpaid earnings row(s) on deleted/cancelled bookings.`);
+
     // ─── 1. Manager commissions ────────────────────────────────────────────
     const { rows: cms } = await client.query(`
       SELECT mc.id, mc.source_type, mc.source_id,

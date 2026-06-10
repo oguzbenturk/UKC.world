@@ -982,6 +982,22 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
       }
     }
 
+    // Transition INTO 'cancelled' via the generic edit: cancel the pending
+    // manager commission in the SAME transaction. This path previously left
+    // the commission 'pending' on a cancelled rental (the dedicated cancel
+    // route handles it, but a status edit through PUT bypassed that).
+    if (String(existingRental.status).toLowerCase() !== 'cancelled' &&
+        String(finalStatus || '').toLowerCase() === 'cancelled') {
+      await client.query(
+        `UPDATE manager_commissions
+            SET status = 'cancelled',
+                notes = COALESCE(notes || ' | ', '') || 'Cancelled: Rental cancelled via edit',
+                updated_at = NOW()
+          WHERE source_type = 'rental' AND source_id = $1 AND status = 'pending'`,
+        [String(id)]
+      );
+    }
+
     await client.query('COMMIT');
 
     // Fetch the complete updated rental data for the response
@@ -1355,7 +1371,20 @@ router.patch('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']
         logger.error('Failed to restore package rental days', { rentalId: id, error: pkgErr?.message });
       }
     }
-    
+
+    // Cancel the pending manager commission IN the transaction. The post-commit
+    // fire-and-forget cancelCommission below stays for notes/auditing parity,
+    // but if it ever fails this guarantees no 'pending' commission survives on
+    // a cancelled rental.
+    await client.query(
+      `UPDATE manager_commissions
+          SET status = 'cancelled',
+              notes = COALESCE(notes || ' | ', '') || 'Cancelled: Rental cancelled',
+              updated_at = NOW()
+        WHERE source_type = 'rental' AND source_id = $1 AND status = 'pending'`,
+      [String(id)]
+    );
+
     await client.query('COMMIT');
     
     // Broadcast real-time event for rental cancellation

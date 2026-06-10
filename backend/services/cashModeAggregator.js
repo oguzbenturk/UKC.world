@@ -7,12 +7,14 @@ async function getTotalInstructorEarnings(client, { dateStart, dateEnd, serviceT
     // Get ALL instructor earnings from the database for the date range
     // This should include ALL earnings regardless of when bookings were created
     const { rows } = await client.query(`
-      SELECT 
+      SELECT
         COALESCE(SUM(ie.total_earnings), 0) as total_actual_earnings,
         COUNT(ie.id) as earnings_records_count,
         COUNT(DISTINCT ie.instructor_id) as unique_instructors
       FROM instructor_earnings ie
+      LEFT JOIN bookings b ON b.id = ie.booking_id
       WHERE ie.created_at >= $1 AND ie.created_at <= $2
+        AND b.deleted_at IS NULL
     `, [dateStart, dateEnd + ' 23:59:59']);
     
     const actualEarnings = Number(rows[0]?.total_actual_earnings || 0);

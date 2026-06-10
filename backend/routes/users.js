@@ -996,17 +996,41 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), async (req, re
           WHERE family_member_id IN (SELECT id FROM family_members WHERE parent_user_id = $1)
         `, [userId]);
         
-        // Delete instructor_earnings for bookings that belong to this user AND for the user as instructor
+        // Delete instructor_earnings for bookings that belong to this user AND for the user as instructor.
+        // instructor_user_id is included so stale earnings rows whose ie.instructor_id
+        // differs from the booking's current instructor (reassignment leftovers)
+        // don't FK-abort the bookings hard-delete in batch 2.
         await client.query(`
-          DELETE FROM instructor_earnings 
-          WHERE booking_id IN (SELECT id FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1)
+          DELETE FROM instructor_earnings
+          WHERE booking_id IN (SELECT id FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1 OR instructor_user_id = $1)
              OR instructor_id = $1
         `, [userId]);
         
+        // Cancel OTHER managers' pending commissions pointing at the entities
+        // this cascade is about to hard-delete (manager_commissions.source_id
+        // has no FK, so without this they'd survive as 'pending' rows
+        // referencing non-existent sources — phantom income in any unguarded
+        // reader). Must run BEFORE the source tables are deleted.
+        await client.query(`
+          UPDATE manager_commissions SET status = 'cancelled',
+                 notes = COALESCE(notes || ' | ', '') || 'Cancelled: source entity hard-deleted with user',
+                 updated_at = NOW()
+           WHERE status = 'pending' AND (
+                 (source_type = 'booking' AND source_id IN (
+                    SELECT id::text FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1 OR instructor_user_id = $1))
+              OR (source_type = 'rental' AND source_id IN (
+                    SELECT id::text FROM rentals WHERE user_id = $1))
+              OR (source_type = 'accommodation' AND source_id IN (
+                    SELECT id::text FROM accommodation_bookings WHERE guest_id = $1 OR created_by = $1))
+              OR (source_type = 'membership' AND source_id IN (
+                    SELECT id::text FROM member_purchases WHERE user_id = $1))
+           )
+        `, [userId]);
+
         // Delete booking_participants before bookings
         await client.query(`
-          DELETE FROM booking_participants 
-          WHERE user_id = $1 
+          DELETE FROM booking_participants
+          WHERE user_id = $1
              OR booking_id IN (SELECT id FROM bookings WHERE customer_user_id = $1 OR student_user_id = $1)
         `, [userId]);
         

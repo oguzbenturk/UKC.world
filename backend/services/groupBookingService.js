@@ -1362,6 +1362,31 @@ export const cancelGroupBooking = async (groupBookingId, userId, reason) => {
       WHERE id = $2
     `, [`\n[Cancelled: ${reason || 'No reason provided'}]`, groupBookingId]);
 
+    // Cancel the linked CALENDAR booking too. Without this the group vanished
+    // from the group UI while the underlying bookings row stayed live — still
+    // billing instructor cost (instructor_earnings) and manager income
+    // (pending manager_commissions) for a lesson that will never happen.
+    if (group.booking_id) {
+      await client.query(
+        `UPDATE bookings
+            SET status = 'cancelled', canceled_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND deleted_at IS NULL AND status != 'cancelled'`,
+        [group.booking_id]
+      );
+      await client.query(
+        `DELETE FROM instructor_earnings WHERE booking_id = $1 AND payroll_id IS NULL`,
+        [group.booking_id]
+      );
+      await client.query(
+        `UPDATE manager_commissions
+            SET status = 'cancelled',
+                notes = COALESCE(notes || ' | ', '') || 'Cancelled: Group booking cancelled',
+                updated_at = NOW()
+          WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+        [String(group.booking_id)]
+      );
+    }
+
     await client.query('COMMIT');
 
     logger.info('Group booking cancelled', { groupBookingId, userId });

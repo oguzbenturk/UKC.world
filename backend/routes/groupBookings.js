@@ -1386,6 +1386,34 @@ router.patch('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asyn
       params
     );
 
+    // Transition INTO 'cancelled' via this PATCH: also cancel the linked
+    // calendar booking and its money trail. A bare group_bookings status write
+    // left the bookings row live with its instructor_earnings and a 'pending'
+    // manager commission for a lesson that won't happen.
+    if (status === 'cancelled' && existing.rows[0].status !== 'cancelled') {
+      const linkedBookingId = result.rows[0]?.booking_id;
+      if (linkedBookingId) {
+        await pool.query(
+          `UPDATE bookings
+              SET status = 'cancelled', canceled_at = NOW(), updated_at = NOW()
+            WHERE id = $1 AND deleted_at IS NULL AND status != 'cancelled'`,
+          [linkedBookingId]
+        );
+        await pool.query(
+          `DELETE FROM instructor_earnings WHERE booking_id = $1 AND payroll_id IS NULL`,
+          [linkedBookingId]
+        );
+        await pool.query(
+          `UPDATE manager_commissions
+              SET status = 'cancelled',
+                  notes = COALESCE(notes || ' | ', '') || 'Cancelled: Group booking cancelled via edit',
+                  updated_at = NOW()
+            WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+          [String(linkedBookingId)]
+        );
+      }
+    }
+
     // Also update participant amount_due if price changed
     if (pricePerPerson !== undefined) {
       await pool.query(

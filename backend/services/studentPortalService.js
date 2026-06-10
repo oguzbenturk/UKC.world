@@ -1578,6 +1578,19 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
         return { success: true, bookingId, status: 'cancelled' };
       }
 
+      // A student must not be able to cancel a DELIVERED or past lesson — that
+      // refunded them for a taught lesson and stranded the instructor earnings
+      // + manager commission on a cancelled booking.
+      const terminalStatuses = ['completed', 'done', 'checked_out', 'no_show'];
+      const startTs = booking.start_ts ? new Date(booking.start_ts) : null;
+      if (terminalStatuses.includes(String(booking.status || '').toLowerCase().trim()) ||
+          (startTs && !Number.isNaN(startTs.getTime()) && startTs.getTime() < Date.now())) {
+        await client.query('ROLLBACK');
+        const err = new Error('This lesson has already taken place and can no longer be cancelled. Please contact the front desk.');
+        err.status = 400;
+        throw err;
+      }
+
       const duration = parseFloat(booking.duration) || 0;
 
       // 1) Restore package hours (participant-aware)
@@ -1685,6 +1698,22 @@ export async function updateStudentBooking(studentId, bookingId, payload = {}) {
           WHERE id = $1
         RETURNING status, updated_at`,
         [bookingId]
+      );
+
+      // Defensive: a cancelled lesson must not keep an unpaid earnings snapshot
+      // or a pending manager commission (normally none exist for a future
+      // booking, but this keeps the books clean in every edge).
+      await client.query(
+        `DELETE FROM instructor_earnings WHERE booking_id = $1 AND payroll_id IS NULL`,
+        [bookingId]
+      );
+      await client.query(
+        `UPDATE manager_commissions
+            SET status = 'cancelled',
+                notes = COALESCE(notes || ' | ', '') || 'Cancelled: Booking cancelled by student',
+                updated_at = NOW()
+          WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+        [String(bookingId)]
       );
 
       await client.query('COMMIT');

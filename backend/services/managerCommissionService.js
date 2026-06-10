@@ -721,12 +721,15 @@ const ENTITY_COMMISSION_MAP = {
 const ENTITY_BASE_SELECT = Object.fromEntries(
   Object.entries(ENTITY_COMMISSION_MAP).map(([type, cfg]) => {
     if (type === 'booking') {
+      // deleted_at guard: recomputing a soft-deleted booking's commission would
+      // refresh a 'pending' row that the delete flow should have cancelled —
+      // treat deleted bookings as entity_not_found instead.
       return [type, `SELECT b.*,
               ${cfg.priceCol} AS base_price,
               ${cfg.currencyCol ? cfg.currencyCol : `'EUR'::text`} AS currency,
               ${cfg.skipExpr ? `(${cfg.skipExpr})` : `FALSE`} AS skip_pkg
          FROM ${cfg.table} b
-        WHERE b.id = $1::uuid
+        WHERE b.id = $1::uuid AND b.deleted_at IS NULL
         LIMIT 1`];
     }
     return [
@@ -1649,23 +1652,11 @@ export async function getAllManagersWithCommissionSettings() {
         mcs.effective_from,
         mcs.effective_until,
         (
-          SELECT COALESCE(SUM(mc2.commission_amount), 0)
-          FROM manager_commissions mc2
-          WHERE mc2.manager_user_id = u.id
-            AND (
-              mc2.source_type NOT IN ('booking','rental')
-              OR (mc2.source_type = 'booking' AND EXISTS (
-                SELECT 1 FROM bookings b2
-                WHERE b2.id = mc2.source_id::uuid
-                  AND b2.deleted_at IS NULL
-                  AND LOWER(TRIM(COALESCE(b2.status, ''))) IN ('completed', 'done', 'checked_out')
-              ))
-              OR (mc2.source_type = 'rental' AND EXISTS (
-                SELECT 1 FROM rentals r2
-                WHERE r2.id = mc2.source_id::uuid
-                  AND LOWER(TRIM(COALESCE(r2.status, ''))) NOT IN ('cancelled', 'canceled')
-              ))
-            )
+          SELECT COALESCE(SUM(mc.commission_amount), 0)
+          FROM manager_commissions mc
+          WHERE mc.manager_user_id = u.id
+            AND mc.status != 'cancelled'
+            AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
         ) as total_commission,
         (
           SELECT COALESCE(SUM(ABS(amount)), 0)

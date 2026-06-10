@@ -1,6 +1,7 @@
 import { pool } from '../db.js';
 import { deriveLessonAmount, deriveTotalEarnings, toNumber, partialLessonValue } from '../utils/instructorEarnings.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
+import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from './managerCommissionService.js';
 
 const mapEarningRow = (row) => {
   const lessonDuration = toNumber(row.lesson_duration);
@@ -690,21 +691,16 @@ export async function getAllInstructorBalances() {
     };
   }
 
-  // Manager commission earned (same visibility rules as manager commission list)
+  // Manager commission earned — same visibility rules as the manager commission
+  // list/summary: the shared guard also checks RENTAL liveness, which the old
+  // inline booking-only copy missed (pending commissions on cancelled/deleted
+  // rentals counted into the balances page).
   const mgrEarnedSql = `
     SELECT
       mc.manager_user_id,
       COALESCE(SUM(mc.commission_amount) FILTER (WHERE mc.status != 'cancelled'), 0)::numeric AS total_earned
     FROM manager_commissions mc
-    WHERE (
-      mc.source_type IS DISTINCT FROM 'booking'
-      OR EXISTS (
-        SELECT 1 FROM bookings b
-        WHERE b.id = mc.source_id::uuid
-          AND b.deleted_at IS NULL
-          AND LOWER(TRIM(COALESCE(b.status, ''))) IN ('completed', 'done', 'checked_out')
-      )
-    )
+    WHERE ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
     GROUP BY mc.manager_user_id
   `;
   const mgrPaidSql = `

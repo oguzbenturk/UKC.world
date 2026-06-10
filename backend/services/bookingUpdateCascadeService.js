@@ -404,6 +404,13 @@ class BookingUpdateCascadeService {
    * `pkgContext` is forwarded to computeLessonAmount when present.
    */
   static async updateInstructorEarnings(client, booking, pkgContext = null) {
+    // A soft-deleted booking must never (re-)gain an earnings snapshot — the
+    // delete flow just removed it, and re-creating it here resurrects the
+    // orphan rows the 2026-06-10 cleanup purged.
+    if (booking.deleted_at) {
+      return { skipped: 'deleted_booking' };
+    }
+
     // A cancelled / no-show / declined booking must NOT carry instructor
     // earnings. Without this, a status→cancelled edit that ALSO changes
     // duration/amount re-created a non-zero earnings row (computeLessonAmount

@@ -314,6 +314,22 @@ const resolveServiceType = (serviceRow) => {
     );
   }
 
+  // Helper: re-seed the unpaid instructor_earnings snapshot for a booking that
+  // was just restored from soft-delete. The delete flow removed it; without
+  // this, a restored COMPLETED lesson came back with a re-activated manager
+  // commission but no instructor cost (asymmetric books). No-op for
+  // non-completed statuses (the completion cascade creates earnings later).
+  async function reseedEarningsForRestoredBooking(client, bookingId) {
+    const { rows } = await client.query(
+      'SELECT * FROM bookings WHERE id = $1 AND deleted_at IS NULL',
+      [bookingId]
+    );
+    if (!rows.length) return;
+    const restored = rows[0];
+    if (!COMPLETED_BOOKING_STATUSES.has(String(restored.status || '').toLowerCase().trim())) return;
+    await BookingUpdateCascadeService.updateInstructorEarnings(client, restored);
+  }
+
   // Helper: refund each payer their OWN outstanding wallet charge for a booking.
   // Uses getEntityNetCharges({ byUser: true }) so a group booking refunds every
   // participant the net they actually paid (not the lump sum to the primary),
@@ -1673,15 +1689,46 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
           `UPDATE bookings SET payment_status = 'failed', status = 'cancelled', notes = CONCAT(notes, ' | Payment Rejected'), updated_at = NOW() WHERE id = $1`,
           [receipt.booking_id]
         );
+        await clearInstructorEarningsForBooking(client, receipt.booking_id);
+        await client.query(
+          `UPDATE manager_commissions
+              SET status = 'cancelled',
+                  notes = COALESCE(notes || ' | ', '') || 'Cancelled: Bank transfer rejected',
+                  updated_at = NOW()
+            WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+          [String(receipt.booking_id)]
+        );
       } else if (receipt.customer_package_id) {
         await client.query(
           `UPDATE customer_packages SET status = 'expired', notes = CONCAT(notes, ' | Payment Rejected') WHERE id = $1`,
           [receipt.customer_package_id]
         );
-        await client.query(
-          `UPDATE bookings SET payment_status = 'failed', status = 'cancelled', updated_at = NOW() WHERE customer_package_id = $1`,
+        // Only cancel bookings that haven't been delivered: a COMPLETED lesson
+        // keeps its history, earnings and commission — rejecting a transfer must
+        // not retro-cancel taught lessons. For the bookings we do cancel, clear
+        // the unpaid earnings snapshot and cancel the pending commission so
+        // nothing stays stranded on a cancelled source.
+        const { rows: cancelledByPkg } = await client.query(
+          `UPDATE bookings
+              SET payment_status = 'failed', status = 'cancelled',
+                  canceled_at = NOW(), updated_at = NOW()
+            WHERE customer_package_id = $1
+              AND deleted_at IS NULL
+              AND status NOT IN ('cancelled', 'completed', 'done', 'checked_out', 'no_show')
+            RETURNING id`,
           [receipt.customer_package_id]
         );
+        for (const b of cancelledByPkg) {
+          await clearInstructorEarningsForBooking(client, b.id);
+          await client.query(
+            `UPDATE manager_commissions
+                SET status = 'cancelled',
+                    notes = COALESCE(notes || ' | ', '') || 'Cancelled: Bank transfer rejected',
+                    updated_at = NOW()
+              WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+            [String(b.id)]
+          );
+        }
       } else if (receipt.shop_order_id) {
         // Restore stock and cancel the order on rejection
         const orderItemsRes = await client.query(
@@ -4582,7 +4629,9 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     await client.query('BEGIN');
     
     // Get the current booking data before update to track changes
-    const currentBookingResult = await client.query('SELECT * FROM bookings WHERE id = $1', [req.params.id]);
+    // deleted_at guard: editing a soft-deleted booking would let the cascade
+    // re-create the instructor_earnings/commission rows the delete flow removed.
+    const currentBookingResult = await client.query('SELECT * FROM bookings WHERE id = $1 AND deleted_at IS NULL', [req.params.id]);
     if (currentBookingResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
@@ -4681,6 +4730,37 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
           throw reconcileErr;
         }
       }
+    }
+
+    // Transition INTO 'cancelled' via the general edit: run the same cleanup as
+    // the dedicated status route (PATCH /:id/status). Without this, an edit that
+    // sets status='cancelled' left package hours consumed, wallet charges
+    // unrefunded, an unpaid instructor_earnings row and a 'pending' manager
+    // commission stranded on the cancelled lesson.
+    if (status === 'cancelled' && currentBooking.status !== 'cancelled') {
+      if ((parseFloat(booking.duration) || 0) > 0) {
+        await restoreBookingPackageHours(client, booking);
+      }
+      if (booking.student_user_id) {
+        await refundBookingNetChargesPerUser(client, booking, {
+          transactionType: 'booking_cancelled_refund',
+          reason: 'booking_cancelled',
+          actorId: req.user.id,
+        });
+      }
+      await clearInstructorEarningsForBooking(client, booking.id);
+      await client.query(
+        `UPDATE manager_commissions
+            SET status = 'cancelled',
+                notes = COALESCE(notes || ' | ', '') || 'Cancelled: Booking cancelled via edit',
+                updated_at = NOW()
+          WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+        [String(booking.id)]
+      );
+      await client.query(
+        `UPDATE bookings SET canceled_at = CURRENT_TIMESTAMP WHERE id = $1 AND canceled_at IS NULL`,
+        [booking.id]
+      );
     }
 
     // Fan out price change to siblings on group / semi-private bookings.
@@ -5931,6 +6011,18 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
     [deletingUserId, reason, bookingId]
   );
 
+  // Cancel the manager commission in the SAME transaction — the single-delete
+  // route has done this (M2) but this bulk helper never did, which is how
+  // bulk-deleted lessons left 'pending' commissions on soft-deleted sources.
+  await client.query(
+    `UPDATE manager_commissions
+        SET status = 'cancelled',
+            notes = COALESCE(notes || ' | ', '') || $1,
+            updated_at = NOW()
+      WHERE source_type = 'booking' AND source_id = $2 AND status = 'pending'`,
+    ['Cancelled: Booking deleted (bulk)', String(bookingId)]
+  );
+
   return {
     result: { success: true, id: bookingId },
     packagesUpdated,
@@ -6217,15 +6309,23 @@ router.post('/undo-delete', authenticateJWT, authorizeRoles(['admin', 'manager']
       // Only restore if booking still exists and is soft-deleted
       const { rows } = await client.query(`SELECT id, deleted_at FROM bookings WHERE id = $1`, [item.id]);
       if (rows.length && rows[0].deleted_at) {
+        // Restore the ORIGINAL status from the undo snapshot — hardcoding
+        // 'confirmed' demoted completed lessons, so the later cascade never
+        // recreated their earnings (needsEarningsCreation only fires on a
+        // transition INTO completed).
+        const originalStatus =
+          item.booking?.status && item.booking.status !== 'deleted'
+            ? item.booking.status
+            : 'confirmed';
         await client.query(`
           UPDATE bookings
           SET deleted_at = NULL,
               deleted_by = NULL,
               deletion_reason = NULL,
-              status = 'confirmed',
+              status = $2,
               updated_at = NOW()
           WHERE id = $1
-        `, [item.id]);
+        `, [item.id, originalStatus]);
 
         // Reverse balance refund if any
         if (item.balanceRefunded && item.booking?.student_user_id) {
@@ -6266,6 +6366,7 @@ router.post('/undo-delete', authenticateJWT, authorizeRoles(['admin', 'manager']
           await reconsumeBookingPackageHours(client, item.booking);
         }
         await reactivateManagerCommissionForBooking(client, item.id);
+        await reseedEarningsForRestoredBooking(client, item.id);
 
         restoredIds.push(item.id);
       }
@@ -6346,10 +6447,12 @@ router.post('/restore-latest', authenticateJWT, authorizeRoles(['admin', 'manage
       }
     }
 
-    // Re-deduct the EXACT recorded package hours (partial-aware) and re-activate
-    // the manager commission the delete had cancelled.
+    // Re-deduct the EXACT recorded package hours (partial-aware), re-activate
+    // the manager commission the delete had cancelled, and re-seed the
+    // instructor earnings snapshot the delete removed.
     await reconsumeBookingPackageHours(client, booking);
     await reactivateManagerCommissionForBooking(client, booking.id);
+    await reseedEarningsForRestoredBooking(client, booking.id);
 
     await client.query('COMMIT');
     return res.json({ success: true, restoredId: booking.id });
@@ -6427,10 +6530,12 @@ router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin', 'manager']
       }
     }
 
-    // Re-deduct the EXACT recorded package hours (partial-aware) and re-activate
-    // the manager commission the delete had cancelled.
+    // Re-deduct the EXACT recorded package hours (partial-aware), re-activate
+    // the manager commission the delete had cancelled, and re-seed the
+    // instructor earnings snapshot the delete removed.
     await reconsumeBookingPackageHours(client, booking);
     await reactivateManagerCommissionForBooking(client, booking.id);
+    await reseedEarningsForRestoredBooking(client, booking.id);
 
     await client.query('COMMIT');
     return res.json({ success: true, restoredId: id });
@@ -6815,19 +6920,20 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     
     await client.query('BEGIN');
     
-    // Get current booking
+    // Get current booking (deleted_at guard: completing a soft-deleted booking
+    // would re-create the earnings/commission rows the delete flow removed)
     const bookingResult = await client.query(
-      'SELECT * FROM bookings WHERE id = $1',
+      'SELECT * FROM bookings WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
-    
+
     if (bookingResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
     }
-    
+
     const booking = bookingResult.rows[0];
-    
+
     // Check if booking is already in a terminal/same state (no action needed)
     const terminalStatuses = ['completed', 'cancelled', 'no_show'];
     const alreadyInRequestedState = booking.status === status;
@@ -7358,5 +7464,10 @@ router.post('/:id/suggest-time', authenticateJWT, async (req, res) => {
     res.status(500).json({ error: 'Failed to suggest time' });
   }
 });
+
+// Booking-cancellation side effects, shared with the Kai agent routes so a
+// cancel from any surface restores hours, refunds the wallet and clears the
+// earnings/commission rows the same way.
+export { restoreBookingPackageHours, refundBookingNetChargesPerUser, clearInstructorEarningsForBooking };
 
 export default router;

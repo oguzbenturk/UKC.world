@@ -24,6 +24,9 @@ import { recordTransaction } from '../services/walletService.js';
 import { logAuditEvent } from '../services/auditLogService.js';
 import { listSpots, getSpotReport, getAllSpotReports } from '../services/weather/index.js';
 import { extractUnitMeta, calculateTotalPrice } from '../services/accommodationPricingService.js';
+import { restoreBookingPackageHours, refundBookingNetChargesPerUser, clearInstructorEarningsForBooking } from './bookings.js';
+import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
+import { recordBookingCommission } from '../services/managerCommissionService.js';
 
 const router = express.Router();
 
@@ -1823,8 +1826,7 @@ router.post(
       const reason = req.query.reason || req.body?.reason;
 
       const bookingRes = await pool.query(
-        `SELECT b.id, b.status, b.instructor_user_id,
-                s.name AS student_name
+        `SELECT b.*, s.name AS student_name
          FROM bookings b
          LEFT JOIN users s ON s.id = b.student_user_id
          WHERE b.id = $1 AND b.deleted_at IS NULL`,
@@ -1839,16 +1841,48 @@ router.post(
         return res.status(403).json({ error: 'You can only cancel your own bookings' });
       }
 
+      // Full cancel parity with PATCH /bookings/:id/status: a bare status write
+      // left package hours consumed, wallet charges unrefunded, and stranded
+      // the earnings/commission rows on the cancelled lesson.
       const cancellationNote = reason ? `Cancelled by ${role}: ${reason}` : `Cancelled by ${role}`;
-      await pool.query(
-        `UPDATE bookings
-         SET status = 'cancelled',
-             cancellation_reason = $2,
-             canceled_at = NOW(),
-             updated_at = NOW()
-         WHERE id = $1`,
-        [id, cancellationNote],
-      );
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `UPDATE bookings
+           SET status = 'cancelled',
+               cancellation_reason = $2,
+               canceled_at = NOW(),
+               updated_at = NOW()
+           WHERE id = $1`,
+          [id, cancellationNote],
+        );
+        if ((parseFloat(booking.duration) || 0) > 0) {
+          await restoreBookingPackageHours(client, booking);
+        }
+        if (booking.student_user_id) {
+          await refundBookingNetChargesPerUser(client, booking, {
+            transactionType: 'booking_cancelled_refund',
+            reason: 'booking_cancelled',
+            actorId: userId,
+          });
+        }
+        await clearInstructorEarningsForBooking(client, booking.id);
+        await client.query(
+          `UPDATE manager_commissions
+              SET status = 'cancelled',
+                  notes = COALESCE(notes || ' | ', '') || 'Cancelled: Booking cancelled via Kai',
+                  updated_at = NOW()
+            WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+          [String(booking.id)],
+        );
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
       res.json({
         success: true,
@@ -1880,8 +1914,7 @@ router.post(
       }
 
       const bookingRes = await pool.query(
-        `SELECT b.id, b.status, b.instructor_user_id,
-                s.name AS student_name
+        `SELECT b.*, s.name AS student_name
          FROM bookings b
          LEFT JOIN users s ON s.id = b.student_user_id
          WHERE b.id = $1 AND b.deleted_at IS NULL`,
@@ -1895,20 +1928,80 @@ router.post(
       }
 
       if (status === 'cancelled') {
-        await pool.query(
-          `UPDATE bookings
-           SET status = 'cancelled',
-               cancellation_reason = $2,
-               canceled_at = NOW(),
-               updated_at = NOW()
-           WHERE id = $1`,
-          [id, `Cancelled by ${role} via Kai`],
-        );
+        // Same cancel parity as the Kai cancel route: restore hours, refund
+        // wallet charges, clear unpaid earnings, cancel pending commission.
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query(
+            `UPDATE bookings
+             SET status = 'cancelled',
+                 cancellation_reason = $2,
+                 canceled_at = NOW(),
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [id, `Cancelled by ${role} via Kai`],
+          );
+          if ((parseFloat(booking.duration) || 0) > 0) {
+            await restoreBookingPackageHours(client, booking);
+          }
+          if (booking.student_user_id) {
+            await refundBookingNetChargesPerUser(client, booking, {
+              transactionType: 'booking_cancelled_refund',
+              reason: 'booking_cancelled',
+              actorId: userId,
+            });
+          }
+          await clearInstructorEarningsForBooking(client, booking.id);
+          await client.query(
+            `UPDATE manager_commissions
+                SET status = 'cancelled',
+                    notes = COALESCE(notes || ' | ', '') || 'Cancelled: Booking cancelled via Kai',
+                    updated_at = NOW()
+              WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
+            [String(booking.id)],
+          );
+          await client.query('COMMIT');
+        } catch (txErr) {
+          await client.query('ROLLBACK');
+          throw txErr;
+        } finally {
+          client.release();
+        }
       } else {
         await pool.query(
           `UPDATE bookings SET status = $2, updated_at = NOW() WHERE id = $1`,
           [id, status],
         );
+      }
+
+      // When this status change COMPLETES the lesson, seed the earnings snapshot
+      // and the manager commission like PATCH /bookings/:id/status does — without
+      // this, lessons completed via Kai never billed at all (no instructor cost,
+      // no commission). Gated on a true transition into a completed status.
+      const COMPLETED_SET = new Set(['completed', 'done', 'checked_out']);
+      const prevStatus = String(booking.status || '').toLowerCase().trim();
+      if (COMPLETED_SET.has(status) && !COMPLETED_SET.has(prevStatus)) {
+        const completedBooking = { ...booking, status };
+        setImmediate(async () => {
+          try {
+            await BookingUpdateCascadeService.cascadeBookingUpdate(
+              completedBooking,
+              { status, _previous: { status: booking.status } },
+            );
+          } catch (cascadeError) {
+            logger.warn('Failed to cascade earnings after Kai status completion', {
+              bookingId: booking.id, error: cascadeError?.message,
+            });
+          }
+          try {
+            await recordBookingCommission({ ...completedBooking, student_name: null, instructor_name: null, service_name: null });
+          } catch (commissionError) {
+            logger.warn('Failed to record manager commission after Kai status completion', {
+              bookingId: booking.id, error: commissionError?.message,
+            });
+          }
+        });
       }
 
       res.json({
