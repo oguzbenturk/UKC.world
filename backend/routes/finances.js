@@ -1276,45 +1276,14 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
         amount: originalAmount
       });
     } else if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
-      // Truncate transaction type to avoid varchar(50) overflow from repeated reversals
-      let reversalType = transaction.transaction_type;
-      if (reversalType.includes('_reversal')) {
-        // Already a reversal - just use 'transaction_reversal' to avoid infinite growth
-        reversalType = 'transaction_reversal';
-      } else {
-        reversalType = `${reversalType}_reversal`;
-      }
-      // Ensure it fits in varchar(50)
-      if (reversalType.length > 50) {
-        reversalType = 'transaction_reversal';
-      }
-      
-      await recordWalletTransaction({
-        userId: transaction.user_id,
-        amount: -originalAmount,
-        availableDelta: -availableDelta,
-        pendingDelta: -pendingDelta,
-        nonWithdrawableDelta: -nonWithdrawableDelta,
-        transactionType: reversalType,
-        currency: transaction.currency || 'EUR',
-        description: `Reversal for cancelled transaction ${transaction.id}`,
-        metadata: {
-          origin: 'finances_transaction_delete',
-          reversedTransactionId: transaction.id,
-          cancellationReason
-        },
-        relatedEntityType: transaction.related_entity_type || null,
-        relatedEntityId: transaction.related_entity_id || null,
-        createdBy: actorId,
-        allowNegative: (-originalAmount) < 0,
-        client
-      });
-
-      // The cancel + reversal pair double-decrements the cache: status='cancelled' takes
-      // the original out of the SUM, and recordWalletTransaction also subtracts the
-      // reversal's delta — net effect 2× the rollback (incident 2026-05-30, Rifat Doğan,
-      // -120€ booking shown as -260€). Re-derive the balance from the ledger after the
-      // pair lands so cache == SUM(completed deltas) regardless of intermediate drift.
+      // NO reversal row. Marking the original status='cancelled' already removes
+      // its delta from every completed-only SUM — that IS the complete undo. The
+      // old cancel + reversal pair left the LEDGER itself wrong (original excluded
+      // AND a completed counter-delta row): deleting a -390 charge minted +390 of
+      // phantom credit that survived every recompute, because the recompute
+      // faithfully summed a double-undone ledger (incident 2026-06-10, Erkan
+      // Özgen; same family as 2026-05-30 Rifat Doğan). Re-derive the cache from
+      // the completed rows so cache == SUM(completed deltas).
       const txCurrency = transaction.currency || 'EUR';
       await client.query(
         `SELECT set_config('wallet.allow_negative', 'true', false)`

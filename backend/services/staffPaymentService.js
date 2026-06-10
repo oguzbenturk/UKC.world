@@ -1,5 +1,5 @@
 // Shared CRUD for staff payouts (instructor + manager). Both flows share the
-// same cancel + reverse + re-record cascade; per-kind differences (entity
+// same cancel + cache-resync + re-record cascade; per-kind differences (entity
 // types, reference prefix, error strings, metadata schema, allowNegative
 // semantics) live in STAFF_KIND_CONFIG so the routes stay thin wrappers.
 //
@@ -7,7 +7,6 @@
 
 import { pool } from '../db.js';
 import {
-  recordTransaction as recordWalletTransaction,
   recordLegacyTransaction,
   getTransactionById as getWalletTransactionById,
   resolveStoredAvailableDelta,
@@ -32,19 +31,11 @@ const STAFF_KIND_CONFIG = Object.freeze({
     walletEntityType: WALLET_ENTITY_TYPE.INSTRUCTOR_PAYMENT,
     referencePrefix: 'INST_',
     sourcePrefix: 'finances:instructor-payments',
-    reversalDescriptionPrefix: 'Reversal for instructor payment',
     notFoundMessage: 'Instructor payment not found in wallet ledger',
     typeNotAllowedUpdateMessage: 'Only instructor payment transactions can be updated with this endpoint.',
     typeNotAllowedDeleteMessage: 'Only instructor payment transactions can be deleted with this endpoint.',
     // Instructor POST never sets allowNegative; manager POST sets it to true.
     postAllowNegative: undefined,
-    // Reversal of a positive credit pushes the wallet negative; manager side
-    // always allows it, instructor side only when the original was positive.
-    reversalAllowNegative: (originalAmount) => originalAmount > 0,
-    // Instructor reversal falls back to the entity_type stored on the
-    // original transaction; manager reversal hard-codes the wallet entity.
-    reversalRelatedEntityType: (transaction) =>
-      transaction.related_entity_type || WALLET_ENTITY_TYPE.INSTRUCTOR_PAYMENT,
     buildUpdateCancellationMetadata: ({ actorId, transactionType, paymentDate }) => ({
       updatedAt: new Date().toISOString(),
       updatedBy: actorId,
@@ -65,13 +56,10 @@ const STAFF_KIND_CONFIG = Object.freeze({
     walletEntityType: WALLET_ENTITY_TYPE.MANAGER_PAYMENT,
     referencePrefix: 'MGR_',
     sourcePrefix: 'manager-commissions:payments',
-    reversalDescriptionPrefix: 'Reversal for manager payment',
     notFoundMessage: 'Payment not found',
     typeNotAllowedUpdateMessage: 'Only payment/deduction transactions can be updated',
     typeNotAllowedDeleteMessage: 'Only payment/deduction transactions can be deleted',
     postAllowNegative: true,
-    reversalAllowNegative: () => true,
-    reversalRelatedEntityType: () => WALLET_ENTITY_TYPE.MANAGER_PAYMENT,
     buildUpdateCancellationMetadata: ({ actorId }) => ({
       updatedBy: actorId,
       updatedAt: new Date().toISOString(),
@@ -119,33 +107,39 @@ async function cancelOriginal(client, paymentId, cancellationMetadata) {
   );
 }
 
-async function postReversalIfNeeded(client, cfg, { transaction, deltas, actorId, operation }) {
-  const { originalAmount, availableDelta, pendingDelta, nonWithdrawableDelta } = deltas;
+// Re-derive the wallet cache from completed ledger rows after the original
+// payment row was cancelled. Replaces the old "post a counter-delta reversal
+// row" approach: cancelling the original already removes its delta from every
+// completed-only SUM, so a reversal row on top double-undid the payment and
+// pushed legacy staff wallets below their true balance (Dinçer -522,
+// Siyabend -316, May 2026 — same disease as the Erkan Özgen +390 phantom).
+async function resyncWalletAfterCancel(client, { transaction, deltas }) {
+  const { availableDelta, pendingDelta, nonWithdrawableDelta } = deltas;
   const noBalanceDeltas =
     Math.abs(availableDelta) === 0
     && Math.abs(pendingDelta) === 0
     && Math.abs(nonWithdrawableDelta) === 0;
+  // Modern payout rows carry availableDelta 0 — nothing to resync.
   if (noBalanceDeltas) return null;
 
-  return recordWalletTransaction({
-    userId: transaction.user_id,
-    amount: -originalAmount,
-    availableDelta: -availableDelta,
-    pendingDelta: -pendingDelta,
-    nonWithdrawableDelta: -nonWithdrawableDelta,
-    transactionType: `${transaction.transaction_type}_reversal`,
-    currency: transaction.currency || 'EUR',
-    description: `${cfg.reversalDescriptionPrefix} ${transaction.id}`,
-    metadata: {
-      origin: `${cfg.sourcePrefix}:${operation}:reversal`,
-      reversedTransactionId: transaction.id,
-    },
-    relatedEntityType: cfg.reversalRelatedEntityType(transaction),
-    relatedEntityId: transaction.related_entity_id || transaction.id,
-    createdBy: actorId,
-    allowNegative: cfg.reversalAllowNegative(originalAmount),
-    client,
-  });
+  const txCurrency = transaction.currency || 'EUR';
+  await client.query(`SELECT set_config('wallet.allow_negative', 'true', false)`);
+  await client.query(
+    `UPDATE wallet_balances
+        SET available_amount = COALESCE((
+              SELECT SUM(available_delta) FROM wallet_transactions
+               WHERE user_id = $1 AND currency = $2 AND status = 'completed'), 0),
+            pending_amount = COALESCE((
+              SELECT SUM(pending_delta) FROM wallet_transactions
+               WHERE user_id = $1 AND currency = $2 AND status = 'completed'), 0),
+            non_withdrawable_amount = COALESCE((
+              SELECT SUM(non_withdrawable_delta) FROM wallet_transactions
+               WHERE user_id = $1 AND currency = $2 AND status = 'completed'), 0),
+            updated_at = NOW()
+      WHERE user_id = $1 AND currency = $2`,
+    [transaction.user_id, txCurrency]
+  );
+  return { resynced: true };
 }
 
 export async function createStaffPayment({
@@ -228,7 +222,7 @@ export async function updateStaffPayment({
       paymentDate: dt,
     });
     await cancelOriginal(client, paymentId, cancellationMetadata);
-    await postReversalIfNeeded(client, cfg, { transaction, deltas, actorId, operation: 'update' });
+    await resyncWalletAfterCancel(client, { transaction, deltas });
 
     const updatedTransaction = await recordLegacyTransaction({
       userId: transaction.user_id,
@@ -282,7 +276,7 @@ export async function deleteStaffPayment({ kind, paymentId, actorId }) {
     const deltas = snapshotDeltas(transaction);
     const cancellationMetadata = cfg.buildDeleteCancellationMetadata({ actorId });
     await cancelOriginal(client, paymentId, cancellationMetadata);
-    await postReversalIfNeeded(client, cfg, { transaction, deltas, actorId, operation: 'delete' });
+    await resyncWalletAfterCancel(client, { transaction, deltas });
 
     await client.query('COMMIT');
   } catch (err) {
