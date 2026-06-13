@@ -29,7 +29,7 @@ const ContactDropdown = ({ channel }) => {
   return (
     <div
       ref={ref}
-      className={`group relative flex flex-col gap-4 p-6 sm:p-7 rounded-2xl border bg-white/5 backdrop-blur-sm transition-all duration-200 ${channel.bg}`}
+      className={`group relative flex flex-col gap-4 p-6 sm:p-7 rounded-2xl border bg-white/5 transition-all duration-200 ${channel.bg}`}
     >
       <div className={channel.color}>{channel.icon}</div>
       <div>
@@ -47,7 +47,10 @@ const ContactDropdown = ({ channel }) => {
       </Button>
 
       {open && (
-        <div className="absolute left-4 right-4 bottom-0 translate-y-[calc(100%+8px)] z-50 rounded-xl border border-white/15 bg-[#1a1f2e]/95 shadow-xl backdrop-blur-md overflow-hidden">
+        <div
+          className="absolute left-4 right-4 top-full mt-2 z-50 rounded-xl border border-white/15 shadow-xl overflow-hidden"
+          style={{ background: '#1a1f2e', backdropFilter: 'none', WebkitBackdropFilter: 'none' }}
+        >
           {channel.dropdown.map((opt) => (
             <a
               key={opt.href}
