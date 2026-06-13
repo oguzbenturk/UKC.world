@@ -1767,6 +1767,7 @@
     "types": {
       "manual_credit": "Einzahlung",
       "wallet_deposit": "Einzahlung",
+      "legacy_opening_balance": "Guthaben aus vorheriger App",
       "credit": "Gutschrift",
       "payment": "Zahlung",
       "package_purchase": "Paketkauf",

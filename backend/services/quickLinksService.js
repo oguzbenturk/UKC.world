@@ -410,7 +410,7 @@ export async function createUserFromRegistration(registrationId) {
 
     // Check if user with this email already exists
     const existingUser = await client.query(
-      'SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL',
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL',
       [email]
     );
 

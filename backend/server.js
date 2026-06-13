@@ -74,7 +74,7 @@ import adminSupportTicketsRouter from './routes/adminSupportTickets.js';
 import walletRouter from './routes/wallet.js';
 import paymentWebhooksRouter from './routes/paymentWebhooks.js';
 import feedbackRouter from './routes/feedback.js';
-import groupBookingsRouter from './routes/groupBookings.js';
+import groupBookingsRouter, { ensureGroupCalendarBooking } from './routes/groupBookings.js';
 import { processParticipantPayment, processOrganizerPayment } from './services/groupBookingService.js';
 import groupLessonRequestsRouter from './routes/groupLessonRequests.js';
 import rescheduleNotificationsRouter from './routes/rescheduleNotifications.js';
@@ -840,6 +840,13 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           });
 
           logger.info('Group booking organizer payment confirmed via Iyzico', { groupBookingId, organizerId, paymentId: payment.paymentId });
+
+          // Organizer paid for the whole group → ensure the lesson is on the calendar.
+          try {
+            await ensureGroupCalendarBooking(groupBookingId, socketService, { force: true });
+          } catch (calErr) {
+            logger.warn('Failed to ensure group calendar booking after Iyzico organizer payment', { groupBookingId, error: calErr.message });
+          }
 
           try {
             socketService.emitToChannel(`user:${organizerId}`, 'booking:payment_confirmed', {

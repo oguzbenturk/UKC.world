@@ -60,6 +60,203 @@ async function recomputeManagerCommissionAfterGroupChange(bookingId) {
 }
 
 /**
+ * Ensure the calendar booking for a group exists ONLY once the group has reached
+ * its minimum accepted participants — never before.
+ *
+ * A semi-private/group invite must not appear on the calendar while it is still
+ * just the organizer waiting for a friend who hasn't registered/accepted yet.
+ * So we defer creating the `bookings` row until enough people have actually
+ * accepted (status accepted/paid), and only then place it on the calendar in
+ * "pending" state for an admin to confirm. If the calendar booking already
+ * exists (e.g. a 3rd person accepts later), we just sync the new participant in.
+ *
+ * Idempotent + race-safe: the group row is locked FOR UPDATE so two near-simultaneous
+ * acceptances can't both create a calendar booking.
+ *
+ * @returns {Promise<{ bookingId: string|null, created: boolean }>}
+ */
+export async function ensureGroupCalendarBooking(groupBookingId, socketService, { force = false } = {}) {
+  if (!groupBookingId) return { bookingId: null, created: false };
+
+  const client = await pool.connect();
+  let bookingId = null;
+  let created = false;
+  let emitPayload = null;
+  try {
+    await client.query('BEGIN');
+
+    const gbRes = await client.query('SELECT * FROM group_bookings WHERE id = $1 FOR UPDATE', [groupBookingId]);
+    if (gbRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return { bookingId: null, created: false };
+    }
+    const gb = gbRes.rows[0];
+
+    // Cancelled groups never get a calendar slot.
+    if (gb.status === 'cancelled') {
+      await client.query('ROLLBACK');
+      return { bookingId: null, created: false };
+    }
+
+    // Real, registered participants who have accepted (or paid) — carry their
+    // payment + package linkage so booking_participants reflect what was actually
+    // paid (a participant may have paid BEFORE the calendar booking existed).
+    const partRes = await client.query(
+      `SELECT user_id, is_organizer, payment_status, amount_paid, customer_package_id, package_hours_used
+         FROM group_booking_participants
+        WHERE group_booking_id = $1 AND status IN ('accepted', 'paid') AND user_id IS NOT NULL
+        ORDER BY is_organizer DESC, created_at ASC`,
+      [groupBookingId]
+    );
+    const accepted = partRes.rows;
+    const minParticipants = parseInt(gb.min_participants, 10) || 2;
+
+    // Map a group participant's payment state onto a booking_participants row.
+    const bpFields = (p) => {
+      if (p.customer_package_id) {
+        return { status: 'package', amount: 0, pkgId: p.customer_package_id, pkgHours: parseFloat(p.package_hours_used) || null };
+      }
+      if (p.payment_status === 'paid' || p.payment_status === 'covered_by_organizer') {
+        return { status: 'paid', amount: parseFloat(p.amount_paid) || 0, pkgId: null, pkgHours: null };
+      }
+      return { status: 'unpaid', amount: 0, pkgId: null, pkgHours: null };
+    };
+
+    bookingId = gb.booking_id || null;
+
+    // A linked booking that was cancelled/soft-deleted (e.g. by an earlier cancel,
+    // then the group re-opened) must not be reused — treat it as absent so a fresh
+    // pending booking can be created instead of resurrecting the dead one.
+    if (bookingId) {
+      const bkChk = await client.query(
+        `SELECT 1 FROM bookings WHERE id = $1 AND deleted_at IS NULL AND status != 'cancelled'`,
+        [bookingId]
+      );
+      if (bkChk.rows.length === 0) bookingId = null;
+    }
+
+    if (bookingId) {
+      // Calendar booking already exists → keep its participant list, headcount and amount in sync.
+      for (const p of accepted) {
+        const exists = await client.query(
+          'SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2',
+          [bookingId, p.user_id]
+        );
+        if (exists.rows.length === 0) {
+          const f = bpFields(p);
+          await client.query(
+            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, customer_package_id, package_hours_used, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, '')`,
+            [bookingId, p.user_id, p.is_organizer || false, f.status, f.amount, f.pkgId, f.pkgHours]
+          );
+        }
+      }
+      const headcount = accepted.length || 1;
+      const amt = parseFloat(((parseFloat(gb.price_per_person) || 0) * headcount).toFixed(2));
+      await client.query(
+        `UPDATE bookings
+            SET group_size = GREATEST(1, (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1)),
+                amount = $2, final_amount = $2
+          WHERE id = $1`,
+        [bookingId, amt]
+      );
+    } else if ((force || accepted.length >= minParticipants) && accepted.length >= 1 && gb.scheduled_date && gb.start_time) {
+      // Minimum reached (or forced, e.g. organizer paid for the whole group) and we
+      // have a schedule → create the pending calendar booking now.
+      const timeParts = String(gb.start_time).split(':');
+      const startHourDecimal = parseInt(timeParts[0], 10) + (parseInt(timeParts[1] || 0, 10) / 60);
+      const dur = parseFloat(gb.duration_hours) || 2;
+      const amt = parseFloat(((parseFloat(gb.price_per_person) || 0) * accepted.length).toFixed(2));
+      const organizer = accepted.find(p => p.is_organizer) || accepted[0];
+
+      const bkResult = await client.query(`
+        INSERT INTO bookings (
+          date, start_hour, duration,
+          student_user_id, instructor_user_id, customer_user_id,
+          status, payment_status, amount, final_amount,
+          notes, service_id, group_size, max_participants, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $4, 'pending', 'unpaid', $6, $6, $7, $8, $9, $10, $4)
+        RETURNING id
+      `, [
+        gb.scheduled_date, startHourDecimal, dur,
+        organizer.user_id, gb.instructor_id || null,
+        amt, gb.notes || '', gb.service_id, accepted.length, gb.max_participants || 6
+      ]);
+      bookingId = bkResult.rows[0].id;
+
+      for (const p of accepted) {
+        const f = bpFields(p);
+        await client.query(
+          `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, customer_package_id, package_hours_used, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, '')`,
+          [bookingId, p.user_id, p.is_organizer || false, f.status, f.amount, f.pkgId, f.pkgHours]
+        );
+      }
+
+      await client.query(
+        'UPDATE group_bookings SET booking_id = $1, updated_at = NOW() WHERE id = $2',
+        [bookingId, groupBookingId]
+      );
+      created = true;
+
+      // Build the booking:created payload to emit after COMMIT (mirrors POST /api/bookings/calendar).
+      const startHours = Math.floor(startHourDecimal);
+      const startMins = Math.round((startHourDecimal - startHours) * 60);
+      const fmtStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
+      const endDecimal = startHourDecimal + dur;
+      const endHours = Math.floor(endDecimal);
+      const endMins = Math.round((endDecimal - endHours) * 60);
+      const fmtEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+      emitPayload = {
+        id: bookingId,
+        date: gb.scheduled_date,
+        startTime: fmtStart,
+        endTime: fmtEnd,
+        time: fmtStart,
+        duration: dur,
+        instructor_user_id: gb.instructor_id || null,
+        service_id: gb.service_id,
+        student_user_id: organizer.user_id,
+        status: 'pending',
+        group_size: accepted.length,
+        max_participants: gb.max_participants || 6
+      };
+    } else {
+      // Not enough accepted yet (e.g. only the organizer) → leave the calendar untouched.
+      await client.query('ROLLBACK');
+      return { bookingId: null, created: false };
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    logger.warn('Failed to ensure group calendar booking', { groupBookingId, error: err.message });
+    return { bookingId: null, created: false };
+  } finally {
+    client.release();
+  }
+
+  // Post-commit side effects (own connections / sockets).
+  if (bookingId) {
+    try {
+      await recomputeManagerCommissionAfterGroupChange(bookingId);
+    } catch (e) {
+      logger.warn('Failed to recompute manager commission for group calendar booking', { bookingId, error: e.message });
+    }
+  }
+  if (created && emitPayload && socketService) {
+    try {
+      socketService.emitToChannel('general', 'booking:created', emitPayload);
+      socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
+    } catch (e) {
+      logger.warn('Failed to emit booking:created for group calendar booking', { bookingId, error: e.message });
+    }
+  }
+
+  return { bookingId, created };
+}
+
+/**
  * Create a new group booking
  * POST /api/group-bookings
  */
@@ -85,8 +282,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       paymentModel, // 'individual' or 'organizer_pays'
       invitees, // Legacy: array of { email, fullName, phone }
       participantIds, // New: array of user IDs (registered users)
-      packageId, // Optional: organizer's package to use
-      ownedPackageId // Optional: organizer's customer_packages instance id
+      packageId // Optional: organizer's package to use
     } = req.body;
 
     // Log incoming request for debugging
@@ -205,84 +401,13 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student',
       generatedLink = await generateGenericInviteLink(groupBooking.id, userId);
     }
 
-    // Auto-create a calendar booking so it appears on the calendar in "pending" state
-    // (just like private lessons do). Admin can later confirm it.
-    let calendarBookingId = null;
-    if (scheduledDate && startTime) {
-      try {
-        const timeParts = String(startTime).split(':');
-        const startHourDecimal = parseInt(timeParts[0], 10) + (parseInt(timeParts[1] || 0, 10) / 60);
-        const dur = parseFloat(durationHours) || 2;
-        const amt = resolvedPricePerPerson;
-
-        const bkResult = await pool.query(`
-          INSERT INTO bookings (
-            date, start_hour, duration,
-            student_user_id, instructor_user_id, customer_user_id,
-            status, payment_status, amount, final_amount,
-            notes, service_id, group_size, max_participants,
-            created_by, customer_package_id
-          ) VALUES ($1, $2, $3, $4, $5, $4, 'pending', 'unpaid', $6, $6, $7, $8, $9, $10, $11, $12)
-          RETURNING id
-        `, [
-          scheduledDate,
-          startHourDecimal,
-          dur,
-          userId,
-          instructorId || null,
-          amt,
-          notes || '',
-          serviceId,
-          1, // starts with organizer only
-          maxParticipants || 6,
-          userId,
-          ownedPackageId || null
-        ]);
-        calendarBookingId = bkResult.rows[0].id;
-
-        // Add organizer as participant in the bookings table
-        await pool.query(`
-          INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes)
-          VALUES ($1, $2, true, 'unpaid', 0, '')
-        `, [calendarBookingId, userId]);
-
-        // Link the calendar booking to the group booking
-        await pool.query(
-          'UPDATE group_bookings SET booking_id = $1, updated_at = NOW() WHERE id = $2',
-          [calendarBookingId, groupBooking.id]
-        );
-
-        // Emit booking:created with full data (same as POST /api/bookings/calendar)
-        // so the CalendarContext can instantly add it to state
-        if (req.socketService) {
-          const startHours = Math.floor(startHourDecimal);
-          const startMins = Math.round((startHourDecimal - startHours) * 60);
-          const fmtStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
-          const endDecimal = startHourDecimal + dur;
-          const endHours = Math.floor(endDecimal);
-          const endMins = Math.round((endDecimal - endHours) * 60);
-          const fmtEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
-
-          req.socketService.emitToChannel('general', 'booking:created', {
-            id: calendarBookingId,
-            date: scheduledDate,
-            startTime: fmtStart,
-            endTime: fmtEnd,
-            time: fmtStart,
-            duration: dur,
-            instructor_user_id: instructorId || null,
-            service_id: serviceId,
-            student_user_id: userId,
-            status: 'pending',
-            group_size: 1,
-            max_participants: maxParticipants || 6
-          });
-          req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
-        }
-      } catch (bkErr) {
-        logger.warn('Failed to auto-create calendar booking for group', { error: bkErr.message, groupBookingId: groupBooking.id });
-      }
-    }
+    // Do NOT place this on the calendar yet. A semi-private/group lesson should
+    // only appear on the calendar once the minimum number of participants have
+    // actually registered AND accepted — not while it's just the organizer with
+    // a pending invite link. ensureGroupCalendarBooking is a no-op here (only the
+    // organizer has accepted so far); the calendar booking is created later, when
+    // a friend accepts (see the accept routes below).
+    await ensureGroupCalendarBooking(groupBooking.id, req.socketService);
 
     res.status(201).json({
       success: true,
@@ -662,23 +787,12 @@ router.post('/invitation/:token/accept', authenticateJWT, async (req, res, next)
       logger.warn('Failed to send acceptance notification to organizer', { error: notifErr.message });
     }
 
-    // Sync to booking_participants so the user appears on the calendar
+    // Place the lesson on the calendar now if this acceptance reaches the group's
+    // minimum participants (otherwise sync the participant into an existing booking).
     try {
-      const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [result.groupBookingId]);
-      const bookingId = gbLink.rows[0]?.booking_id;
-      if (bookingId) {
-        const exists = await pool.query('SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, userId]);
-        if (exists.rows.length === 0) {
-          await pool.query(
-            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes) VALUES ($1, $2, false, 'unpaid', 0, '')`,
-            [bookingId, userId]
-          );
-          await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
-          await recomputeManagerCommissionAfterGroupChange(bookingId);
-        }
-      }
+      await ensureGroupCalendarBooking(result.groupBookingId, req.socketService);
     } catch (syncErr) {
-      logger.warn('Failed to sync booking_participants on token accept', { error: syncErr.message });
+      logger.warn('Failed to ensure group calendar booking on token accept', { error: syncErr.message });
     }
 
     res.json({
@@ -782,23 +896,12 @@ router.post('/:id/accept', authenticateJWT, async (req, res, next) => {
       logger.warn('Failed to send acceptance notification to organizer', { error: notifErr.message });
     }
 
-    // Sync to booking_participants so the user appears on the calendar
+    // Place the lesson on the calendar now if this acceptance reaches the group's
+    // minimum participants (otherwise sync the participant into an existing booking).
     try {
-      const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
-      const bookingId = gbLink.rows[0]?.booking_id;
-      if (bookingId) {
-        const exists = await pool.query('SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, userId]);
-        if (exists.rows.length === 0) {
-          await pool.query(
-            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes) VALUES ($1, $2, false, 'unpaid', 0, '')`,
-            [bookingId, userId]
-          );
-          await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
-          await recomputeManagerCommissionAfterGroupChange(bookingId);
-        }
-      }
+      await ensureGroupCalendarBooking(id, req.socketService);
     } catch (syncErr) {
-      logger.warn('Failed to sync booking_participants on accept', { error: syncErr.message });
+      logger.warn('Failed to ensure group calendar booking on accept', { error: syncErr.message });
     }
 
     res.json({
@@ -1117,6 +1220,16 @@ router.post('/:id/pay-all', authenticateJWT, async (req, res, next) => {
       roleUpgrade = await checkAndUpgradeAfterBooking(userId);
     } catch (roleErr) {
       logger.warn('Role upgrade check failed after organizer payment', { userId, error: roleErr.message });
+    }
+
+    // The organizer has paid for the whole group, so the lesson is confirmed and
+    // must appear on the calendar even if the (pre-paid) invitees never click
+    // Accept. Force-create the calendar booking now. force: true bypasses the
+    // min-participants gate — for organizer_pays the payment is the commitment.
+    try {
+      await ensureGroupCalendarBooking(id, req.socketService, { force: true });
+    } catch (calErr) {
+      logger.warn('Failed to ensure group calendar booking after organizer payment', { groupBookingId: id, error: calErr.message });
     }
 
     res.json({
@@ -1736,8 +1849,8 @@ router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'm
       targetUser = userResult.rows[0];
     } else {
       const userResult = await pool.query(
-        `SELECT id, email, COALESCE(name, CONCAT(first_name, ' ', last_name)) as full_name, phone FROM users WHERE email = $1 AND deleted_at IS NULL`,
-        [email.toLowerCase().trim()]
+        `SELECT id, email, COALESCE(name, CONCAT(first_name, ' ', last_name)) as full_name, phone FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL`,
+        [email.trim()]
       );
       if (userResult.rows.length === 0) {
         return res.status(404).json({ error: 'No user found with that email' });
@@ -1763,23 +1876,12 @@ router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'm
       RETURNING *
     `, [id, targetUser.id, targetUser.email, targetUser.full_name, targetUser.phone, gb.price_per_person, gb.currency]);
 
-    // Also add to booking_participants (calendar sync) since admin-added are auto-accepted
+    // Admin-added participants are auto-accepted. Create the calendar booking now
+    // if the minimum is reached, or sync into an existing one.
     try {
-      const gbLink = await pool.query('SELECT booking_id FROM group_bookings WHERE id = $1', [id]);
-      const bookingId = gbLink.rows[0]?.booking_id;
-      if (bookingId) {
-        const exists = await pool.query('SELECT 1 FROM booking_participants WHERE booking_id = $1 AND user_id = $2', [bookingId, targetUser.id]);
-        if (exists.rows.length === 0) {
-          await pool.query(
-            `INSERT INTO booking_participants (booking_id, user_id, is_primary, payment_status, payment_amount, notes) VALUES ($1, $2, false, 'unpaid', 0, '')`,
-            [bookingId, targetUser.id]
-          );
-          await pool.query('UPDATE bookings SET group_size = (SELECT COUNT(*) FROM booking_participants WHERE booking_id = $1) WHERE id = $1', [bookingId]);
-          await recomputeManagerCommissionAfterGroupChange(bookingId);
-        }
-      }
+      await ensureGroupCalendarBooking(id, req.socketService);
     } catch (syncErr) {
-      logger.warn('Failed to sync booking_participants on add-participant', { error: syncErr.message });
+      logger.warn('Failed to ensure group calendar booking on add-participant', { error: syncErr.message });
     }
 
     res.status(201).json({

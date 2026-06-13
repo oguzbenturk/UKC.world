@@ -60,6 +60,10 @@ const computeTotals = (rows, storageCurrency, convertCurrency) => {
         return acc;
       }
       if (type.includes('adjustment') || type.includes('reversal')) return acc;
+      // Carried-over opening balance from the previous app is the customer's
+      // starting balance, not money paid to us — never count it toward Total Paid
+      // / Total Charged (it still feeds the Wallet Balance card via wallet_balances).
+      if (type === 'legacy_opening_balance') return acc;
       if (type.includes('refund')) {
         acc.totalRefunded += Math.abs(amount);
         return acc;

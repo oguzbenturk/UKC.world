@@ -1767,6 +1767,7 @@
     "types": {
       "manual_credit": "Deposito",
       "wallet_deposit": "Deposito",
+      "legacy_opening_balance": "Saldo de la aplicacion anterior",
       "credit": "Credito",
       "payment": "Pago",
       "package_purchase": "Compra de paquete",

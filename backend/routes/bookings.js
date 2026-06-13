@@ -3912,7 +3912,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       }
     }
     if (!userId && user.email) {
-      const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [user.email]);
+      const userCheck = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [user.email]);
       if (userCheck.rows.length > 0) {
         userId = userCheck.rows[0].id;
       }

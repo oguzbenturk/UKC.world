@@ -132,12 +132,18 @@ const Login = () => {
 
     setIsLoading(true);
 
+    // Trim stray whitespace only. We intentionally do NOT lower-case here: the backend
+    // matches emails case-insensitively via Postgres LOWER() on both sides, so casing
+    // never blocks sign-in. Lower-casing in JS could diverge from Postgres for non-ASCII
+    // (e.g. the Turkish dotted-İ) and break those logins.
+    const normalizedEmail = email.trim();
+
     try {
-      const result = await login(email, password);
+      const result = await login(normalizedEmail, password);
 
       if (result) {
         if (rememberMe) {
-          localStorage.setItem('rememberedEmail', email);
+          localStorage.setItem('rememberedEmail', normalizedEmail);
         } else {
           localStorage.removeItem('rememberedEmail');
         }

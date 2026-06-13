@@ -1767,6 +1767,7 @@
     "types": {
       "manual_credit": "Пополнение",
       "wallet_deposit": "Пополнение",
+      "legacy_opening_balance": "Баланс из предыдущего приложения",
       "credit": "Кредит",
       "payment": "Оплата",
       "package_purchase": "Покупка пакета",

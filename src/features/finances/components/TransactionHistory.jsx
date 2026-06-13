@@ -15,6 +15,7 @@ const AVATAR_COLORS = ['#1677ff', '#52c41a', '#faad14', '#eb2f96', '#722ed1', '#
 const TYPE_COLORS = {
   manual_credit: 'green',
   wallet_deposit: 'green',
+  legacy_opening_balance: 'gold',
   credit: 'cyan',
   payment: 'geekblue',
   payment_reversal: 'red',

@@ -121,7 +121,17 @@ router.get('/csrf', (req, res) => {
 
 // Enhanced login endpoint with 2FA support and security features
 router.post('/login', authRateLimit, async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  // Trim stray whitespace but DON'T lower-case in JS: the lookup below lower-cases
+  // both sides with Postgres' LOWER() so a single (consistent) lowering authority is
+  // used. Doing toLowerCase() here too would diverge for non-ASCII (e.g. the Turkish
+  // dotted-İ, common in this DB) where JS and Postgres lower differently, which would
+  // break those logins. Admin-created accounts historically stored the email with
+  // whatever casing staff typed while this lookup matched case-sensitively — so an
+  // instructor created as "Foo@Bar.com" could not sign in by typing "foo@bar.com"
+  // and got "email not registered". The case-insensitive lookup fixes existing and
+  // future accounts without a data migration.
+  const email = typeof req.body.email === 'string' ? req.body.email.trim() : req.body.email;
 
   if (!email || !password) {
     return res.status(400).json({
@@ -144,7 +154,9 @@ router.post('/login', authRateLimit, async (req, res) => {
       SELECT u.*, r.name as role_name, r.permissions as role_permissions
       FROM users u
       JOIN roles r ON r.id = u.role_id
-      WHERE u.email = $1 AND u.deleted_at IS NULL
+      WHERE LOWER(u.email) = LOWER($1) AND u.deleted_at IS NULL
+      ORDER BY (u.email = $1) DESC, u.created_at ASC
+      LIMIT 1
     `, [email]);
 
     if (userResult.rows.length === 0) {
@@ -816,7 +828,7 @@ router.post('/register', authRateLimit, async (req, res) => {
     await client.query('BEGIN');
 
     // Check if email already exists (only for non-deleted users)
-    const existingUser = await client.query('SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL', [email.toLowerCase()]);
+    const existingUser = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL', [email]);
     if (existingUser.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'An account with this email already exists' });

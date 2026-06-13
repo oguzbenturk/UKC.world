@@ -615,9 +615,15 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     // entries — without them, payout reversals leak into customer totals.
     const STAFF_PAYOUT_ENTITY_TYPES = ['manager_payment', 'instructor_payment', 'manager', 'instructor'];
 
-    // Hide synthetic backfill entries (one per migrated user — they're not real
-    // payment activity and would inflate admin totals + clutter the table).
-    const HIDDEN_TRANSACTION_TYPES = ['legacy_opening_balance'];
+    // Legacy opening-balance backfill (one synthetic row per migrated user,
+    // type 'legacy_opening_balance') is a balance CARRIED OVER from the previous
+    // app — not money received here. We DO show it in the transaction list so a
+    // carried-over balance is explainable (previously it was hidden entirely,
+    // which made the wallet balance look like it appeared from nowhere), but it
+    // must stay OUT of the income/charge totals below — otherwise it inflates
+    // admin revenue and the customer's "money received". The customer-facing
+    // "Total Paid" client total drops it too (StudentPayments.jsx:computeTotals).
+    const TOTALS_EXCLUDED_TRANSACTION_TYPES = ['legacy_opening_balance'];
 
     const options = {
       limit: Number.parseInt(limit, 10) || 50,
@@ -629,7 +635,6 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       direction: direction || undefined,
       currency: currency || undefined,
       excludeEntityTypes: STAFF_PAYOUT_ENTITY_TYPES,
-      excludeTransactionTypes: HIDDEN_TRANSACTION_TYPES,
       excludeOrphanedRelatedEntities: true
     };
 
@@ -680,8 +685,9 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     if (user_id) { statsParams.push(user_id); statsFilters.push(`user_id = $${++sIdx}`); }
     statsParams.push(STAFF_PAYOUT_ENTITY_TYPES);
     statsFilters.push(`(entity_type IS NULL OR entity_type <> ALL($${++sIdx}))`);
-    // Mirror the row filter: legacy backfill entries aren't real payment activity.
-    statsParams.push(HIDDEN_TRANSACTION_TYPES);
+    // Keep the carried-over opening balance OUT of the money totals (it's shown
+    // as a row above, but it's not income/charges — see note where it's defined).
+    statsParams.push(TOTALS_EXCLUDED_TRANSACTION_TYPES);
     statsFilters.push(`transaction_type <> ALL($${++sIdx})`);
     statsFilters.push(`(
       booking_id IS NULL OR NOT EXISTS (

@@ -1769,6 +1769,7 @@
     "types": {
       "manual_credit": "Deposit",
       "wallet_deposit": "Deposit",
+      "legacy_opening_balance": "Previous app balance",
       "credit": "Credit",
       "payment": "Payment",
       "package_purchase": "Package Purchase",

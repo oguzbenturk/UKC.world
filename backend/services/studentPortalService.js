@@ -4,9 +4,12 @@ import { validate as uuidValidate } from 'uuid';
 import { getRecommendedProductsForRole } from './recommendationService.js';
 import { getUnratedBookings as fetchUnratedBookings } from './ratingService.js';
 import bookingNotificationService from './bookingNotificationService.js';
-import { recordTransaction as recordWalletTransaction, recordLegacyTransaction, getEntityNetCharges } from './walletService.js';
+import { recordTransaction as recordWalletTransaction, recordLegacyTransaction, getEntityNetCharges, getAllBalances } from './walletService.js';
 
 const DEFAULT_PAGE_SIZE = 20;
+// Business/base wallet currency — mirrors walletService's DEFAULT_CURRENCY. Used
+// only as a tiebreaker when a customer has wallets in more than one currency.
+const BASE_WALLET_CURRENCY = process.env.DEFAULT_WALLET_CURRENCY?.toUpperCase() || 'EUR';
 
 const toIso = (value) => {
   if (!value) return null;
@@ -1283,7 +1286,35 @@ export async function getStudentOverview(studentId, options = {}) {
     const hasLinkedAccountRow = Boolean(profileRow.account_user_id);
     const existingBalance = coalesceNumber(profileRow.balance);
     const existingTotalSpent = coalesceNumber(profileRow.total_spent);
-    let resolvedBalance = existingBalance;
+
+    // Authoritative wallet balance, straight from wallet_balances (the same
+    // source the wallet-summary card and admin views use). We prefer this over
+    // the transaction-derived balance below: computeTransactionAggregates() does
+    // NOT count wallet_deposit top-ups or carried-over legacy_opening_balance
+    // (previous-app) credits, so the derived figure understates anyone who
+    // deposited or was migrated. Re-summing available_delta is unsafe (cancel+
+    // reversal pairs), so we read the maintained balance directly.
+    let authoritativeBalance = null;
+    if (hasWalletBalances) {
+      try {
+        const walletBalances = await getAllBalances(normalizedStudentId);
+        if (walletBalances.length === 1) {
+          authoritativeBalance = coalesceNumber(walletBalances[0].available);
+        } else if (walletBalances.length > 1) {
+          // Multi-currency: use the business/default-currency wallet, matching
+          // the (single-currency) wallet-summary card the customer also sees.
+          const baseWallet = walletBalances.find((b) => b.currency === BASE_WALLET_CURRENCY);
+          if (baseWallet) authoritativeBalance = coalesceNumber(baseWallet.available);
+        }
+      } catch (error) {
+        logger.warn('studentPortal: failed to read authoritative wallet balance; falling back to derived', {
+          studentId,
+          error: error?.message
+        });
+      }
+    }
+
+    let resolvedBalance = authoritativeBalance != null ? authoritativeBalance : existingBalance;
     let resolvedTotalSpent = existingTotalSpent;
     let resolvedLastPaymentAt = toIso(profileRow.last_payment_date);
 
@@ -1291,7 +1322,9 @@ export async function getStudentOverview(studentId, options = {}) {
       const balanceDiff = Math.abs(existingBalance - transactionSummary.balance);
       const totalSpentDiff = Math.abs(existingTotalSpent - transactionSummary.totalSpent);
 
-      if (!hasLinkedAccountRow || balanceDiff > 0.01) {
+      // Derived balance is a fallback only — use it when wallet_balances gave us
+      // nothing authoritative AND (there's no linked account row OR it disagrees).
+      if (authoritativeBalance == null && (!hasLinkedAccountRow || balanceDiff > 0.01)) {
         resolvedBalance = transactionSummary.balance;
       }
 

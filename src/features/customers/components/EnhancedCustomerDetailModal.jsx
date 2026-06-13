@@ -1060,7 +1060,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       }
       return fmtCurrency(amount || 0, txCur);
     }},
-    { title: 'Type', dataIndex: 'type', key: 'type', render: t => { const c = t === 'payment' ? 'green' : t === 'refund' ? 'orange' : 'blue'; return <Tag color={c}>{t?.toUpperCase() || 'N/A'}</Tag>; } },
+    { title: 'Type', dataIndex: 'type', key: 'type', render: t => { const c = t === 'payment' ? 'green' : t === 'refund' ? 'orange' : t === 'legacy_opening_balance' ? 'gold' : 'blue'; const label = t === 'legacy_opening_balance' ? 'PREVIOUS APP BALANCE' : (t?.toUpperCase() || 'N/A'); return <Tag color={c}>{label}</Tag>; } },
     { title: 'Description', dataIndex: 'description', key: 'desc', render: d => d || 'N/A' },
     { title: 'Status', dataIndex: 'status', key: 'status', render: s => { const c = s === 'completed' ? 'green' : s === 'pending' ? 'orange' : 'red'; return <Tag color={c}>{s?.toUpperCase() || 'N/A'}</Tag>; } },
     { title: 'Actions', key: 'actions', render: (_, r) => (

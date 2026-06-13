@@ -1767,6 +1767,7 @@
     "types": {
       "manual_credit": "Depot",
       "wallet_deposit": "Depot",
+      "legacy_opening_balance": "Solde de l'application precedente",
       "credit": "Credit",
       "payment": "Paiement",
       "package_purchase": "Achat de forfait",

@@ -568,7 +568,7 @@ router.post('/:id/create-booking', authenticateJWT, authorizeRoles(['admin', 'ma
     // Find or use provided user
     let userId = submission.user_id;
     if (!userId && email) {
-      const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+      const userCheck = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
       if (userCheck.rows.length > 0) {
         userId = userCheck.rows[0].id;
       }
@@ -677,9 +677,9 @@ router.post('/:id/create-account', authenticateJWT, authorizeRoles(['admin', 'ma
     }
 
     // Check if user already exists
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'User with this email already exists',
         user_id: existingUser.rows[0].id
       });

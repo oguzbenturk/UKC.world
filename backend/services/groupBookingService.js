@@ -157,8 +157,8 @@ export const inviteParticipants = async (groupBookingId, invitedBy, participants
 
       // Check if already invited
       const existingResult = await client.query(
-        'SELECT id FROM group_booking_participants WHERE group_booking_id = $1 AND email = $2',
-        [groupBookingId, email.toLowerCase()]
+        'SELECT id FROM group_booking_participants WHERE group_booking_id = $1 AND LOWER(email) = LOWER($2)',
+        [groupBookingId, email.trim()]
       );
 
       if (existingResult.rows.length > 0) {
@@ -167,8 +167,8 @@ export const inviteParticipants = async (groupBookingId, invitedBy, participants
 
       // Check if user exists
       const userResult = await client.query(
-        'SELECT id, COALESCE(name, CONCAT(first_name, \' \', last_name)) as full_name, phone FROM users WHERE email = $1',
-        [email.toLowerCase()]
+        'SELECT id, COALESCE(name, CONCAT(first_name, \' \', last_name)) as full_name, phone FROM users WHERE LOWER(email) = LOWER($1)',
+        [email.trim()]
       );
 
       const userId = userResult.rows.length > 0 ? userResult.rows[0].id : null;

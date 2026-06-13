@@ -131,6 +131,7 @@ const GroupBookingDetailPage = () => {
 
   /* ─── Derived ─── */
   const myP = booking?.participants?.find(p => p.userId === user?.id);
+  const accepted = booking?.participants?.filter(p => ['accepted', 'paid'].includes(p.status)).length || 0;
   const isOrgModel = booking?.paymentModel === 'organizer_pays';
   const orgPay = isOrgModel && booking?.isOrganizer && !booking?.organizerPaid;
   const partPay = !isOrgModel && myP?.paymentStatus === 'pending';
@@ -232,6 +233,34 @@ const GroupBookingDetailPage = () => {
         {booking.notes && <div className="mt-3 pt-3 border-t border-slate-100"><p className="text-[9px] font-gotham-medium uppercase tracking-widest text-slate-400 mb-1">Notes</p><p className="text-sm text-slate-600">{booking.notes}</p></div>}
       </div>
 
+      {/* ── Share Invite Link (kept above Participants so it's always visible) ── */}
+      {canInvite && (() => {
+        const inv = booking.participants?.find(p => p.invitationToken && p.status === 'invited');
+        if (!inv) return null;
+        const link = `${window.location.origin}/group-invitation/${inv.invitationToken}`;
+        return (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <ShareIcon className="w-4 h-4 text-slate-400" />
+              <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-slate-400">Share Invite Link</p>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">Share so friends can join — even without an account.</p>
+            <div className="flex gap-2">
+              <div className="flex-1 flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 min-w-0">
+                <LinkIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="text-xs text-slate-600 truncate">{link}</span>
+              </div>
+              <Tooltip title="Copy to clipboard">
+                <button type="button" onClick={() => navigator.clipboard.writeText(link).then(() => message.success('Invite link copied!'))}
+                  className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-gotham-medium text-white bg-duotone-blue hover:bg-duotone-blue/90 transition-colors">
+                  <ClipboardDocumentIcon className="w-3.5 h-3.5" /> Copy
+                </button>
+              </Tooltip>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Participants ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -278,34 +307,6 @@ const GroupBookingDetailPage = () => {
           <span className="text-emerald-600">{booking.paidCount} paid</span>
         </div>
       </div>
-
-      {/* ── Share Invite Link ── */}
-      {canInvite && (() => {
-        const inv = booking.participants?.find(p => p.invitationToken && p.status === 'invited');
-        if (!inv) return null;
-        const link = `${window.location.origin}/group-invitation/${inv.invitationToken}`;
-        return (
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <ShareIcon className="w-4 h-4 text-slate-400" />
-              <p className="text-[10px] font-gotham-medium uppercase tracking-widest text-slate-400">Share Invite Link</p>
-            </div>
-            <p className="text-xs text-slate-500 mb-3">Share so friends can join — even without an account.</p>
-            <div className="flex gap-2">
-              <div className="flex-1 flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 min-w-0">
-                <LinkIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="text-xs text-slate-600 truncate">{link}</span>
-              </div>
-              <Tooltip title="Copy to clipboard">
-                <button type="button" onClick={() => navigator.clipboard.writeText(link).then(() => message.success('Invite link copied!'))}
-                  className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-gotham-medium text-white bg-duotone-blue hover:bg-duotone-blue/90 transition-colors">
-                  <ClipboardDocumentIcon className="w-3.5 h-3.5" /> Copy
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ── Cancel ── */}
       {canCancel && (

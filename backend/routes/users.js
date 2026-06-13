@@ -69,6 +69,17 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'reception
     return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
   }
 
+  // Trim the email; the INSERT below stores it lower-cased via Postgres LOWER() so
+  // storage and the case-insensitive login lookup share ONE lowering authority
+  // (Postgres). Without case-insensitive storage+lookup, "Foo@Bar.com" was stored
+  // verbatim and admin-created accounts (instructors, receptionists, managers) could
+  // not sign in with the natural "foo@bar.com" — the reported "email not registered"
+  // bug. We deliberately do NOT lower-case in JS here: JS and Postgres lower non-ASCII
+  // (e.g. the Turkish dotted-İ) differently, which would desync storage from lookup.
+  if (typeof req.body.email === 'string') {
+    req.body.email = req.body.email.trim();
+  }
+
   try {
     const roleRes = await pool.query('SELECT name FROM roles WHERE id = $1', [role_id]);
 
@@ -129,7 +140,10 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'reception
 
     const fields = Object.keys(insertData);
     const values = Object.values(insertData);
-    const paramList = fields.map((_, i) => `$${i + 1}`);
+    // Store the email lower-cased via Postgres LOWER() (not JS) so storage and the
+    // case-insensitive login lookup use the SAME lowering authority — this keeps even
+    // non-ASCII emails (e.g. the Turkish dotted-İ) consistent and loginable.
+    const paramList = fields.map((f, i) => (f === 'email' ? `LOWER($${i + 1})` : `$${i + 1}`));
 
     const query = `
       INSERT INTO users (${fields.join(', ')}, created_at, updated_at)
@@ -161,7 +175,11 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'reception
   } catch (err) {
     logger.error('User creation failed', err);
 
-    if (err.code === '23505' && err.constraint === 'users_email_key') {
+    if (err.code === '23505') {
+      // Any unique-violation on user create is effectively a duplicate email (the only
+      // user-facing unique key). The active-email unique index is named
+      // idx_users_email_unique_active, not users_email_key, so don't gate on the name —
+      // otherwise a real duplicate fell through to a 500 leaking the raw DB error.
       res.status(409).json({ error: 'Email already exists' });
     } else {
       res.status(500).json({ error: `Failed to create user: ${err.message}` });
