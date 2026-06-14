@@ -223,7 +223,6 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
           <img
             src={thumbUrl(offering.image_url, 600, imageRevisionFromRecord(offering))}
             alt={offering.name}
-            loading="lazy"
             className="absolute inset-0 w-full h-full object-cover max-md:group-hover:scale-[1.03] transition-transform duration-500 md:transition-none"
             loading="lazy"
           />
