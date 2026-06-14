@@ -63,3 +63,30 @@ export function resolvePublicUploadUrl(path, cacheBustKey) {
   }
   return out;
 }
+
+/**
+ * Resolve an uploaded image to a width-capped, recompressed WebP thumbnail via the
+ * backend `/api/media/img` resizer. Use this anywhere many images are shown at small
+ * sizes (shop grids, cards, galleries) so the browser fetches ~20–80 KB instead of the
+ * multi-MB original. Non-upload URLs (static assets, external, SVG) are returned as-is.
+ * Same-origin path → works in dev (Vite proxies /api) and prod (nginx proxies /api).
+ * @param {string} path stored image path/url
+ * @param {number} [width=400] target CSS pixel width (snapped to cache buckets server-side)
+ * @param {string|number} [cacheBustKey] e.g. updatedAt, so a replaced image isn't stale
+ */
+export function thumbUrl(path, width = 400, cacheBustKey) {
+  const resolved = resolvePublicUploadUrl(path, cacheBustKey);
+  if (!resolved) return '';
+  // Only route uploaded raster images through the optimizer.
+  if (!/\/uploads\//i.test(resolved)) return resolved;
+  if (/\.svg(\?|$)/i.test(resolved)) return resolved;
+  // Reduce to a same-origin path (strip scheme+host if present).
+  const pathOnly = resolved.replace(/^https?:\/\/[^/]+/i, '');
+  const [bare, query = ''] = pathOnly.split('?');
+  const params = new URLSearchParams();
+  params.set('src', bare);
+  params.set('w', String(width));
+  const v = new URLSearchParams(query).get('v');
+  if (v) params.set('v', v);
+  return `/api/media/img?${params.toString()}`;
+}

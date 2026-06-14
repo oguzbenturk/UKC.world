@@ -32,6 +32,44 @@ function nowStamp() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Upload a local directory to the server as a single gzipped tarball, then extract it
+// remotely. Dramatically more reliable than per-file SFTP (ssh.putDirectory) over slow or
+// flaky links: dist/ holds ~777 small files and uploading them one-by-one routinely dropped
+// the SSH session mid-transfer, leaving a half-uploaded directory and a broken deploy.
+// One stream + a remote untar avoids that. `tar` ships with Windows 10+, Linux and macOS;
+// if local packaging ever fails we fall back to the original per-file upload.
+async function uploadDirAsTarball(ssh, localDir, remoteDir, remotePath, { exclude = [], fallback } = {}) {
+  const tarName = `__deploy_${path.basename(remoteDir)}_${Date.now()}.tgz`;
+  const localTar = path.join(cwd, tarName);
+  const remoteTar = `${remotePath}/${tarName}`;
+  // Relative paths only (with forward slashes): GNU/MSYS tar treats an absolute Windows
+  // path like "C:\..." as a remote host ("C:" → host) and fails, while a relative archive
+  // name + relative -C dir works on both GNU tar (Git Bash) and Windows' bundled tar.exe.
+  const relDir = (path.relative(cwd, localDir) || '.').replace(/\\/g, '/');
+  const excludeArgs = exclude.map((e) => `--exclude="${e}"`).join(' ');
+  try {
+    execSync(`tar -czf "${tarName}" ${excludeArgs} -C "${relDir}" .`, { stdio: 'inherit', cwd });
+  } catch (err) {
+    console.warn(`   ⚠️  tar packaging failed (${err.message}); falling back to per-file upload…`);
+    if (fallback) return fallback();
+    throw err;
+  }
+  try {
+    await ssh.putFile(localTar, remoteTar);
+    const res = await ssh.execCommand(
+      `rm -rf "${remoteDir}" && mkdir -p "${remoteDir}"` +
+      ` && tar -xzf "${remoteTar}" -C "${remoteDir}"` +
+      ` && chmod -R a+rX "${remoteDir}"` +   // ensure the unprivileged nginx user (uid 101) can read served files
+      ` && rm -f "${remoteTar}"`
+    );
+    if (res.code) {
+      throw new Error(`remote extract failed (exit ${res.code}): ${(res.stderr || res.stdout || '').slice(0, 300)}`);
+    }
+  } finally {
+    try { fs.rmSync(localTar, { force: true }); } catch { /* ignore */ }
+  }
+}
+
 function parseArgs() {
   const args = process.argv.slice(2);
   const flags = new Set(args.filter(a => a.startsWith('--')));
@@ -347,28 +385,30 @@ async function main() {
           await ssh.putFile(beEnvProd, `${remotePath}/.env.production.deploy`);
           console.log('   ✓ backend/.env.production uploaded');
 
-          // Upload pre-built frontend dist
-          console.log('📤 Uploading frontend dist to server...');
+          // Upload pre-built frontend dist as a single tarball (reliable on slow links —
+          // per-file SFTP of dist/'s ~777 files used to drop the SSH session mid-upload).
+          console.log('📤 Uploading frontend dist to server (tarball)...');
           const localDistDir = path.join(cwd, 'dist');
           const remoteDistDir = `${remotePath}/dist`;
-          await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
-          await ssh.putDirectory(localDistDir, remoteDistDir, {
-            recursive: true,
-            concurrency: 5,
-            validate: () => true,
+          await uploadDirAsTarball(ssh, localDistDir, remoteDistDir, remotePath, {
+            fallback: async () => {
+              await ssh.execCommand(`rm -rf ${remoteDistDir} && mkdir -p ${remoteDistDir}`);
+              await ssh.putDirectory(localDistDir, remoteDistDir, { recursive: true, concurrency: 5, validate: () => true });
+            },
           });
           console.log('   ✓ Frontend dist uploaded');
 
-          // Upload plannivo.com landing page
+          // Upload plannivo.com landing page as a tarball (same reliability reason)
           const localLandingDir = path.join(cwd, 'plannivo-landing');
           if (fs.existsSync(localLandingDir)) {
-            console.log('🌐 Uploading plannivo.com landing page...');
+            console.log('🌐 Uploading plannivo.com landing page (tarball)...');
             const remoteLandingDir = `${remotePath}/plannivo-landing`;
-            await ssh.execCommand(`rm -rf ${remoteLandingDir} && mkdir -p ${remoteLandingDir}`);
-            await ssh.putDirectory(localLandingDir, remoteLandingDir, {
-              recursive: false,
-              concurrency: 5,
-              validate: (p) => !p.endsWith('README.md'),
+            await uploadDirAsTarball(ssh, localLandingDir, remoteLandingDir, remotePath, {
+              exclude: ['README.md'],
+              fallback: async () => {
+                await ssh.execCommand(`rm -rf ${remoteLandingDir} && mkdir -p ${remoteLandingDir}`);
+                await ssh.putDirectory(localLandingDir, remoteLandingDir, { recursive: false, concurrency: 5, validate: (p) => !p.endsWith('README.md') });
+              },
             });
             console.log('   ✓ Landing page uploaded');
           }

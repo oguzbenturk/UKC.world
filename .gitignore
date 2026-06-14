@@ -105,3 +105,6 @@ backend/.env.development
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# push-all temporary deploy tarballs
+__deploy_*.tgz

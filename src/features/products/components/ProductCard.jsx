@@ -3,6 +3,7 @@
 
 import { Card, Tag, Typography, Space, Button, Dropdown, Tooltip, Avatar, Checkbox } from 'antd';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { thumbUrl } from '@/shared/utils/mediaUrl';
 import { 
   EditOutlined, 
   DeleteOutlined, 
@@ -146,8 +147,10 @@ const ProductCard = ({
       <div className="relative h-36 overflow-hidden bg-gray-100" style={{ borderRadius: '10px 10px 0 0' }}>
         {displayImage ? (
           <img
-            src={displayImage}
+            src={thumbUrl(displayImage, 400)}
             alt={name}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (

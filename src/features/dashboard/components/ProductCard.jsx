@@ -2,13 +2,7 @@ import { memo, useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { HeartFilled, HeartOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-const resolveImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-};
+import { thumbUrl } from '@/shared/utils/mediaUrl';
 
 const ProductCard = memo(({
     product,
@@ -30,10 +24,12 @@ const ProductCard = memo(({
         let raw = null;
         if (product.image_url) raw = product.image_url;
         else if (product.images) {
-            const imgs = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
-            raw = imgs?.[0] || null;
+            try {
+                const imgs = typeof product.images === 'string' ? JSON.parse(product.images) : product.images;
+                raw = imgs?.[0] || null;
+            } catch { raw = null; }
         }
-        return resolveImageUrl(raw);
+        return raw ? thumbUrl(raw, 600) : null;
     }, [product.image_url, product.images]);
 
     const [imgError, setImgError] = useState(false);

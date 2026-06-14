@@ -45,6 +45,7 @@ import settingsRouter from './routes/settings.js';
 import financeSettingsRouter from './routes/financialSettings.js';
 import servicesRouter from './routes/services.js';
 import productsRouter from './routes/products.js';
+import mediaRouter from './routes/media.js';
 import ratingsRouter from './routes/ratings.js';
 import rolesRouter from './routes/roles.js';
 import uploadRouter from './routes/upload.js';
@@ -277,6 +278,14 @@ app.use((req, res, next) => {
   }
   globalCors(req, res, next);
 });
+
+// PUBLIC image thumbnail resizer — mounted BEFORE rate-limiting, the no-store header,
+// body parsing, sanitization and CSRF. A single shop grid fires dozens of image
+// requests; they must not count against the per-IP API quota (429s) and must be
+// long-cacheable. The router serves read-only GETs of already-public /uploads files
+// (with a path-traversal guard) and self-sets an immutable Cache-Control, so skipping
+// those middlewares is both safe and necessary.
+app.use('/api/media', mediaRouter);
 
 // Rate limiting
 app.use('/api/auth', authRateLimit); // Stricter for auth routes (20 req / 15 min in production)

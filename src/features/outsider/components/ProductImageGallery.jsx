@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LeftOutlined, RightOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-const resolveImageUrl = (url) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-};
+import { thumbUrl } from '@/shared/utils/mediaUrl';
 
 const parseJSON = (field) => {
     if (!field) return null;
@@ -61,7 +55,9 @@ const ProductImageGallery = ({ product, selectedColor }) => {
         ? [product.image_url, ...displayImages]
         : displayImages.length > 0 ? displayImages : (product.image_url ? [product.image_url] : []);
 
-    const allImages = allImagesRaw.map(resolveImageUrl).filter(Boolean);
+    // Keep raw paths here; convert to width-capped WebP thumbnails at render time
+    // (large for the main image, tiny for the strip) via the /api/media resizer.
+    const allImages = allImagesRaw.filter(Boolean);
     const hasMultipleImages = allImages.length > 1;
     const currentImage = allImages[selectedImageIndex] || allImages[0] || null;
 
@@ -81,8 +77,9 @@ const ProductImageGallery = ({ product, selectedColor }) => {
             <div className="relative overflow-hidden rounded-lg" style={{ background: '#f8f9fa', minHeight: 300 }}>
                 {currentImage ? (
                     <img
-                        src={currentImage}
+                        src={thumbUrl(currentImage, 900)}
                         alt={product.name}
+                        decoding="async"
                         className="w-full object-contain"
                         style={{ display: 'block', maxHeight: 500 }}
                         onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }}
@@ -159,9 +156,9 @@ const ProductImageGallery = ({ product, selectedColor }) => {
                                     }}
                                 >
                                     <img
-                                        src={img}
+                                        src={thumbUrl(img, 128)}
                                         alt={`${product.name} ${index + 1}`}
-                                        loading="eager"
+                                        loading="lazy"
                                         onError={(e) => { e.target.style.display = 'none'; }}
                                         style={{
                                             width: '100%', height: '100%', objectFit: 'cover',
