@@ -187,6 +187,20 @@ const AdminMembersPage = () => {
     message.success(t('admin:members.toast.assigned'));
   };
 
+  // Storage boxes held by more than one live purchase = shared across customers.
+  // Matches the backend occupancy predicate (active/pending/pending_payment); 'expired'
+  // (computed from expires_at) is excluded so a lapsed tenant doesn't keep the badge alive.
+  const LIVE_PURCHASE_STATUSES = ['active', 'pending', 'pending_payment'];
+  const sharedStorageUnits = (() => {
+    const counts = {};
+    purchases.forEach(p => {
+      if (p.storage_unit != null && LIVE_PURCHASE_STATUSES.includes(p.status)) {
+        counts[p.storage_unit] = (counts[p.storage_unit] || 0) + 1;
+      }
+    });
+    return new Set(Object.keys(counts).filter(k => counts[k] > 1).map(Number));
+  })();
+
   const columns = [
     {
       title: t('admin:members.table.member'),
@@ -212,6 +226,14 @@ const AdminMembersPage = () => {
         <span className="flex items-center gap-1.5 text-sm">
           {getMemberIcon(record.offering_name || record.current_offering_name)}
           {record.offering_name || record.current_offering_name || 'Unknown'}
+          {record.storage_unit != null && (
+            <Tag
+              color={sharedStorageUnits.has(Number(record.storage_unit)) ? 'gold' : 'blue'}
+              className="m-0 ml-1"
+            >
+              Box #{record.storage_unit}{sharedStorageUnits.has(Number(record.storage_unit)) ? ' (shared)' : ''}
+            </Tag>
+          )}
         </span>
       )
     },
@@ -504,6 +526,13 @@ const AdminMembersPage = () => {
                 {selectedPurchase.offering_name || selectedPurchase.current_offering_name}
               </Space>
             </Descriptions.Item>
+            {selectedPurchase.storage_unit != null && (
+              <Descriptions.Item label={t('admin:members.detail.storageBox', 'Storage Box')}>
+                <Tag color={sharedStorageUnits.has(Number(selectedPurchase.storage_unit)) ? 'gold' : 'blue'}>
+                  #{selectedPurchase.storage_unit}{sharedStorageUnits.has(Number(selectedPurchase.storage_unit)) ? ' (shared)' : ''}
+                </Tag>
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label={t('admin:members.detail.status')}>
               <Tag color={statusConfig[selectedPurchase.status]?.color || 'default'}>
                 {statusConfig[selectedPurchase.status]?.label || selectedPurchase.status}

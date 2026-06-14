@@ -1139,6 +1139,14 @@ export async function fetchTransactions(userId, {
   // per-participant discounts on the same booking_id. entity_id in `discounts`
   // is TEXT (mixed UUID/INT source ids), so cast.
   //
+  // related_entity_id is UUID-typed, so it only carries the id for entities with
+  // UUID PKs (booking, customer_package, rental, accommodation_booking). The
+  // INTEGER-PK entities (shop_order, member_purchase) record their charge as a
+  // generic `payment` row with related_entity_id NULL and the numeric id in
+  // metadata instead — so the join falls back to metadata.orderId /
+  // metadata.memberPurchaseId, otherwise their discounts never show on the
+  // charge row (the discount stays invisible in Payment History).
+  //
   // `adj` folds any subsequent `booking_charge_adjustment` rows (written by
   // bookingUpdateCascadeService when a booking price is edited) back into the
   // original `booking_charge` row's displayed amount. Without this, the
@@ -1155,7 +1163,11 @@ export async function fetchTransactions(userId, {
                MAX(d.percent) AS max_percent
           FROM discounts d
          WHERE d.entity_type = wallet_transactions.related_entity_type
-           AND d.entity_id   = wallet_transactions.related_entity_id::text
+           AND d.entity_id   = COALESCE(
+                 wallet_transactions.related_entity_id::text,
+                 wallet_transactions.metadata->>'orderId',
+                 wallet_transactions.metadata->>'memberPurchaseId'
+               )
       ) disc ON true
       LEFT JOIN LATERAL (
         SELECT SUM(a.amount) AS total_adjustment

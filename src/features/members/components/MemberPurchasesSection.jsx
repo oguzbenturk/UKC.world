@@ -257,6 +257,11 @@ const MemberPurchasesSection = ({
                         {renderPriceCell(purchase)}
                         <span className="text-slate-400">• Purchased {formatDate(purchase.purchased_at)}</span>
                       </div>
+                      {purchase.storage_unit != null && (
+                        <div className="mt-1.5">
+                          <Tag color="blue" className="text-xs">Storage Box #{purchase.storage_unit}</Tag>
+                        </div>
+                      )}
                       {daysRemaining !== null && (
                         <div className="flex items-center gap-1 mt-2">
                           <ClockCircleOutlined className={daysRemaining < 30 ? 'text-orange-500' : 'text-slate-400'} />
@@ -304,6 +309,9 @@ const MemberPurchasesSection = ({
                     </div>
                   </div>
                   <Space wrap size="small">
+                    {purchase.storage_unit != null && (
+                      <Tag color="blue">Box #{purchase.storage_unit}</Tag>
+                    )}
                     <Tag color={getStatusColor(purchase.status)}>
                       {purchase.status?.toUpperCase()}
                     </Tag>

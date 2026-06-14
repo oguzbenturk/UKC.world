@@ -509,6 +509,10 @@
     "whatsappOptions": {
       "shop": "Questions boutique",
       "school": "Questions école"
+    },
+    "floatingContact": {
+      "whatsapp": "WhatsApp",
+      "call": "Appeler"
     }
   },
   "rentalStandard": {

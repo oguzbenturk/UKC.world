@@ -229,6 +229,7 @@ export default function AdminWarrantyCreateModal({ open, onClose, onCreated }) {
           variant="light"
           value={files}
           onChange={setFiles}
+          allowDocuments
           progress={progress}
           isUploading={createMutation.isPending}
         />

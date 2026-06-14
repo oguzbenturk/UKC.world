@@ -305,7 +305,8 @@
       "noteVisibleToCustomer": "Make this note visible to the customer",
       "noteAddCta": "Add note",
       "noteAdded": "Note added.",
-      "mediaSection": "Supplementary files",
+      "mediaSection": "Supplementary files & Product Bill",
+      "mediaHint": "Attach photos, videos or a PDF — including the manufacturer Product Bill / proof of purchase. Documents are visible to the UKC team only, not the customer.",
       "uploadCta": "Upload {{n}} file(s)",
       "uploadDone": "Files uploaded.",
       "timelineSection": "Activity",
@@ -326,18 +327,24 @@
       "deleted": "Claim deleted."
     },
     "media": {
-      "empty": "No photos or videos uploaded yet."
+      "empty": "No photos or videos uploaded yet.",
+      "viewDocument": "View PDF"
     },
     "uploader": {
       "cta": "Click to add photos or videos",
+      "ctaDocs": "Click to add photos, videos or a PDF bill",
       "hint": "JPG, PNG, WEBP, HEIC up to {{photo}} MB each · MP4, MOV, WEBM up to {{video}} MB each",
+      "hintDocs": "PDF (e.g. the manufacturer Product Bill) up to {{doc}} MB each",
       "cap": "Max {{photos}} photos and {{videos}} videos · {{cap}} GB combined",
+      "capDocs": "Max {{photos}} photos, {{videos}} videos and {{docs}} PDFs · {{cap}} GB combined",
       "errorMime": "Unsupported file type: {{name}}",
       "errorPhoto": "Photo \"{{name}}\" is larger than {{max}} MB.",
       "errorVideo": "Video \"{{name}}\" is larger than {{max}} MB.",
+      "errorDocument": "Document \"{{name}}\" is larger than {{max}} MB.",
       "errorQuota": "Total upload size would exceed {{cap}} GB.",
       "errorPhotos": "Maximum {{n}} photos per claim.",
       "errorVideos": "Maximum {{n}} videos per claim.",
+      "errorDocuments": "Maximum {{n}} documents per claim.",
       "errorFileCount": "Too many files (max {{n}})."
     }
   }

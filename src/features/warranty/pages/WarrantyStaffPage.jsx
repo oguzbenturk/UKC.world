@@ -247,14 +247,20 @@ export default function WarrantyStaffPage() {
       </Form>
 
       <Divider orientation="left" plain>
-        {t('public:warranty.staff.mediaSection', 'Supplementary files')}
+        {t('public:warranty.staff.mediaSection', 'Supplementary files & Product Bill')}
       </Divider>
+      <p className="-mt-2 mb-3 text-xs text-slate-500">
+        {t('public:warranty.staff.mediaHint',
+          'Attach photos, videos or a PDF — including the manufacturer Product Bill / proof of purchase. Documents are visible to the UKC team only, not the customer.')}
+      </p>
       <WarrantyFileUploader
         value={files}
         onChange={setFiles}
+        allowDocuments
         existing={{
           photoCount: claim.photo_count,
           videoCount: claim.video_count,
+          documentCount: claim.document_count,
           totalBytes: Number(claim.total_bytes) || 0
         }}
         progress={progress}

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Drawer, Select, Spin, message } from 'antd';
+import { Drawer, Select, Spin, message, Tooltip } from 'antd';
 import {
   CrownOutlined,
   SearchOutlined,
   CheckOutlined,
   WalletOutlined,
+  UsergroupAddOutlined,
 } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -82,7 +83,76 @@ const OfferingList = ({ offerings, selectedOffering, onSelect, formatCurrency })
   </div>
 );
 
-
+// Storage box picker — shown only for storage-category offerings. Free boxes are selectable
+// (white/emerald); occupied boxes stay selectable in amber so staff can deliberately SHARE a
+// box (same box # assigned to several people). Selected box is highlighted indigo.
+const StorageUnitPicker = ({ units, unitsLoading, selectedUnit, onSelect }) => {
+  const sel = units.find(u => u.unit === selectedUnit);
+  const sharing = sel?.occupied;
+  return (
+    <div className="mt-5">
+      <SectionHeader label="Storage Box" />
+      {unitsLoading ? (
+        <div className="flex items-center justify-center py-6"><Spin size="small" /></div>
+      ) : units.length === 0 ? (
+        <div className="text-center py-6 px-4 text-sm text-slate-400 border border-dashed border-slate-200 rounded-xl">
+          No storage boxes set up for this plan yet. Set <strong className="text-slate-500">Total Capacity</strong> on it under <strong className="text-slate-500">Settings → Memberships</strong> to enable box selection.
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 mb-2 text-[11px] text-slate-400">
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-white border border-emerald-300" />Free
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-300" />Occupied (tap to share)
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {units.map(u => {
+              const isSel = u.unit === selectedUnit;
+              const occ = u.occupied;
+              return (
+                <Tooltip
+                  key={u.unit}
+                  title={occ ? `Used by ${u.occupants.join(', ')}` : `Box #${u.unit} — free`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelect(isSel ? null : u.unit)}
+                    className="relative w-10 h-10 rounded-lg text-sm font-semibold flex items-center justify-center transition-colors cursor-pointer border-0"
+                    style={{
+                      background: isSel ? '#4f46e5' : occ ? '#fffbeb' : '#ffffff',
+                      color: isSel ? '#ffffff' : occ ? '#b45309' : '#334155',
+                      border: `1px solid ${isSel ? '#4f46e5' : occ ? '#fcd34d' : '#a7f3d0'}`,
+                      boxShadow: isSel ? '0 0 0 2px #c7d2fe' : 'none',
+                    }}
+                  >
+                    {u.unit}
+                    {occ && (
+                      <UsergroupAddOutlined
+                        className="absolute -top-1 -right-1 text-[9px] rounded-full p-[1px]"
+                        style={{ background: isSel ? '#4f46e5' : '#fffbeb', color: isSel ? '#ffffff' : '#d97706' }}
+                      />
+                    )}
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+          {sharing && (
+            <div className="mt-2.5 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+              <UsergroupAddOutlined className="text-amber-500 mt-0.5 text-xs" />
+              <p className="text-xs text-amber-700">
+                Box #{sel.unit} is used by <strong>{sel.occupants.join(', ')}</strong> — assigning will <strong>SHARE</strong> it.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
 
 function useMemberDrawer(isOpen, onClose, isElevated) {
   const queryClient = useQueryClient();
@@ -93,6 +163,11 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedOffering, setSelectedOffering] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+
+  const isStorage = selectedOffering?.category === 'storage';
 
   useEffect(() => {
     if (!isOpen) return;
@@ -110,9 +185,24 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
       .finally(() => setLoadingData(false));
   }, [isOpen]);
 
+  // Load the storage-box grid whenever a storage offering is selected; clear for non-storage.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (selectedOffering?.category !== 'storage') {
+      setUnits([]); setSelectedUnit(null); return;
+    }
+    setSelectedUnit(null);
+    setUnitsLoading(true);
+    apiClient.get(`/member-offerings/admin/${selectedOffering.id}/storage-units`)
+      .then(({ data }) => setUnits(data?.units || []))
+      .catch(() => { setUnits([]); message.error('Failed to load storage boxes'); })
+      .finally(() => setUnitsLoading(false));
+  }, [isOpen, selectedOffering]);
+
   const reset = () => {
     setSelectedCustomers([]); setCustomerSearch('');
     setSelectedOffering(null);
+    setSelectedUnit(null); setUnits([]); setUnitsLoading(false);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -120,12 +210,16 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
   const handleSubmit = async () => {
     if (!selectedCustomers.length) { message.warning('Please select at least one customer'); return; }
     if (!selectedOffering) { message.warning('Please select a membership plan'); return; }
+    if (isStorage && units.length > 0 && selectedUnit == null) { message.warning('Please select a storage box'); return; }
     try {
       setSubmitting(true);
+      // For storage, the SAME box # is sent for every selected customer, so a group shares
+      // one physical box (each gets their own record on that unit).
       await Promise.all(selectedCustomers.map(userId =>
         apiClient.post('/member-offerings/admin/purchases', {
           userId, offeringId: selectedOffering.id, paymentMethod: 'wallet',
           allowNegativeBalance: isElevated,
+          ...(isStorage ? { storageUnit: selectedUnit } : {}),
         })
       ));
       message.success(`Membership assigned to ${selectedCustomers.length} customer${selectedCustomers.length > 1 ? 's' : ''}!`);
@@ -152,7 +246,15 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     selectedCustomers, setSelectedCustomers,
     customerSearch, setCustomerSearch,
     selectedOffering, setSelectedOffering,
-    canSubmit: !!(selectedCustomers.length && selectedOffering),
+    isStorage,
+    selectedUnit, setSelectedUnit, units, unitsLoading,
+    canSubmit: !!(
+      selectedCustomers.length &&
+      selectedOffering &&
+      // Storage: require a box only when boxes are actually configured for the plan.
+      // (Unconfigured storage plans — no total_capacity — assign with no box, as before.)
+      (!isStorage || (units.length === 0 && !unitsLoading) || selectedUnit != null)
+    ),
     handleClose, handleSubmit,
   };
 }
@@ -193,7 +295,7 @@ const CustomerPicker = ({ filteredCustomers, selectedCustomers, onSelect, onSear
   </div>
 );
 
-const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated }) => (
+const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, isStorage, selectedUnit }) => (
   <div className="rounded-xl border border-slate-200 overflow-hidden">
     <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Summary</p>
@@ -207,6 +309,12 @@ const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated }) 
         <span className="text-slate-500">Plan</span>
         <span className="font-medium text-slate-800 truncate max-w-[200px] text-right">{selectedOffering?.name}</span>
       </div>
+      {isStorage && selectedUnit != null && (
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Box</span>
+          <span className="font-medium text-slate-800">#{selectedUnit} → {count} customer{count > 1 ? 's' : ''}{count > 1 ? ' (shared)' : ''}</span>
+        </div>
+      )}
       <div className="flex justify-between text-sm">
         <span className="text-slate-500">Payment</span>
         <span className="font-medium text-slate-800">Wallet</span>
@@ -255,6 +363,8 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
     selectedCustomers, setSelectedCustomers,
     setCustomerSearch,
     selectedOffering, setSelectedOffering,
+    isStorage,
+    selectedUnit, setSelectedUnit, units, unitsLoading,
     canSubmit,
     handleClose, handleSubmit,
   } = useMemberDrawer(isOpen, onClose, isElevated);
@@ -296,6 +406,15 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
           )}
         </div>
 
+        {isStorage && (
+          <StorageUnitPicker
+            units={units}
+            unitsLoading={unitsLoading}
+            selectedUnit={selectedUnit}
+            onSelect={setSelectedUnit}
+          />
+        )}
+
         <div className="mt-5">
           <SectionHeader label="Payment" />
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50">
@@ -314,6 +433,8 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
             selectedOffering={selectedOffering}
             formatCurrency={formatCurrency}
             isElevated={isElevated}
+            isStorage={isStorage}
+            selectedUnit={selectedUnit}
           />
           </div>
         )}

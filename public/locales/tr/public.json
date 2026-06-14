@@ -306,7 +306,8 @@
       "noteVisibleToCustomer": "Bu notu müşteri görebilsin",
       "noteAddCta": "Notu ekle",
       "noteAdded": "Not eklendi.",
-      "mediaSection": "Ek dosyalar",
+      "mediaSection": "Ek dosyalar ve Ürün Faturası",
+      "mediaHint": "Fotoğraf, video veya PDF ekleyin — üreticinin Ürün Faturası / satın alma belgesi dahil. Belgeler yalnızca UKC ekibine görünür, müşteriye gösterilmez.",
       "uploadCta": "{{n}} dosya yükle",
       "uploadDone": "Dosyalar yüklendi.",
       "timelineSection": "Aktivite",
@@ -327,18 +328,24 @@
       "deleted": "Talep silindi."
     },
     "media": {
-      "empty": "Henüz fotoğraf veya video yüklenmedi."
+      "empty": "Henüz fotoğraf veya video yüklenmedi.",
+      "viewDocument": "PDF'i aç"
     },
     "uploader": {
       "cta": "Fotoğraf veya video eklemek için tıklayın",
+      "ctaDocs": "Fotoğraf, video veya PDF fatura eklemek için tıklayın",
       "hint": "JPG, PNG, WEBP, HEIC en fazla {{photo}} MB · MP4, MOV, WEBM en fazla {{video}} MB",
+      "hintDocs": "PDF (örn. üreticinin Ürün Faturası) en fazla {{doc}} MB",
       "cap": "En fazla {{photos}} fotoğraf ve {{videos}} video · Toplam {{cap}} GB",
+      "capDocs": "En fazla {{photos}} fotoğraf, {{videos}} video ve {{docs}} PDF · Toplam {{cap}} GB",
       "errorMime": "Desteklenmeyen dosya türü: {{name}}",
       "errorPhoto": "\"{{name}}\" fotoğrafı {{max}} MB'dan büyük.",
       "errorVideo": "\"{{name}}\" videosu {{max}} MB'dan büyük.",
+      "errorDocument": "\"{{name}}\" belgesi {{max}} MB'dan büyük.",
       "errorQuota": "Toplam yükleme boyutu {{cap}} GB sınırını aşar.",
       "errorPhotos": "Talep başına en fazla {{n}} fotoğraf.",
       "errorVideos": "Talep başına en fazla {{n}} video.",
+      "errorDocuments": "Talep başına en fazla {{n}} belge.",
       "errorFileCount": "Çok fazla dosya (en fazla {{n}})."
     }
   }

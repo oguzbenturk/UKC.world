@@ -146,6 +146,50 @@ export async function deleteMedia(id, mediaId) {
   return data;
 }
 
+// Attach photos, videos or a PDF "Product Bill" to a claim that already exists.
+export async function uploadAdminFiles(id, formData, { onUploadProgress } = {}) {
+  const { data } = await apiClient.post(`/warranty/admin/${encodeURIComponent(id)}/media`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: UPLOAD_TIMEOUT_MS,
+    onUploadProgress
+  });
+  return data;
+}
+
+// Admin media files are JWT-protected — documents in particular are blocked on
+// the public customer URL — so they can't be referenced from <img>/<a href>.
+// Open a blank tab synchronously (preserving the click gesture so popup
+// blockers allow it), then point it at a blob fetched with the auth header.
+export async function openAdminMedia(id, mediaId) {
+  const win = window.open('about:blank', '_blank');
+  if (win) { try { win.opener = null; } catch { /* cross-origin guard */ } }
+  try {
+    const res = await apiClient.get(
+      `/warranty/admin/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}`,
+      { responseType: 'blob', timeout: UPLOAD_TIMEOUT_MS }
+    );
+    const type = res.data?.type || res.headers?.['content-type'] || 'application/octet-stream';
+    const blob = new Blob([res.data], { type });
+    const url = window.URL.createObjectURL(blob);
+    if (win) {
+      win.location = url;
+    } else {
+      // Popup blocked — fall back to a same-tab-initiated download.
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    if (win) win.close();
+    throw err;
+  }
+}
+
 export async function setAdminClaimNumber(id, claimNumber) {
   const { data } = await apiClient.patch(`/warranty/admin/${encodeURIComponent(id)}/claim-number`, {
     claim_number_external: claimNumber

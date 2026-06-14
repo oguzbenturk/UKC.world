@@ -509,6 +509,10 @@
     "whatsappOptions": {
       "shop": "Mağaza soruları",
       "school": "Okul soruları"
+    },
+    "floatingContact": {
+      "whatsapp": "WhatsApp",
+      "call": "Ara"
     }
   },
   "rentalStandard": {

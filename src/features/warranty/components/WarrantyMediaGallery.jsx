@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Image, Popconfirm, Tag } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { formatBytes } from '../constants';
@@ -12,7 +12,9 @@ const GALLERY_VARIANTS = {
     frame: 'bg-slate-50',
     sizeText: 'text-slate-500',
     nameText: 'text-slate-700',
-    heading: 'text-slate-500'
+    heading: 'text-slate-500',
+    docIcon: 'text-rose-500',
+    docLabel: 'text-slate-500'
   },
   dark: {
     empty: 'text-white/40',
@@ -20,7 +22,9 @@ const GALLERY_VARIANTS = {
     frame: 'bg-black/40',
     sizeText: 'text-white/40',
     nameText: 'text-white/75',
-    heading: 'text-white/50'
+    heading: 'text-white/50',
+    docIcon: 'text-rose-300',
+    docLabel: 'text-white/55'
   }
 };
 
@@ -36,7 +40,34 @@ function UploaderTag({ item }) {
   return <Tag color={color} className="!m-0">{label}</Tag>;
 }
 
-function MediaCard({ item, url, tokens, canDelete, onDelete, showUploader, t }) {
+function DocumentFrame({ item, url, tokens, onOpenDocument, t }) {
+  const inner = (
+    <div className="flex flex-col items-center justify-center gap-2 px-2 text-center">
+      <FilePdfOutlined style={{ fontSize: 42 }} className={tokens.docIcon} />
+      <span className={`text-[11px] font-semibold uppercase tracking-wide ${tokens.docLabel}`}>
+        {t('public:warranty.media.viewDocument', 'View PDF')}
+      </span>
+    </div>
+  );
+  const className = 'flex h-full w-full items-center justify-center transition hover:opacity-75';
+  // Admin contexts pass onOpenDocument (the file is behind a JWT endpoint and
+  // must be fetched as a blob); staff contexts have a token-in-URL link that
+  // works as a plain anchor.
+  if (onOpenDocument) {
+    return (
+      <button type="button" onClick={() => onOpenDocument(item)} className={className}>
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className={className}>
+      {inner}
+    </a>
+  );
+}
+
+function MediaCard({ item, url, tokens, canDelete, onDelete, showUploader, onOpenDocument, t }) {
   return (
     <div className={`group relative overflow-hidden rounded-xl border ${tokens.card}`}>
       <div className={`aspect-square flex items-center justify-center overflow-hidden ${tokens.frame}`}>
@@ -48,6 +79,8 @@ function MediaCard({ item, url, tokens, canDelete, onDelete, showUploader, t }) 
             preview={{ src: url }}
             fallback="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgZmlsbD0iI2NiZDVlMSI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTAiLz48L3N2Zz4="
           />
+        ) : item.kind === 'document' ? (
+          <DocumentFrame item={item} url={url} tokens={tokens} onOpenDocument={onOpenDocument} t={t} />
         ) : (
           <video
             src={url}
@@ -59,7 +92,7 @@ function MediaCard({ item, url, tokens, canDelete, onDelete, showUploader, t }) 
       </div>
       <div className="p-2 text-xs">
         <div className="flex items-center justify-between gap-2">
-          <Tag color={item.kind === 'photo' ? 'blue' : 'purple'} className="!m-0">
+          <Tag color={item.kind === 'photo' ? 'blue' : item.kind === 'document' ? 'orange' : 'purple'} className="!m-0">
             {item.kind}
           </Tag>
           <span className={tokens.sizeText}>{formatBytes(item.size_bytes)}</span>
@@ -106,7 +139,8 @@ export default function WarrantyMediaGallery({
   showUploader = false,
   headerExtra = null,
   customerSectionLabel,
-  teamSectionLabel
+  teamSectionLabel,
+  onOpenDocument
 }) {
   const { t } = useTranslation(['public', 'admin']);
   const tokens = GALLERY_VARIANTS[variant] || GALLERY_VARIANTS.light;
@@ -122,6 +156,7 @@ export default function WarrantyMediaGallery({
           canDelete={canDelete}
           onDelete={onDelete}
           showUploader={showUploader}
+          onOpenDocument={onOpenDocument}
           t={t}
         />
       ))}

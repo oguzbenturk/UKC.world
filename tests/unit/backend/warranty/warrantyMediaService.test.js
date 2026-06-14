@@ -13,8 +13,9 @@ describe('warrantyMediaService.kindForMime', () => {
     ['video/mp4',       'video'],
     ['video/quicktime', 'video'],
     ['video/webm',      'video'],
-    ['application/pdf', null],
+    ['application/pdf', 'document'],
     ['text/plain',      null],
+    ['application/zip', null],
     ['',                null],
     [undefined,         null]
   ])('mime %s → %s', (mime, expected) => {
@@ -29,9 +30,38 @@ describe('warrantyMediaService.validateUploadedFiles', () => {
   const videoFile = (size = 1024, name = 'a.mp4') => ({
     mimetype: 'video/mp4', size, originalname: name
   });
+  const documentFile = (size = 1024, name = 'bill.pdf') => ({
+    mimetype: 'application/pdf', size, originalname: name
+  });
 
   test('accepts a single small photo', () => {
     expect(media.validateUploadedFiles([photoFile()])).toMatchObject({ ok: true });
+  });
+
+  test('accepts a PDF document by default (staff/admin contexts)', () => {
+    expect(media.validateUploadedFiles([documentFile()])).toMatchObject({ ok: true });
+  });
+
+  test('rejects a PDF document when allowDocuments is false (public form)', () => {
+    const result = media.validateUploadedFiles([documentFile()], { allowDocuments: false });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('INVALID_MIME');
+    expect(result.status).toBe(415);
+  });
+
+  test('rejects a document over the 50MB limit', () => {
+    const big = documentFile(media.MAX_DOCUMENT_SIZE + 1);
+    const result = media.validateUploadedFiles([big]);
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('DOCUMENT_TOO_LARGE');
+    expect(result.status).toBe(413);
+  });
+
+  test('rejects more than the max documents per claim', () => {
+    const docs = Array.from({ length: media.MAX_DOCUMENTS }, (_, i) => documentFile(1024, `d${i}.pdf`));
+    const result = media.validateUploadedFiles(docs, { existingDocumentCount: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('TOO_MANY_DOCUMENTS');
   });
 
   test('rejects a photo over the 30MB limit', () => {

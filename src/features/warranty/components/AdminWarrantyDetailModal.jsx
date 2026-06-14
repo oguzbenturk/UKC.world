@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import WarrantyStatusBadge from './WarrantyStatusBadge';
 import WarrantyTimeline from './WarrantyTimeline';
 import WarrantyMediaGallery from './WarrantyMediaGallery';
+import WarrantyFileUploader from './WarrantyFileUploader';
 import StatusTransitionSelect from './StatusTransitionSelect';
 import {
   useAdminWarrantyClaim,
@@ -23,11 +24,12 @@ import {
   useCloseClaim,
   useDeleteClaim,
   useDeleteMedia,
+  useAdminUpload,
   useCreateStaffLink,
   useRevokeStaffLink,
   useAdminSetClaimNumber
 } from '../hooks/useWarranty';
-import { customerMediaUrl, downloadAdminMediaArchive } from '../services/warrantyApi';
+import { customerMediaUrl, downloadAdminMediaArchive, openAdminMedia } from '../services/warrantyApi';
 
 const { TextArea } = Input;
 
@@ -88,12 +90,15 @@ function ClaimBody({ data, claimId, onClose }) {
   const closeMutation   = useCloseClaim(claimId);
   const deleteMutation  = useDeleteClaim();
   const deleteMedia     = useDeleteMedia(claimId);
+  const adminUpload     = useAdminUpload(claimId);
   const createStaffLink = useCreateStaffLink(claimId);
   const revokeStaffLink = useRevokeStaffLink(claimId);
 
   const [statusValue, setStatusValue] = useState(undefined);
   const [statusNote, setStatusNote] = useState('');
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [noteForm] = Form.useForm();
   const [updateForm] = Form.useForm();
   const [staffForm] = Form.useForm();
@@ -107,6 +112,30 @@ function ClaimBody({ data, claimId, onClose }) {
     } finally {
       setArchiveBusy(false);
     }
+  };
+
+  const handleUpload = async () => {
+    if (!files.length) return;
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f, f.name));
+    try {
+      setUploadProgress(0);
+      await adminUpload.mutateAsync({
+        formData,
+        onUploadProgress: (e) => { if (e.total) setUploadProgress((e.loaded / e.total) * 100); }
+      });
+      setFiles([]);
+      setUploadProgress(0);
+      message.success(t('admin:warranty.media.uploaded', 'Files uploaded.'));
+    } catch (err) {
+      message.error(err?.response?.data?.error || 'Upload failed');
+    }
+  };
+
+  const handleOpenDocument = (item) => {
+    openAdminMedia(claimId, item.id).catch((err) => {
+      message.error(err?.response?.data?.error || 'Failed to open document');
+    });
   };
 
   const activeStaffLinks = useMemo(
@@ -174,21 +203,56 @@ function ClaimBody({ data, claimId, onClose }) {
       key: 'media',
       label: t('admin:warranty.detail.tabs.media', 'Media ({{n}})', { n: media.length }),
       children: (
-        <WarrantyMediaGallery
-          media={media}
-          mediaUrlFor={(id) => customerMediaUrl(claim.customer_token, id)}
-          grouped
-          showUploader
-          headerExtra={media.length > 0 ? (
-            <Button icon={<DownloadOutlined />} loading={archiveBusy} onClick={handleDownloadArchive}>
-              {t('admin:warranty.media.downloadZip', 'Download all (ZIP)')}
-            </Button>
-          ) : null}
-          canDelete
-          onDelete={(id) => deleteMedia.mutate(id, {
-            onSuccess: () => message.success(t('admin:warranty.actions.mediaDeleted', 'Media deleted.'))
-          })}
-        />
+        <div className="space-y-5">
+          <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {t('admin:warranty.media.addTitle', 'Add files or Product Bill')}
+            </h4>
+            <p className="mb-3 text-xs text-slate-500">
+              {t('admin:warranty.media.addHint',
+                'Attach photos, videos or a PDF — including the manufacturer Product Bill / proof of purchase. Documents are kept internal to the UKC team and are not shown to the customer.')}
+            </p>
+            <WarrantyFileUploader
+              value={files}
+              onChange={setFiles}
+              allowDocuments
+              existing={{
+                photoCount: claim.photo_count,
+                videoCount: claim.video_count,
+                documentCount: claim.document_count,
+                totalBytes: Number(claim.total_bytes) || 0
+              }}
+              progress={uploadProgress}
+              isUploading={adminUpload.isPending}
+            />
+            {files.length > 0 && (
+              <Button
+                type="primary"
+                className="!mt-3"
+                loading={adminUpload.isPending}
+                onClick={handleUpload}
+              >
+                {t('admin:warranty.media.uploadCta', 'Upload {{n}} file(s)', { n: files.length })}
+              </Button>
+            )}
+          </section>
+          <WarrantyMediaGallery
+            media={media}
+            mediaUrlFor={(id) => customerMediaUrl(claim.customer_token, id)}
+            onOpenDocument={handleOpenDocument}
+            grouped
+            showUploader
+            headerExtra={media.length > 0 ? (
+              <Button icon={<DownloadOutlined />} loading={archiveBusy} onClick={handleDownloadArchive}>
+                {t('admin:warranty.media.downloadZip', 'Download all (ZIP)')}
+              </Button>
+            ) : null}
+            canDelete
+            onDelete={(id) => deleteMedia.mutate(id, {
+              onSuccess: () => message.success(t('admin:warranty.actions.mediaDeleted', 'Media deleted.'))
+            })}
+          />
+        </div>
       )
     },
     {

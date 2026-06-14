@@ -71,7 +71,9 @@ router.post(
     const uploadedFiles = req.files || [];
 
     // Reject before doing DB work if the upload payload itself is invalid.
-    const fileCheck = media.validateUploadedFiles(uploadedFiles);
+    // Documents (PDF bills) are a staff/admin-only capability — the anonymous
+    // public form may only attach photos and videos.
+    const fileCheck = media.validateUploadedFiles(uploadedFiles, { allowDocuments: false });
     if (!fileCheck.ok) {
       await media.purgePendingFiles(uploadedFiles);
       return res.status(fileCheck.status).json({ error: fileCheck.error, code: fileCheck.code });
@@ -188,15 +190,19 @@ router.get(
       events,
       // uploaded_by_kind lets the customer gallery group "Your uploads" vs
       // "From the UKC team" — uploader name is intentionally withheld here.
-      media: mediaItems.map((m) => ({
-        id: m.id,
-        kind: m.kind,
-        original_name: m.original_name,
-        size_bytes: m.size_bytes,
-        mime_type: m.mime_type,
-        uploaded_by_kind: m.uploaded_by_kind,
-        created_at: m.created_at
-      }))
+      // Documents (e.g. the manufacturer Product Bill) are team-internal and
+      // are never surfaced to the customer.
+      media: mediaItems
+        .filter((m) => m.kind !== 'document')
+        .map((m) => ({
+          id: m.id,
+          kind: m.kind,
+          original_name: m.original_name,
+          size_bytes: m.size_bytes,
+          mime_type: m.mime_type,
+          uploaded_by_kind: m.uploaded_by_kind,
+          created_at: m.created_at
+        }))
     });
   }
 );
@@ -212,6 +218,11 @@ router.get(
     if (!claim) return res.status(404).json({ error: 'Claim not found' });
     const item = await warrantyService.getMediaById(req.params.mediaId);
     if (!item || item.claim_id !== claim.id) {
+      return res.status(404).json({ error: 'Media not found' });
+    }
+    // Documents (the manufacturer Product Bill) are team-internal — never
+    // served through the customer tracking surface even with a valid mediaId.
+    if (item.kind === 'document') {
       return res.status(404).json({ error: 'Media not found' });
     }
     const abs = media.absoluteMediaPath(item.storage_path);
@@ -358,6 +369,7 @@ router.post(
     const check = media.validateUploadedFiles(uploadedFiles, {
       existingPhotoCount: claim.photo_count,
       existingVideoCount: claim.video_count,
+      existingDocumentCount: claim.document_count,
       existingTotalBytes: Number(claim.total_bytes) || 0
     });
     if (!check.ok) {

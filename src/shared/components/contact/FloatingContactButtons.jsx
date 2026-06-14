@@ -20,11 +20,12 @@ const HIDDEN_PATH_PREFIXES = ['/payment/', '/spotify/'];
 
 const FloatingContactButtons = () => {
   const { t } = useTranslation(['outsider']);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
-  // Only guests see these buttons.
-  if (isAuthenticated) return null;
+  // Only guests see these buttons. While auth is still resolving we hide them
+  // too, so a logged-in user never sees a flash on first paint.
+  if (loading || isAuthenticated) return null;
 
   const isHidden =
     HIDDEN_EXACT_PATHS.includes(location.pathname) ||

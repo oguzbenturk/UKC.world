@@ -1376,7 +1376,11 @@
       }
     },
     "media": {
-      "deletePrompt": "Delete this file permanently?"
+      "deletePrompt": "Delete this file permanently?",
+      "addTitle": "Add files or Product Bill",
+      "addHint": "Attach photos, videos or a PDF — including the manufacturer Product Bill / proof of purchase. Documents are kept internal to the UKC team and are not shown to the customer.",
+      "uploadCta": "Upload {{n}} file(s)",
+      "uploaded": "Files uploaded."
     },
     "create": {
       "eyebrow": "UKC.Care",

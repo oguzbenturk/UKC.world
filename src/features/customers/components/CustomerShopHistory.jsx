@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Empty, Tag, Button, Spin, Modal, Avatar, Space } from 'antd';
-import { EyeOutlined, CloseCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
+import { EyeOutlined, CloseCircleOutlined, ShoppingCartOutlined, EditOutlined } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
 import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
+import EditShopItemPriceModal from './EditShopItemPriceModal';
 
 const ADMIN_ROLES = new Set(['admin', 'manager', 'front_desk', 'receptionist', 'developer', 'owner']);
 
@@ -38,9 +39,14 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  // Staff who may edit line-item prices (mirrors the backend admin/manager guard).
+  const PRICE_EDIT_ROLES = new Set(['admin', 'manager', 'owner', 'developer']);
 
   // Use admin endpoint for staff; use /my-orders for the user viewing their own profile
   const isAdminView = currentUser && ADMIN_ROLES.has(currentUser.role);
+  const canEditPrices = currentUser && PRICE_EDIT_ROLES.has(currentUser.role);
   const isSelfView = currentUser?.id === userId;
 
   const fetchOrders = async (page = 1) => {
@@ -82,6 +88,21 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
     } catch {
       message.error('Failed to load order details');
     }
+  };
+
+  // After a line-item price edit: refresh the open order detail + the list so
+  // the new item prices and order total show immediately.
+  const handleItemPriceSaved = async () => {
+    message.success('Item price updated');
+    setEditingItem(null);
+    const orderId = selectedOrder?.id;
+    if (orderId) {
+      try {
+        const { data } = await apiClient.get(`/shop-orders/${orderId}`);
+        setSelectedOrder(data);
+      } catch { /* keep current view */ }
+    }
+    fetchOrders(pagination.current);
   };
 
   const columns = [
@@ -334,9 +355,20 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
                           {item.selected_color && <span className="text-[10px] bg-slate-100 rounded px-1.5 py-px text-slate-600 font-medium">{item.selected_color}</span>}
                         </div>
                       </div>
-                      <p className="text-[13px] font-semibold text-slate-900 shrink-0">
-                        {formatCurrency(item.total_price, selectedOrder.currency || 'EUR')}
-                      </p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <p className="text-[13px] font-semibold text-slate-900">
+                          {formatCurrency(item.total_price, selectedOrder.currency || 'EUR')}
+                        </p>
+                        {canEditPrices && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<EditOutlined />}
+                            title="Edit price"
+                            onClick={() => setEditingItem(item)}
+                          />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -357,6 +389,16 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
         );
       })()}
     </Modal>
+
+    {/* Per-item price editor (admin/manager) */}
+    <EditShopItemPriceModal
+      open={!!editingItem}
+      onClose={() => setEditingItem(null)}
+      onSaved={handleItemPriceSaved}
+      orderId={selectedOrder?.id}
+      item={editingItem}
+      orderCurrency={selectedOrder?.currency || 'EUR'}
+    />
     </>
   );
 };

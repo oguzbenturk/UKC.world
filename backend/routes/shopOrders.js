@@ -16,6 +16,7 @@ import { addTag } from '../services/userTagService.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
+import { updateShopOrderItemPrice } from '../services/shopOrderPriceService.js';
 
 const router = express.Router();
 
@@ -1354,6 +1355,58 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
     client.release();
   }
 });
+
+// Admin/manager: edit a single line-item's price after the sale.
+//
+// Records-only: re-derives the order subtotal/total, rebases any layered %
+// discount, and recomputes the manager commission — WITHOUT moving the
+// customer's wallet and WITHOUT touching the catalog product price. The price
+// may be entered in any active currency (input_currency); it is converted to
+// the order's currency server-side. See updateShopOrderItemPrice.
+router.patch(
+  '/:orderId/items/:itemId/price',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
+  cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']),
+  async (req, res) => {
+    const orderId = parseInt(req.params.orderId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
+    if (!Number.isInteger(orderId) || !Number.isInteger(itemId)) {
+      return res.status(400).json({ error: 'Invalid order or item id' });
+    }
+
+    const { new_unit_price, reason, input_currency, settle_wallet } = req.body || {};
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await updateShopOrderItemPrice({
+        client,
+        orderId,
+        itemId,
+        newUnitPrice: Number(new_unit_price),
+        reason,
+        inputCurrency: input_currency || null,
+        settleWallet: settle_wallet !== false,
+        actorId: req.user.id,
+      });
+      const order = await getOrderWithItems(orderId, client);
+      await client.query('COMMIT');
+
+      return res.json({ success: true, order, edit: result });
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+      const status = error.statusCode || 500;
+      if (status >= 500) {
+        logger.error('Failed to edit shop order item price:', {
+          orderId, itemId, error: error.message, stack: error.stack,
+        });
+      }
+      return res.status(status).json({ error: error.message || 'Failed to edit item price' });
+    } finally {
+      client.release();
+    }
+  }
+);
 
 // Admin: Get low stock products
 router.get('/admin/low-stock', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {

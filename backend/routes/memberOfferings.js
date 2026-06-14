@@ -156,13 +156,19 @@ router.post(
         return res.status(400).json({ error: 'You already have an active subscription for this offering' });
       }
 
-      // Storage capacity check
+      // Storage capacity check — GLOBAL DISTINCT, matching the auto-assign block below.
+      // DISTINCT so a SHARED box (multiple rows, same storage_unit) counts once; global so
+      // boxes occupied via OTHER storage plans count too. Same predicate everywhere.
       if (offering.category === 'storage' && offering.total_capacity != null) {
         const { rows: [{ cnt }] } = await client.query(`
-          SELECT COUNT(*)::int AS cnt FROM member_purchases
-          WHERE offering_id = $1 AND status IN ('active', 'pending')
-            AND (expires_at IS NULL OR expires_at > NOW())
-        `, [offeringId]);
+          SELECT COUNT(DISTINCT mp.storage_unit)::int AS cnt
+          FROM member_purchases mp
+          JOIN member_offerings mo2 ON mo2.id = mp.offering_id
+          WHERE mo2.category = 'storage'
+            AND mp.status IN ('active', 'pending', 'pending_payment')
+            AND (mp.expires_at IS NULL OR mp.expires_at > NOW())
+            AND mp.storage_unit IS NOT NULL
+        `);
 
         if (cnt >= offering.total_capacity) {
           await client.query('ROLLBACK');
@@ -520,6 +526,84 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(ADMIN_ROLES), async (re
   } catch (error) {
     logger.error('Error fetching all offerings:', error);
     res.status(500).json({ error: 'Failed to fetch offerings' });
+  }
+});
+
+/**
+ * GET /member-offerings/admin/:offeringId/storage-units
+ * Staff-only. Returns the full 1..total_capacity box grid for a storage offering,
+ * with GLOBAL occupancy (across ALL storage offerings — same set available_count uses).
+ * Occupied boxes list occupant name(s) + nearest (MAX) expiry. Free boxes => occupied:false.
+ * Occupied boxes stay selectable in the UI so staff can deliberately SHARE one box.
+ */
+router.get('/admin/:offeringId/storage-units', authenticateJWT, authorizeRoles(ADMIN_ROLES), async (req, res) => {
+  try {
+    const { offeringId } = req.params;
+
+    const { rows: [offering] } = await pool.query(
+      `SELECT id, category, total_capacity FROM member_offerings WHERE id = $1`,
+      [offeringId]
+    );
+    if (!offering) return res.status(404).json({ error: 'Offering not found' });
+    if (offering.category !== 'storage') {
+      return res.status(400).json({ error: 'Offering is not a storage plan' });
+    }
+    // Storage plan exists but no box count configured yet (total_capacity NULL/0). Return an
+    // empty grid with a flag so the UI can guide staff to set "Total Capacity" in
+    // Settings → Memberships, instead of surfacing an error.
+    if (offering.total_capacity == null || offering.total_capacity <= 0) {
+      return res.json({
+        offeringId: Number(offeringId),
+        totalCapacity: offering.total_capacity || 0,
+        units: [],
+        unconfigured: true,
+      });
+    }
+
+    // GLOBAL occupied set — identical predicate to available_count and the customer
+    // auto-assign. One row per occupied box, with occupants aggregated (a box can be shared).
+    const { rows: occRows } = await pool.query(`
+      SELECT mp.storage_unit AS unit,
+             ARRAY_AGG(
+               NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), '')
+               ORDER BY u.first_name, u.last_name
+             ) FILTER (WHERE u.id IS NOT NULL) AS occupants,
+             MAX(mp.expires_at) AS expires_at
+      FROM member_purchases mp
+      JOIN member_offerings mo2 ON mo2.id = mp.offering_id
+      LEFT JOIN users u ON u.id = mp.user_id
+      WHERE mo2.category = 'storage'
+        AND mp.status IN ('active', 'pending', 'pending_payment')
+        AND (mp.expires_at IS NULL OR mp.expires_at > NOW())
+        AND mp.storage_unit IS NOT NULL
+      GROUP BY mp.storage_unit
+    `);
+
+    const byUnit = new Map(occRows.map(r => [Number(r.unit), r]));
+
+    const units = [];
+    for (let u = 1; u <= offering.total_capacity; u++) {
+      const row = byUnit.get(u);
+      const occupants = (row?.occupants || []).filter(Boolean);
+      units.push({
+        unit: u,
+        // occupied = the box appears in the GLOBAL occupied set (matches COUNT(DISTINCT)
+        // availability). Derive from row PRESENCE, not occupants.length — an orphaned/
+        // deleted-user row still consumes the box, so it must read as occupied.
+        occupied: !!row,
+        occupants: occupants.length ? occupants : (row ? ['Unknown'] : []),
+        expiresAt: row?.expires_at || null,
+      });
+    }
+
+    res.json({
+      offeringId: Number(offeringId),
+      totalCapacity: offering.total_capacity,
+      units,
+    });
+  } catch (error) {
+    logger.error('Error fetching storage units:', error);
+    res.status(500).json({ error: 'Failed to fetch storage units' });
   }
 });
 
@@ -888,6 +972,7 @@ router.post(
     body('offeringId').isInt().withMessage('Offering ID is required'),
     body('paymentMethod').isIn(['wallet', 'cash', 'card', 'transfer']).withMessage('Invalid payment method'),
     body('startDate').optional().isISO8601().withMessage('Invalid start date'),
+    body('storageUnit').optional({ nullable: true }).isInt({ min: 1 }).withMessage('storageUnit must be a positive integer'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -895,30 +980,23 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
+    const client = await pool.connect();
     try {
-      const { userId, offeringId, paymentMethod, notes, startDate } = req.body;
+      const { userId, offeringId, paymentMethod, notes, startDate, storageUnit: requestedUnit } = req.body;
+
+      await client.query('BEGIN');
 
       // Get the offering
-      const { rows: [offering] } = await pool.query(`
+      const { rows: [offering] } = await client.query(`
         SELECT * FROM member_offerings WHERE id = $1
       `, [offeringId]);
 
       if (!offering) {
+        await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Offering not found' });
       }
 
-      // Storage capacity check
-      if (offering.category === 'storage' && offering.total_capacity != null) {
-        const { rows: [{ cnt }] } = await pool.query(`
-          SELECT COUNT(*)::int AS cnt FROM member_purchases
-          WHERE offering_id = $1 AND status IN ('active', 'pending')
-            AND (expires_at IS NULL OR expires_at > NOW())
-        `, [offeringId]);
-
-        if (cnt >= offering.total_capacity) {
-          return res.status(400).json({ error: 'No storage slots available — all units are currently occupied' });
-        }
-      }
+      const isStorage = offering.category === 'storage' && offering.total_capacity != null;
 
       // Calculate expiration date from startDate (or today)
       const baseDate = startDate ? new Date(startDate) : new Date();
@@ -928,23 +1006,57 @@ router.post(
         expiresAt.setDate(expiresAt.getDate() + offering.duration_days);
       }
 
-      // Assign storage unit number for storage offerings
+      // Resolve the storage box (if any). Staff may PICK a specific box — including an
+      // occupied one — to deliberately SHARE it (same storage_unit on each person). If no box
+      // is picked we auto-assign the first GLOBALLY-free box (matching the customer route).
       let storageUnit = null;
-      if (offering.category === 'storage' && offering.total_capacity) {
-        const { rows: occupied } = await pool.query(`
-          SELECT storage_unit FROM member_purchases
-          WHERE offering_id = $1 AND status IN ('active', 'pending', 'pending_payment')
-            AND (expires_at IS NULL OR expires_at > NOW())
-            AND storage_unit IS NOT NULL
-          ORDER BY storage_unit
-        `, [offeringId]);
-        const usedUnits = new Set(occupied.map(r => r.storage_unit));
-        for (let u = 1; u <= offering.total_capacity; u++) {
-          if (!usedUnits.has(u)) { storageUnit = u; break; }
+      if (isStorage) {
+        // Serialize concurrent auto-assigns so two requests can't grab the same free box.
+        // Xact-scoped (auto-released on COMMIT/ROLLBACK). Deliberate shares are allowed
+        // regardless of the lock, so this never blocks sharing.
+        await client.query(`SELECT pg_advisory_xact_lock(hashtext('storage_unit_assign'))`);
+
+        // GLOBAL occupied set — identical predicate to available_count + the customer route.
+        const { rows: occupied } = await client.query(`
+          SELECT DISTINCT mp.storage_unit AS unit
+          FROM member_purchases mp
+          JOIN member_offerings mo2 ON mo2.id = mp.offering_id
+          WHERE mo2.category = 'storage'
+            AND mp.status IN ('active', 'pending', 'pending_payment')
+            AND (mp.expires_at IS NULL OR mp.expires_at > NOW())
+            AND mp.storage_unit IS NOT NULL
+        `);
+        const usedUnits = new Set(occupied.map(r => Number(r.unit)));
+        const occupiedDistinct = usedUnits.size;
+
+        if (requestedUnit != null) {
+          // Staff picked a specific box.
+          const u = Number(requestedUnit);
+          if (!Number.isInteger(u) || u < 1 || u > offering.total_capacity) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `Storage box must be between 1 and ${offering.total_capacity}` });
+          }
+          // Occupied box => deliberate SHARE => allow unconditionally (DISTINCT count is
+          // unchanged, so it's fine even at full capacity). A brand-new (free) box consumes a
+          // slot, so it still requires capacity.
+          if (!usedUnits.has(u) && occupiedDistinct >= offering.total_capacity) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No storage slots available — all units are currently occupied' });
+          }
+          storageUnit = u;
+        } else {
+          // Auto-assign the first globally-free box.
+          if (occupiedDistinct >= offering.total_capacity) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'No storage slots available — all units are currently occupied' });
+          }
+          for (let u = 1; u <= offering.total_capacity; u++) {
+            if (!usedUnits.has(u)) { storageUnit = u; break; }
+          }
         }
       }
 
-      const { rows: [purchase] } = await pool.query(`
+      const { rows: [purchase] } = await client.query(`
         INSERT INTO member_purchases (
           user_id,
           offering_id,
@@ -974,10 +1086,13 @@ router.post(
         storageUnit
       ]);
 
+      await client.query('COMMIT');
+
       // Mirror the sale into wallet_transactions so it appears in the customer's financial
-      // history. Without this, admin-created membership/storage purchases never showed up in
-      // the Financial tab on the customer profile. Cash/card/transfer also write a row (with
-      // payment_method on the wallet tx) so the history is comprehensive.
+      // history. Runs on its OWN connection (NOT the transaction above) and AFTER commit, so a
+      // wallet-log failure can never roll back / lose the already-committed purchase — keeping
+      // the prior non-fatal behavior. Cash/card/transfer write an audit row without moving the
+      // balance; wallet payments allow negative because the route is staff-gated.
       try {
         const price = parseFloat(offering.price) || 0;
         if (price > 0) {
@@ -989,7 +1104,7 @@ router.post(
             transactionType: 'payment',
             direction: 'debit',
             availableDelta: paymentMethod === 'wallet' ? -price : 0,
-            description: `${offering.category === 'storage' ? 'Storage' : 'Membership'} purchase: ${offering.name}${storageUnit ? ` (unit #${storageUnit})` : ''}`,
+            description: `${isStorage ? 'Storage' : 'Membership'} purchase: ${offering.name}${storageUnit ? ` (unit #${storageUnit})` : ''}`,
             paymentMethod,
             createdBy: req.user.id,
             relatedEntityType: 'member_purchase',
@@ -1003,16 +1118,14 @@ router.post(
               storageUnit,
               adminSale: true,
             },
-            // Non-wallet payments (cash/card/transfer) just record the audit row without
-            // actually moving the wallet balance — staff handled the money outside.
             // Wallet payments allow negative because the route is gated to staff and they've
             // already decided this customer should be sold to even with insufficient balance.
             allowNegative: true,
           });
         }
       } catch (txErr) {
-        // Non-fatal: the member_purchases row exists; if the wallet log fails we surface a
-        // warning rather than rolling back the sale.
+        // Non-fatal: the member_purchases row is already committed; if the wallet log fails we
+        // surface a warning rather than failing the sale.
         logger.warn('Failed to mirror admin member purchase to wallet_transactions', {
           purchaseId: purchase.id,
           userId,
@@ -1021,11 +1134,14 @@ router.post(
         });
       }
 
-      logger.info(`Member purchase created by admin: user=${userId}, offering=${offering.name}`);
+      logger.info(`Member purchase created by admin: user=${userId}, offering=${offering.name}${storageUnit ? `, unit=#${storageUnit}` : ''}`);
       res.status(201).json(purchase);
     } catch (error) {
+      try { await client.query('ROLLBACK'); } catch { /* already settled */ }
       logger.error('Error creating admin purchase:', error);
       res.status(500).json({ error: 'Failed to create purchase' });
+    } finally {
+      client.release();
     }
   }
 );

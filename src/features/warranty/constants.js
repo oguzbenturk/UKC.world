@@ -49,14 +49,19 @@ export const STATUS_PALETTE = {
 // be rejected on the server.
 export const MAX_PHOTO_SIZE = 30 * 1024 * 1024;
 export const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
+export const MAX_DOCUMENT_SIZE = 50 * 1024 * 1024;
 export const MAX_TOTAL_PER_CLAIM = 1500 * 1024 * 1024;
 export const MAX_PHOTOS = 10;
 export const MAX_VIDEOS = 3;
-export const MAX_FILES_PER_REQUEST = MAX_PHOTOS + MAX_VIDEOS;
+export const MAX_DOCUMENTS = 20;
+export const MAX_FILES_PER_REQUEST = MAX_PHOTOS + MAX_VIDEOS + MAX_DOCUMENTS;
 
 export const PHOTO_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 export const VIDEO_MIMES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
+// "Product Bill" documents — PDF only, staff/admin contexts only.
+export const DOCUMENT_MIMES = ['application/pdf'];
 export const ACCEPT_ATTRIBUTE = [...PHOTO_MIMES, ...VIDEO_MIMES].join(',');
+export const ACCEPT_ATTRIBUTE_WITH_DOCS = [...PHOTO_MIMES, ...VIDEO_MIMES, ...DOCUMENT_MIMES].join(',');
 
 export const TOKEN_REGEX = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/;
 
@@ -64,6 +69,7 @@ export function kindForMime(mime) {
   const m = (mime || '').toLowerCase();
   if (PHOTO_MIMES.includes(m)) return 'photo';
   if (VIDEO_MIMES.includes(m)) return 'video';
+  if (DOCUMENT_MIMES.includes(m)) return 'document';
   return null;
 }
 

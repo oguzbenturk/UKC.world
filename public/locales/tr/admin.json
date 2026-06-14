@@ -1376,7 +1376,11 @@
       }
     },
     "media": {
-      "deletePrompt": "Bu dosya kalıcı olarak silinsin mi?"
+      "deletePrompt": "Bu dosya kalıcı olarak silinsin mi?",
+      "addTitle": "Dosya veya Ürün Faturası ekle",
+      "addHint": "Fotoğraf, video veya PDF ekleyin — üreticinin Ürün Faturası / satın alma belgesi dahil. Belgeler yalnızca UKC ekibine görünür, müşteriye gösterilmez.",
+      "uploadCta": "{{n}} dosya yükle",
+      "uploaded": "Dosyalar yüklendi."
     },
     "create": {
       "eyebrow": "UKC.Care",

@@ -189,6 +189,15 @@ export function useStaffUpload(code) {
   });
 }
 
+export function useAdminUpload(claimId) {
+  const invalidate = useInvalidateClaim(claimId);
+  return useMutation({
+    mutationFn: ({ formData, onUploadProgress }) =>
+      api.uploadAdminFiles(claimId, formData, { onUploadProgress }),
+    onSuccess: invalidate
+  });
+}
+
 export function useStaffNote(code) {
   const qc = useQueryClient();
   return useMutation({

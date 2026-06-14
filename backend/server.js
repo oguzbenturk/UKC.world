@@ -399,14 +399,19 @@ app.get('/api/health', (req, res) => {
 
 // Serve uploaded files with access control
 // Public: images, service-images, form-backgrounds, form-logos
-// Protected: form-submissions, chat-files, voice-messages, chat-images
+// Protected: form-submissions, chat-files, voice-messages, chat-images, warranty
 const uploadsRoot = path.resolve(__dirname, 'uploads');
 app.use('/uploads', (req, res, next) => {
   const protectedPrefixes = [
     '/form-submissions/',
     '/chat-files/',
     '/voice-messages/',
-    '/chat-images/'
+    '/chat-images/',
+    // Warranty media (incl. internal "Product Bill" PDFs) must never be served
+    // straight off the static volume — all legitimate access goes through the
+    // token/JWT API routes (/api/public/warranty/*, /api/warranty/admin/*),
+    // never via /uploads/warranty. Gating it here closes the document leak.
+    '/warranty/'
   ];
 
   const isProtectedPath = protectedPrefixes.some(prefix => req.path.startsWith(prefix));

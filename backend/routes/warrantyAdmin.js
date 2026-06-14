@@ -428,6 +428,103 @@ router.get(
   }
 );
 
+// ─── Add media to an existing claim ──────────────────────────────────────────
+//
+// Until now an admin could only attach files at claim-creation time. This lets
+// an admin add photos, videos OR the PDF "Product Bill" to a claim already in
+// flight (e.g. when the manufacturer asks for the purchase invoice). Mirrors
+// the staff /files route but attributes the upload to the acting admin.
+
+const adminMediaUpload = (req, res, next) =>
+  media.handleMulterError(
+    media.claimMediaUpload.array('files', media.MAX_FILES_PER_REQUEST),
+    { requireFile: false }
+  )(req, res, next);
+
+router.post(
+  '/:id/media',
+  param('id').isUUID(),
+  adminMediaUpload,
+  async (req, res) => {
+    if (sendValidationErrors(req, res)) {
+      await media.purgePendingFiles(req.files || []);
+      return;
+    }
+    const uploadedFiles = req.files || [];
+    if (uploadedFiles.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+    const claim = await warrantyService.getClaimById(req.params.id);
+    if (!claim) {
+      await media.purgePendingFiles(uploadedFiles);
+      return res.status(404).json({ error: 'Warranty claim not found' });
+    }
+    const check = media.validateUploadedFiles(uploadedFiles, {
+      existingPhotoCount: claim.photo_count,
+      existingVideoCount: claim.video_count,
+      existingDocumentCount: claim.document_count,
+      existingTotalBytes: Number(claim.total_bytes) || 0
+    });
+    if (!check.ok) {
+      await media.purgePendingFiles(uploadedFiles);
+      return res.status(check.status).json({ error: check.error, code: check.code });
+    }
+    try {
+      const moved = await media.relocatePendingFilesToClaim(uploadedFiles, claim.id);
+      const attached = [];
+      for (const m of moved) {
+        const record = await warrantyService.attachMediaRecord({
+          claimId: claim.id,
+          kind: m.kind,
+          filename: m.filename,
+          originalName: m.originalName,
+          sizeBytes: m.sizeBytes,
+          mimeType: m.mimeType,
+          storagePath: m.storagePath,
+          uploadedByKind: 'admin',
+          uploadedByUserId: req.user.id
+        });
+        attached.push(record);
+      }
+      audit('media_uploaded', claim.id, req, {
+        count: attached.length, kinds: attached.map((a) => a.kind)
+      });
+      notify.queueClaimActivityDigest(claim.id);
+      return res.status(201).json({ uploaded: attached });
+    } catch (err) {
+      logger.error('Warranty: admin upload failed', { claimId: claim.id, error: err.message });
+      await media.purgePendingFiles(uploadedFiles);
+      return res.status(500).json({ error: 'Failed to attach files' });
+    }
+  }
+);
+
+// Serve a single media file to an authenticated admin. Photos/videos are
+// normally rendered via the customer-token URL (works in <img>/<video>), but
+// documents are team-internal and blocked on that public surface — so the admin
+// dashboard fetches them here (JWT-protected) as a blob. Registered AFTER
+// /:id/media/archive so the literal "archive" segment is not captured as
+// :mediaId.
+router.get(
+  '/:id/media/:mediaId',
+  [param('id').isUUID(), param('mediaId').isUUID()],
+  async (req, res) => {
+    if (sendValidationErrors(req, res)) return;
+    const item = await warrantyService.getMediaById(req.params.mediaId);
+    if (!item || item.claim_id !== req.params.id) {
+      return res.status(404).json({ error: 'Media not found' });
+    }
+    const abs = media.absoluteMediaPath(item.storage_path);
+    if (!abs) return res.status(404).json({ error: 'Media not found' });
+    res.setHeader('Content-Type', item.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(item.original_name)}"`);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    return res.sendFile(abs, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'Media not found' });
+    });
+  }
+);
+
 // ─── Staff links ─────────────────────────────────────────────────────────────
 
 router.post(

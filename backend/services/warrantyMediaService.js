@@ -17,15 +17,17 @@ const nodeRequire = createRequire(import.meta.url);
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const MAX_PHOTO_SIZE   = 30   * 1024 * 1024;          // 30 MB
-export const MAX_VIDEO_SIZE   = 500  * 1024 * 1024;          // 500 MB
+export const MAX_PHOTO_SIZE    = 30   * 1024 * 1024;          // 30 MB
+export const MAX_VIDEO_SIZE    = 500  * 1024 * 1024;          // 500 MB
+export const MAX_DOCUMENT_SIZE = 50   * 1024 * 1024;          // 50 MB (PDF bills/invoices)
 export const MAX_TOTAL_PER_CLAIM = 1500 * 1024 * 1024;       // 1.5 GB
 export const MAX_PHOTOS       = 10;
 export const MAX_VIDEOS       = 3;
-export const MAX_FILES_PER_REQUEST = MAX_PHOTOS + MAX_VIDEOS;
+export const MAX_DOCUMENTS    = 20;
+export const MAX_FILES_PER_REQUEST = MAX_PHOTOS + MAX_VIDEOS + MAX_DOCUMENTS;
 
-// Multer's per-file size cap must be the larger of the two so videos pass through.
-// Photo size is enforced separately in the route by kind.
+// Multer's per-file size cap must be the largest of the kinds so videos pass
+// through. Per-kind sizes are enforced separately in validateUploadedFiles.
 const MULTER_PER_FILE_LIMIT = MAX_VIDEO_SIZE;
 
 const PHOTO_MIMES = new Set([
@@ -33,6 +35,12 @@ const PHOTO_MIMES = new Set([
 ]);
 const VIDEO_MIMES = new Set([
   'video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'
+]);
+// "Product Bill" documents — PDF only. Manufacturer purchase invoices / proof
+// of purchase. Kept deliberately narrow (no arbitrary office formats) to limit
+// the upload surface; image-based bills already upload fine as photos.
+const DOCUMENT_MIMES = new Set([
+  'application/pdf'
 ]);
 
 const MIME_EXTENSION = {
@@ -44,7 +52,8 @@ const MIME_EXTENSION = {
   'video/mp4':  '.mp4',
   'video/quicktime': '.mov',
   'video/webm': '.webm',
-  'video/x-msvideo': '.avi'
+  'video/x-msvideo': '.avi',
+  'application/pdf': '.pdf'
 };
 
 // ─── Paths ───────────────────────────────────────────────────────────────────
@@ -77,6 +86,7 @@ export function kindForMime(mimetype) {
   const mime = (mimetype || '').toLowerCase();
   if (PHOTO_MIMES.has(mime)) return 'photo';
   if (VIDEO_MIMES.has(mime)) return 'video';
+  if (DOCUMENT_MIMES.has(mime)) return 'document';
   return null;
 }
 
@@ -127,7 +137,7 @@ export const handleMulterError = (uploader, { requireFile = true } = {}) => (req
       });
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({
-          error: `File too large. Photos must be ≤ ${Math.round(MAX_PHOTO_SIZE / 1024 / 1024)} MB and videos ≤ ${Math.round(MAX_VIDEO_SIZE / 1024 / 1024)} MB.`,
+          error: `File too large. Photos must be ≤ ${Math.round(MAX_PHOTO_SIZE / 1024 / 1024)} MB, documents ≤ ${Math.round(MAX_DOCUMENT_SIZE / 1024 / 1024)} MB and videos ≤ ${Math.round(MAX_VIDEO_SIZE / 1024 / 1024)} MB.`,
           code: 'LIMIT_FILE_SIZE'
         });
       }
@@ -161,11 +171,22 @@ export const handleMulterError = (uploader, { requireFile = true } = {}) => (req
  * Validate the files multer already wrote to disk.
  * Returns either { ok: true } or { ok: false, status, error, code }.
  * On failure, the caller must invoke purgePendingFiles(files) to clean up.
+ *
+ * `allowDocuments` is false on the anonymous public submission route: PDF
+ * "Product Bill" documents are a staff/admin-only capability, so a PDF from the
+ * public form is rejected like any other unsupported type.
  */
-export function validateUploadedFiles(files, { existingPhotoCount = 0, existingVideoCount = 0, existingTotalBytes = 0 } = {}) {
+export function validateUploadedFiles(files, {
+  existingPhotoCount = 0,
+  existingVideoCount = 0,
+  existingDocumentCount = 0,
+  existingTotalBytes = 0,
+  allowDocuments = true
+} = {}) {
   let newPhotoBytes = 0;
   let newPhotoCount = 0;
   let newVideoCount = 0;
+  let newDocumentCount = 0;
   let newTotalBytes = 0;
 
   for (const file of files) {
@@ -183,6 +204,16 @@ export function validateUploadedFiles(files, { existingPhotoCount = 0, existingV
           error: `Video "${file.originalname}" is larger than ${Math.round(MAX_VIDEO_SIZE / 1024 / 1024)} MB.` };
       }
       newVideoCount += 1;
+    } else if (kind === 'document') {
+      if (!allowDocuments) {
+        return { ok: false, status: 415, code: 'INVALID_MIME',
+          error: `Documents can only be added by the warranty team.` };
+      }
+      if (file.size > MAX_DOCUMENT_SIZE) {
+        return { ok: false, status: 413, code: 'DOCUMENT_TOO_LARGE',
+          error: `Document "${file.originalname}" is larger than ${Math.round(MAX_DOCUMENT_SIZE / 1024 / 1024)} MB.` };
+      }
+      newDocumentCount += 1;
     } else {
       return { ok: false, status: 415, code: 'INVALID_MIME',
         error: `Unsupported file type for "${file.originalname}".` };
@@ -197,6 +228,10 @@ export function validateUploadedFiles(files, { existingPhotoCount = 0, existingV
   if (existingVideoCount + newVideoCount > MAX_VIDEOS) {
     return { ok: false, status: 400, code: 'TOO_MANY_VIDEOS',
       error: `Maximum ${MAX_VIDEOS} videos per claim.` };
+  }
+  if (existingDocumentCount + newDocumentCount > MAX_DOCUMENTS) {
+    return { ok: false, status: 400, code: 'TOO_MANY_DOCUMENTS',
+      error: `Maximum ${MAX_DOCUMENTS} documents per claim.` };
   }
   if (existingTotalBytes + newTotalBytes > MAX_TOTAL_PER_CLAIM) {
     return { ok: false, status: 413, code: 'CLAIM_QUOTA_EXCEEDED',
@@ -358,9 +393,11 @@ export function streamClaimMediaArchive(res, { claim, media = [] }) {
 export default {
   MAX_PHOTO_SIZE,
   MAX_VIDEO_SIZE,
+  MAX_DOCUMENT_SIZE,
   MAX_TOTAL_PER_CLAIM,
   MAX_PHOTOS,
   MAX_VIDEOS,
+  MAX_DOCUMENTS,
   MAX_FILES_PER_REQUEST,
   kindForMime,
   claimMediaUpload,

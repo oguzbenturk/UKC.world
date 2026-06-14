@@ -66,7 +66,7 @@ const CLAIM_COLUMNS = `
   customer_name, customer_email, customer_phone,
   product_name, product_brand, product_model, product_serial,
   purchase_date, purchase_location, issue_description, preferred_language,
-  total_bytes, photo_count, video_count, external_claim_number,
+  total_bytes, photo_count, video_count, document_count, external_claim_number,
   external_claim_number_set_by_user_id, external_claim_number_set_by_staff_link_id,
   external_claim_number_set_by_name, external_claim_number_set_at,
   last_activity_notified_at,
@@ -495,19 +495,26 @@ export async function attachMediaRecord({
 
     await client.query(
       `UPDATE warranty_claims
-         SET total_bytes  = total_bytes + $2,
-             photo_count  = photo_count + CASE WHEN $3 = 'photo' THEN 1 ELSE 0 END,
-             video_count  = video_count + CASE WHEN $3 = 'video' THEN 1 ELSE 0 END
+         SET total_bytes    = total_bytes + $2,
+             photo_count    = photo_count + CASE WHEN $3 = 'photo' THEN 1 ELSE 0 END,
+             video_count    = video_count + CASE WHEN $3 = 'video' THEN 1 ELSE 0 END,
+             document_count = document_count + CASE WHEN $3 = 'document' THEN 1 ELSE 0 END
        WHERE id = $1`,
       [claimId, sizeBytes, kind]
     );
 
+    // Documents (the manufacturer Product Bill) are team-internal, so their
+    // add/remove timeline entries must NOT surface on the customer tracking
+    // page — otherwise the customer would see the document's name even though
+    // the file itself is hidden from them.
+    const mediaVisibleToCustomer = kind !== 'document';
     await client.query(
       `INSERT INTO warranty_claim_events
         (claim_id, event_type, actor_kind, actor_user_id, actor_staff_link_id,
          visible_to_customer, body, metadata)
-       VALUES ($1, 'media_added', $2, $3, $4, TRUE, NULL, $5::jsonb)`,
+       VALUES ($1, 'media_added', $2, $3, $4, $5, NULL, $6::jsonb)`,
       [claimId, uploadedByKind, uploadedByUserId, uploadedByStaffLinkId,
+       mediaVisibleToCustomer,
        JSON.stringify({
          media_id: mediaRows[0].id, kind, original_name: originalName, size_bytes: sizeBytes
        })]
@@ -546,19 +553,24 @@ export async function detachMediaRecord(mediaId, {
 
     await client.query(
       `UPDATE warranty_claims
-         SET total_bytes = GREATEST(0, total_bytes - $2),
-             photo_count = GREATEST(0, photo_count - CASE WHEN $3 = 'photo' THEN 1 ELSE 0 END),
-             video_count = GREATEST(0, video_count - CASE WHEN $3 = 'video' THEN 1 ELSE 0 END)
+         SET total_bytes    = GREATEST(0, total_bytes - $2),
+             photo_count    = GREATEST(0, photo_count - CASE WHEN $3 = 'photo' THEN 1 ELSE 0 END),
+             video_count    = GREATEST(0, video_count - CASE WHEN $3 = 'video' THEN 1 ELSE 0 END),
+             document_count = GREATEST(0, document_count - CASE WHEN $3 = 'document' THEN 1 ELSE 0 END)
        WHERE id = $1`,
       [media.claim_id, media.size_bytes, media.kind]
     );
 
+    // Mirror attachMediaRecord: a removed document stays off the customer
+    // timeline (its existence was never disclosed to the customer).
+    const mediaVisibleToCustomer = media.kind !== 'document';
     await client.query(
       `INSERT INTO warranty_claim_events
         (claim_id, event_type, actor_kind, actor_user_id, actor_staff_link_id,
          visible_to_customer, body, metadata)
-       VALUES ($1, 'media_removed', $2, $3, $4, TRUE, NULL, $5::jsonb)`,
+       VALUES ($1, 'media_removed', $2, $3, $4, $5, NULL, $6::jsonb)`,
       [media.claim_id, actorKind, actorUserId, actorStaffLinkId,
+       mediaVisibleToCustomer,
        JSON.stringify({
          media_id: media.id, kind: media.kind,
          original_name: media.original_name, size_bytes: media.size_bytes

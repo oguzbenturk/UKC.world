@@ -36,6 +36,7 @@ import { AIChatProvider } from './shared/contexts/AIChatContext';
 import WhatsAppChatModal from './shared/components/chat/WhatsAppChatModal';
 import { UkcBrandDot } from './shared/components/ui/UkcBrandDot';
 import GlobalPackageDetailsModal from '@/features/outsider/components/GlobalPackageDetailsModal';
+import FloatingContactButtons from './shared/components/contact/FloatingContactButtons';
 
 // Main App component wraps everything with providers
 function App() {  
@@ -64,6 +65,7 @@ function App() {
                       <ForecastProvider>
                         <AppLayoutWithAuth />
                         <AuthModal />
+                        <FloatingContactButtons />
                       </ForecastProvider>
                     </ToastProvider>
                   </DataProvider>
