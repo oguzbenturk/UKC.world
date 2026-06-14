@@ -23,7 +23,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
 import apiClient from '@/shared/services/apiClient';
-import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
+import { imageRevisionFromRecord, thumbUrl } from '@/shared/utils/mediaUrl';
 import {
   closePackageDetailsModal,
   getPackageDetailsModalSnapshot,
@@ -1534,7 +1534,7 @@ const AcademyServicePackagesPage = ({
     return displayPackages.map((pkg) => {
       const imagePosition = resolveLessonCardImagePosition(pkg, dynamicServiceKey);
       const resolvedImageSrc = pkg.image
-        ? resolvePublicUploadUrl(pkg.image, pkg.imageRevision)
+        ? thumbUrl(pkg.image, 600, pkg.imageRevision)
         : '';
 
       // Check card-level id AND every duration's packageId (the card id is only the first variant)

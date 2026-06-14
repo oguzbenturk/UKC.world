@@ -16,6 +16,7 @@ import {
   normalizeSafeExtension,
   validateMimeAndExtension,
 } from '../utils/uploadValidation.js';
+import { optimizeUploadedFile, optimizeUploadedFiles } from '../utils/imageOptimizer.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -70,7 +71,9 @@ const imageStorage = multer.diskStorage({
   filename: function (req, file, cb) {
     const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const safeUser = (req.user?.id || 'user').toString();
-    const name = `image-${safeUser}-${Date.now()}${ext}`;
+    // Include a uuid fragment so concurrent uploads (and post-optimization
+    // `.webp` renames) can never collide on a same-millisecond timestamp.
+    const name = `image-${safeUser}-${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
     cb(null, name);
   }
 });
@@ -83,7 +86,7 @@ const serviceImageStorage = multer.diskStorage({
   filename: function (req, file, cb) {
     const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const safeUser = (req.user?.id || 'user').toString();
-    const name = `service-${safeUser}-${Date.now()}${ext}`;
+    const name = `service-${safeUser}-${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
     cb(null, name);
   }
 });
@@ -151,7 +154,7 @@ const formBackgroundStorage = multer.diskStorage({
   filename: function (req, file, cb) {
     const ext = normalizeSafeExtension(file.originalname, '.jpg');
     const safeUser = (req.user?.id || 'user').toString();
-    const name = `bg-${safeUser}-${Date.now()}${ext}`;
+    const name = `bg-${safeUser}-${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
     cb(null, name);
   }
 });
@@ -164,7 +167,7 @@ const formLogoStorage = multer.diskStorage({
   filename: function (req, file, cb) {
     const ext = normalizeSafeExtension(file.originalname, '.png');
     const safeUser = (req.user?.id || 'user').toString();
-    const name = `logo-${safeUser}-${Date.now()}${ext}`;
+    const name = `logo-${safeUser}-${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
     cb(null, name);
   }
 });
@@ -182,8 +185,9 @@ const formLogoUpload = multer({
 });
 
 // For service image uploads
-router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(serviceImageUpload.single('image')), (req, res) => {
+router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(serviceImageUpload.single('image')), async (req, res) => {
   try {
+    await optimizeUploadedFile(req.file);
     const relativePath = `/uploads/service-images/${req.file.filename}`;
     res.json({ imageUrl: relativePath });
   } catch (error) {
@@ -193,8 +197,10 @@ router.post('/service-image', authenticateJWT, authorizeRoles(['admin', 'manager
 });
 
 // Form background image upload
-router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(formBackgroundUpload.single('image')), (req, res) => {
+router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(formBackgroundUpload.single('image')), async (req, res) => {
   try {
+    // Backgrounds are shown full-bleed, so keep a larger cap than card images.
+    await optimizeUploadedFile(req.file, { maxDim: 2400, quality: 80 });
     const relativePath = `/uploads/form-backgrounds/${req.file.filename}`;
     res.json({ url: relativePath, imageUrl: relativePath });
   } catch (error) {
@@ -204,8 +210,10 @@ router.post('/form-background', authenticateJWT, authorizeRoles(['admin', 'manag
 });
 
 // Form logo upload
-router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(formLogoUpload.single('image')), (req, res) => {
+router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(formLogoUpload.single('image')), async (req, res) => {
   try {
+    // Logos are small and need to stay crisp — modest cap, higher quality.
+    await optimizeUploadedFile(req.file, { maxDim: 600, quality: 90 });
     const relativePath = `/uploads/form-logos/${req.file.filename}`;
     res.json({ url: relativePath, imageUrl: relativePath });
   } catch (error) {
@@ -216,8 +224,9 @@ router.post('/form-logo', authenticateJWT, authorizeRoles(['admin', 'manager']),
 
 // General image upload endpoint for products, packages, accommodation units, etc.
 // Allowed roles must match the ones that can write those records (see products.js POST /).
-router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), handleMulterError(imageUpload.single('image')), (req, res) => {
+router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), handleMulterError(imageUpload.single('image')), async (req, res) => {
   try {
+    await optimizeUploadedFile(req.file);
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
   } catch (error) {
@@ -226,8 +235,9 @@ router.post('/image', authenticateJWT, authorizeRoles(['admin', 'manager', 'fron
   }
 });
 
-router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), handleMulterError(imageUpload.array('images', 20)), (req, res) => {
+router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist'], 'services:write'), handleMulterError(imageUpload.array('images', 20)), async (req, res) => {
   try {
+    await optimizeUploadedFiles(req.files);
     const uploadedImages = req.files.map(file => ({
       url: `/uploads/images/${file.filename}`,
       filename: file.filename,
@@ -246,8 +256,9 @@ router.post('/images', authenticateJWT, authorizeRoles(['admin', 'manager', 'fro
 });
 
 // Repair photo upload — accessible to all authenticated users.
-router.post('/repair-image', authenticateJWT, handleMulterError(imageUpload.single('image')), (req, res) => {
+router.post('/repair-image', authenticateJWT, handleMulterError(imageUpload.single('image')), async (req, res) => {
   try {
+    await optimizeUploadedFile(req.file);
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
   } catch (error) {
@@ -433,8 +444,9 @@ router.post('/voice-message', authenticateJWT, handleMulterError(voiceMessageUpl
 });
 
 // Equipment photo upload endpoint
-router.post('/equipment-image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.single('image')), (req, res) => {
+router.post('/equipment-image', authenticateJWT, authorizeRoles(['admin', 'manager']), handleMulterError(imageUpload.single('image')), async (req, res) => {
   try {
+    await optimizeUploadedFile(req.file);
     const relativePath = `/uploads/images/${req.file.filename}`;
     res.json({ url: relativePath });
   } catch (error) {

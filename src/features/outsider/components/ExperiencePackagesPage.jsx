@@ -4,7 +4,7 @@ import { App, Button, Tag, Segmented } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 import ExperienceDetailModal from './ExperienceDetailModal';
 import AcademyLessonPackageCard from './AcademyLessonPackageCard';
-import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
+import { imageRevisionFromRecord, thumbUrl } from '@/shared/utils/mediaUrl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useAuthModal } from '@/shared/contexts/AuthModalContext';
@@ -205,7 +205,7 @@ const getExperienceCardCoverResolved = (pkg) => {
     seen.add(raw);
     const u = String(raw).trim();
     if (!u) continue;
-    return resolvePublicUploadUrl(u, imageRevisionFromRecord(pkg));
+    return thumbUrl(u, 600, imageRevisionFromRecord(pkg));
   }
   return '';
 };

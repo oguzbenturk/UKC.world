@@ -1,5 +1,6 @@
 import { Card, Image, Tag, Rate, Button } from 'antd';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { thumbUrl } from '@/shared/utils/mediaUrl';
 
 function PriceBlock({ price, nights, total, formatCurrency, dualPriceDisplay, dualTotalDisplay }) {
   const nightPrice = dualPriceDisplay || formatCurrency(Number(price));
@@ -55,7 +56,15 @@ export default function PropertyCard({ property, onView }) {
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-1">
           <Image.PreviewGroup>
-            <Image src={p.images?.[0] || '/assets/Images/placeholder-hotel.jpg'} alt={p.name} className="rounded-lg object-cover h-28 w-full" />
+            {/* Small card thumbnail (~112px) served as an optimized WebP; the
+                click-to-zoom lightbox gets a larger, still-optimized rendition. */}
+            <Image
+              src={p.images?.[0] ? thumbUrl(p.images[0], 300) : '/assets/Images/placeholder-hotel.jpg'}
+              preview={p.images?.[0] ? { src: thumbUrl(p.images[0], 1200) } : false}
+              alt={p.name}
+              loading="lazy"
+              className="rounded-lg object-cover h-28 w-full"
+            />
           </Image.PreviewGroup>
         </div>
         <div className="col-span-2 flex flex-col">

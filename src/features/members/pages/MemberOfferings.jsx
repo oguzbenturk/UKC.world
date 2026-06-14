@@ -40,6 +40,7 @@ import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import apiClient from '@/shared/services/apiClient';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 import { usePageSEO } from '@/shared/utils/seo';
+import { thumbUrl, imageRevisionFromRecord } from '@/shared/utils/mediaUrl';
 
 const fetchMemberOfferings = async () => {
   const { data } = await apiClient.get('/member-offerings');
@@ -220,8 +221,9 @@ const OfferingCard = ({ offering, group, onPurchase, formatCurrency, convertCurr
       <div className="flex-[7] min-h-0 relative overflow-hidden">
         {offering.image_url ? (
           <img
-            src={offering.image_url}
+            src={thumbUrl(offering.image_url, 600, imageRevisionFromRecord(offering))}
             alt={offering.name}
+            loading="lazy"
             className="absolute inset-0 w-full h-full object-cover max-md:group-hover:scale-[1.03] transition-transform duration-500 md:transition-none"
             loading="lazy"
           />
@@ -760,7 +762,7 @@ const MemberOfferings = () => {
                 <div className="relative h-48 shrink-0 sm:h-56 md:h-[min(42vh,22rem)]">
                   {offering.image_url ? (
                     <img
-                      src={offering.image_url}
+                      src={thumbUrl(offering.image_url, 1000, imageRevisionFromRecord(offering))}
                       alt={offering.name}
                       className="absolute inset-0 h-full w-full object-cover"
                       decoding="async"

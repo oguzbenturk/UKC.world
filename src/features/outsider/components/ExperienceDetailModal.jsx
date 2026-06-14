@@ -16,7 +16,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
+import { imageRevisionFromRecord, resolvePublicUploadUrl, thumbUrl } from '@/shared/utils/mediaUrl';
 
 const EXPERIENCE_TYPE_LABELS = {
   all_inclusive: 'All Inclusive',
@@ -197,14 +197,14 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
               <div className="hidden">
                 <Image.PreviewGroup preview={galleryPreviewConfig}>
                   {displayImages.map((src) => (
-                    <Image key={src} src={src} />
+                    <Image key={src} src={thumbUrl(src, 1600)} />
                   ))}
                 </Image.PreviewGroup>
               </div>
 
               <img
                 key={displayImages[photoIndex]}
-                src={displayImages[photoIndex]}
+                src={thumbUrl(displayImages[photoIndex], 1000)}
                 alt={`${activePkg.name} – photo ${photoIndex + 1}`}
                 className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 cursor-zoom-in"
                 loading="eager"
@@ -284,7 +284,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                     onClick={() => setPhotoIndex(i)}
                     className={`shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${i === photoIndex ? 'border-[#00a8c4] opacity-100' : 'border-transparent opacity-50 hover:opacity-80'}`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
+                    <img src={thumbUrl(img, 160)} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
                   </button>
                 ))}
               </div>

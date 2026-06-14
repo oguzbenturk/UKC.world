@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons';
 import BrandPackageModalShell from './BrandPackageModalShell';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
+import { imageRevisionFromRecord, resolvePublicUploadUrl, thumbUrl } from '@/shared/utils/mediaUrl';
 import { extractUnitMeta, pickOccupancyRate } from '@/shared/utils/accommodationPricing';
 
 const ACCENT = '#00a8c4'; // duotone teal — single sharp accent, used sparingly on purpose
@@ -216,14 +216,14 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                 <div className="hidden">
                   <Image.PreviewGroup preview={galleryPreviewConfig}>
                     {allImages.map((src, idx) => (
-                      <Image key={`img-${idx}-${src}`} src={src} />
+                      <Image key={`img-${idx}-${src}`} src={thumbUrl(src, 1600)} />
                     ))}
                   </Image.PreviewGroup>
                 </div>
 
                 <img
                   key={allImages[photoIndex]}
-                  src={allImages[photoIndex]}
+                  src={thumbUrl(allImages[photoIndex], 1000)}
                   alt={`${pkg.name || unit.name || 'Room'} – photo ${photoIndex + 1}`}
                   className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 cursor-zoom-in"
                   loading="eager"
@@ -309,7 +309,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                   className="shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all"
                   style={{ borderColor: i === photoIndex ? ACCENT : 'transparent', opacity: i === photoIndex ? 1 : 0.55 }}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
+                  <img src={thumbUrl(img, 160)} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
                 </button>
               ))}
             </div>

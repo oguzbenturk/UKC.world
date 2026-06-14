@@ -18,7 +18,7 @@ import {
   closePackageDetailsModal,
   resetPackageDetailsModalState,
 } from '@/features/outsider/stores/packageDetailsModalStore';
-import { imageRevisionFromRecord, resolvePublicUploadUrl } from '@/shared/utils/mediaUrl';
+import { imageRevisionFromRecord, thumbUrl } from '@/shared/utils/mediaUrl';
 import {
   buildCustomProRataDuration,
   inferHourlyProRataBase,
@@ -146,8 +146,9 @@ const PackageDetailsModal = ({ depsRef }) => {
         {selectedPackage.image ? (
           <img
             key={`${selectedPackage.image}-${selectedPackage.imageRevision ?? imageRevisionFromRecord(selectedPackage)}`}
-            src={resolvePublicUploadUrl(
+            src={thumbUrl(
               selectedPackage.image,
+              1000,
               selectedPackage.imageRevision ?? imageRevisionFromRecord(selectedPackage)
             )}
             alt=""
