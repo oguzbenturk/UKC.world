@@ -66,6 +66,16 @@ export function useAdminWarrantyClaim(id, options = {}) {
   });
 }
 
+export function useWarrantyEmailDeliveries(id, options = {}) {
+  return useQuery({
+    queryKey: ['warrantyEmailDeliveries', id],
+    queryFn: () => api.getEmailDeliveries(id),
+    enabled: Boolean(id),
+    staleTime: 15_000,
+    ...options
+  });
+}
+
 // ─── Admin mutations ─────────────────────────────────────────────────────────
 
 function useInvalidateClaim(claimId) {
@@ -147,6 +157,14 @@ export function useCreateStaffLink(claimId) {
   const invalidate = useInvalidateClaim(claimId);
   return useMutation({
     mutationFn: (vars) => api.createStaffLink(claimId, vars),
+    onSuccess: invalidate
+  });
+}
+
+export function useResendStaffLink(claimId) {
+  const invalidate = useInvalidateClaim(claimId);
+  return useMutation({
+    mutationFn: (linkId) => api.resendStaffLink(claimId, linkId),
     onSuccess: invalidate
   });
 }

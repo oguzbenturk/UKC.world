@@ -782,7 +782,15 @@
     "typeMessage": "Type a message...",
     "send": "Send",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "title": "Messages",
+    "back": "Back",
+    "close": "Close",
+    "you": "you",
+    "directMessage": "Direct message",
+    "noConversationsDesc": "Messages from the team will appear here.",
+    "startConversation": "Say hello to start the conversation.",
+    "messageUser": "Send a message"
   },
   "windReport": {
     "title": "Wind Report",

@@ -24,7 +24,9 @@ async function emailCustomer(claim, { subject, html, text, notificationType }) {
       html,
       text,
       notificationType,
-      skipConsentCheck: true
+      skipConsentCheck: true,
+      relatedEntityType: 'warranty_claim',
+      relatedEntityId: claim.id
     });
   } catch (err) {
     logger.error('Warranty: customer email failed', {
@@ -84,7 +86,9 @@ export async function notifyStaffLinkSent(claim, staffLink) {
       html,
       text,
       notificationType: 'warranty_staff_link_sent',
-      skipConsentCheck: true
+      skipConsentCheck: true,
+      relatedEntityType: 'warranty_claim',
+      relatedEntityId: claim.id
     });
   } catch (err) {
     logger.error('Warranty: staff link email failed', {
@@ -171,7 +175,9 @@ export async function notifyClaimSubmittedToAdmins(claim) {
           text: `New warranty claim from ${claim.customer_name} for ${claim.product_name}. Open: ${frontendBase()}/admin/warranty/${claim.id}`,
           userId: user.id,
           notificationType: 'warranty_claim_submitted_admin',
-          skipConsentCheck: true
+          skipConsentCheck: true,
+          relatedEntityType: 'warranty_claim',
+          relatedEntityId: claim.id
         });
       } catch (err) {
         logger.warn('Warranty: admin email failed', { userId: user.id, error: err.message });
@@ -284,7 +290,9 @@ export async function flushClaimActivityDigest(claimId) {
         text,
         userId: recipient.userId || null,
         notificationType: 'warranty_claim_activity',
-        skipConsentCheck: true
+        skipConsentCheck: true,
+        relatedEntityType: 'warranty_claim',
+        relatedEntityId: claim.id
       });
       sent += 1;
     } catch (err) {

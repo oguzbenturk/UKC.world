@@ -21,6 +21,11 @@ import { ROLES } from '../shared/utils/roleUtils.js';
 
 const router = express.Router();
 
+// Roles considered "staff" for chat scoping. Members can only start chats with
+// these roles; staff can message anyone. These match the names in the live
+// `roles` table (lowercased before comparison).
+const STAFF_CHAT_ROLES = ['admin', 'manager', 'super_admin', 'instructor', 'receptionist', 'freelancer'];
+
 // Rate limiting for message sending
 const messageRateLimits = new Map();
 const MESSAGE_RATE_LIMIT = 20; // messages per minute
@@ -165,7 +170,17 @@ router.post('/conversations/direct', authenticateJWT, async (req, res) => {
     if (otherUserId === userId) {
       return res.status(400).json({ error: 'Cannot create conversation with yourself' });
     }
-    
+
+    // Scope: members may only start a chat with staff. Staff may message anyone.
+    // (Replying to an existing conversation is unaffected — this only gates creation.)
+    const requesterIsStaff = STAFF_CHAT_ROLES.includes((req.user.role || '').toLowerCase());
+    if (!requesterIsStaff) {
+      const otherRole = await ChatService.getUserRoleName(otherUserId);
+      if (!STAFF_CHAT_ROLES.includes((otherRole || '').toLowerCase())) {
+        return res.status(403).json({ error: 'You can only start a conversation with staff' });
+      }
+    }
+
     const conversation = await ChatService.getOrCreateDirectConversation(userId, otherUserId);
     
     res.json(conversation);
@@ -380,9 +395,15 @@ router.post('/conversations/:id/messages',
         voiceTranscript
       });
       
-      // Socket.IO will broadcast this message in real-time
-      // (handled in socketService.js)
-      
+      // Broadcast in real-time to every participant's personal room so they
+      // receive it live even when they don't have the conversation open.
+      try {
+        const participantIds = await ChatService.getParticipantIds(conversationId);
+        req.socketService?.emitChatMessage(conversationId, participantIds, message);
+      } catch (broadcastErr) {
+        logger.warn('Failed to broadcast chat message', { error: broadcastErr.message });
+      }
+
       res.status(201).json(message);
     } catch (error) {
       logger.error('Error sending message:', error);
@@ -402,7 +423,16 @@ router.post('/conversations/:id/read', authenticateJWT, async (req, res) => {
     const userId = req.user.id;
     
     await ChatService.markAsRead(conversationId, userId);
-    
+
+    // Let the other participants know this user has caught up (live read receipts).
+    try {
+      const participantIds = await ChatService.getParticipantIds(conversationId);
+      const others = participantIds.filter((id) => id !== userId);
+      req.socketService?.emitChatRead(conversationId, others, userId, new Date().toISOString());
+    } catch (readErr) {
+      logger.warn('Failed to broadcast read receipt', { error: readErr.message });
+    }
+
     res.json({ message: 'Marked as read' });
   } catch (error) {
     logger.error('Error marking as read:', error);
@@ -423,7 +453,7 @@ router.post('/conversations/:id/read', authenticateJWT, async (req, res) => {
 router.get('/search', authenticateJWT, async (req, res) => {
   try {
     const userId = req.user.id;
-    const userRole = req.user.roleName;
+    const userRole = req.user.role;
     const query = req.query.q || req.query.query;
     const conversationIds = req.query.conversations ? 
       req.query.conversations.split(',') : null;

@@ -6,6 +6,7 @@ import { logger } from '../middlewares/errorHandler.js';
 import * as warrantyService from '../services/warrantyService.js';
 import * as media from '../services/warrantyMediaService.js';
 import * as notify from '../services/warrantyNotificationService.js';
+import * as emailDelivery from '../services/emailDeliveryService.js';
 import { logAuditEvent } from '../services/auditLogService.js';
 
 const router = express.Router();
@@ -210,6 +211,19 @@ router.get('/:id', param('id').isUUID(), async (req, res) => {
     warrantyService.listStaffLinks(claim.id, { includeRevoked: true })
   ]);
   return res.json({ claim, events, media: mediaItems, staffLinks });
+});
+
+// Delivery status of every email this claim has sent (customer + staff + admin)
+// — recipient, subject and whether Resend reports it delivered/bounced/opened.
+router.get('/:id/email-deliveries', param('id').isUUID(), async (req, res) => {
+  if (sendValidationErrors(req, res)) return;
+  try {
+    const rows = await emailDelivery.listDeliveriesForEntity('warranty_claim', req.params.id);
+    return res.json(rows);
+  } catch (err) {
+    logger.error('warrantyAdmin email-deliveries failed', { error: err.message });
+    return res.status(500).json({ error: 'Failed to load email delivery status' });
+  }
 });
 
 router.patch(
@@ -553,6 +567,40 @@ router.post(
         logger.warn('Warranty: staff invite email failed', { error: err.message })
       );
       return res.status(201).json(link);
+    } catch (err) {
+      return res.status(err.statusCode || 500).json({ error: err.message });
+    }
+  }
+);
+
+// Re-send the staff portal ("warranty case assigned") email to an existing
+// staff link, reusing its token — so the recipient gets the same tracking link
+// again (e.g. when they say it never arrived). Distinct from creating a new
+// link, which would mint a fresh token and leave the old one dangling.
+router.post(
+  '/:id/staff-links/:linkId/resend',
+  [param('id').isUUID(), param('linkId').isUUID()],
+  async (req, res) => {
+    if (sendValidationErrors(req, res)) return;
+    try {
+      const claim = await warrantyService.getClaimById(req.params.id);
+      if (!claim) return res.status(404).json({ error: 'Warranty claim not found' });
+      // listStaffLinks (active only) doubles as the "belongs to this claim and
+      // is not revoked" guard.
+      const links = await warrantyService.listStaffLinks(req.params.id);
+      const link = links.find((l) => l.id === req.params.linkId);
+      if (!link) return res.status(404).json({ error: 'Staff link not found or revoked' });
+
+      await warrantyService.logLinkResent(claim.id, {
+        actorUserId: req.user.id, target: 'staff'
+      });
+      audit('link_resent', req.params.id, req, {
+        target: 'staff', staff_link_id: link.id, staff_email: link.staff_email
+      });
+      notify.notifyStaffLinkSent(claim, link).catch((err) =>
+        logger.warn('Warranty: resend staff link email failed', { error: err.message })
+      );
+      return res.json({ ok: true });
     } catch (err) {
       return res.status(err.statusCode || 500).json({ error: err.message });
     }

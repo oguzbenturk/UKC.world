@@ -47,6 +47,16 @@ class ChatService {
       `, [userId1, userId2]);
       
       if (existing.length > 0) {
+        // Reactivate either participant who had soft-left, so the reused
+        // conversation is valid for both (sendMessage/getMessages require
+        // left_at IS NULL). No-op when both are already active.
+        await client.query(`
+          UPDATE conversation_participants
+          SET left_at = NULL
+          WHERE conversation_id = $1
+            AND user_id = ANY($2::uuid[])
+            AND left_at IS NOT NULL
+        `, [existing[0].id, [userId1, userId2]]);
         await client.query('COMMIT');
         return existing[0];
       }
@@ -652,6 +662,46 @@ class ChatService {
     }
   }
   
+  /**
+   * Get active participant user IDs for a conversation.
+   * Used to fan out real-time events to each member's personal `user:<id>` room.
+   * @param {string} conversationId
+   * @returns {Promise<string[]>}
+   */
+  static async getParticipantIds(conversationId) {
+    try {
+      const { rows } = await pool.query(`
+        SELECT user_id
+        FROM conversation_participants
+        WHERE conversation_id = $1 AND left_at IS NULL
+      `, [conversationId]);
+      return rows.map((r) => r.user_id);
+    } catch (error) {
+      logger.error('Failed to get participant ids:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get a user's role name (used to scope who may start a direct conversation).
+   * @param {string} userId
+   * @returns {Promise<string|null>}
+   */
+  static async getUserRoleName(userId) {
+    try {
+      const { rows } = await pool.query(`
+        SELECT r.name
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.id = $1
+      `, [userId]);
+      return rows[0]?.name || null;
+    } catch (error) {
+      logger.error('Failed to get user role name:', error);
+      return null;
+    }
+  }
+
   /**
    * Search messages with full-text search
    * @param {string} userId - Requesting user ID

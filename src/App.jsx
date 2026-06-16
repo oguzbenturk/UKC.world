@@ -33,6 +33,8 @@ import PartnerInviteModal from './features/notifications/components/PartnerInvit
 import GlobalFAB from './shared/components/ui/GlobalFAB';
 import StudentQuickActions from './features/students/components/StudentQuickActions';
 import { AIChatProvider } from './shared/contexts/AIChatContext';
+import { ChatWidgetProvider } from './features/chat/context/ChatWidgetProvider';
+import FloatingChatWidget from './features/chat/components/FloatingChatWidget';
 import WhatsAppChatModal from './shared/components/chat/WhatsAppChatModal';
 import { UkcBrandDot } from './shared/components/ui/UkcBrandDot';
 import GlobalPackageDetailsModal from '@/features/outsider/components/GlobalPackageDetailsModal';
@@ -264,6 +266,7 @@ const AppLayoutWithAuth = () => {
 
   return (
     <AIChatProvider>
+    <ChatWidgetProvider>
     <div className="flex flex-col h-dvh">
       <GlobalProgressBar />
       {consentModal}
@@ -286,8 +289,10 @@ const AppLayoutWithAuth = () => {
 
       <GlobalFAB />
       <StudentQuickActions />
+      <FloatingChatWidget />
       <WhatsAppChatModal />
     </div>
+    </ChatWidgetProvider>
     </AIChatProvider>
   );
 };

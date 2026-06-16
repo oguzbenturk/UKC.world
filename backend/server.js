@@ -74,6 +74,7 @@ import adminWaiversRouter from './routes/adminWaivers.js';
 import adminSupportTicketsRouter from './routes/adminSupportTickets.js';
 import walletRouter from './routes/wallet.js';
 import paymentWebhooksRouter from './routes/paymentWebhooks.js';
+import resendWebhookRouter from './routes/resendWebhook.js';
 import feedbackRouter from './routes/feedback.js';
 import groupBookingsRouter, { ensureGroupCalendarBooking } from './routes/groupBookings.js';
 import { processParticipantPayment, processOrganizerPayment } from './services/groupBookingService.js';
@@ -1440,6 +1441,7 @@ app.get('/api/accommodation/units/public', async (req, res) => {
 app.use('/api/relationships', authenticateJWT, userRelationshipsRouter);
 app.use('/api/finances/daily-operations', authenticateJWT, triggerFinancialReconciliation, financeDailyOperationsRouter);
 app.use('/api/accommodation', authenticateJWT, accommodationRouter);
+app.use('/api/webhooks/resend', resendWebhookRouter); // Resend email delivery events (Svix-signed)
 app.use('/api/webhooks', paymentWebhooksRouter);
 app.use('/api/wallet', authenticateJWT, walletRouter);
 app.use('/api/shop-orders', authenticateJWT, shopOrdersRouter);

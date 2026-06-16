@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../middlewares/errorHandler.js';
 import { canSendCommunication, CHANNEL, recordMarketingCommunication } from './marketingConsentService.js';
+import { recordEmailSend } from './emailDeliveryService.js';
 
 let transporterPromise = null;
 const EMAIL_DISABLED = (process.env.EMAIL_TRANSPORT || '').toLowerCase() === 'none';
@@ -106,6 +107,8 @@ async function resolveTransporter() {
  * @param {string} options.userId - User ID (required for consent check)
  * @param {string} options.notificationType - Type of notification (e.g., 'booking_confirmation', 'promotion')
  * @param {boolean} options.skipConsentCheck - Skip consent check (use only for transactional emails without userId)
+ * @param {string} options.relatedEntityType - Optional tag for the delivery log (e.g. 'warranty_claim')
+ * @param {string|number} options.relatedEntityId - Optional id the email relates to (for per-entity delivery status)
  * @returns {Promise<Object>} Send result
  */
 export async function sendEmail({
@@ -117,7 +120,9 @@ export async function sendEmail({
   from,
   userId,
   notificationType,
-  skipConsentCheck = false
+  skipConsentCheck = false,
+  relatedEntityType = null,
+  relatedEntityId = null
 }) {
   if (!to) {
     throw new Error('Email recipient is required');
@@ -206,12 +211,36 @@ export async function sendEmail({
       });
     }
 
+    // Delivery log: one row per send, later updated by Resend webhook events.
+    // Best-effort (recordEmailSend never throws) — must not affect the send.
+    await recordEmailSend({
+      recipient: to,
+      subject,
+      notificationType,
+      userId: userId || null,
+      relatedEntityType,
+      relatedEntityId,
+      messageId: info.messageId ?? null,
+      status: 'sent'
+    });
+
     return info;
   } catch (error) {
     logger.error('Failed to send email', {
       to,
       subject,
       error: error?.message
+    });
+    // Record the failed attempt so it's visible in the delivery log too.
+    await recordEmailSend({
+      recipient: to,
+      subject,
+      notificationType,
+      userId: userId || null,
+      relatedEntityType,
+      relatedEntityId,
+      status: 'failed',
+      error: error?.message || 'send failed'
     });
     throw error;
   }

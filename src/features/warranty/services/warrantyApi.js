@@ -99,6 +99,11 @@ export async function getStats() {
   return data;
 }
 
+export async function getEmailDeliveries(id) {
+  const { data } = await apiClient.get(`/warranty/admin/${encodeURIComponent(id)}/email-deliveries`);
+  return data;
+}
+
 export async function getClaim(id) {
   const { data } = await apiClient.get(`/warranty/admin/${encodeURIComponent(id)}`);
   return data;
@@ -221,6 +226,11 @@ export async function createStaffLink(id, { staffName, staffEmail, staffUserId }
     staff_email: staffEmail,
     staff_user_id: staffUserId || undefined
   });
+  return data;
+}
+
+export async function resendStaffLink(id, linkId) {
+  const { data } = await apiClient.post(`/warranty/admin/${encodeURIComponent(id)}/staff-links/${encodeURIComponent(linkId)}/resend`);
   return data;
 }
 

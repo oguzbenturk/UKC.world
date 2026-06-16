@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { pool } from '../db.js';
 
 // SEC-017 FIX: Get JWT_SECRET securely from environment
 if (!process.env.JWT_SECRET) {
@@ -179,8 +180,10 @@ class SocketService {
       
       this.connectedUsers.set(socket.id, {
         userId: userId,
+        id: userId,
         role: userRole,
         email: userEmail,
+        name: null,
         connectedAt: new Date()
       });
 
@@ -190,13 +193,25 @@ class SocketService {
       socket.join('general');
 
       logger.info(`User authenticated: ${userId} (${userRole})`);
-      
-      socket.emit('authenticated', { 
-        success: true, 
+
+      socket.emit('authenticated', {
+        success: true,
         userId: userId,
         role: userRole,
-        timestamp: Date.now() 
+        timestamp: Date.now()
       });
+
+      // Backfill a display name for the online-members list (non-blocking).
+      // The JWT only carries id/role/email, so look the name up once on connect.
+      pool.query('SELECT name FROM users WHERE id = $1', [userId])
+        .then(({ rows }) => {
+          const record = this.connectedUsers.get(socket.id);
+          if (record && rows[0]?.name) {
+            record.name = rows[0].name;
+          }
+          socket.userName = rows[0]?.name || null;
+        })
+        .catch(() => { /* presence name is best-effort */ });
     } catch (error) {
       logger.error('Socket authentication error', error);
       socket.emit('auth_error', { error: 'Authentication failed' });
@@ -408,8 +423,21 @@ class SocketService {
   /**
    * Chat-specific methods
    */
-  handleJoinConversation(socket, conversationId) {
+  async handleJoinConversation(socket, conversationId) {
     try {
+      // SEC: only let a user join the room of a conversation they belong to.
+      if (!socket.userId) {
+        return;
+      }
+      const { rows } = await pool.query(`
+        SELECT 1 FROM conversation_participants
+        WHERE conversation_id = $1 AND user_id = $2 AND left_at IS NULL
+      `, [conversationId, socket.userId]);
+      if (rows.length === 0) {
+        logger.warn(`User ${socket.userId} denied join to conversation ${conversationId}`);
+        return;
+      }
+
       const roomName = `conversation:${conversationId}`;
       socket.join(roomName);
 
@@ -489,6 +517,44 @@ class SocketService {
   }
 
   /**
+   * Fan a new chat message out to each participant's personal `user:<id>` room so
+   * everyone in the conversation receives it live — even if they don't currently
+   * have the thread open. This is what makes the message "bubble up" for the
+   * recipient without them being on the chat page.
+   * @param {string} conversationId
+   * @param {string[]} recipientUserIds - all active participant user IDs (incl. sender)
+   * @param {Object} message - the created message row
+   */
+  emitChatMessage(conversationId, recipientUserIds, message) {
+    if (!this.io || !Array.isArray(recipientUserIds)) {
+      return;
+    }
+    recipientUserIds.forEach((uid) => {
+      this.emitToChannel(`user:${uid}`, 'chat:message_sent', { conversationId, message });
+    });
+  }
+
+  /**
+   * Notify the other participants that a user has read a conversation.
+   * @param {string} conversationId
+   * @param {string[]} recipientUserIds - participants to notify (exclude the reader)
+   * @param {string} readerId - the user who read the conversation
+   * @param {string} lastReadAt - ISO timestamp
+   */
+  emitChatRead(conversationId, recipientUserIds, readerId, lastReadAt) {
+    if (!this.io || !Array.isArray(recipientUserIds)) {
+      return;
+    }
+    recipientUserIds.forEach((uid) => {
+      this.emitToChannel(`user:${uid}`, 'chat:message_read', {
+        conversationId,
+        userId: readerId,
+        lastReadAt
+      });
+    });
+  }
+
+  /**
    * Get connection statistics
    */
   getStats() {
@@ -499,15 +565,21 @@ class SocketService {
       users: []
     };
 
-    // Count users by role and collect user info
+    // Count connections by role; collect a de-duplicated user list (a user with
+    // multiple tabs holds several sockets but should appear once in the list).
+    const seenUsers = new Map();
     this.connectedUsers.forEach(user => {
       stats.usersByRole[user.role] = (stats.usersByRole[user.role] || 0) + 1;
-      stats.users.push({
-        id: user.id,
-        name: user.name || user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-        email: user.email,
-        role: user.role
-      });
+      if (user.userId && !seenUsers.has(user.userId)) {
+        const entry = {
+          id: user.userId,
+          name: user.name || user.email || 'User',
+          email: user.email,
+          role: user.role
+        };
+        seenUsers.set(user.userId, entry);
+        stats.users.push(entry);
+      }
     });
 
     // Get active channels

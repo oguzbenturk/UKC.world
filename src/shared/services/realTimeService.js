@@ -73,10 +73,14 @@ class RealTimeService {  constructor() {
       this.isConnecting = false;
       this.reconnectAttempts = 0;
 
-      // Attach any previously registered event listeners
+      // Re-attach any previously registered event listeners. off() before on()
+      // guarantees a handler is bound exactly once on this socket, even across
+      // reconnects (socket.io reuses the same socket object and keeps old
+      // handlers), so listeners never fire twice per event.
       try {
         this.eventListeners.forEach((handlers, event) => {
           handlers.forEach((cb) => {
+            this.socket.off(event, cb);
             this.socket.on(event, cb);
           });
         });

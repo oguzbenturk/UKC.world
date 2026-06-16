@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Modal, Tabs, Skeleton, Descriptions, Tag, Button, Space, Popconfirm, Input,
-  Form, Checkbox, Empty, Divider, message, Alert, List
+  Form, Checkbox, Empty, Divider, message, Alert, List, Table
 } from 'antd';
 import {
   ReloadOutlined, MailOutlined, CloseCircleOutlined,
@@ -17,6 +17,7 @@ import WarrantyFileUploader from './WarrantyFileUploader';
 import StatusTransitionSelect from './StatusTransitionSelect';
 import {
   useAdminWarrantyClaim,
+  useWarrantyEmailDeliveries,
   useUpdateStatus,
   useAddNote,
   useSendCustomerUpdate,
@@ -26,6 +27,7 @@ import {
   useDeleteMedia,
   useAdminUpload,
   useCreateStaffLink,
+  useResendStaffLink,
   useRevokeStaffLink,
   useAdminSetClaimNumber
 } from '../hooks/useWarranty';
@@ -92,6 +94,7 @@ function ClaimBody({ data, claimId, onClose }) {
   const deleteMedia     = useDeleteMedia(claimId);
   const adminUpload     = useAdminUpload(claimId);
   const createStaffLink = useCreateStaffLink(claimId);
+  const resendStaffLink = useResendStaffLink(claimId);
   const revokeStaffLink = useRevokeStaffLink(claimId);
 
   const [statusValue, setStatusValue] = useState(undefined);
@@ -264,6 +267,11 @@ function ClaimBody({ data, claimId, onClose }) {
           staffLinks={staffLinks}
           activeStaffLinks={activeStaffLinks}
           onInvite={handleStaffInvite}
+          onResend={(id) => resendStaffLink.mutate(id, {
+            onSuccess: () => message.success(t('admin:warranty.actions.staffLinkResent', 'Tracking email resent to staff member.')),
+            onError: (err) => message.error(err?.response?.data?.error || 'Failed to resend staff email')
+          })}
+          resendingLinkId={resendStaffLink.isPending ? resendStaffLink.variables : null}
           onRevoke={(id) => revokeStaffLink.mutate(id, {
             onSuccess: () => message.success(t('admin:warranty.actions.staffRevoked', 'Staff link revoked.'))
           })}
@@ -271,6 +279,11 @@ function ClaimBody({ data, claimId, onClose }) {
           submitting={createStaffLink.isPending}
         />
       )
+    },
+    {
+      key: 'emails',
+      label: t('admin:warranty.detail.tabs.emails', 'Emails'),
+      children: <EmailDeliveriesTab claimId={claimId} />
     },
     {
       key: 'notes',
@@ -517,7 +530,100 @@ function ActionsToolbar({
   );
 }
 
-function StaffLinksTab({ claim, staffLinks, activeStaffLinks, onInvite, onRevoke, form, submitting }) {
+const EMAIL_STATUS_META = {
+  delivered:        { color: 'green',    label: 'Delivered' },
+  opened:           { color: 'cyan',     label: 'Opened' },
+  clicked:          { color: 'geekblue', label: 'Clicked' },
+  sent:             { color: 'default',  label: 'Sent' },
+  delivery_delayed: { color: 'orange',   label: 'Delayed' },
+  bounced:          { color: 'red',      label: 'Bounced' },
+  complained:       { color: 'volcano',  label: 'Spam complaint' },
+  failed:           { color: 'red',      label: 'Failed' }
+};
+
+function EmailStatusTag({ status }) {
+  const meta = EMAIL_STATUS_META[status] || { color: 'default', label: status || 'Unknown' };
+  return <Tag color={meta.color}>{meta.label}</Tag>;
+}
+
+function EmailDeliveriesTab({ claimId }) {
+  const { t } = useTranslation(['admin']);
+  const query = useWarrantyEmailDeliveries(claimId);
+  const rows = query.data || [];
+
+  const columns = [
+    {
+      title: t('admin:warranty.emails.recipient', 'Recipient'),
+      dataIndex: 'recipient',
+      key: 'recipient',
+      render: (v) => <span className="font-medium break-all">{v}</span>
+    },
+    {
+      title: t('admin:warranty.emails.subject', 'Subject'),
+      dataIndex: 'subject',
+      key: 'subject',
+      render: (v) => <span className="text-slate-600">{v || '—'}</span>
+    },
+    {
+      title: t('admin:warranty.emails.status', 'Status'),
+      dataIndex: 'status',
+      key: 'status',
+      width: 150,
+      render: (v, row) => (
+        <span>
+          <EmailStatusTag status={v} />
+          {row.error ? <div className="text-[11px] text-rose-500">{row.error}</div> : null}
+        </span>
+      )
+    },
+    {
+      title: t('admin:warranty.emails.when', 'Last update'),
+      key: 'when',
+      width: 150,
+      render: (_v, row) => {
+        const ts = row.last_event_at || row.created_at;
+        return <span className="text-xs text-slate-500">{ts ? dayjs(ts).format('YYYY-MM-DD HH:mm') : '—'}</span>;
+      }
+    }
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-slate-500">
+          {t('admin:warranty.emails.hint',
+            'Every email this case has sent, with live delivery status from the mail provider (Resend). "Delivered" = it reached the recipient\'s mail server; "Bounced" = it was rejected; "Sent" = handed off, awaiting confirmation.')}
+        </p>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          loading={query.isFetching}
+          onClick={() => query.refetch()}
+        >
+          {t('admin:warranty.actions.refresh', 'Refresh')}
+        </Button>
+      </div>
+      {query.isLoading ? (
+        <Skeleton active paragraph={{ rows: 4 }} />
+      ) : rows.length === 0 ? (
+        <Empty description={t('admin:warranty.emails.none', 'No emails sent for this case yet.')} />
+      ) : (
+        <Table
+          size="small"
+          rowKey="id"
+          dataSource={rows}
+          columns={columns}
+          pagination={false}
+          scroll={{ x: true }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StaffLinksTab({
+  claim, staffLinks, activeStaffLinks, onInvite, onResend, resendingLinkId, onRevoke, form, submitting
+}) {
   const { t } = useTranslation(['admin']);
   return (
     <div className="space-y-6">
@@ -544,6 +650,15 @@ function StaffLinksTab({ claim, staffLinks, activeStaffLinks, onInvite, onRevoke
                     }}
                   >
                     {t('admin:warranty.actions.copyLink', 'Copy link')}
+                  </Button>,
+                  <Button
+                    key="resend"
+                    type="link"
+                    icon={<MailOutlined />}
+                    loading={resendingLinkId === link.id}
+                    onClick={() => onResend(link.id)}
+                  >
+                    {t('admin:warranty.actions.resendStaffEmail', 'Resend email')}
                   </Button>,
                   <Popconfirm
                     key="revoke"
