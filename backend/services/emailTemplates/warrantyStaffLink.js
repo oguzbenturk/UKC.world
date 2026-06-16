@@ -9,8 +9,8 @@ export function buildWarrantyStaffLinkEmail({ claim, staffLink }) {
   const isTr = lang === 'tr';
 
   const subject = isTr
-    ? `Garanti dosyası size atandı — ${claim.product_name}`
-    : `Warranty case assigned to you — ${claim.product_name}`;
+    ? `Garanti dosyası size atandı - ${claim.product_name}`
+    : `Warranty case assigned to you - ${claim.product_name}`;
 
   const eyebrow = isTr ? 'UKC.Care · Garanti ekibi' : 'UKC.Care · Warranty team';
   const title = isTr ? 'Bir garanti dosyası size iletildi' : 'A warranty case is assigned to you';
@@ -42,8 +42,10 @@ export function buildWarrantyStaffLinkEmail({ claim, staffLink }) {
     ctaLabel,
     ctaUrl: url,
     fineprint: [
-      isTr ? 'Bu bağlantı size özeldir — başkalarıyla paylaşmayın.' : 'This link is unique to you — please do not share it.',
-      `${isTr ? 'Sorularınız için' : 'Questions?'} ${SUPPORT_EMAIL}`
+      isTr
+        ? 'Bu e-postayı, UKC garanti ekibi sizi bu garanti dosyasına yetkili kişi olarak eklediği için aldınız.'
+        : 'You are receiving this email because the UKC warranty team added you as a contact for this warranty case.',
+      `${isTr ? 'Sorularınız için bize şu adresten ulaşabilirsiniz:' : 'Questions? You can reach us at'} ${SUPPORT_EMAIL}.`
     ]
   });
 
@@ -57,7 +59,14 @@ export function buildWarrantyStaffLinkEmail({ claim, staffLink }) {
     `${labelStatus}: ${statusLabel(claim.status, lang)}`,
     `${labelIssue}: ${issueSummary}`,
     '',
-    `${ctaLabel}: ${url}`
+    `${ctaLabel}: ${url}`,
+    '',
+    isTr
+      ? 'Bu e-postayı, UKC garanti ekibi sizi bu garanti dosyasına yetkili kişi olarak eklediği için aldınız.'
+      : 'You are receiving this email because the UKC warranty team added you as a contact for this warranty case.',
+    isTr ? `Sorularınız için: ${SUPPORT_EMAIL}` : `Questions? You can reach us at ${SUPPORT_EMAIL}.`,
+    '',
+    'UKC — Urla Kitesurf Center · Urla, İzmir, Türkiye'
   ].join('\n');
 
   return { subject, html, text };

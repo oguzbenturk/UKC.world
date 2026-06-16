@@ -83,10 +83,10 @@ const renderCta = (label, url) => {
   const safeUrl = escapeHtml(url);
   const safeLabel = escapeHtml(label);
   return `
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:32px auto 8px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px auto 8px;">
     <tr>
-      <td bgcolor="${COLOR.brandStrong}" style="background:${COLOR.brandStrong};border-radius:999px;box-shadow:0 6px 20px rgba(16,185,129,0.28);">
-        <a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:15px 40px;font-family:${FONT_BODY};font-size:13px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${COLOR.white};text-decoration:none;border-radius:999px;line-height:1;">${safeLabel}</a>
+      <td bgcolor="${COLOR.brandStrong}" style="background:${COLOR.brandStrong};border-radius:8px;">
+        <a href="${safeUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:14px 32px;font-family:${FONT_BODY};font-size:15px;font-weight:700;color:${COLOR.white};text-decoration:none;border-radius:8px;line-height:1;">${safeLabel}</a>
       </td>
     </tr>
   </table>`;
@@ -156,7 +156,6 @@ export function buildBrandedEmail({
   includeRawLink = true,
   fineprint = []
 }) {
-  const safePreheader = escapeHtml(preheader);
   const safeEyebrow = escapeHtml(eyebrow);
   const safeTitle = escapeHtml(title);
   const safeGreeting = escapeHtml(greeting);
@@ -196,7 +195,6 @@ export function buildBrandedEmail({
   <title>${safeTitle}</title>
 </head>
 <body style="margin:0;padding:0;background:${COLOR.page};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <span style="display:none !important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${safePreheader}</span>
 
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${COLOR.page};">
     <tr>
@@ -252,12 +250,17 @@ export function buildBrandedEmail({
           <tr>
             <td align="center" style="padding:32px 16px 8px;">
               ${renderWordmark({ size: 'sm' })}
-              <p style="margin:14px 0 4px;font-family:${FONT_BODY};color:${COLOR.muted};font-size:11px;line-height:1.6;letter-spacing:0.04em;">
-                Powered by Plannivo · ${year}
+              <p style="margin:14px 0 2px;font-family:${FONT_BODY};color:${COLOR.body};font-size:12px;line-height:1.6;font-weight:600;">
+                UKC — Urla Kitesurf Center
+              </p>
+              <p style="margin:0 0 8px;font-family:${FONT_BODY};color:${COLOR.muted};font-size:12px;line-height:1.6;">
+                Urla, İzmir, Türkiye · <a href="mailto:info@plannivo.com" style="color:${COLOR.brandDeep};text-decoration:none;">info@plannivo.com</a>
               </p>
               <p style="margin:8px 0 0;font-family:${FONT_BODY};color:${COLOR.faint};font-size:11px;line-height:1.65;">
-                This is an automated message — please do not reply.<br>
-                For questions, contact us at <a href="mailto:info@plannivo.com" style="color:${COLOR.brandDeep};text-decoration:none;">info@plannivo.com</a>.
+                This is an automated message — for any questions just reply to this email and we'll help.
+              </p>
+              <p style="margin:10px 0 0;font-family:${FONT_BODY};color:${COLOR.faint};font-size:11px;line-height:1.6;">
+                Powered by Plannivo · ${year}
               </p>
             </td>
           </tr>
