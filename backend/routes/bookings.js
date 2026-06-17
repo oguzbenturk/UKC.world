@@ -4631,7 +4631,10 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     // Get the current booking data before update to track changes
     // deleted_at guard: editing a soft-deleted booking would let the cascade
     // re-create the instructor_earnings/commission rows the delete flow removed.
-    const currentBookingResult = await client.query('SELECT * FROM bookings WHERE id = $1 AND deleted_at IS NULL', [req.params.id]);
+    // FOR UPDATE serialises concurrent edits of the SAME booking so two rapid
+    // price edits can't interleave their financial cascades (last-write-wins on
+    // earnings/commission). Different bookings don't contend.
+    const currentBookingResult = await client.query('SELECT * FROM bookings WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [req.params.id]);
     if (currentBookingResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
@@ -4645,6 +4648,21 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       checkout_status, checkout_time, checkout_notes,
       checkin_status, checkin_time, checkin_notes
     } = req.body;
+
+    // Capture the PRE-edit custom commission value NOW, before the delete/insert
+    // below rewrites it. Reading it afterwards (as the old code did) returns the
+    // just-inserted NEW value, so a commission-only edit never registered as a
+    // change and the cascade never recomputed instructor earnings for it.
+    let preEditCustomCommissionValue = null;
+    if (instructor_commission !== undefined) {
+      const pccRes = await client.query(
+        'SELECT commission_value FROM booking_custom_commissions WHERE booking_id = $1',
+        [req.params.id]
+      );
+      preEditCustomCommissionValue = pccRes.rows.length > 0
+        ? parseFloat(pccRes.rows[0].commission_value)
+        : null;
+    }
 
     // Keep `final_amount` in sync with `amount` whenever the caller updates the
     // price. The display layer reads `final_amount` first, so leaving it stale
@@ -4867,6 +4885,29 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       }
     }
 
+    // Keep any PENDING bank-transfer receipt in sync whenever final_amount
+    // actually changed — whether from an explicit price edit OR a reconcile-driven
+    // duration edit on a partial booking (which rewrites the cash leg above). The
+    // receipt amount is captured at booking creation; without this, editing an
+    // unpaid booking and then approving the transfer charges the stale original
+    // amount (the approval posts receipt.amount, not booking.final_amount). Gate
+    // on the REAL old→new delta (not request params) so reconcile-only changes
+    // are covered. Rescaling proportionally preserves a deposit receipt's ratio.
+    // Approved/rejected receipts are untouched (status != 'pending').
+    {
+      const oldFinalForReceipt = parseFloat(currentBooking.final_amount ?? currentBooking.amount) || 0;
+      const newFinalForReceipt = parseFloat(booking.final_amount ?? booking.amount) || 0;
+      if (oldFinalForReceipt > 0 && Math.abs(newFinalForReceipt - oldFinalForReceipt) > 0.009) {
+        const receiptRatio = newFinalForReceipt / oldFinalForReceipt;
+        await client.query(
+          `UPDATE bank_transfer_receipts
+              SET amount = ROUND(amount * $1::numeric, 2), updated_at = NOW()
+            WHERE booking_id = $2 AND status = 'pending'`,
+          [receiptRatio, booking.id]
+        );
+      }
+    }
+
     // Handle custom commission rate if provided
     if (instructor_commission !== undefined && instructor_user_id) {
       // First, delete any existing custom commission for this booking
@@ -4991,9 +5032,62 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         logger.warn('Group booking package last_used_date update failed', { error: e.message });
       }
     }
-    
+
+    // ── Financial cascade — runs SYNCHRONOUSLY inside THIS transaction ────────
+    // Discount rebase, instructor earnings, manager commission, customer wallet
+    // settlement and package recalculation all commit atomically with the price
+    // edit. Previously this ran in a fire-and-forget setImmediate AFTER COMMIT
+    // with a misleading "(will retry)" log and no actual retry: a failure left
+    // the booking showing the new price while earnings/commission/balance stayed
+    // permanently stale (split-brain), and an immediate refetch could read
+    // pre-cascade values. Running in-transaction (strict mode) means any failure
+    // rolls the whole edit back, so the books are never left inconsistent.
+    const bookingForCascade =
+      (await client.query('SELECT * FROM bookings WHERE id = $1', [booking.id])).rows[0] || booking;
+
+    const cascadeChanges = {};
+    const cascadeCriticalFields = [
+      'final_amount', 'amount', 'duration',
+      'instructor_user_id', 'service_id', 'student_user_id', 'status',
+    ];
+    cascadeCriticalFields.forEach((field) => {
+      if (currentBooking[field] !== bookingForCascade[field]) {
+        cascadeChanges[field] = bookingForCascade[field];
+        cascadeChanges._previous = cascadeChanges._previous || {};
+        cascadeChanges._previous[field] = currentBooking[field];
+      }
+    });
+
+    // Custom commission change detection — compare the value captured BEFORE the
+    // delete/insert (preEditCustomCommissionValue) against the requested value, so
+    // a real commission change is detected and triggers the earnings recompute.
+    if (instructor_commission !== undefined) {
+      const oldCommissionValue = preEditCustomCommissionValue;
+      const newCommissionValue = instructor_commission !== null && instructor_commission !== ''
+        ? parseFloat(instructor_commission)
+        : null;
+      if (oldCommissionValue !== newCommissionValue) {
+        cascadeChanges._custom_commission_changed = true;
+        cascadeChanges.instructor_commission = newCommissionValue;
+        cascadeChanges._previous = cascadeChanges._previous || {};
+        cascadeChanges._previous.instructor_commission = oldCommissionValue;
+      }
+    }
+
+    if (Object.keys(cascadeChanges).length > 0) {
+      // The cascade's customer-wallet settlement needs the PRE-edit payment
+      // status (not just whether it changed) to know whether the reconcile path
+      // already settled the cash leg for a package/partial duration edit.
+      cascadeChanges._previousPaymentStatus = currentBooking.payment_status;
+      // No try/catch: a cascade failure must abort the whole edit (handled by the
+      // outer catch's ROLLBACK), not commit a half-applied price change.
+      await BookingUpdateCascadeService.cascadeBookingUpdate(
+        bookingForCascade, cascadeChanges, { client, strict: true }
+      );
+    }
+
     await client.query('COMMIT');
-    
+
     // Get updated booking data to return in response (including payment_status changes)
     const updatedBookingResult = await pool.query(
       'SELECT * FROM bookings WHERE id = $1',
@@ -5335,59 +5429,12 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       }
     });
 
-    // **🚀 NEW: Comprehensive Data Cascade Update**
-    // Track what fields actually changed to trigger appropriate cascades
-    const changes = {};
-    const financialFields = ['final_amount', 'amount', 'duration'];
-    const criticalFields = [...financialFields, 'instructor_user_id', 'service_id', 'student_user_id', 'status'];
-    
-    // Detect changes in critical fields
-    criticalFields.forEach(field => {
-      const oldValue = currentBooking[field];
-      const newValue = updatedBooking[field];
-      if (oldValue !== newValue) {
-        changes[field] = newValue;
-        changes._previous = changes._previous || {};
-        changes._previous[field] = oldValue;
-      }
-    });
-    
-    // Special handling for instructor_commission changes
-    if (instructor_commission !== undefined) {
-      // Get the previous custom commission value to detect actual changes
-      const previousCustomCommission = await client.query(
-        'SELECT commission_value FROM booking_custom_commissions WHERE booking_id = $1',
-        [booking.id]
-      );
-      
-      const oldCommissionValue = previousCustomCommission.rows.length > 0 
-        ? parseFloat(previousCustomCommission.rows[0].commission_value) 
-        : null;
-      const newCommissionValue = instructor_commission !== null && instructor_commission !== '' 
-        ? parseFloat(instructor_commission) 
-        : null;
-      
-      // Only flag as changed if the commission value actually changed
-      if (oldCommissionValue !== newCommissionValue) {
-        changes._custom_commission_changed = true;
-        changes.instructor_commission = newCommissionValue;
-        changes._previous = changes._previous || {};
-        changes._previous.instructor_commission = oldCommissionValue;
-      }
-    }
-    
-    // If any critical financial data changed, run cascade updates
-    if (Object.keys(changes).length > 0) {
-      // Run cascade updates asynchronously (don't block the response)
-      setImmediate(async () => {
-        try {
-          await BookingUpdateCascadeService.cascadeBookingUpdate(updatedBooking, changes);
-        } catch (cascadeError) {
-          // Log but don't fail the request - data will eventually be consistent
-          logger.error('Cascade update failed (will retry)', { error: cascadeError.message });
-        }
-      });
-    }
+    // NOTE: the financial cascade (discount rebase, instructor earnings, manager
+    // commission, customer wallet settlement, package recalc) now runs
+    // SYNCHRONOUSLY inside the transaction above, before COMMIT — see
+    // `cascadeBookingUpdate(..., { client, strict: true })`. It is intentionally
+    // no longer a post-commit setImmediate so a price edit and its money
+    // movements are atomic.
 
     // A pure reschedule (date change) doesn't alter amounts, so it never trips the
     // financial cascade above — but the manager commission's period attribution must

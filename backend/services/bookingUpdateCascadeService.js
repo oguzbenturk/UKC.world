@@ -286,17 +286,30 @@ class BookingUpdateCascadeService {
    * @param {Object} booking - Updated booking data
    * @param {Object} changes - What fields were changed
    */
-  static async cascadeBookingUpdate(booking, changes) {
-    const client = await pool.connect();
-    
+  static async cascadeBookingUpdate(booking, changes, options = {}) {
+    // When `options.client` is supplied, run inside the caller's transaction so
+    // the booking edit and ALL of its financial side-effects (discount rebase,
+    // instructor earnings, manager commission, customer wallet settlement) commit
+    // atomically — no split-brain, no fire-and-forget retry, no window where the
+    // UI refetches pre-cascade values. In that mode `strict` defaults true so any
+    // sub-step failure rolls the whole edit back instead of silently committing a
+    // stale earnings/commission/discount row. Standalone callers (booking
+    // creation, status patch) keep the legacy own-transaction + warn-and-continue
+    // behaviour so a non-critical cascade hiccup never undoes an already-committed
+    // booking.
+    const externalClient = options.client || null;
+    const client = externalClient || await pool.connect();
+    const ownTxn = !externalClient;
+    const strict = options.strict !== undefined ? options.strict : !ownTxn;
+
     try {
-      await client.query('BEGIN');
-      
+      if (ownTxn) await client.query('BEGIN');
+
       // Track what needs updating
       const needsFinancialUpdate = this.needsFinancialUpdate(changes);
       const needsCommissionUpdate = this.needsCommissionUpdate(changes);
       const needsEarningsCreation = this.needsEarningsCreation(changes);
-      
+
       if (needsFinancialUpdate || needsCommissionUpdate || needsEarningsCreation) {
         // 0. Rebase any booking discount(s) against the NEW price BEFORE the
         // salary recompute, so both the manager commission and instructor
@@ -304,11 +317,17 @@ class BookingUpdateCascadeService {
         // (package / group / multi-participant) — previously the rebase sat
         // inside updateCustomerBalance behind early-returns, so those edits left
         // a stale discount that both salaries subtracted (H8/H9/F7).
-        if (changes.final_amount !== undefined || changes.amount !== undefined) {
+        if (changes.final_amount !== undefined || changes.amount !== undefined || changes.duration !== undefined) {
+          // Duration is included because for package/partial bookings the lesson
+          // value is duration-derived — a duration-only edit changes the base a
+          // percentage discount must rebase against, which both salaries then read.
           try {
             const { recomputeBookingDiscountsForPriceEdit } = await import('./discountService.js');
             await recomputeBookingDiscountsForPriceEdit(client, { booking, createdBy: booking.updated_by || null });
           } catch (discErr) {
+            // In strict (in-transaction) mode a stale discount must not be
+            // committed alongside salaries computed from it — fail the edit.
+            if (strict) throw discErr;
             logger.warn('Booking discount rebase during cascade failed', { bookingId: booking.id, error: discErr.message });
           }
         }
@@ -328,6 +347,7 @@ class BookingUpdateCascadeService {
           const { recomputeManagerCommissionForEntity } = await import('./managerCommissionService.js');
           await recomputeManagerCommissionForEntity(client, WALLET_ENTITY_TYPE.BOOKING, booking.id);
         } catch (mcErr) {
+          if (strict) throw mcErr;
           logger.warn('Manager commission recompute during booking cascade failed', {
             bookingId: booking.id, error: mcErr.message,
           });
@@ -354,17 +374,19 @@ class BookingUpdateCascadeService {
   // log: no cascade updates needed
       }
       
-      await client.query('COMMIT');
-      
+      if (ownTxn) await client.query('COMMIT');
+
     } catch (error) {
-      await client.query('ROLLBACK');
+      // Only roll back a transaction we own; when running inside the caller's
+      // transaction, re-throw and let the caller's catch ROLLBACK the whole edit.
+      if (ownTxn) await client.query('ROLLBACK');
   logger.error('Cascade update failed', error);
       throw error;
     } finally {
-      client.release();
+      if (ownTxn) client.release();
     }
   }
-  
+
   /**
    * Check if changes require financial updates
    */
@@ -789,6 +811,13 @@ class BookingUpdateCascadeService {
   static async updateCustomerBalance(client, booking, changes) {
     if (!booking.student_user_id) return;
 
+    // A cancelled booking's money is owned by the cancellation cleanup
+    // (refundBookingNetChargesPerUser), which already refunds the full net
+    // charge. If a single edit BOTH cancels and changes the price, posting a
+    // price-delta adjustment here on top of the full refund would over-credit
+    // the customer — so never settle a price delta on a cancelled booking.
+    if ((booking.status || '').toLowerCase() === 'cancelled') return;
+
     try {
       const oldAmount = new Decimal(changes._previous?.final_amount || changes._previous?.amount || 0);
       const newAmount = new Decimal(booking.final_amount || booking.amount || 0);
@@ -808,11 +837,21 @@ class BookingUpdateCascadeService {
           return;
         }
 
-        // Package + partial bookings settle their own money in the booking
-        // routes / reconcile (package hours and the cash leg respectively), so
-        // skip them here to avoid a second adjustment. Only plain individual
-        // (cash/wallet) bookings are settled in this path.
-        if (booking.payment_status !== 'package' && booking.payment_status !== 'partial') {
+        // Decide whether THIS path settles the cash delta:
+        //  • If the duration changed on a booking that was package/partial BEFORE
+        //    the edit, the synchronous reconcile path
+        //    (reconcilePackageHoursOnDurationChange) already recomputed and
+        //    settled the cash leg — even if it flipped the booking to 'paid' /
+        //    'package'. Posting again here would double-count, so skip.
+        //  • Package bookings move no cash on a price edit (paid in hours).
+        //  • Everything else — a plain cash 'paid' booking, OR a price-ONLY edit
+        //    on a 'partial' booking — is settled here (this is the gap that left
+        //    partial price edits unsettled before).
+        const durationChangedThisEdit = changes.duration !== undefined;
+        const wasPackageOrPartial =
+          changes._previousPaymentStatus === 'package' || changes._previousPaymentStatus === 'partial';
+        const reconcileOwnsSettlement = durationChangedThisEdit && wasPackageOrPartial;
+        if (!reconcileOwnsSettlement && booking.payment_status !== 'package') {
           // Single source of truth is the wallet ledger — the legacy raw
           // `users.balance` write + `transactions` insert were removed (they
           // double-credited against the wallet store; H16 / dual-ledger drift).

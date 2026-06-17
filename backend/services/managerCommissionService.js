@@ -625,7 +625,9 @@ export async function recomputeManagerCommissionsForPackage(client, packageId) {
     const bookingCurrency = row.booking_currency || 'EUR';
     if (bookingCurrency !== 'EUR') {
       try {
-        amountInEur = await CurrencyService.convertCurrency(newSourceAmount, bookingCurrency, 'EUR');
+        // Reuse the caller's transactional client (this runs inside a package
+        // price-edit transaction) rather than grabbing a second pooled connection.
+        amountInEur = await CurrencyService.convertCurrency(newSourceAmount, bookingCurrency, 'EUR', client);
       } catch {
         amountInEur = newSourceAmount;
       }
@@ -890,7 +892,9 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
   let amountInEur = newSourceAmount;
   if (sourceCurrency !== 'EUR') {
     try {
-      amountInEur = await CurrencyService.convertCurrency(newSourceAmount, sourceCurrency, 'EUR');
+      // Pass the caller's client so the rate lookup stays on this transaction's
+      // connection when invoked in-transaction (booking price-edit cascade).
+      amountInEur = await CurrencyService.convertCurrency(newSourceAmount, sourceCurrency, 'EUR', client);
     } catch {
       amountInEur = newSourceAmount;
     }

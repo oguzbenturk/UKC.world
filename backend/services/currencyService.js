@@ -71,18 +71,24 @@ class CurrencyService {
   /**
    * Convert amount between currencies
    */
-  static async convertCurrency(amount, fromCurrency, toCurrency) {
+  static async convertCurrency(amount, fromCurrency, toCurrency, client = null) {
+    // Optional `client`: when this runs inside a caller's open transaction (e.g.
+    // the booking price-edit cascade, which holds a FOR UPDATE lock), reuse that
+    // connection instead of grabbing a second pooled one. That keeps the read on
+    // the same transactional snapshot and avoids holding two pool connections at
+    // once under concurrency. Defaults to the pool for all standalone callers.
+    const db = client || pool;
     try {
       if (fromCurrency === toCurrency) {
         return new Decimal(amount).toDecimalPlaces(2).toNumber();
       }
 
-      const { rows: fromRate } = await pool.query(
+      const { rows: fromRate } = await db.query(
         'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
         [fromCurrency]
       );
 
-      const { rows: toRate } = await pool.query(
+      const { rows: toRate } = await db.query(
         'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
         [toCurrency]
       );

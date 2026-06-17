@@ -575,7 +575,10 @@ export async function recomputeBookingDiscountsForPriceEdit(client, { booking, c
   if (!discRows.length) return { rebased: 0 };
 
   // Gross (pre-discount) whole-booking value for entity-wide discount rows.
-  let grossEntityBase = Number(booking.final_amount ?? booking.amount) || 0;
+  // Floor at 0 — a negative base (corrupt/edge data) would otherwise produce a
+  // negative discount amount that trips the discounts.amount >= 0 CHECK and
+  // aborts the rebase.
+  let grossEntityBase = Math.max(0, Number(booking.final_amount ?? booking.amount) || 0);
   if (booking.customer_package_id && (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
     try {
       const Cascade = (await import('./bookingUpdateCascadeService.js')).default;
@@ -606,7 +609,7 @@ export async function recomputeBookingDiscountsForPriceEdit(client, { booking, c
         );
         participantShares = new Map(pr.map((r) => [r.user_id, Number(r.payment_amount) || 0]));
       }
-      base = participantShares.get(d.participant_user_id) || 0;
+      base = Math.max(0, participantShares.get(d.participant_user_id) || 0);
     } else {
       base = grossEntityBase;
     }
