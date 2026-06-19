@@ -448,6 +448,11 @@ const AppRoutes = () => {
       
       {/* Help/Support - public access */}
       <Route path="/help" element={<HelpSupport />} />
+
+      {/* Wind Report - public access. Forecast is viewable without login so
+          non-customers (guests) can see it too, not just signed-in customers.
+          Backend /api/weather is already an unauthenticated route. */}
+      <Route path="/wind-report" element={<WindReportPage />} />
       
       {/* AUTHENTICATED-ONLY ROUTES */}
       {/* These routes require authentication and redirect to login */}
@@ -457,7 +462,6 @@ const AppRoutes = () => {
         <Route path="/accommodation" element={<AccommodationBookingPage />} />
         <Route path="/repairs" element={<RepairsPage />} />
         <Route path="/shop/my-orders" element={<MyOrdersPage />} />
-        <Route path="/wind-report" element={<WindReportPage />} />
       </Route>
 
       {/* /dashboard serves EVERY staff role — DashboardRouter picks the admin vs

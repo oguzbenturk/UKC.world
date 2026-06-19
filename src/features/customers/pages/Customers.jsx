@@ -60,6 +60,13 @@ const Customers = () => {
   // Column-level filters
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all'); // 'all' | 'paid' | 'package' | 'pending'
   const [balanceSignFilter, setBalanceSignFilter] = useState('all'); // 'all' | 'negative' | 'zero' | 'positive'
+
+  // Sorting is server-side (manualSorting) so ordering reflects ALL customers in the DB,
+  // not just the page already loaded in the browser. sortField/sortDirection feed the API;
+  // setSorting is wired to the TanStack table below.
+  const [sorting, setSorting] = useState([]);
+  const sortField = sorting[0]?.id || 'id';
+  const sortDirection = sorting.length ? (sorting[0].desc ? 'desc' : 'asc') : 'desc';
   
   // Delete modal state
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
@@ -99,6 +106,8 @@ const Customers = () => {
         cursor: append ? nextCursorRef.current || undefined : undefined,
         balanceSign: balanceSignFilter !== 'all' ? balanceSignFilter : undefined,
         paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
+        sortBy: sortField,
+        sortDir: sortDirection,
       };
 
       const res = await DataService.getCustomersList(params);
@@ -120,7 +129,7 @@ const Customers = () => {
       setLoading(false);
       setIsLoadingMore(false);
     }
-  }, [q, limit, balanceSignFilter, paymentStatusFilter]);
+  }, [q, limit, balanceSignFilter, paymentStatusFilter, sortField, sortDirection]);
 
   // Detect return from user creation and refresh data
   useEffect(() => {
@@ -466,8 +475,10 @@ const Customers = () => {
     );
   };
   
-  // Build TanStack table instance
-  const [sorting, setSorting] = useState([]);
+  // Build TanStack table instance. manualSorting: true — the server does the ordering
+  // (DB-wide, before pagination) via sortField/sortDirection, so the table must NOT
+  // re-sort only the loaded rows. It still tracks `sorting` for the header arrows + to
+  // drive the next fetch. `sorting`/`setSorting` are declared above (needed by fetch).
   const table = useReactTable({
     data: visibleCustomers,
     columns,
@@ -475,7 +486,7 @@ const Customers = () => {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    manualSorting: false
+    manualSorting: true
   });
 
   const tableRows = table.getRowModel().rows;

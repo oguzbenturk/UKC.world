@@ -346,6 +346,30 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     // Do NOT wrap bal_eur in NULLIF(...,0): that would conflate "wallet nets to 0"
     // with "no wallet" and resurrect the stale users.balance.
     const balanceColumn = 'COALESCE(wbal.bal_eur, u.balance, 0)';
+    // Name expression reused in SELECT, ORDER BY and the keyset cursor comparison.
+    const nameExpr = "COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name, '')";
+
+    // Server-side sorting. The ORDER BY applies DB-wide BEFORE pagination, so the order
+    // reflects the ENTIRE customer set — not just the rows already loaded in the browser.
+    // (Previously the frontend sorted only the loaded page, so "order by balance" forced
+    // the user to "Load more" through every page before the real top/bottom appeared.)
+    const SORTABLE = {
+      id:         { expr: 'u.id',                                cast: '::int' },
+      name:       { expr: nameExpr,                              cast: '::text' },
+      email:      { expr: "COALESCE(u.email, '')",               cast: '::text' },
+      role:       { expr: 'r.name',                              cast: '::text' },
+      balance:    { expr: `ROUND(${balanceColumn}::numeric, 2)`, cast: '::numeric' },
+      created_at: { expr: 'u.created_at',                        cast: '::timestamptz' },
+    };
+    const sortBy = SORTABLE[(req.query.sortBy || '').toString()] ? req.query.sortBy.toString() : 'id';
+    const sortDir = (req.query.sortDir || 'desc').toString().toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const sortExpr = SORTABLE[sortBy].expr;
+    const sortCast = SORTABLE[sortBy].cast;
+    // Stable order needs a unique tiebreaker, so every sort ends on u.id (same direction).
+    const orderByClause = sortBy === 'id'
+      ? `u.id ${sortDir}`
+      : `${sortExpr} ${sortDir}, u.id ${sortDir}`;
+
     const whereClauses = ["r.name IN ('student', 'outsider', 'trusted_customer')", "u.deleted_at IS NULL"];
     const params = [];
 
@@ -396,10 +420,34 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       whereClauses.push(`(${balanceColumn} >= 0 AND COALESCE(pb.pending_count, 0) = 0)`);
     }
 
-    // Keyset pagination: order by u.id DESC; when cursor is provided, fetch records with id < cursor
+    // Keyset pagination. When a sort is active we keyset on (sortExpr, u.id) so that
+    // "Load more" keeps appending in the SAME global order rather than restarting.
+    // The cursor is an opaque base64url token { v: <last sort value>, id: <last id> }.
+    let cursorVal = null;
+    let cursorId = null;
     if (cursor) {
-      params.push(cursor);
-      whereClauses.push(`u.id < $${params.length}`);
+      try {
+        const decoded = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+        cursorVal = decoded.v;
+        cursorId = decoded.id;
+      } catch {
+        cursorId = cursor; // legacy bare-id cursor (pre-sort deploys)
+      }
+    }
+    if (cursorId != null) {
+      const cmp = sortDir === 'ASC' ? '>' : '<';
+      if (sortBy === 'id') {
+        params.push(cursorId);
+        whereClauses.push(`u.id ${cmp} $${params.length}::int`);
+      } else {
+        params.push(cursorVal);
+        const vIdx = params.length;
+        params.push(cursorId);
+        const idIdx = params.length;
+        whereClauses.push(
+          `(${sortExpr} ${cmp} $${vIdx}${sortCast} OR (${sortExpr} = $${vIdx}${sortCast} AND u.id ${cmp} $${idIdx}::int))`
+        );
+      }
     }
 
     const currencyParamIndex = params.length + 1;
@@ -411,7 +459,7 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     const sql = `
       SELECT 
         u.id,
-        COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name) AS name,
+        ${nameExpr} AS name,
         u.email,
         u.phone,
         r.name AS role,
@@ -425,7 +473,10 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
         ROUND(COALESCE(wbal.bal_eur, u.balance, 0)::numeric, 2) AS balance,
         COALESCE(u.preferred_currency, $${currencyParamIndex}) AS preferred_currency,
         u.created_at,
-        COALESCE(pb.pending_count, 0)::int AS pending_count
+        COALESCE(pb.pending_count, 0)::int AS pending_count,
+        -- Exact value the rows are ordered by; used to build the next keyset cursor so
+        -- it always matches the ORDER BY / WHERE expression (rounding, COALESCE, etc.).
+        ${sortExpr} AS _sortval
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN LATERAL (
@@ -453,7 +504,7 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
         GROUP BY b.student_user_id
       ) pb ON pb.uid = u.id
       WHERE ${whereClauses.join(' AND ')}
-      ORDER BY u.id DESC
+      ORDER BY ${orderByClause}
       LIMIT $${params.length + 2}
     `;
 
@@ -468,7 +519,10 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     let items = rows;
     if (rows.length > limit) {
       const last = rows[limit - 1];
-      nextCursor = last.id;
+      // _sortval is the exact ORDER BY value, so the next page resumes precisely after
+      // this row in (sortExpr, id) order — no skipped or duplicated rows at boundaries.
+      const token = { v: last._sortval, id: last.id };
+      nextCursor = Buffer.from(JSON.stringify(token)).toString('base64url');
       items = rows.slice(0, limit);
     }
 
