@@ -354,7 +354,7 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     // (Previously the frontend sorted only the loaded page, so "order by balance" forced
     // the user to "Load more" through every page before the real top/bottom appeared.)
     const SORTABLE = {
-      id:         { expr: 'u.id',                                cast: '::int' },
+      id:         { expr: 'u.id',                                cast: '::uuid' },
       name:       { expr: nameExpr,                              cast: '::text' },
       email:      { expr: "COALESCE(u.email, '')",               cast: '::text' },
       role:       { expr: 'r.name',                              cast: '::text' },
@@ -438,14 +438,14 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       const cmp = sortDir === 'ASC' ? '>' : '<';
       if (sortBy === 'id') {
         params.push(cursorId);
-        whereClauses.push(`u.id ${cmp} $${params.length}::int`);
+        whereClauses.push(`u.id ${cmp} $${params.length}::uuid`);
       } else {
         params.push(cursorVal);
         const vIdx = params.length;
         params.push(cursorId);
         const idIdx = params.length;
         whereClauses.push(
-          `(${sortExpr} ${cmp} $${vIdx}${sortCast} OR (${sortExpr} = $${vIdx}${sortCast} AND u.id ${cmp} $${idIdx}::int))`
+          `(${sortExpr} ${cmp} $${vIdx}${sortCast} OR (${sortExpr} = $${vIdx}${sortCast} AND u.id ${cmp} $${idIdx}::uuid))`
         );
       }
     }
