@@ -1781,6 +1781,7 @@ export async function getEntityNetCharges({
   relatedEntityType = null,
   relatedEntityId = null,
   shopOrderId = null,
+  memberPurchaseId = null,
   byUser = false,
 } = {}) {
   const runner = client || pool;
@@ -1804,6 +1805,13 @@ export async function getEntityNetCharges({
   if (shopOrderId !== null && shopOrderId !== undefined) {
     params.push(String(shopOrderId));
     conditions.push(`(related_entity_type IN ('shop_order', 'shop_order_refund') AND metadata->>'orderId' = $${params.length})`);
+  }
+  if (memberPurchaseId !== null && memberPurchaseId !== undefined) {
+    // member_purchases.id is SERIAL int while related_entity_id is UUID, so the
+    // membership charge/refund rows carry the id in metadata.memberPurchaseId
+    // (mirrors the shop_order/metadata.orderId pattern above).
+    params.push(String(memberPurchaseId));
+    conditions.push(`(related_entity_type IN ('member_purchase', 'member_purchase_refund') AND metadata->>'memberPurchaseId' = $${params.length})`);
   }
   if (!conditions.length) {
     return [];

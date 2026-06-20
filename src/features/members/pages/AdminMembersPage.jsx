@@ -15,6 +15,7 @@ import {
   TrophyOutlined,
   EyeOutlined,
   EditOutlined,
+  DeleteOutlined,
   PercentageOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -26,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 import QuickMembershipModal from '@/features/dashboard/components/QuickMembershipModal';
@@ -47,8 +49,12 @@ const AdminMembersPage = () => {
   const { t } = useTranslation(['admin']);
   const { formatCurrency } = useCurrency();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  // Deleting a membership posts a wallet refund, so it's gated to managers+ — matching
+  // the backend cancel endpoint (authorizeRoles(['admin','manager','developer','owner'])).
+  const canManage = ['admin', 'manager', 'developer', 'owner'].includes((currentUser?.role || '').toLowerCase());
 
   const statusConfig = {
     active: { color: 'green', icon: <CheckCircleOutlined />, label: t('admin:members.status.active') },
@@ -167,6 +173,37 @@ const AdminMembersPage = () => {
     } finally {
       setEditSaving(false);
     }
+  };
+
+  const handleDelete = (purchase) => {
+    const name = purchase.offering_name || purchase.current_offering_name || 'membership';
+    Modal.confirm({
+      title: t('admin:members.delete.title', 'Delete membership'),
+      content: t('admin:members.delete.confirm', {
+        name,
+        defaultValue: `Delete "${name}"? Any wallet payment is refunded to the customer and the storage box is released. The membership is kept as "cancelled" for the record.`,
+      }),
+      okText: t('admin:members.actions.delete', 'Delete'),
+      okButtonProps: { danger: true },
+      cancelText: t('common:buttons.cancel', 'Cancel'),
+      onOk: async () => {
+        try {
+          const { data } = await apiClient.post(`/member-offerings/admin/purchases/${purchase.id}/cancel`, { reason: 'admin_deleted' });
+          if (data?.refunded) {
+            message.success(t('admin:members.delete.refunded', {
+              amount: formatCurrency(data.refundAmount || 0, data.refundCurrency || undefined),
+              defaultValue: `Membership deleted · ${formatCurrency(data.refundAmount || 0, data.refundCurrency || undefined)} refunded to wallet`,
+            }));
+          } else {
+            message.warning(t('admin:members.delete.noRefund', 'Membership deleted. No wallet charge was found to refund — adjust the balance manually if needed.'));
+          }
+          refetch();
+          queryClient.invalidateQueries(['admin-member-stats']);
+        } catch (err) {
+          message.error(err?.response?.data?.error || t('admin:members.delete.failed', 'Failed to delete membership'));
+        }
+      },
+    });
   };
 
   const handleDiscount = (purchase) => {
@@ -299,6 +336,11 @@ const AdminMembersPage = () => {
           <Tooltip title={t('admin:members.actions.discount', 'Apply discount')}>
             <Button type="text" size="small" icon={<PercentageOutlined />} onClick={() => handleDiscount(record)} />
           </Tooltip>
+          {canManage && (
+            <Tooltip title={t('admin:members.actions.delete', 'Delete')}>
+              <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
+            </Tooltip>
+          )}
         </Space>
       )
     }
@@ -351,12 +393,23 @@ const AdminMembersPage = () => {
         
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <span className="text-sm font-medium text-green-600">{formatCurrency(record.offering_price || 0)}</span>
-          <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetails(record)}
-          />
+          <Space size={2}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetails(record)}
+            />
+            {canManage && (
+              <Button
+                type="text"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record)}
+              />
+            )}
+          </Space>
         </div>
       </Card>
     );

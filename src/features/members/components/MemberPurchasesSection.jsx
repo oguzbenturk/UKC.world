@@ -1,9 +1,17 @@
 // src/features/members/components/MemberPurchasesSection.jsx
-import { Card, Typography, Tag, Space, Empty, Spin, Button, Tooltip } from 'antd';
-import { CrownOutlined, StarOutlined, TrophyOutlined, ThunderboltOutlined, GiftOutlined, CheckCircleOutlined, ClockCircleOutlined, HistoryOutlined, PercentageOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { Card, Typography, Tag, Space, Empty, Spin, Button, Tooltip, App } from 'antd';
+import { CrownOutlined, StarOutlined, TrophyOutlined, ThunderboltOutlined, GiftOutlined, CheckCircleOutlined, ClockCircleOutlined, HistoryOutlined, PercentageOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/shared/services/apiClient';
+import { message } from '@/shared/utils/antdStatic';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
+
+// Roles allowed to delete a membership — kept in sync with the backend cancel endpoint
+// (authorizeRoles(['admin','manager','developer','owner'])). Some callers hardcode
+// isAdminView={true} (e.g. CustomerProfilePage), so gate the destructive action on the
+// viewer's real role too, not just the prop.
+const MEMBERSHIP_MANAGE_ROLES = ['admin', 'manager', 'developer', 'owner'];
 
 const { Text, Title } = Typography;
 
@@ -47,6 +55,7 @@ const getPaymentStatusColor = (status) => {
  * @param {Map} props.discountsByEntity - Discount lookup map keyed by `${entityType}:${entityId}` (provided by EnhancedCustomerDetailModal)
  * @param {Function} props.onApplyDiscount - Callback fired when staff clicks Discount on a row; opens the ApplyDiscountModal in the parent
  * @param {boolean} props.readOnly - Hide write actions like Discount
+ * @param {Function} props.onChanged - Optional callback fired after a membership is deleted (lets the parent refresh balances/financials)
  */
 const MemberPurchasesSection = ({
   userId,
@@ -55,8 +64,12 @@ const MemberPurchasesSection = ({
   discountsByEntity = null,
   onApplyDiscount = null,
   readOnly = false,
+  onChanged = null,
 }) => {
   const { formatCurrency } = useCurrency();
+  const { modal } = App.useApp();
+  const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const targetUserId = userId;
 
   // Fetch purchases - use admin endpoint if viewing another user's purchases
@@ -136,6 +149,34 @@ const MemberPurchasesSection = ({
   };
 
   const canDiscount = isAdminView && !readOnly && typeof onApplyDiscount === 'function';
+  // Only managers/admins (matching the backend cancel endpoint) can delete a membership —
+  // and only in an admin/staff view, never a customer's own read-only view.
+  const canManageMemberships = MEMBERSHIP_MANAGE_ROLES.includes((currentUser?.role || '').toLowerCase());
+  const canActions = isAdminView && !readOnly && canManageMemberships;
+
+  const handleDelete = (purchase) => {
+    const name = purchase.offering_name || 'membership';
+    modal.confirm({
+      title: 'Delete membership',
+      content: `Delete "${name}"? Any wallet payment is refunded to the customer and the storage box is released. The membership is kept as "cancelled" for the record.`,
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          const { data } = await apiClient.post(`/member-offerings/admin/purchases/${purchase.id}/cancel`, { reason: 'admin_deleted' });
+          if (data?.refunded) {
+            message.success(`Membership deleted · ${fmt(data.refundAmount, data.refundCurrency)} refunded to wallet`);
+          } else {
+            message.warning('Membership deleted. No wallet charge was found to refund — adjust the balance manually if needed.');
+          }
+          queryClient.invalidateQueries({ queryKey: ['member-purchases', targetUserId, isAdminView] });
+          if (typeof onChanged === 'function') onChanged();
+        } catch (err) {
+          message.error(err?.response?.data?.error || 'Failed to delete membership');
+        }
+      },
+    });
+  };
 
   const getDaysRemaining = (expiresAt) => {
     if (!expiresAt) return null;
@@ -252,6 +293,18 @@ const MemberPurchasesSection = ({
                             Discount
                           </Button>
                         )}
+                        {canActions && (
+                          <Tooltip title="Delete membership">
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<DeleteOutlined />}
+                              className={canDiscount ? '!px-1' : 'ml-auto !px-1'}
+                              onClick={() => handleDelete(purchase)}
+                            />
+                          </Tooltip>
+                        )}
                       </div>
                       <div className="text-slate-500 text-sm mt-1 flex items-center gap-1 flex-wrap">
                         {renderPriceCell(purchase)}
@@ -330,6 +383,17 @@ const MemberPurchasesSection = ({
                       >
                         Discount
                       </Button>
+                    )}
+                    {canActions && (
+                      <Tooltip title="Delete membership">
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDelete(purchase)}
+                        />
+                      </Tooltip>
                     )}
                   </Space>
                 </div>

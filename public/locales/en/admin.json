@@ -1149,6 +1149,19 @@
     "empty": {
       "noMembers": "No members found"
     },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "discount": "Apply discount",
+      "delete": "Delete"
+    },
+    "delete": {
+      "title": "Delete membership",
+      "confirm": "Delete \"{{name}}\"? Any wallet payment is refunded to the customer and the storage box is released. The membership is kept as \"cancelled\" for the record.",
+      "refunded": "Membership deleted · {{amount}} refunded to wallet",
+      "noRefund": "Membership deleted. No wallet charge was found to refund — adjust the balance manually if needed.",
+      "failed": "Failed to delete membership"
+    },
     "count": "{{count}} member",
     "count_plural": "{{count}} members",
     "totalMembers": "{{total}} members",

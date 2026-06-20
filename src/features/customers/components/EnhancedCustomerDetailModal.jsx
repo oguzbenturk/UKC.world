@@ -1535,6 +1535,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
             readOnly={readOnly}
             discountsByEntity={discountsByEntity}
             onApplyDiscount={openDiscountForEntity}
+            onChanged={refreshAllData}
           />
         </Suspense>
       );

@@ -1149,6 +1149,19 @@
     "empty": {
       "noMembers": "Üye bulunamadı"
     },
+    "actions": {
+      "view": "Görüntüle",
+      "edit": "Düzenle",
+      "discount": "İndirim uygula",
+      "delete": "Sil"
+    },
+    "delete": {
+      "title": "Üyeliği sil",
+      "confirm": "\"{{name}}\" üyeliği silinsin mi? Cüzdandan yapılan ödeme müşteriye iade edilir ve dolap kutusu serbest bırakılır. Üyelik kayıt için \"iptal edildi\" olarak tutulur.",
+      "refunded": "Üyelik silindi · {{amount}} cüzdana iade edildi",
+      "noRefund": "Üyelik silindi. İade edilecek cüzdan ödemesi bulunamadı — gerekirse bakiyeyi elle düzeltin.",
+      "failed": "Üyelik silinemedi"
+    },
     "count": "{{count}} üye",
     "count_plural": "{{count}} üye",
     "totalMembers": "{{total}} üye",

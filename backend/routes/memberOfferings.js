@@ -5,7 +5,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { getBalance, getAllBalances, recordTransaction } from '../services/walletService.js';
+import { getBalance, getAllBalances, recordTransaction, getEntityNetCharges } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import CurrencyService from '../services/currencyService.js';
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
@@ -186,6 +186,12 @@ router.post(
 
       // Handle wallet payment
       let paymentStatus = 'completed';
+      // Capture the wallet/cash debit so we can stamp it with the purchase id AFTER the
+      // member_purchases INSERT below. Without metadata.memberPurchaseId the refund/cancel
+      // path (getEntityNetCharges) can't locate the charge and the customer never gets
+      // credited back. (The admin sale path already stores memberPurchaseId; the customer
+      // paths historically did not — this closes that gap going forward.)
+      let walletDebitTxId = null;
       if (paymentMethod === 'wallet') {
         const price = parseFloat(offering.price);
         const offeringCurrency = offering.currency || 'EUR';
@@ -225,7 +231,7 @@ router.post(
         }
 
         // Deduct from wallet using service
-        await recordTransaction({
+        const walletTx = await recordTransaction({
           client, // Pass the existing transaction client
           userId,
           amount: -payAmount,
@@ -234,18 +240,20 @@ router.post(
           direction: 'debit',
           availableDelta: -payAmount, // Explicitly reduce availability
           description: `Purchase: ${offering.name}`,
+          relatedEntityType: 'member_purchase',
           metadata: {
             offeringId,
             offeringName: offering.name
           }
         });
+        walletDebitTxId = walletTx?.id || null;
       } else if (paymentMethod === 'cash' || paymentMethod === 'pay_later') {
         // For cash/pay_later payments, create negative balance (pay at center)
         // This allows the customer to owe money that they'll pay in person
         const currency = 'EUR';
         const price = parseFloat(offering.price);
         
-        await recordTransaction({
+        const cashTx = await recordTransaction({
           client, // Pass the existing transaction client
           userId,
           amount: -price,
@@ -254,6 +262,7 @@ router.post(
           direction: 'debit',
           availableDelta: -price, // Create negative balance
           description: `Purchase (Pay at Center): ${offering.name}`,
+          relatedEntityType: 'member_purchase',
           metadata: {
             offeringId,
             offeringName: offering.name,
@@ -261,7 +270,8 @@ router.post(
           },
           allowNegative: true // Allow negative balance for pay at center
         });
-        
+        walletDebitTxId = cashTx?.id || null;
+
         paymentStatus = 'pending'; // Set as pending until payment received
       } else if (paymentMethod === 'credit_card' || paymentMethod === 'card') {
         paymentStatus = 'pending_payment';
@@ -324,6 +334,17 @@ router.post(
         paymentStatus,
         storageUnit
       ]);
+
+      // Stamp the wallet/cash debit with the new purchase id so a later admin cancel can
+      // find and refund it (member_purchases.id isn't known until the INSERT above).
+      if (walletDebitTxId) {
+        await client.query(
+          `UPDATE wallet_transactions
+              SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('memberPurchaseId', $1::text)
+            WHERE id = $2`,
+          [purchase.id, walletDebitTxId]
+        );
+      }
 
       // For bank transfers (full or deposit), create a receipt record for admin approval
       // Deposit-by-card goes through Iyzico instead — no receipt needed here
@@ -960,6 +981,113 @@ router.put(
 );
 
 /**
+ * POST /member-offerings/admin/purchases/:id/cancel
+ * Admin delete/cancel of a single customer membership with full financial reversal.
+ * Soft-cancels (status='cancelled') so history + the linked bank-transfer receipt stay
+ * intact, refunds the customer's wallet for exactly what was charged (idempotent,
+ * post-a-credit-only — never cancel-the-charge-plus-reversal, which double-undoes), and
+ * releases the storage box (cancelled rows fall out of the COUNT(DISTINCT) occupancy
+ * predicate). Manager commission, if any pending one exists, is cancelled after commit.
+ * Body: { reason?, refundWallet=true }.
+ */
+router.post('/admin/purchases/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager', 'developer', 'owner']), async (req, res) => {
+  const { id } = req.params;
+  const { reason = null, refundWallet = true } = req.body || {};
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Row-lock the purchase so a concurrent edit/refund/cancel can't race us.
+    const { rows: [purchase] } = await client.query(
+      `SELECT * FROM member_purchases WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (!purchase) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Membership not found' });
+    }
+    // Already cancelled → idempotent success, refund nothing again.
+    if (purchase.status === 'cancelled') {
+      await client.query('ROLLBACK');
+      return res.json({ message: 'Membership already cancelled', purchase, refunded: false, refunds: [], refundAmount: 0, refundCurrency: null });
+    }
+
+    // Refund EXACTLY the outstanding wallet charge, per currency. getEntityNetCharges
+    // nets the charge against any prior refund (and sums member_purchase_refund rows),
+    // so a retried cancel returns nothing and the idempotencyKey makes a duplicate a no-op.
+    // No fallback to offering_price: an admin CASH sale debits availableDelta 0, so it
+    // correctly refunds nothing (the wallet was never charged).
+    const refunds = [];
+    if (refundWallet) {
+      const netCharges = await getEntityNetCharges({ client, memberPurchaseId: id });
+      for (const rc of netCharges) {
+        if (!(rc.amount > 0)) continue;
+        await recordTransaction({
+          client,
+          userId: purchase.user_id,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'refund',
+          direction: 'credit',
+          availableDelta: rc.amount,
+          description: `Membership cancelled: ${purchase.offering_name}${purchase.storage_unit ? ` (unit #${purchase.storage_unit})` : ''}`,
+          createdBy: req.user.id,
+          relatedEntityType: 'member_purchase_refund',
+          // member_purchases.id is INT; related_entity_id is UUID — keep the id in metadata.
+          metadata: { memberPurchaseId: Number(id), offeringId: purchase.offering_id, reason },
+          idempotencyKey: `member-purchase-refund:${id}:${rc.currency}`,
+          allowNegative: true,
+        });
+        refunds.push({ currency: rc.currency, amount: rc.amount });
+      }
+    }
+
+    await client.query(
+      `UPDATE member_purchases
+          SET status = 'cancelled', payment_status = 'cancelled', updated_at = NOW()
+        WHERE id = $1`,
+      [id]
+    );
+
+    // Resolve any still-pending bank-transfer receipt so a later "Approve" in the
+    // pending-payments queue can't resurrect this cancelled membership (and re-consume
+    // its storage box). 'rejected' is the same terminal value the reject action uses.
+    await client.query(
+      `UPDATE bank_transfer_receipts
+          SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), updated_at = NOW(),
+              admin_notes = CASE WHEN admin_notes IS NULL THEN 'Membership cancelled by admin'
+                                 ELSE admin_notes || ' | Membership cancelled by admin' END
+        WHERE member_purchase_id = $1 AND status = 'pending'`,
+      [id, req.user.id]
+    );
+
+    await client.query('COMMIT');
+
+    // After commit, non-fatal: cancel any PENDING manager commission for this membership
+    // (already-paid commissions are immutable history and left alone). Admin-sold
+    // memberships never recorded one, so this is usually a no-op.
+    cancelCommission('membership', id, reason || 'admin_cancelled').catch(() => {});
+
+    const refundAmount = refunds.reduce((s, r) => s + r.amount, 0);
+    logger.info(`Admin cancelled membership ${id} (user ${purchase.user_id}) by ${req.user.id}; refunded=${refunds.length > 0} amount=${refundAmount}`);
+    return res.json({
+      message: 'Membership cancelled',
+      purchase: { ...purchase, status: 'cancelled', payment_status: 'cancelled' },
+      refunded: refunds.length > 0,
+      refunds,
+      refundAmount,
+      refundCurrency: refunds[0]?.currency || null,
+    });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* already settled */ }
+    logger.error('Error cancelling membership (admin):', err);
+    return res.status(500).json({ error: 'Failed to cancel membership' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * POST /member-offerings/admin/purchases
  * Create a purchase for a user (Admin only - for manual/reception purchases)
  */
@@ -1205,13 +1333,17 @@ router.get('/admin/pending-payments', authenticateJWT, authorizeRoles(ADMIN_ROLE
       LEFT JOIN member_offerings mo ON mp.offering_id = mo.id
       LEFT JOIN wallet_bank_accounts ba ON r.bank_account_id = ba.id
       WHERE r.member_purchase_id IS NOT NULL AND r.status = $1
+        AND (mp.status IS NULL OR mp.status <> 'cancelled')
       ORDER BY r.created_at DESC
       LIMIT $2 OFFSET $3
     `;
 
     const countQuery = `
-      SELECT COUNT(*) FROM bank_transfer_receipts
-      WHERE member_purchase_id IS NOT NULL AND status = $1
+      SELECT COUNT(*)
+      FROM bank_transfer_receipts r
+      LEFT JOIN member_purchases mp ON r.member_purchase_id = mp.id
+      WHERE r.member_purchase_id IS NOT NULL AND r.status = $1
+        AND (mp.status IS NULL OR mp.status <> 'cancelled')
     `;
 
     const [result, countResult] = await Promise.all([
@@ -1286,6 +1418,22 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
     const paymentCurrency = receipt.currency || 'EUR';
 
     if (newStatus === 'approved') {
+      // Never resurrect a membership an admin already cancelled/deleted. Lock and check
+      // its current status before activating (the receipt alone isn't enough — the
+      // membership may have been cancelled while this receipt sat in the queue).
+      const mpRes = await client.query(
+        `SELECT status FROM member_purchases WHERE id = $1 FOR UPDATE`,
+        [receipt.member_purchase_id]
+      );
+      if (mpRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Membership not found' });
+      }
+      if (mpRes.rows[0].status === 'cancelled') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'This membership was cancelled and cannot be reactivated. Create a new membership instead.' });
+      }
+
       // Activate the membership
       await client.query(
         `UPDATE member_purchases SET status = 'active', payment_status = 'completed', updated_at = NOW() WHERE id = $1`,

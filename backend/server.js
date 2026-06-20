@@ -882,7 +882,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
 
       // === Member Offering purchase — look up by token first, then conversationId ===
       const moByToken = await pool.query(
-        `SELECT id, user_id, payment_status, offering_name, offering_price FROM member_purchases WHERE gateway_transaction_id = $1 LIMIT 1`,
+        `SELECT id, user_id, payment_status, status, offering_name, offering_price FROM member_purchases WHERE gateway_transaction_id = $1 LIMIT 1`,
         [token]
       );
       if (moByToken.rows.length > 0 || (conversationId && conversationId.startsWith('MO-'))) {
@@ -893,7 +893,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           const moResult = moByToken.rows.length > 0
             ? moByToken
             : await pool.query(
-                `SELECT id, user_id, payment_status, offering_name, offering_price FROM member_purchases WHERE id = $1`,
+                `SELECT id, user_id, payment_status, status, offering_name, offering_price FROM member_purchases WHERE id = $1`,
                 [purchaseId]
               );
 
@@ -909,16 +909,27 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
           }
 
-          // Update payment status and activate membership — atomic guard so a
-          // duplicate/concurrent callback cannot run the credit/debit pair twice.
+          // A membership an admin cancelled/deleted must NOT be resurrected by a late
+          // card callback. Bail before activating — the card may have been charged at the
+          // gateway, so flag it loudly for manual reconciliation rather than reviving a
+          // deleted membership and minting wallet rows for it.
+          if (mo.status === 'cancelled' || mo.payment_status === 'cancelled') {
+            logger.error('Iyzico Callback: card payment received for a CANCELLED membership — funds may have been captured at the gateway and need manual reconciliation/refund', { purchaseId, token, paymentId: payment.paymentId });
+            return res.redirect(`${frontendUrl}/payment/callback?status=failed&type=membership&reason=membership_cancelled`);
+          }
+
+          // Update payment status and activate membership — positive guard on
+          // status='pending_payment' (matching the package callback) so a duplicate/
+          // concurrent callback cannot run the credit/debit pair twice AND a cancelled
+          // membership can never be flipped back to active.
           const moUpdate = await pool.query(
             `UPDATE member_purchases SET payment_status = 'completed', status = 'active'
-             WHERE id = $1 AND payment_status NOT IN ('completed', 'paid')
+             WHERE id = $1 AND status = 'pending_payment' AND payment_status NOT IN ('completed', 'paid')
              RETURNING id`,
             [purchaseId]
           );
           if (moUpdate.rowCount === 0) {
-            logger.warn('Iyzico Callback: membership already processed by concurrent request, skipping', { purchaseId, token });
+            logger.warn('Iyzico Callback: membership not in pending_payment (already processed or cancelled), skipping', { purchaseId, token });
             return res.redirect(`${frontendUrl}/payment/callback?status=success&type=membership`);
           }
 
