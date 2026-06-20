@@ -918,12 +918,14 @@ router.get('/admin/purchases', authenticateJWT, authorizeRoles(ADMIN_ROLES), asy
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
 
     const { rows } = await pool.query(`
-      SELECT 
+      SELECT
         mp.*,
         u.name as user_name,
         u.email as user_email,
         mo.name as current_offering_name,
-        CASE 
+        mo.category as offering_category,
+        mo.period as offering_period,
+        CASE
           WHEN mp.status = 'cancelled' THEN 'cancelled'
           WHEN mp.expires_at IS NULL THEN mp.status
           WHEN mp.expires_at < NOW() THEN 'expired'

@@ -1,7 +1,7 @@
 // src/features/members/pages/AdminMembersPage.jsx
 // Admin page to view all member purchases and assign memberships
 
-import { useState, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Card, Table, Tag, Button, Space, Tooltip,
@@ -45,6 +45,26 @@ const getMemberIcon = (name) => {
   return <StarOutlined style={{ color: '#10b981' }} />;
 };
 
+// --- Membership type filters (category + duration) ---
+// The member_offerings.period column is unreliable (e.g. a "Storage + Beach — Week"
+// offering is stored with period='day'), so derive the duration bucket from the offering
+// NAME first and only fall back to period. This keeps the "daily / weekly" filter honest.
+const DURATION_ORDER = ['day', 'week', 'month', 'season', 'year', 'other'];
+const DURATION_LABELS = { day: 'Daily', week: 'Weekly', month: 'Monthly', season: 'Seasonal', year: 'Yearly', other: 'Other' };
+const CATEGORY_LABELS = { storage: 'Storage', membership: 'Membership', freerider: 'Freerider' };
+const titleCase = (s) => (s || '').charAt(0).toUpperCase() + (s || '').slice(1);
+
+const deriveDuration = (purchase) => {
+  const name = (purchase.offering_name || purchase.current_offering_name || '').toLowerCase();
+  if (/week/.test(name)) return 'week';
+  if (/day|daily/.test(name)) return 'day';
+  if (/month/.test(name)) return 'month';
+  if (/season/.test(name)) return 'season';
+  if (/year|annual/.test(name)) return 'year';
+  const per = (purchase.offering_period || '').toLowerCase();
+  return DURATION_ORDER.includes(per) ? per : 'other';
+};
+
 const AdminMembersPage = () => {
   const { t } = useTranslation(['admin']);
   const { formatCurrency } = useCurrency();
@@ -66,7 +86,9 @@ const AdminMembersPage = () => {
   const [filters, setFilters] = useState({
     status: 'all',
     search: '',
-    dateRange: null
+    dateRange: null,
+    category: 'all',
+    duration: 'all'
   });
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -124,8 +146,22 @@ const AdminMembersPage = () => {
     staleTime: 300_000,
   });
 
-  // Filter purchases by search term
+  // Type-filter options, derived from the actual loaded purchases so they always match
+  // reality (and never show a bucket nobody has).
+  const categoryOptions = useMemo(() => {
+    const set = new Set(purchases.map(p => p.offering_category).filter(Boolean));
+    return Array.from(set).sort().map(c => ({ value: c, label: CATEGORY_LABELS[c] || titleCase(c) }));
+  }, [purchases]);
+
+  const durationOptions = useMemo(() => {
+    const set = new Set(purchases.map(deriveDuration));
+    return DURATION_ORDER.filter(d => set.has(d)).map(d => ({ value: d, label: DURATION_LABELS[d] }));
+  }, [purchases]);
+
+  // Filter purchases by search term + membership type (category) + duration
   const filteredPurchases = purchases.filter(p => {
+    if (filters.category !== 'all' && p.offering_category !== filters.category) return false;
+    if (filters.duration !== 'all' && deriveDuration(p) !== filters.duration) return false;
     if (!filters.search) return true;
     const search = filters.search.toLowerCase();
     return (
@@ -465,6 +501,32 @@ const AdminMembersPage = () => {
               <Select.Option value="expired">{t('admin:members.filters.expired')}</Select.Option>
               <Select.Option value="cancelled">{t('admin:members.filters.cancelled')}</Select.Option>
             </Select>
+            {categoryOptions.length > 1 && (
+              <Select
+                value={filters.category}
+                onChange={(value) => setFilters(f => ({ ...f, category: value }))}
+                style={{ minWidth: 120 }}
+                size="middle"
+              >
+                <Select.Option value="all">{t('admin:members.filters.allCategories', 'All types')}</Select.Option>
+                {categoryOptions.map(o => (
+                  <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                ))}
+              </Select>
+            )}
+            {durationOptions.length > 1 && (
+              <Select
+                value={filters.duration}
+                onChange={(value) => setFilters(f => ({ ...f, duration: value }))}
+                style={{ minWidth: 120 }}
+                size="middle"
+              >
+                <Select.Option value="all">{t('admin:members.filters.allDurations', 'All durations')}</Select.Option>
+                {durationOptions.map(o => (
+                  <Select.Option key={o.value} value={o.value}>{t(`admin:members.filters.duration.${o.value}`, o.label)}</Select.Option>
+                ))}
+              </Select>
+            )}
             {!isMobile && (
               <RangePicker
                 value={filters.dateRange}
@@ -473,9 +535,9 @@ const AdminMembersPage = () => {
                 size="middle"
               />
             )}
-            {(filters.search || filters.status !== 'all' || filters.dateRange) && (
+            {(filters.search || filters.status !== 'all' || filters.dateRange || filters.category !== 'all' || filters.duration !== 'all') && (
               <Button
-                onClick={() => setFilters({ status: 'all', search: '', dateRange: null })}
+                onClick={() => setFilters({ status: 'all', search: '', dateRange: null, category: 'all', duration: 'all' })}
                 size="middle"
               >
                 {t('admin:members.clear')}

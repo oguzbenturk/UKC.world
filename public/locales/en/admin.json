@@ -1115,7 +1115,17 @@
       "expired": "Expired",
       "cancelled": "Cancelled",
       "from": "From",
-      "to": "To"
+      "to": "To",
+      "allCategories": "All types",
+      "allDurations": "All durations",
+      "duration": {
+        "day": "Daily",
+        "week": "Weekly",
+        "month": "Monthly",
+        "season": "Seasonal",
+        "year": "Yearly",
+        "other": "Other"
+      }
     },
     "table": {
       "member": "Member",

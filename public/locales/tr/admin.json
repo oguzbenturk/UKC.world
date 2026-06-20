@@ -1115,7 +1115,17 @@
       "expired": "Süresi Dolmuş",
       "cancelled": "İptal Edildi",
       "from": "Başlangıç",
-      "to": "Bitiş"
+      "to": "Bitiş",
+      "allCategories": "Tüm türler",
+      "allDurations": "Tüm süreler",
+      "duration": {
+        "day": "Günlük",
+        "week": "Haftalık",
+        "month": "Aylık",
+        "season": "Sezonluk",
+        "year": "Yıllık",
+        "other": "Diğer"
+      }
     },
     "table": {
       "member": "Üye",
