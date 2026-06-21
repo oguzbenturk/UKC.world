@@ -37,7 +37,11 @@ import { loadBillCohort } from './customerBill/billCustomerLoader';
 
 const CustomerPackageManager = lazy(() => import('./CustomerPackageManager'));
 const BookingDrawer = lazy(() => import('../../bookings/components/components/BookingDrawer'));
-const BookingDetailModal = lazy(() => import('./BookingDetailModal'));
+// Use the SAME full lesson editor the calendar opens on a lesson click (edit +
+// checkout + delete, saves via PUT /bookings/:id) so editing a lesson behaves
+// identically everywhere. It needs CalendarContext, so it's wrapped in its own
+// CalendarProvider at the render site (the global customer drawer isn't inside one).
+const BookingDetailModal = lazy(() => import('@/features/bookings/components/components/BookingDetailModal'));
 const RentalDetailModal = lazy(() => import('./RentalDetailModal'));
 const TransactionDetailModal = lazy(() => import('./TransactionDetailModal'));
 const MemberPurchasesSection = lazy(() => import('../../members/components/MemberPurchasesSection'));
@@ -1966,10 +1970,17 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       )}
 
       {/* Detail modals */}
-      {selectedBooking && (
-        <Suspense fallback={<Spin size="small" />}>
-          <BookingDetailModal visible={bookingDetailModalVisible} onClose={async () => { setBookingDetailModalVisible(false); setSelectedBooking(null); await refreshAllData(); }} bookingId={selectedBooking.id} onBookingUpdated={async () => { await refreshAllData(); message.success('Booking updated'); }} onBookingDeleted={async () => { await refreshAllData(); message.success('Booking deleted'); }} />
-        </Suspense>
+      {selectedBooking && bookingDetailModalVisible && (
+        <CalendarProvider>
+          <Suspense fallback={<Spin size="small" />}>
+            <BookingDetailModal
+              isOpen={bookingDetailModalVisible}
+              booking={selectedBooking}
+              onClose={async () => { setBookingDetailModalVisible(false); setSelectedBooking(null); await refreshAllData(); }}
+              onServiceUpdate={async () => { await refreshAllData(); }}
+            />
+          </Suspense>
+        </CalendarProvider>
       )}
       {selectedRental && (
         <Suspense fallback={<Spin size="small" />}>

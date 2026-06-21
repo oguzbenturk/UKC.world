@@ -4887,6 +4887,52 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       }
     }
 
+    // Pro-rate the PRICE of a pure-CASH lesson when its duration changes — e.g. a
+    // 2h lesson checked out at 1.5h should drop from €60 to €45. Package / partial
+    // / spillover bookings are already repriced by the reconcile above (which also
+    // restores their package hours); this covers plain cash bookings, which
+    // otherwise kept the full-duration charge. Only when the caller didn't send an
+    // explicit price (checkout sends just the duration) — an explicit price edit wins.
+    // The cascade below settles the wallet delta (refund/charge) for the new price.
+    if (duration !== undefined && duration !== null
+        && amount === undefined && final_amount === undefined
+        && currentBooking.payment_status !== 'package'
+        && currentBooking.payment_status !== 'partial'
+        && !currentBooking.customer_package_id) {
+      const oldDuration = parseFloat(currentBooking.duration) || 0;
+      const newDuration = parseFloat(duration) || 0;
+      if (Math.abs(newDuration - oldDuration) > 0.0001 && newDuration > 0 && booking.service_id) {
+        try {
+          const { rows: svc } = await client.query(
+            'SELECT price, duration FROM services WHERE id = $1', [booking.service_id]
+          );
+          if (svc.length) {
+            const sp = parseFloat(svc[0].price) || 0;
+            const sd = parseFloat(svc[0].duration) || 0;
+            const hourly = sd > 0 ? sp / sd : sp;
+            if (hourly > 0) {
+              const newGross = parseFloat((hourly * newDuration).toFixed(2));
+              const disc = parseFloat(currentBooking.discount_amount) || 0;
+              const newFinal = Math.max(0, parseFloat((newGross - disc).toFixed(2)));
+              await client.query(
+                'UPDATE bookings SET amount = $1, final_amount = $2, updated_at = NOW() WHERE id = $3',
+                [newGross, newFinal, booking.id]
+              );
+              booking.amount = newGross;
+              booking.final_amount = newFinal;
+              logger.info('Pro-rated cash lesson price on duration change', {
+                bookingId: booking.id, oldDuration, newDuration, hourly, newGross, newFinal,
+              });
+            }
+          }
+        } catch (priceErr) {
+          logger.warn('Failed to pro-rate cash lesson price on duration change', {
+            bookingId: booking.id, error: priceErr.message,
+          });
+        }
+      }
+    }
+
     // Transition INTO 'cancelled' via the general edit: run the same cleanup as
     // the dedicated status route (PATCH /:id/status). Without this, an edit that
     // sets status='cancelled' left package hours consumed, wallet charges

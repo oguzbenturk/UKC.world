@@ -19,7 +19,6 @@ import { message } from '@/shared/utils/antdStatic';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import Rental from '@/shared/models/Rental';
 import { useData } from '@/shared/hooks/useData';
-import { useAuth } from '@/shared/hooks/useAuth';
 import { serviceApi } from '@/shared/services/serviceApi';
 import apiClientDefault from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
@@ -43,12 +42,9 @@ const toArray = (value) => (Array.isArray(value) ? value : []);
 function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledCustomerId = null }) {
   const { t } = useTranslation(['manager']);
   const { apiClient } = useData();
-  const { user } = useAuth();
   const { businessCurrency, formatCurrency } = useCurrency();
   const messageApi = message;
   const [form] = Form.useForm();
-
-  const canSelectPastDates = ['admin', 'manager', 'super_admin', 'owner'].includes(user?.role?.toLowerCase?.());
 
   const [customers, setCustomers] = useState([]);
   const [equipment, setEquipment] = useState([]);
@@ -499,7 +495,8 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
                   size="large"
                   className="w-full"
                   placeholder={t('manager:newRentalDrawer.placeholders.chooseDate')}
-                  disabledDate={canSelectPastDates ? undefined : (current) => current && current < dayjs().startOf('day')}
+                  /* Staff-only drawer (FAB / customer drawer): allow back-dating a
+                     rental that already happened — no future-only restriction. */
                 />
               </Form.Item>
               <Form.Item
