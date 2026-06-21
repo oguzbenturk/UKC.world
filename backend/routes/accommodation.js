@@ -13,6 +13,7 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 import { recordAccommodationCommission, cancelCommission } from '../services/managerCommissionService.js';
 import { extractUnitMeta, calculateTotalPrice } from '../services/accommodationPricingService.js';
 import { recomputeDiscountForAccommodationBooking } from '../services/discountService.js';
+import { discountSumLateral } from '../utils/discountAmounts.js';
 import {
   TRANSACTION_TYPE,
   WALLET_ENTITY_TYPE,
@@ -314,17 +315,21 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager', 'fr
 		params.push(parseInt(limit, 10));
 		params.push(parseInt(offset, 10));
 		const { rows } = await pool.query(
-			`SELECT 
+			`SELECT
 				ab.*,
 				u.name as guest_name,
 				u.email as guest_email,
 				u.phone as guest_phone,
 				au.name as unit_name,
 				au.type as unit_type,
-				au.category as unit_category
+				au.category as unit_category,
+				-- Accommodation discounts live in the discounts table, not on ab.total_price.
+				COALESCE(ab_disc.amt, 0) AS total_discount_amount,
+				GREATEST(COALESCE(ab.total_price, 0) - ab_disc.amt, 0) AS total_after_discount
 			 FROM accommodation_bookings ab
 			 LEFT JOIN users u ON ab.guest_id = u.id
 			 LEFT JOIN accommodation_units au ON ab.unit_id = au.id
+			 ${discountSumLateral('ab_disc', 'accommodation_booking', 'ab.id')}
 			 ${where}
 			 ORDER BY ab.check_in_date DESC
 			 LIMIT $${params.length - 1} OFFSET $${params.length}`,

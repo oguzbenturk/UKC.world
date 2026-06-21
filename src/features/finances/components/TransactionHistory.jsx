@@ -8,6 +8,7 @@ import {
 import { Tag, Badge, Modal, Avatar } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import UnifiedResponsiveTable from '@/components/ui/ResponsiveTableV2';
+import { useCustomerDrawer } from '@/shared/contexts/CustomerDrawerContext';
 
 const DEFAULT_SYSTEM_LABEL_KEY = 'manager:transactionHistory.systemAuto';
 const AVATAR_COLORS = ['#1677ff', '#52c41a', '#faad14', '#eb2f96', '#722ed1', '#13c2c2', '#fa541c', '#2f54eb'];
@@ -177,8 +178,22 @@ const findFirstString = (candidates) =>
 const findFirstIdentifier = (candidates) =>
   candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== '');
 
+const resolveCustomerId = (transaction) =>
+  findFirstIdentifier([
+    transaction?.customerId,
+    transaction?.customer_id,
+    transaction?.studentId,
+    transaction?.student_id,
+    transaction?.userId,
+    transaction?.user_id,
+    transaction?.user?.id,
+    transaction?.contactId,
+    transaction?.contact_id,
+  ]);
+
 function TransactionHistory({ transactions = [], customerDirectory }) {
   const { t } = useTranslation(['manager']);
+  const { openCustomer } = useCustomerDrawer();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -294,10 +309,11 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
   };
 
   const getTypeLabel = useCallback((category) => {
-    const key = `manager:transactionHistory.types.${category}`;
-    const translated = t(key);
-    // If key not found, t() returns the key itself — fall back to title case
-    return translated === key ? toTitleCase(category) : translated;
+    // i18next strips the namespace from the returned key on a miss, so comparing
+    // t(key) === key never detected misses (left the raw dotted key visible in
+    // the filter chips, e.g. accommodation_charge). Let i18next own the fallback:
+    // an unknown type degrades to Title Case ("Accommodation Charge") in any language.
+    return t(`manager:transactionHistory.types.${category}`, { defaultValue: toTitleCase(category) });
   }, [t]);
 
   const getTypeTag = (category) => {
@@ -320,6 +336,9 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
       key: 'category',
       width: 140,
       sorter: createTransactionComparator('category', 'asc', resolveCustomerName),
+      filters: transactionTypes.map(type => ({ text: getTypeLabel(type), value: type })),
+      filterSearch: true,
+      onFilter: (value, record) => getTransactionCategory(record) === value,
       render: (_, record) => getTypeTag(getTransactionCategory(record))
     },
     {
@@ -338,12 +357,17 @@ function TransactionHistory({ transactions = [], customerDirectory }) {
          const name = resolveCustomerName(record);
          if (name === '—') return <span className="text-slate-400">—</span>;
          const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+         const customerId = resolveCustomerId(record);
+         const canOpen = customerId !== undefined && customerId !== null;
          return (
-           <div className="flex items-center gap-2 min-w-0">
+           <div
+             className={`flex items-center gap-2 min-w-0 ${canOpen ? 'cursor-pointer group' : ''}`}
+             onClick={canOpen ? (e) => { e.stopPropagation(); openCustomer({ id: customerId, name, email: record.user?.email }); } : undefined}
+           >
              <Avatar size={24} style={{ backgroundColor: color, flexShrink: 0, fontSize: 11 }}>
                {name[0]?.toUpperCase() || <UserOutlined />}
              </Avatar>
-             <span className="text-sm text-slate-700 truncate">{name}</span>
+             <span className={`text-sm truncate ${canOpen ? 'text-indigo-600 group-hover:underline' : 'text-slate-700'}`}>{name}</span>
            </div>
          );
        }

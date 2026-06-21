@@ -82,6 +82,15 @@ export function SafeDataProvider({ children }) {
   const canLoadFinanceData = hasPermission(userRole, [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER]);
   const canLoadRentalsData = hasPermission(userRole, [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER]);
   const canLoadAdminData = hasPermission(userRole, [ROLES.ADMIN, ROLES.MANAGER, ROLES.DEVELOPER, ROLES.INSTRUCTOR]);
+  // Equipment powers the Inventory page, which every staff member can open —
+  // including custom roles (receptionist, front_desk, owner, …) that pass the
+  // route guard via their permissions object. canLoadAdminData is role-name based
+  // so it misses those custom roles, leaving Inventory empty for them. Gate
+  // equipment on "is a staff (non-customer) role" instead. GET /equipment is a
+  // public endpoint, so widening this can never trigger a 403.
+  const isCustomerRole =
+    !!userRole && [ROLES.OUTSIDER, ROLES.STUDENT, ROLES.TRUSTED_CUSTOMER].includes(userRole.toLowerCase());
+  const canLoadEquipmentData = userIsAuthenticated && !!userRole && !isCustomerRole;
 
   const actorDirectory = useMemo(() => {
     const lookup = {};
@@ -265,7 +274,7 @@ export function SafeDataProvider({ children }) {
           : Promise.resolve([]),
         apiCallManager.execute('getInstructors',
           () => DataService.getInstructors(), 10000),
-        canLoadAdminData
+        canLoadEquipmentData
           ? apiCallManager.execute('getEquipment',
               () => DataService.getEquipment(), 10000)
           : Promise.resolve([]),
@@ -307,6 +316,7 @@ export function SafeDataProvider({ children }) {
     }
   }, [
     canLoadAdminData,
+    canLoadEquipmentData,
     loadServicesData,
     loadRentalsData,
     loadPaymentsData,

@@ -48,12 +48,14 @@ import { calculateCLV, calculateFinancialHealthScore } from '../utils/financialC
 import { CHART_COLORS } from '../utils/chartHelpers';
 import { formatCurrency, formatDate } from '@/shared/utils/formatters';
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import { useCustomerDrawer } from '@/shared/contexts/CustomerDrawerContext';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 const { Search } = Input;
 
 function CustomerFinancialAnalytics() {
+  const { openCustomer } = useCustomerDrawer();
   const [loading, setLoading] = useState(true);
   const [customerData, setCustomerData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -217,15 +219,22 @@ function CustomerFinancialAnalytics() {
       title: 'Customer',
       dataIndex: 'customer_name',
       key: 'customer_name',
-      render: (text, record) => (
-        <div className="flex items-center gap-3">
-          <Avatar icon={<UserOutlined />} />
-          <div>
-            <div className="font-medium">{text}</div>
-            <div className="text-sm text-gray-500">{record.customer_email}</div>
+      sorter: (a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''),
+      render: (text, record) => {
+        const canOpen = record.customer_id !== null && record.customer_id !== undefined;
+        return (
+          <div
+            className={`flex items-center gap-3 ${canOpen ? 'cursor-pointer group' : ''}`}
+            onClick={canOpen ? () => openCustomer({ id: record.customer_id, name: text, email: record.customer_email }) : undefined}
+          >
+            <Avatar icon={<UserOutlined />} />
+            <div>
+              <div className={`font-medium ${canOpen ? 'text-indigo-600 group-hover:underline' : ''}`}>{text}</div>
+              <div className="text-sm text-gray-500">{record.customer_email}</div>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: 'Segment',
@@ -248,6 +257,7 @@ function CustomerFinancialAnalytics() {
         { text: 'New', value: 'New' },
         { text: 'Inactive', value: 'Inactive' }
       ],
+      onFilter: (value, record) => record.segment === value,
     },
     {
       title: 'CLV',

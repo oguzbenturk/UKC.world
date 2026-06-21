@@ -117,10 +117,14 @@ export default function BankAccountsAdmin() {
     message.success(t('manager:financePages.bankAccounts.messages.copied'));
   };
 
+  const currencyFilters = [...new Set(accounts.map(a => a.currency).filter(Boolean))]
+    .map(c => ({ text: c, value: c }));
+
   const columns = [
     {
       title: t('manager:financePages.bankAccounts.columns.bank'),
       key: 'bank',
+      sorter: (a, b) => (a.bankName || '').localeCompare(b.bankName || ''),
       render: (_, record) => (
         <div>
           <div className="font-semibold text-gray-900">{record.bankName || '—'}</div>
@@ -155,6 +159,8 @@ export default function BankAccountsAdmin() {
       dataIndex: 'currency',
       key: 'currency',
       width: 90,
+      filters: currencyFilters,
+      onFilter: (value, record) => record.currency === value,
       render: (currency) => <Tag>{currency}</Tag>,
     },
     {
@@ -179,6 +185,11 @@ export default function BankAccountsAdmin() {
       dataIndex: 'isActive',
       key: 'isActive',
       width: 100,
+      filters: [
+        { text: t('manager:financePages.bankAccounts.statusLabels.active'), value: true },
+        { text: t('manager:financePages.bankAccounts.statusLabels.inactive'), value: false },
+      ],
+      onFilter: (value, record) => Boolean(record.isActive) === value,
       render: (isActive) => (
         <Tag color={isActive ? 'green' : 'default'} icon={isActive ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
           {isActive ? t('manager:financePages.bankAccounts.statusLabels.active') : t('manager:financePages.bankAccounts.statusLabels.inactive')}

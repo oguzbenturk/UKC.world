@@ -5,6 +5,14 @@ import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { bookingService } from '../services/bookingService.js';
 import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
+import {
+  consumeAcrossPackages,
+  recordConsumptionLedger,
+  consumeAdditionalForBooking,
+  restoreFromLedger,
+  releaseHoursFromLedger,
+  reconsumeFromLedger,
+} from '../services/packageConsumptionService.js';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../middlewares/errorHandler.js';
 import { queueRatingReminder } from '../services/ratingService.js';
@@ -219,6 +227,18 @@ const resolveServiceType = (serviceRow) => {
     };
   }
 
+  // Helper: does this booking have ANY cross-package spillover ledger rows
+  // (released or not)? Gates the ledger-aware reversal/edit branches — a booking
+  // with rows always takes the ledger path; one without keeps the legacy path.
+  async function bookingHasAnyLedger(client, bookingId) {
+    if (!bookingId) return false;
+    const { rows } = await client.query(
+      `SELECT 1 FROM booking_package_consumption WHERE booking_id = $1 LIMIT 1`,
+      [bookingId]
+    );
+    return rows.length > 0;
+  }
+
   // Helper: restore the EXACT package hours a booking drew, on cancel/delete.
   // Participant-aware and partial-aware: restores each participant's recorded
   // `package_hours_used` (NOT the full booking duration), covering both 'package'
@@ -229,6 +249,23 @@ const resolveServiceType = (serviceRow) => {
   async function restoreBookingPackageHours(client, booking) {
     const duration = parseFloat(booking.duration) || 0;
     const results = [];
+
+    // Ledger-aware: a spillover booking restores hours precisely from its ledger
+    // (across every package and participant it drew from). Gated on "has ANY
+    // ledger rows" — restoreFromLedger only touches non-released rows, so a
+    // second call (cancel then delete) is idempotent and never double-restores.
+    if (await bookingHasAnyLedger(client, booking.id)) {
+      const { rows: scopes } = await client.query(
+        `SELECT DISTINCT participant_id FROM booking_package_consumption WHERE booking_id = $1`,
+        [booking.id]
+      );
+      for (const s of scopes) {
+        const r = await restoreFromLedger(client, { bookingId: booking.id, participantId: s.participant_id });
+        results.push(...r);
+      }
+      return results;
+    }
+
     const { rows: parts } = await client.query(
       `SELECT id, customer_package_id, payment_status, package_hours_used
          FROM booking_participants WHERE booking_id = $1`,
@@ -267,6 +304,20 @@ const resolveServiceType = (serviceRow) => {
   // and flips the package to 'used_up' if it hits zero.
   async function reconsumeBookingPackageHours(client, booking) {
     const duration = parseFloat(booking.duration) || 0;
+
+    // Ledger-aware: re-consume the exact released draws (idempotent — only acts
+    // on rows previously released by restoreFromLedger).
+    if (await bookingHasAnyLedger(client, booking.id)) {
+      const { rows: scopes } = await client.query(
+        `SELECT DISTINCT participant_id FROM booking_package_consumption WHERE booking_id = $1`,
+        [booking.id]
+      );
+      for (const s of scopes) {
+        await reconsumeFromLedger(client, { bookingId: booking.id, participantId: s.participant_id });
+      }
+      return;
+    }
+
     const consume = async (pkgId, hours) => {
       if (!pkgId || !(hours > 0)) return;
       await client.query(
@@ -412,11 +463,188 @@ const resolveServiceType = (serviceRow) => {
   // leaving used_hours frozen and the cash leg stale). For partial bookings the
   // cash leg (final_amount) is recomputed and the wallet delta settled here, so
   // the cascade's updateCustomerBalance intentionally skips partial/package.
+  // Helper: reconcile a SPILLOVER (ledger-backed) booking's duration change.
+  // Decrease → release hours LIFO (newest draw first). Increase → chain
+  // additional pooled hours across the customer's packages, overflowing to cash.
+  // Keeps package_hours_used / cash_hours_used in sync; settles the cash leg for
+  // single bookings (group per-participant cash settlement is left to the price
+  // edit fan-out, matching the legacy policy).
+  async function reconcileLedgerDurationChange(client, booking, oldD, newD, preEditBooking) {
+    const pre = preEditBooking || booking;
+    const delta = newD - oldD;
+    const adjustments = [];
+
+    let serviceHourly = 0;
+    let matchCriteria = {};
+    try {
+      const { rows: svc } = await client.query(
+        'SELECT price, duration, name, discipline_tag, lesson_category_tag FROM services WHERE id = $1',
+        [booking.service_id]
+      );
+      if (svc.length) {
+        const sp = parseFloat(svc[0].price) || 0;
+        const sd = parseFloat(svc[0].duration) || 1;
+        serviceHourly = sd > 0 ? sp / sd : sp;
+        matchCriteria = {
+          serviceName: svc[0].name,
+          lessonCategoryTag: svc[0].lesson_category_tag,
+          disciplineTag: svc[0].discipline_tag,
+        };
+      }
+    } catch { /* ignore */ }
+
+    const sumLedger = async (participantId) => {
+      const clause = participantId ? 'participant_id = $2' : 'participant_id IS NULL';
+      const params = participantId ? [booking.id, participantId] : [booking.id];
+      const { rows } = await client.query(
+        `SELECT COALESCE(SUM(hours_used), 0) AS s FROM booking_package_consumption
+          WHERE booking_id = $1 AND released_at IS NULL AND ${clause}`,
+        params
+      );
+      return parseFloat(rows[0].s) || 0;
+    };
+
+    const { rows: scopeRows } = await client.query(
+      `SELECT DISTINCT participant_id FROM booking_package_consumption WHERE booking_id = $1`,
+      [booking.id]
+    );
+    const participantScopes = scopeRows.map((r) => r.participant_id).filter(Boolean);
+
+    // ── Group: adjust each participant's draws + their participant-row columns.
+    if (participantScopes.length > 0) {
+      for (const pid of participantScopes) {
+        const { rows: pr } = await client.query(
+          'SELECT user_id FROM booking_participants WHERE id = $1', [pid]
+        );
+        const userId = pr[0]?.user_id;
+        const before = await sumLedger(pid);
+        let newPkg = before;
+        if (delta > 0.0001 && userId) {
+          const add = await consumeAdditionalForBooking(client, {
+            bookingId: booking.id, participantId: pid, customerId: userId,
+            hoursNeeded: delta, matchCriteria, asOfDate: booking.date,
+          });
+          newPkg = before + add.packageHoursTotal;
+        } else if (delta < -0.0001) {
+          const released = await releaseHoursFromLedger(client, {
+            bookingId: booking.id, participantId: pid, hoursToRelease: -delta,
+          });
+          newPkg = before - released;
+        }
+        newPkg = parseFloat(newPkg.toFixed(2));
+        const newCash = Math.max(0, parseFloat((newD - newPkg).toFixed(2)));
+        await client.query(
+          `UPDATE booking_participants
+              SET package_hours_used = $1, cash_hours_used = $2,
+                  payment_status = CASE WHEN $2 > 0 THEN 'partial' WHEN $1 > 0 THEN 'package' ELSE payment_status END,
+                  updated_at = NOW()
+            WHERE id = $3`,
+          [newPkg, newCash, pid]
+        );
+      }
+      return adjustments;
+    }
+
+    // ── Single booking (participant_id IS NULL ledger rows).
+    const before = await sumLedger(null);
+    let newPkg = before;
+    if (delta > 0.0001) {
+      const add = await consumeAdditionalForBooking(client, {
+        bookingId: booking.id, participantId: null, customerId: booking.student_user_id,
+        hoursNeeded: delta, matchCriteria, asOfDate: booking.date,
+      });
+      newPkg = before + add.packageHoursTotal;
+    } else if (delta < -0.0001) {
+      const released = await releaseHoursFromLedger(client, {
+        bookingId: booking.id, participantId: null, hoursToRelease: -delta,
+      });
+      newPkg = before - released;
+    }
+    newPkg = parseFloat(newPkg.toFixed(2));
+    const newCash = Math.max(0, parseFloat((newD - newPkg).toFixed(2)));
+
+    // Cash-leg settlement (same machinery as the legacy single path).
+    const oldFinal = parseFloat(pre.final_amount) || 0;
+    const recordedCash = parseFloat(pre.cash_hours_used);
+    let perHourCash = (Number.isFinite(recordedCash) && recordedCash > 0 && oldFinal > 0)
+      ? oldFinal / recordedCash
+      : serviceHourly;
+    if (!(perHourCash > 0)) perHourCash = serviceHourly;
+
+    let oldCashLeg = pre.payment_status === 'partial' ? oldFinal : 0;
+    try {
+      const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true });
+      const own = nets.find((n) => n.userId === booking.student_user_id &&
+        (n.currency || 'EUR') === (booking.currency || 'EUR'));
+      oldCashLeg = own && Number.isFinite(own.amount) ? Math.max(0, own.amount) : 0;
+    } catch { /* keep fallback */ }
+
+    const newCashLeg = parseFloat((newCash * perHourCash).toFixed(2));
+    const newPaymentStatus = newPkg <= 0 ? 'paid' : (newCash > 0.0001 ? 'partial' : 'package');
+    const flippedFromCashLeg = newPaymentStatus === 'package' &&
+      (pre.payment_status === 'partial' || oldCashLeg > 0);
+
+    if (flippedFromCashLeg) {
+      await client.query(
+        `UPDATE bookings SET package_hours_used = $1, cash_hours_used = 0,
+            final_amount = 0, amount = 0, payment_status = 'package', updated_at = NOW() WHERE id = $2`,
+        [newPkg, booking.id]
+      );
+    } else if (newPaymentStatus === 'package') {
+      await client.query(
+        `UPDATE bookings SET package_hours_used = $1, cash_hours_used = 0,
+            payment_status = 'package', updated_at = NOW() WHERE id = $2`,
+        [newPkg, booking.id]
+      );
+    } else {
+      await client.query(
+        `UPDATE bookings SET package_hours_used = $1, cash_hours_used = $2,
+            final_amount = $3, amount = $3, payment_status = $4, updated_at = NOW() WHERE id = $5`,
+        [newPkg, newCash, newCashLeg, newPaymentStatus, booking.id]
+      );
+    }
+
+    booking.package_hours_used = newPkg;
+    booking.cash_hours_used = newCash;
+    booking.payment_status = newPaymentStatus;
+    if (newPaymentStatus !== 'package') { booking.final_amount = newCashLeg; booking.amount = newCashLeg; }
+    else if (flippedFromCashLeg) { booking.final_amount = 0; booking.amount = 0; }
+
+    const cashDelta = parseFloat((newCashLeg - oldCashLeg).toFixed(2));
+    if (booking.student_user_id && Math.abs(cashDelta) > 0.009) {
+      try {
+        await recordWalletTransaction({
+          client, userId: booking.student_user_id,
+          amount: -cashDelta, availableDelta: -cashDelta,
+          transactionType: 'booking_charge_adjustment', status: 'completed',
+          direction: cashDelta > 0 ? 'debit' : 'credit', currency: booking.currency || 'EUR',
+          description: cashDelta > 0
+            ? `Partial lesson cash leg increased: €${Math.abs(cashDelta)}`
+            : `Partial lesson cash leg reduced: €${Math.abs(cashDelta)}`,
+          entityType: 'booking', relatedEntityType: 'booking', relatedEntityId: booking.id,
+          bookingId: booking.id,
+          metadata: { reason: 'duration_edit_cash_leg_spillover', oldCashLeg, newCashLeg, newPkgHours: newPkg, newCashHours: newCash },
+          allowNegative: true,
+        });
+      } catch (walletErr) {
+        logger.warn('Failed to settle spillover partial cash-leg on duration edit', { bookingId: booking.id, error: walletErr.message });
+      }
+    }
+
+    return adjustments;
+  }
+
   async function reconcilePackageHoursOnDurationChange(client, booking, oldDuration, newDuration, preEditBooking = null) {
     const oldD = parseFloat(oldDuration) || 0;
     const newD = parseFloat(newDuration) || 0;
     const delta = newD - oldD;
     if (Math.abs(delta) < 0.0001) return [];
+
+    // Spillover (ledger-backed) bookings reconcile via the ledger; legacy
+    // bookings keep the single-package reconstruction below, byte-for-byte.
+    if (await bookingHasAnyLedger(client, booking.id)) {
+      return await reconcileLedgerDurationChange(client, booking, oldD, newD, preEditBooking);
+    }
 
     // Old-state reads (recorded split, charged cash leg, payment status) must
     // come from the row as it was BEFORE the PUT's raw UPDATE: the caller may
@@ -1963,6 +2191,7 @@ router.post('/',
     let finalPaymentStatus = 'paid'; // Pay-and-go: default to paid for individual payments
     let finalAmount = parseFloat(amount) || 0;
     let usedPackageId = null;
+    let spilloverResult = null; // set when cross-package FIFO consumption runs (non-partner)
 
     // Fetch service name, capacity limits, and discipline tags
     let bookingServiceName = null;
@@ -2060,8 +2289,66 @@ router.post('/',
     }
     
     // Check user's choice: use package or pay individually
-    if (student_user_id && use_package === true) {
-      
+    if (student_user_id && use_package === true && !partner_user_id) {
+      // ── Cross-package FIFO spillover ──────────────────────────────────────
+      // Draw hours from the customer's compatible packages oldest-first,
+      // spilling into the next package when one runs out, overflowing to cash
+      // only when the whole pool is exhausted. The per-package draws are
+      // recorded in the ledger right after the booking row is inserted.
+      const requestedPackageId = req.body.customer_package_id || req.body.selected_package_id;
+
+      spilloverResult = await consumeAcrossPackages(client, {
+        customerId: student_user_id,
+        hoursNeeded: parseFloat(bookingDuration),
+        matchCriteria: {
+          serviceName: bookingServiceName,
+          lessonCategoryTag: serviceLessonCategoryTag,
+          disciplineTag: serviceDisciplineTag,
+        },
+        requestedPackageId: requestedPackageId || null,
+        asOfDate: date,
+      });
+
+      if (spilloverResult.draws.length === 0) {
+        // Staff asked to use a package but the customer has no compatible package
+        // with hours — keep the historical guard (offer to pay individually).
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: 'Insufficient or mismatched package',
+          message: bookingServiceName
+            ? `No active ${bookingServiceName} package with hours. Choose a matching package or pay individually.`
+            : 'No active package with hours. Choose a package or pay individually.'
+        });
+      }
+
+      usedPackageId = spilloverResult.primaryPackageId;
+
+      if (spilloverResult.cashHours > 0.0001) {
+        // Pool couldn't fully cover the lesson → partial: overflow hours billed
+        // as cash at the service's per-hour rate.
+        const serviceHourly = serviceDurationHours > 0
+          ? (servicePrice || 0) / serviceDurationHours
+          : (servicePrice || 0);
+        finalPaymentStatus = 'partial';
+        finalAmount = parseFloat((spilloverResult.cashHours * serviceHourly).toFixed(2));
+      } else {
+        // Fully package-funded. Lesson value = Σ(hours × frozen per-hour rate).
+        finalPaymentStatus = 'package';
+        finalAmount = parseFloat(
+          spilloverResult.draws.reduce((s, d) => s + d.hours * d.ratePerHour, 0).toFixed(2)
+        );
+      }
+
+      // A bank-transfer-pending (waiting_payment) primary package keeps the
+      // booking off the confirmed calendar until its receipt is approved.
+      if (spilloverResult.primaryOriginalStatus === 'waiting_payment') {
+        finalStatus = 'pending_payment';
+        finalPaymentStatus = 'pending_payment';
+      }
+    } else if (student_user_id && use_package === true) {
+      // ── LEGACY single-package path (partner bookings pair two single packages
+      //    and do not spill over) ─────────────────────────────────────────────
+
       // Prefer the specific customer_package_id when provided by the frontend
       const requestedPackageId = req.body.customer_package_id || req.body.selected_package_id;
       let packageCheck = { rows: [] };
@@ -2450,6 +2737,14 @@ router.post('/',
     // POST / has no partial path: a package booking draws the full duration from
     // the package (cash 0); everything else is cash-only (no package hours).
     const isFullPackageBooking = finalPaymentStatus === 'package' && !!usedPackageId;
+    // Spillover bookings record the exact pooled-hours / cash split; legacy
+    // (partner / no-spillover) bookings keep the full-duration convention.
+    const pkgHoursUsedVal = spilloverResult
+      ? spilloverResult.packageHoursTotal
+      : (isFullPackageBooking ? parseFloat(duration) : null);
+    const cashHoursUsedVal = spilloverResult
+      ? spilloverResult.cashHours
+      : (isFullPackageBooking ? 0 : null);
 
     const bookingValues = [
       date,
@@ -2472,8 +2767,8 @@ router.post('/',
       req.body.checkout_notes || '',
       usedPackageId, // Include the package ID that was used
       (partner_user_id && partnerPackageUsed) ? 2 : 1, // group_size: 2 if partner included
-      isFullPackageBooking ? parseFloat(duration) : null, // package_hours_used
-      isFullPackageBooking ? 0 : null // cash_hours_used
+      pkgHoursUsedVal, // package_hours_used (spillover: total pooled hours)
+      cashHoursUsedVal // cash_hours_used (spillover: overflow leg)
     ];
 
     const { columns: bookingInsertColumns, values: bookingInsertValues } = appendCreatedBy(bookingColumns, bookingValues, actorId);
@@ -2483,6 +2778,16 @@ router.post('/',
     const bookingResult = await client.query(insertBookingQuery, bookingInsertValues);
 
     const booking = bookingResult.rows[0];
+
+    // Persist the cross-package draws now that the booking id exists. The ledger
+    // is the source of truth for valuation (Σ hours×rate) and reversal.
+    if (spilloverResult && spilloverResult.draws.length > 0) {
+      await recordConsumptionLedger(client, {
+        bookingId: booking.id,
+        participantId: null,
+        draws: spilloverResult.draws,
+      });
+    }
 
     await applySelfStudentCommissionIfMatch(client, booking);
 
@@ -3249,10 +3554,14 @@ router.post('/group',
     let servicePrice = 0;
     let serviceDurationHours = null;
     let serviceName = null;
+    let svcDisciplineTag = null;
+    let svcLessonCategoryTag = null;
     if (service_id) {
-      const serviceQuery = await client.query('SELECT price, name, category, currency, duration FROM services WHERE id = $1', [service_id]);
+      const serviceQuery = await client.query('SELECT price, name, category, currency, duration, discipline_tag, lesson_category_tag FROM services WHERE id = $1', [service_id]);
       if (serviceQuery.rows.length > 0) {
         serviceName = serviceQuery.rows[0].name || null;
+        svcDisciplineTag = serviceQuery.rows[0].discipline_tag || null;
+        svcLessonCategoryTag = serviceQuery.rows[0].lesson_category_tag || null;
         serviceDurationHours = parseFloat(serviceQuery.rows[0].duration) || null;
         // Look up price in user's preferred currency
         const priceResult = await getServicePriceInCurrency(service_id, billingCurrency);
@@ -3366,127 +3675,48 @@ router.post('/group',
     let packageApplied = false;
     let fallbackReason = null;
 
-        // Prefer a specific package if provided; otherwise pick the earliest active with some hours
-        let packageCheck;
-        if (participant.customerPackageId) {
-          // User explicitly selected this package — trust the choice, only verify
-          // ownership, active status, expiry, and that it still has hours. Skip
-          // lesson_service_name matching because the frontend already filtered
-          // packages for the selected service.
-          const params = [participant.customerPackageId, participant.userId, date];
-          const sql = `
-            SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
-            FROM customer_packages cp
-            LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-            WHERE cp.id = $1 AND cp.customer_id = $2
-              AND cp.status = 'active'
-              AND (cp.expiry_date IS NULL OR cp.expiry_date >= $3)
-              AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
-            LIMIT 1
-          `;
-          packageCheck = await client.query(sql, params);
-        } else {
-          // Pick earliest active package matching service type/name with enough hours
-          const params = [participant.userId, date];
-          let sql = `
-            SELECT cp.id, cp.package_name, cp.remaining_hours, cp.total_hours, cp.used_hours, cp.purchase_price, cp.lesson_service_name
-            FROM customer_packages cp
-            LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-            WHERE cp.customer_id = $1
-              AND cp.status = 'active'
-              AND (cp.expiry_date IS NULL OR cp.expiry_date >= $2)
-              AND (COALESCE(cp.remaining_hours, cp.total_hours - COALESCE(cp.used_hours, 0)) > 0)
-          `;
-          if (serviceName) {
-            // Flexible matching: check both customer_packages AND service_packages lesson_service_name
-            sql += ` AND (
-              cp.lesson_service_name IS NULL 
-              OR LOWER(cp.lesson_service_name) = LOWER($3)
-              OR LOWER(RTRIM(cp.lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
-              OR LOWER(sp.lesson_service_name) = LOWER($3)
-              OR LOWER(RTRIM(sp.lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
-            )`;
-            params.push(serviceName);
-          }
-          sql += ' ORDER BY cp.purchase_date ASC LIMIT 1';
-          packageCheck = await client.query(sql, params);
-        }
-        
-  if (packageCheck.rows.length > 0) {
-          // Participant has a matching active package; allow partial consumption
-          const packageToUse = packageCheck.rows[0];
-          const rh = packageToUse.remaining_hours;
-          const uh = packageToUse.used_hours;
-          const th = packageToUse.total_hours;
-          const currentUsed = parseFloat(uh) || 0;
-          const totalHours = parseFloat(th) || 0;
-          const currentRemaining = rh !== null && rh !== undefined
-            ? parseFloat(rh) || 0
-            : Math.max(0, totalHours - currentUsed);
-          const consume = Math.min(parseFloat(bookingDuration), Math.max(0, currentRemaining));
-          const newRemainingHours = currentRemaining - consume;
-          const newUsedHours = currentUsed + consume;
-          
-          // Update the package — check all 3 components for all_inclusive packages
-          const packageUpdateResult = await client.query(`
-            UPDATE customer_packages 
-            SET used_hours = $1::numeric, 
-                remaining_hours = $2::numeric,
-                last_used_date = $3,
-                updated_at = CURRENT_TIMESTAMP,
-                status = CASE 
-                  WHEN $2::numeric <= 0
-                    AND COALESCE(rental_days_remaining, 0) <= 0
-                    AND COALESCE(accommodation_nights_remaining, 0) <= 0
-                  THEN 'used_up'
-                  ELSE 'active'
-                END
-            WHERE id = $4 AND status = 'active' 
-              AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
-              AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
-            RETURNING id, package_name, used_hours, remaining_hours, status, total_hours, purchase_price
-          `, [parseFloat(newUsedHours), parseFloat(newRemainingHours), date, packageToUse.id, parseFloat(consume)]);
-          
-          if (packageUpdateResult.rows.length === 0) {
-            fallbackReason = 'Selected package no longer has sufficient hours.';
+        // ── Cross-package FIFO spillover (per participant) ──────────────────
+        const spill = await consumeAcrossPackages(client, {
+          customerId: participant.userId,
+          hoursNeeded: parseFloat(bookingDuration),
+          matchCriteria: {
+            serviceName,
+            lessonCategoryTag: svcLessonCategoryTag,
+            disciplineTag: svcDisciplineTag,
+          },
+          requestedPackageId: participant.customerPackageId || null,
+          asOfDate: date,
+        });
+
+        if (spill.draws.length > 0) {
+          const usedFromPackage = spill.packageHoursTotal;
+          const cashHours = spill.cashHours;
+          // Overflow hours billed at the service's per-hour rate.
+          const cashPortion = parseFloat((cashHours * serviceHourlyRate).toFixed(2));
+
+          processedParticipant.customerPackageId = spill.primaryPackageId;
+          // Recorded to the ledger once the participant row exists (gives us its id).
+          processedParticipant._spilloverDraws = spill.draws;
+          if (cashPortion > 0.0001) {
+            processedParticipant.actualPaymentStatus = 'partial';
+            processedParticipant.paymentAmount = cashPortion;
           } else {
-            // Determine cash portion based on package per-hour price
-            const updatedPkg = packageUpdateResult.rows[0];
-            const pkgTotalHours = parseFloat(updatedPkg.total_hours) || parseFloat(th) || 0;
-            const pkgPrice = parseFloat(updatedPkg.purchase_price) || parseFloat(packageToUse.purchase_price) || 0;
-            const packageRate = pkgTotalHours > 0 ? (pkgPrice / pkgTotalHours) : 0;
-
-            const usedFromPackage = consume;
-            const cashPortion = Math.max(0, (participantAmount) - (usedFromPackage * packageRate));
-
-            // Set package payment details (partial or full)
-            processedParticipant.customerPackageId = packageToUse.id;
-            if (cashPortion > 0) {
-              processedParticipant.actualPaymentStatus = 'partial';
-              processedParticipant.paymentAmount = cashPortion;
-            } else {
-              processedParticipant.actualPaymentStatus = 'package';
-              processedParticipant.paymentAmount = 0;
-            }
-            // Track exact hours consumed from package for this participant
-            processedParticipant.packageHoursUsed = parseFloat(consume) || 0;
-            // Also track cash hours used (duration - consume), never negative
-            processedParticipant.cashHoursUsed = Math.max(0, parseFloat(bookingDuration) - (parseFloat(consume) || 0));
-            // Count as package user if any package hours consumed
-            if (usedFromPackage > 0) totalPackageUsers++;
-            packageApplied = true;
-
-            if (participant.isPrimary) {
-              primaryParticipantPackageId = packageToUse.id;
-            }
+            processedParticipant.actualPaymentStatus = 'package';
+            processedParticipant.paymentAmount = 0;
           }
-        } else {
-          // If a specific package was selected but mismatched/expired, block; otherwise gracefully fallback to individual
-          if (participant.customerPackageId) {
-            fallbackReason = serviceName 
-              ? `Selected package doesn't match ${serviceName} or lacks hours.`
-              : 'Selected package lacks remaining hours.';
+          processedParticipant.packageHoursUsed = parseFloat(usedFromPackage.toFixed(2));
+          processedParticipant.cashHoursUsed = parseFloat(cashHours.toFixed(2));
+          if (usedFromPackage > 0) totalPackageUsers++;
+          packageApplied = true;
+
+          if (participant.isPrimary) {
+            primaryParticipantPackageId = spill.primaryPackageId;
           }
+        } else if (participant.customerPackageId) {
+          // Specific package chosen but it (and the pool) lacks hours.
+          fallbackReason = serviceName
+            ? `Selected package doesn't match ${serviceName} or lacks hours.`
+            : 'Selected package lacks remaining hours.';
         }
 
         if (!packageApplied) {
@@ -3614,10 +3844,18 @@ router.post('/group',
       ];
       const { columns: participantInsertColumns, values: participantInsertValues } = appendCreatedBy(participantColumns, participantValues, actorId);
       const participantPlaceholders = participantInsertColumns.map((_, idx) => `$${idx + 1}`).join(', ');
-      await client.query(
-        `INSERT INTO booking_participants (${participantInsertColumns.join(', ')}) VALUES (${participantPlaceholders})`,
+      const partInsert = await client.query(
+        `INSERT INTO booking_participants (${participantInsertColumns.join(', ')}) VALUES (${participantPlaceholders}) RETURNING id`,
         participantInsertValues
       );
+      // Persist this participant's cross-package draws scoped to its row id.
+      if (participant._spilloverDraws && participant._spilloverDraws.length > 0) {
+        await recordConsumptionLedger(client, {
+          bookingId: booking.id,
+          participantId: partInsert.rows[0].id,
+          draws: participant._spilloverDraws,
+        });
+      }
     }
     
     // After booking is created, post any pending transactions linked to this booking
@@ -4112,13 +4350,15 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       }
         // Get service information to determine duration if available
       const serviceQuery = await client.query(
-        `SELECT duration, price, name, currency FROM services WHERE id = $1`,
+        `SELECT duration, price, name, currency, discipline_tag, lesson_category_tag FROM services WHERE id = $1`,
         [serviceId]
       );
       // Use the pre-scheduled block duration if it exists, otherwise use service duration or default
         let serviceDuration = bookingDuration;
         let servicePrice = 0;
         let svcName = null;
+        let svcDisciplineTag = null;
+        let svcLessonCategoryTag = null;
         
         // Get user's preferred currency for billing
         let userBillingCurrency = resolvedWalletCurrency || DEFAULT_CURRENCY;
@@ -4135,6 +4375,8 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         if (serviceQuery.rows.length > 0) {
           const row = serviceQuery.rows[0];
           svcName = row.name || null;
+          svcDisciplineTag = row.discipline_tag || null;
+          svcLessonCategoryTag = row.lesson_category_tag || null;
           if (!duration) {
             serviceDuration = row.duration || bookingDuration;
           }
@@ -4170,26 +4412,30 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
   // restore precisely instead of guessing `duration`. NULL = not package-linked.
   let packageHoursUsedForBooking = null;
   let cashHoursUsedForBooking = null;
+  let calendarSpillover = null; // ledger draws to persist after the booking row exists
   if (use_package === true) {
-        // If a specific package was requested, validate it matches and has some hours remaining
-        if (customerPackageId) {
-          // User explicitly selected this package — trust the choice, only verify
-          // ownership, active status, and expiry. Skip lesson_service_name matching.
-          const params = [customerPackageId, userId, normalizedDate];
-          const sql = `
-            SELECT id, package_name, remaining_hours, total_hours, used_hours
-            FROM customer_packages
-            WHERE id = $1 AND customer_id = $2
-              AND status = 'active'
-              AND (expiry_date IS NULL OR expiry_date >= $3)
-            LIMIT 1
-          `;
-          const specific = await client.query(sql, params);
-          const fallbackToCash = () => {
-            // Mirror /bookings/group's graceful fallback. Earlier lessons in a multi-submit
-            // can deplete the package (status → used_up); rejecting here would abort the
-            // whole multi-booking instead of charging the wallet for the remaining lessons.
-            logger.info('Calendar booking: selected package not usable, falling back to wallet', {
+        // ── Cross-package FIFO spillover ────────────────────────────────────
+        // Draw hours oldest-first across the customer's compatible packages,
+        // overflowing to cash only when the pool is exhausted.
+        calendarSpillover = await consumeAcrossPackages(client, {
+          customerId: userId,
+          hoursNeeded: parseFloat(serviceDuration),
+          matchCriteria: {
+            serviceName: svcName,
+            lessonCategoryTag: svcLessonCategoryTag,
+            disciplineTag: svcDisciplineTag,
+          },
+          requestedPackageId: customerPackageId || null,
+          asOfDate: normalizedDate,
+        });
+
+        if (calendarSpillover.draws.length === 0) {
+          calendarSpillover = null;
+          if (customerPackageId) {
+            // Staff picked a package but it (and the pool) lacks hours. Earlier
+            // lessons in a multi-submit can deplete a package; fall back to wallet
+            // for this lesson rather than aborting the whole multi-booking.
+            logger.info('Calendar booking: no usable package hours, falling back to wallet', {
               customerPackageId, userId, date: normalizedDate, serviceName: svcName
             });
             chosenPackageId = null;
@@ -4209,103 +4455,12 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
                 status: 'completed',
                 description: `Lesson charge (package unavailable): ${normalizedDate} ${time} (${serviceDuration}h)`,
                 metadata: {
-                  bookingDate: normalizedDate,
-                  startHour: time,
-                  durationHours: serviceDuration,
-                  paymentMethod: requestedPaymentMethod || 'wallet',
-                  source: 'calendar_booking_charge_pkg_fallback'
+                  bookingDate: normalizedDate, startHour: time, durationHours: serviceDuration,
+                  paymentMethod: requestedPaymentMethod || 'wallet', source: 'calendar_booking_charge_pkg_fallback'
                 }
               };
             }
-          };
-
-          if (specific.rows.length === 0) {
-            fallbackToCash();
           } else {
-            const pkg = specific.rows[0];
-            const rh = pkg.remaining_hours, uh = pkg.used_hours, th = pkg.total_hours;
-            const currentUsed = parseFloat(uh) || 0;
-            const totalHours = parseFloat(th) || 0;
-            const currentRemaining = rh !== null && rh !== undefined ? parseFloat(rh) || 0 : Math.max(0, totalHours - currentUsed);
-            const consumeFromPackage = Math.min(serviceDuration, Math.max(0, currentRemaining));
-            const cashHours = Math.max(0, serviceDuration - consumeFromPackage);
-            const newRemaining = currentRemaining - consumeFromPackage;
-            const newUsed = currentUsed + consumeFromPackage;
-            const updateRes = await client.query(`
-              UPDATE customer_packages
-              SET used_hours = $1::numeric,
-                  remaining_hours = $2::numeric,
-                  last_used_date = $3,
-                  updated_at = CURRENT_TIMESTAMP,
-                  status = CASE
-                    WHEN $2::numeric <= 0
-                      AND COALESCE(rental_days_remaining, 0) <= 0
-                      AND COALESCE(accommodation_nights_remaining, 0) <= 0
-                    THEN 'used_up' ELSE 'active' END
-              WHERE id = $4 AND status = 'active'
-                AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
-                AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
-            `, [newUsed, newRemaining, normalizedDate, customerPackageId, consumeFromPackage]);
-
-            if (updateRes.rowCount === 0) {
-              // Package row matched the SELECT but the UPDATE guard rejected it
-              // (race with a concurrent booking or remaining_hours already <= 0).
-              // Without this fallback the booking would silently link to a package
-              // whose hours we never actually deducted.
-              fallbackToCash();
-            } else {
-              chosenPackageId = customerPackageId;
-              packageHoursUsedForBooking = consumeFromPackage;
-              cashHoursUsedForBooking = cashHours;
-              if (cashHours > 0) {
-                finalPaymentStatus = 'partial';
-                const hourly = servicePrice || (parseFloat(amount) || 0);
-                finalFinalAmount = parseFloat((hourly * cashHours).toFixed(2));
-                individualChargeEntry = {
-                  userId,
-                  amount: -Math.abs(finalFinalAmount),
-                  transactionType: 'booking_charge',
-                  currency: walletTransactionCurrency,
-                  status: 'completed',
-                  description: `Partial lesson cash leg (${cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
-                  metadata: {
-                    bookingDate: normalizedDate,
-                    startHour: time,
-                    cashHours,
-                    packageHours: consumeFromPackage,
-                    durationHours: serviceDuration,
-                    paymentMethod: requestedPaymentMethod || 'wallet',
-                    source: 'calendar_partial_cash_leg'
-                  }
-                };
-              } else {
-                finalPaymentStatus = 'package';
-                finalFinalAmount = 0;
-              }
-            }
-          }
-        } else {
-          // Pick earliest active matching package with any remaining hours
-          const params = [userId, normalizedDate];
-          let sql = `
-            SELECT id, package_name, remaining_hours, total_hours, used_hours
-            FROM customer_packages
-            WHERE customer_id = $1
-              AND status IN ('active', 'waiting_payment')
-              AND (expiry_date IS NULL OR expiry_date >= $2)
-          `;
-          if (svcName) {
-            // Flexible matching: allow singular/plural mismatch
-            sql += ` AND (
-              lesson_service_name IS NULL 
-              OR LOWER(lesson_service_name) = LOWER($3)
-              OR LOWER(RTRIM(lesson_service_name, 's')) = LOWER(RTRIM($3, 's'))
-            )`;
-            params.push(svcName);
-          }
-          sql += ' ORDER BY purchase_date ASC LIMIT 1';
-          const packageCheck = await client.query(sql, params);
-          if (packageCheck.rows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(400).json({
               error: 'Insufficient or mismatched package',
@@ -4314,52 +4469,25 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
                 : 'No active package available. Choose a package or pay individually.'
             });
           }
-          const pkg = packageCheck.rows[0];
-          const rh = pkg.remaining_hours, uh = pkg.used_hours, th = pkg.total_hours;
-          const currentUsed = parseFloat(uh) || 0;
-          const totalHours = parseFloat(th) || 0;
-          const currentRemaining = rh !== null && rh !== undefined ? parseFloat(rh) || 0 : Math.max(0, totalHours - currentUsed);
-          const consumeFromPackage = Math.min(serviceDuration, Math.max(0, currentRemaining));
-          const cashHours = Math.max(0, serviceDuration - consumeFromPackage);
-          const newRemaining = currentRemaining - consumeFromPackage;
-          const newUsed = currentUsed + consumeFromPackage;
-          await client.query(`
-            UPDATE customer_packages
-            SET used_hours = $1::numeric,
-                remaining_hours = $2::numeric,
-                last_used_date = $3,
-                updated_at = CURRENT_TIMESTAMP,
-                status = CASE
-                  WHEN $2::numeric <= 0
-                    AND COALESCE(rental_days_remaining, 0) <= 0
-                    AND COALESCE(accommodation_nights_remaining, 0) <= 0
-                  THEN 'used_up' WHEN status = 'waiting_payment' THEN 'waiting_payment' ELSE 'active' END
-            WHERE id = $4 AND status IN ('active', 'waiting_payment')
-              AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) >= $5::numeric)
-              AND (COALESCE(remaining_hours, total_hours - COALESCE(used_hours, 0)) > 0)
-          `, [newUsed, newRemaining, normalizedDate, pkg.id, consumeFromPackage]);
-          chosenPackageId = pkg.id;
-          packageHoursUsedForBooking = consumeFromPackage;
-          cashHoursUsedForBooking = cashHours;
-
-          if (cashHours > 0) {
+        } else {
+          chosenPackageId = calendarSpillover.primaryPackageId;
+          packageHoursUsedForBooking = calendarSpillover.packageHoursTotal;
+          cashHoursUsedForBooking = calendarSpillover.cashHours;
+          if (calendarSpillover.cashHours > 0.0001) {
             finalPaymentStatus = 'partial';
             const hourly = servicePrice || (parseFloat(amount) || 0);
-            finalFinalAmount = parseFloat((hourly * cashHours).toFixed(2));
+            finalFinalAmount = parseFloat((hourly * calendarSpillover.cashHours).toFixed(2));
             individualChargeEntry = {
               userId,
               amount: -Math.abs(finalFinalAmount),
               transactionType: 'booking_charge',
               currency: walletTransactionCurrency,
               status: 'completed',
-              description: `Partial lesson cash leg (${cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
+              description: `Partial lesson cash leg (${calendarSpillover.cashHours}h): ${normalizedDate} ${time} (${serviceDuration}h total)`,
               metadata: {
-                bookingDate: normalizedDate,
-                startHour: time,
-                cashHours,
-                packageHours: consumeFromPackage,
-                durationHours: serviceDuration,
-                paymentMethod: requestedPaymentMethod || 'wallet',
+                bookingDate: normalizedDate, startHour: time,
+                cashHours: calendarSpillover.cashHours, packageHours: calendarSpillover.packageHoursTotal,
+                durationHours: serviceDuration, paymentMethod: requestedPaymentMethod || 'wallet',
                 source: 'calendar_partial_cash_leg'
               }
             };
@@ -4457,6 +4585,15 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         bookingInsertValues
       );
       const bookingId = booking.rows[0].id;
+
+      // Persist the cross-package draws now that the booking id exists.
+      if (calendarSpillover && calendarSpillover.draws.length > 0) {
+        await recordConsumptionLedger(client, {
+          bookingId,
+          participantId: null,
+          draws: calendarSpillover.draws,
+        });
+      }
 
       await applySelfStudentCommissionIfMatch(client, booking.rows[0]);
 
@@ -6081,7 +6218,7 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
 }
 
 // eslint-disable-next-line complexity
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist', 'front_desk']), async (req, res) => {
     const bookingId = req.params.id;
     const deletingUserId = req.user.id;
     const reason = (req.body && req.body.reason) || 'Administrative deletion';
@@ -6288,7 +6425,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
  * @desc Bulk delete bookings with auto reconciliation and 10s undo token
  * @access Private (Admin/Manager)
  */
-router.post('/bulk-delete', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/bulk-delete', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist', 'front_desk']), async (req, res) => {
   const { ids = [], reason = 'Bulk deletion' } = req.body || {};
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: true, message: 'ids[] is required' });

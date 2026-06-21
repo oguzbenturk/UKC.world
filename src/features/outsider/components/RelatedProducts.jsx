@@ -80,7 +80,7 @@ const getAffinityScore = (currentSub, targetSub, category) => {
 const RelatedProducts = ({ category, subcategory, currentProductId, onWishlistToggle, isInWishlist }) => {
     const { data: rawProducts, isLoading: loading } = useQuery({
         queryKey: ['relatedProducts', category],
-        queryFn: () => productApi.getProducts({ category, limit: 20, status: 'active' }),
+        queryFn: () => productApi.getProducts({ category, limit: 20, status: 'active', visible_only: true }),
         enabled: !!category,
     });
 

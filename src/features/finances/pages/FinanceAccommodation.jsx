@@ -102,9 +102,13 @@ const FinanceAccommodation = () => {
       ];
     }
 
-    const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.total_price || 0), 0);
-    const totalBookings = bookings.length;
-    const totalNights = bookings.reduce((sum, b) => {
+    // Cancelled stays keep their total_price (cancel only flips status, no deleted_at),
+    // so exclude them from revenue/count/nights. Use the discount-net amount the backend
+    // now returns (total_price stays gross of the separate discounts-table discount).
+    const liveBookings = bookings.filter(b => b.status !== 'cancelled');
+    const totalRevenue = liveBookings.reduce((sum, b) => sum + Number(b.total_after_discount ?? b.total_price ?? 0), 0);
+    const totalBookings = liveBookings.length;
+    const totalNights = liveBookings.reduce((sum, b) => {
       if (!b.check_in_date || !b.check_out_date) return sum;
       const nights = dayjs(b.check_out_date).diff(dayjs(b.check_in_date), 'day');
       return sum + Math.max(0, nights);

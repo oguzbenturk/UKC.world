@@ -6,9 +6,25 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { formatCurrency } from '@/shared/utils/formatters';
 import apiClient from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
+import { useCustomerDrawer } from '@/shared/contexts/CustomerDrawerContext';
 
 const { confirm } = Modal;
 const { TextArea } = Input;
+
+// Clickable customer cell shared by both refund tabs — opens the enhanced drawer.
+const RefundCustomerCell = ({ record, openCustomer }) => {
+  const userId = record.userId ?? record.user_id;
+  const canOpen = userId !== null && userId !== undefined;
+  return (
+    <div
+      className={canOpen ? 'cursor-pointer group' : undefined}
+      onClick={canOpen ? () => openCustomer({ id: userId, name: record.userName, email: record.userEmail }) : undefined}
+    >
+      <div className={`font-medium ${canOpen ? 'text-indigo-600 group-hover:underline' : ''}`}>{record.userName}</div>
+      <div className="text-xs text-gray-500">{record.userEmail}</div>
+    </div>
+  );
+};
 
 /**
  * Iyzico Payment Refunds Management Page
@@ -17,6 +33,7 @@ const { TextArea } = Input;
 const PaymentRefunds = () => {
   const { t } = useTranslation(['manager']);
   const { user } = useAuth();
+  const { openCustomer } = useCustomerDrawer();
   const [loading, setLoading] = useState(false);
   const [refundableTransactions, setRefundableTransactions] = useState([]);
   const [refundHistory, setRefundHistory] = useState([]);
@@ -153,23 +170,21 @@ const PaymentRefunds = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
+      sorter: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
       render: (date) => dayjs(date).format('DD MMM YYYY HH:mm')
     },
     {
       title: t('manager:financePages.paymentRefunds.columns.customer'),
       key: 'customer',
-      render: (_, record) => (
-        <div>
-          <div className="font-medium">{record.userName}</div>
-          <div className="text-xs text-gray-500">{record.userEmail}</div>
-        </div>
-      )
+      sorter: (a, b) => (a.userName || '').localeCompare(b.userName || ''),
+      render: (_, record) => <RefundCustomerCell record={record} openCustomer={openCustomer} />
     },
     {
       title: t('manager:financePages.paymentRefunds.columns.amount'),
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
+      sorter: (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
       render: (amount, record) => (
         <span className="font-semibold text-green-600">
           {formatCurrency(amount, record.currency)}
@@ -211,23 +226,21 @@ const PaymentRefunds = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
+      sorter: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
       render: (date) => dayjs(date).format('DD MMM YYYY HH:mm')
     },
     {
       title: t('manager:financePages.paymentRefunds.columns.customer'),
       key: 'customer',
-      render: (_, record) => (
-        <div>
-          <div className="font-medium">{record.userName}</div>
-          <div className="text-xs text-gray-500">{record.userEmail}</div>
-        </div>
-      )
+      sorter: (a, b) => (a.userName || '').localeCompare(b.userName || ''),
+      render: (_, record) => <RefundCustomerCell record={record} openCustomer={openCustomer} />
     },
     {
       title: t('manager:financePages.paymentRefunds.columns.amount'),
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
+      sorter: (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
       render: (amount, record) => (
         <span className="font-semibold text-red-600">
           -{formatCurrency(amount, record.currency)}
@@ -238,6 +251,11 @@ const PaymentRefunds = () => {
       title: t('manager:financePages.paymentRefunds.columns.type'),
       key: 'type',
       width: 100,
+      filters: [
+        { text: t('manager:financePages.paymentRefunds.refundTypes.partial'), value: true },
+        { text: t('manager:financePages.paymentRefunds.refundTypes.full'), value: false },
+      ],
+      onFilter: (value, record) => Boolean(record.isPartialRefund) === value,
       render: (_, record) => (
         <Tag color={record.isPartialRefund ? 'orange' : 'red'}>
           {record.isPartialRefund ? t('manager:financePages.paymentRefunds.refundTypes.partial') : t('manager:financePages.paymentRefunds.refundTypes.full')}

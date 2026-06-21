@@ -120,8 +120,11 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(ACTIVE_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS active,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS upcoming,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS completed,
-      COALESCE(SUM(GREATEST(COALESCE(total_price, 0) - rt_disc.amt, 0)), 0)::numeric AS total_revenue,
-      COALESCE(SUM(CASE WHEN payment_status = ANY(ARRAY['paid', 'completed']) THEN GREATEST(COALESCE(total_price, 0) - rt_disc.amt, 0) ELSE 0 END), 0)::numeric AS paid_revenue
+      -- Revenue must exclude cancelled/void rentals: their total_price is retained on
+      -- the row (cancel only flips status), and the manager-commission leg already drops
+      -- cancelled rentals, so counting them here over-stated Gross + Net Rental Revenue.
+      COALESCE(SUM(CASE WHEN status NOT IN ('cancelled', 'void') THEN GREATEST(COALESCE(total_price, 0) - rt_disc.amt, 0) ELSE 0 END), 0)::numeric AS total_revenue,
+      COALESCE(SUM(CASE WHEN payment_status = ANY(ARRAY['paid', 'completed']) AND status NOT IN ('cancelled', 'void') THEN GREATEST(COALESCE(total_price, 0) - rt_disc.amt, 0) ELSE 0 END), 0)::numeric AS paid_revenue
     FROM rentals
     ${discountSumLateral('rt_disc', 'rental', 'rentals.id')}
     ${rentalConditions.length ? `WHERE ${rentalConditions.join(' AND ')}` : ''}

@@ -44,6 +44,9 @@ const FinanceShop = () => {
   const [shopRevenue, setShopRevenue] = useState(0);
   const [totalCostPrice, setTotalCostPrice] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
+  // True when any line item lacked a real cost_price and we fell back to a 60% estimate,
+  // so Net Profit / margin are approximate rather than precise.
+  const [costEstimated, setCostEstimated] = useState(false);
 
   useEffect(() => {
     loadFinancialData();
@@ -80,10 +83,12 @@ const FinanceShop = () => {
       setShopOrders(orders);
       setShopOrderCount(response.data?.total || orders.length);
       
-      // Calculate total revenue from completed orders
+      // Calculate total revenue from completed orders. Use total_after_discount
+      // (o.total_amount minus the separate discounts-table staff discount), falling
+      // back to total_amount for any legacy row the backend didn't annotate.
       const revenue = orders
         .filter(o => o.payment_status === 'completed')
-        .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+        .reduce((sum, o) => sum + parseFloat(o.total_after_discount ?? o.total_amount ?? 0), 0);
       setShopRevenue(revenue);
 
       // Calculate total cost price (COGS) from order items
@@ -116,10 +121,13 @@ const FinanceShop = () => {
 
       // Calculate total cost of goods sold
       let totalCost = 0;
+      let usedEstimate = false;
       orders.forEach(order => {
         if (order.items && order.payment_status === 'completed') {
           order.items.forEach(item => {
-            const itemCost = costPriceMap[item.product_id] 
+            const hasCost = costPriceMap[item.product_id] != null;
+            if (!hasCost) usedEstimate = true;
+            const itemCost = hasCost
               ? costPriceMap[item.product_id] * (item.quantity || 1)
               : parseFloat(item.unit_price || 0) * 0.6 * (item.quantity || 1); // 60% estimate if no cost price
             totalCost += itemCost;
@@ -127,6 +135,7 @@ const FinanceShop = () => {
         }
       });
 
+      setCostEstimated(usedEstimate);
       setTotalCostPrice(totalCost);
       setNetProfit(revenue - totalCost);
     } catch (error) {
@@ -136,6 +145,7 @@ const FinanceShop = () => {
       setShopRevenue(0);
       setTotalCostPrice(0);
       setNetProfit(0);
+      setCostEstimated(false);
     }
   };
 
@@ -203,17 +213,17 @@ const FinanceShop = () => {
         label: t('manager:financePages.shop.stats.netProfit'),
         value: formatCurrency(adjustedNetProfit),
         accent: adjustedNetProfit >= 0 ? 'emerald' : 'rose',
-        subtitle: `${profitMargin}% margin · after manager commission`
+        subtitle: `${profitMargin}% margin · after manager commission${costEstimated ? ' · COGS estimated' : ''}`
       }
     ];
-  }, [summaryData, shopOrderCount, shopRevenue, shopOrders, totalCostPrice, netProfit, t]);
+  }, [summaryData, shopOrderCount, shopRevenue, shopOrders, totalCostPrice, netProfit, costEstimated, t]);
 
   // Transform shop orders into transaction-like format for TransactionHistory component
   const shopTransactions = useMemo(() => {
     return shopOrders.map(order => ({
       id: order.id,
       transaction_type: 'shop_purchase',
-      amount: parseFloat(order.total_amount || 0),
+      amount: parseFloat(order.total_after_discount ?? order.total_amount ?? 0),
       currency: order.currency || 'EUR',
       status: order.payment_status || order.status,
       description: `Order #${order.order_number} - ${order.items?.length || 0} items`,

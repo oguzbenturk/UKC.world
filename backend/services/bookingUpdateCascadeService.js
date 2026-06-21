@@ -8,7 +8,7 @@ import Decimal from 'decimal.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { writeLessonSnapshot } from './revenueSnapshotService.js';
-import { deriveLessonAmount, partialLessonValue } from '../utils/instructorEarnings.js';
+import { deriveLessonAmount, partialLessonValue, deriveEffectivePackageHours } from '../utils/instructorEarnings.js';
 import { getActiveDiscountAmount } from '../utils/discountAmounts.js';
 import { recordTransaction as recordWalletTransaction } from './walletService.js';
 import {
@@ -72,6 +72,81 @@ class BookingUpdateCascadeService {
   }
 
   /**
+   * Lesson-only portion of a package's price (discount-adjusted, with combo
+   * rental/accommodation cost removed). Single source of truth for both
+   * computeLessonAmount and computeEffectivePackageHourlyRate.
+   */
+  static _deriveEffectivePackagePrice(ctx) {
+    const { pkg, servicePackage, discountAmount, rentalPrice, accomPricePerNight } = ctx;
+
+    // Treat any active per-package discount as effectively reducing the
+    // purchase price for downstream commission math.
+    let basePrice = new Decimal(pkg.purchase_price || 0);
+    if (discountAmount != null) {
+      basePrice = Decimal.max(new Decimal(0), basePrice.sub(new Decimal(discountAmount || 0)));
+    }
+
+    let effectivePackagePrice = basePrice;
+    if (servicePackage) {
+      const storedHourlyRate = new Decimal(servicePackage.package_hourly_rate || 0);
+      const pkgTotalHours = new Decimal(pkg.total_hours || servicePackage.total_hours || 0);
+      if (storedHourlyRate.gt(0) && pkgTotalHours.gt(0)) {
+        // Stored per-hour lesson rate, scaled by the discount ratio so a package
+        // discount still flows through (ratio = 1 with no discount).
+        const fullPrice = new Decimal(pkg.purchase_price || 0);
+        const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(1);
+        effectivePackagePrice = storedHourlyRate.mul(pkgTotalHours).mul(ratio);
+      } else {
+        const rentalDays = parseInt(servicePackage.rental_days) || 0;
+        const accomNights = parseInt(servicePackage.accommodation_nights) || 0;
+        const rentalCost = rentalDays > 0 && servicePackage.rental_service_id
+          ? new Decimal(rentalDays).mul(new Decimal(rentalPrice || 0))
+          : new Decimal(0);
+        const accomCost = accomNights > 0 && servicePackage.accommodation_unit_id
+          ? new Decimal(accomNights).mul(new Decimal(accomPricePerNight || 0))
+          : new Decimal(0);
+        const deductions = rentalCost.add(accomCost);
+        if (deductions.gt(0)) {
+          const fullPrice = new Decimal(pkg.purchase_price || 0);
+          const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(0);
+          const scaledDeductions = deductions.mul(ratio);
+          effectivePackagePrice = Decimal.max(new Decimal(0), effectivePackagePrice.sub(scaledDeductions));
+        }
+      }
+    }
+    return effectivePackagePrice;
+  }
+
+  /**
+   * Effective lesson-only price PER HOUR for a package — the value frozen into
+   * the spillover consumption ledger (rate_per_hour). Equals what one hour of
+   * this package contributes to computeLessonAmount, so a spillover booking's
+   * Σ(hours × rate) reproduces the legacy single-package valuation exactly when
+   * only one package is involved.
+   */
+  static async computeEffectivePackageHourlyRate(client, packageId, pkgContext = null) {
+    if (!packageId) return 0;
+    const ctx = pkgContext && pkgContext.packageId === packageId
+      ? pkgContext
+      : await this.loadPackageContext(client, packageId);
+    if (!ctx) return 0;
+    const { pkg, servicePackage } = ctx;
+    const effectivePackagePrice = this._deriveEffectivePackagePrice(ctx);
+    const effectiveHours = deriveEffectivePackageHours({
+      packageTotalHours: pkg.total_hours || servicePackage?.total_hours,
+      packageRemainingHours: pkg.remaining_hours,
+      packageUsedHours: pkg.used_hours,
+      packageSessionsCount: servicePackage?.sessions_count,
+      fallbackSessionDuration: (servicePackage?.total_hours && servicePackage?.sessions_count
+        ? servicePackage.total_hours / servicePackage.sessions_count : null),
+    });
+    if (effectiveHours > 0) {
+      return effectivePackagePrice.div(effectiveHours).toDecimalPlaces(4).toNumber();
+    }
+    return 0;
+  }
+
+  /**
    * Compute the effective lesson amount for a booking (package-aware).
    * `pkgContext` (optional) is the result of `loadPackageContext` for the
    * booking's customer_package — pass it when recomputing many bookings on
@@ -101,6 +176,34 @@ class BookingUpdateCascadeService {
     }
 
     try {
+      // ── Ledger-first (cross-package spillover) ──────────────────────────
+      // A spillover booking records exact per-package draws in
+      // booking_package_consumption with a FROZEN per-hour rate. Its realized
+      // value = Σ(hours_i × rate_i) + the cash overflow leg. Legacy bookings
+      // have no ledger rows and fall through to the single-package derivation.
+      const participantId = booking._participantId || null;
+      const { rows: ledger } = await client.query(
+        `SELECT bpc.hours_used,
+                COALESCE(bpc.rate_per_hour,
+                         CASE WHEN cp.total_hours > 0 THEN cp.purchase_price / cp.total_hours ELSE 0 END) AS rate
+           FROM booking_package_consumption bpc
+           JOIN customer_packages cp ON cp.id = bpc.customer_package_id
+          WHERE bpc.booking_id = $1 AND bpc.released_at IS NULL
+            AND (($2::uuid IS NULL AND bpc.participant_id IS NULL) OR bpc.participant_id = $2)`,
+        [booking.id, participantId]
+      );
+      if (ledger.length > 0) {
+        let pkgValue = new Decimal(0);
+        for (const r of ledger) {
+          pkgValue = pkgValue.add(new Decimal(r.hours_used || 0).mul(new Decimal(r.rate || 0)));
+        }
+        // For a 'partial' spillover booking the package pool covered only some
+        // hours; final_amount holds the cash leg for the overflow. Add it on top
+        // (it's already priced at the cash rate — no double-count with pkgValue).
+        const cashLeg = booking.payment_status === 'partial' ? baseAmount : new Decimal(0);
+        return pkgValue.add(cashLeg).toDecimalPlaces(2).toNumber();
+      }
+
       const ctx = pkgContext && pkgContext.packageId === booking.customer_package_id
         ? pkgContext
         : await this.loadPackageContext(client, booking.customer_package_id);
@@ -110,52 +213,12 @@ class BookingUpdateCascadeService {
         return baseAmount.toNumber();
       }
 
-      const { pkg, servicePackage, discountAmount, rentalPrice, accomPricePerNight } = ctx;
+      const { pkg, servicePackage } = ctx;
 
-      // Treat any active per-package discount as effectively reducing the
-      // purchase price for downstream commission math. Mirrors the behaviour
-      // of an admin price edit so both paths affect commission identically.
-      let basePrice = new Decimal(pkg.purchase_price || 0);
-      if (discountAmount != null) {
-        basePrice = Decimal.max(new Decimal(0), basePrice.sub(new Decimal(discountAmount || 0)));
-      }
-
-      // Derive lesson-only portion of the package price
-      let effectivePackagePrice = basePrice;
-      if (servicePackage) {
-        const storedHourlyRate = new Decimal(servicePackage.package_hourly_rate || 0);
-        const pkgTotalHours = new Decimal(pkg.total_hours || servicePackage.total_hours || 0);
-        if (storedHourlyRate.gt(0) && pkgTotalHours.gt(0)) {
-          // Use explicitly stored per-hour lesson rate, scaled by the discount
-          // ratio (basePrice / full purchase_price) so a package discount still
-          // flows through to the lesson value (L5). Without the ratio the stored
-          // rate overwrites the discount-adjusted base entirely. ratio = 1 when
-          // there is no discount, so non-discounted packages are unchanged.
-          const fullPrice = new Decimal(pkg.purchase_price || 0);
-          const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(1);
-          effectivePackagePrice = storedHourlyRate.mul(pkgTotalHours).mul(ratio);
-        } else {
-          const rentalDays = parseInt(servicePackage.rental_days) || 0;
-          const accomNights = parseInt(servicePackage.accommodation_nights) || 0;
-          const rentalCost = rentalDays > 0 && servicePackage.rental_service_id
-            ? new Decimal(rentalDays).mul(new Decimal(rentalPrice || 0))
-            : new Decimal(0);
-          const accomCost = accomNights > 0 && servicePackage.accommodation_unit_id
-            ? new Decimal(accomNights).mul(new Decimal(accomPricePerNight || 0))
-            : new Decimal(0);
-          const deductions = rentalCost.add(accomCost);
-          if (deductions.gt(0)) {
-            // Subtract proportionally so the discount-adjusted basePrice keeps
-            // its share. Without scaling we'd subtract the full undiscounted
-            // rental/accom cost from a discounted total, drifting the lesson
-            // portion below the intended split.
-            const fullPrice = new Decimal(pkg.purchase_price || 0);
-            const ratio = fullPrice.gt(0) ? basePrice.div(fullPrice) : new Decimal(0);
-            const scaledDeductions = deductions.mul(ratio);
-            effectivePackagePrice = Decimal.max(new Decimal(0), effectivePackagePrice.sub(scaledDeductions));
-          }
-        }
-      }
+      // Lesson-only portion of the package price (discount-adjusted, rental/accom
+      // deducted). Shared with computeEffectivePackageHourlyRate so the per-hour
+      // rate frozen into the spillover ledger matches this valuation exactly.
+      const effectivePackagePrice = BookingUpdateCascadeService._deriveEffectivePackagePrice(ctx);
 
       // For partial bookings, force package derivation (use paymentStatus 'package' and baseAmount 0
       // so deriveLessonAmount uses the package hourly rate, not the cash amount)
@@ -218,7 +281,7 @@ class BookingUpdateCascadeService {
     // partialLessonValue (whose single-person cash floor then swallowed the
     // package hours — P4). Per-participant valuation fixes both.
     const { rows: participants } = await client.query(
-      `SELECT user_id, payment_status, payment_amount, customer_package_id,
+      `SELECT id, user_id, payment_status, payment_amount, customer_package_id,
               package_hours_used, cash_hours_used
          FROM booking_participants WHERE booking_id = $1`,
       [booking.id]
@@ -234,6 +297,7 @@ class BookingUpdateCascadeService {
         // exactly as they are for a single booking.
         const perParticipant = {
           id: booking.id,
+          _participantId: p.id, // scopes the spillover ledger query to this participant
           duration: booking.duration,
           service_id: booking.service_id,
           currency: booking.currency,

@@ -219,7 +219,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptioni
 
 // GET users with student or outsider role (customers who can book services)
 // Supports ?q=search&limit=200 for paginated/searchable access
-router.get('/students', authorizeRoles(['admin', 'manager', 'instructor']), cacheMiddleware(300, (req) => `api:users:students:${req.query.q || ''}:${req.query.limit || 200}`), async (req, res) => {
+router.get('/students', authorizeRoles(['admin', 'manager', 'instructor', 'receptionist', 'front_desk']), cacheMiddleware(300, (req) => `api:users:students:${req.query.q || ''}:${req.query.limit || 200}`), async (req, res) => {
   try {
     const { q, limit: rawLimit } = req.query;
     const limit = Math.min(Math.max(parseInt(rawLimit, 10) || 200, 1), 1000);

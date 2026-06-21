@@ -11,7 +11,7 @@ const safeNumber = (value) => {
   return Number.isFinite(num) ? num : 0;
 };
 
-const deriveEffectivePackageHours = ({
+export const deriveEffectivePackageHours = ({
   packageTotalHours,
   packageRemainingHours,
   packageUsedHours,

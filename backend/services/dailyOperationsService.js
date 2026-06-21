@@ -1,7 +1,17 @@
 import { pool } from '../db.js';
+import { PAYMENT_TYPES, REFUND_TYPES } from '../constants/transactions.js';
 
 // Configurable threshold for large unpaid rentals
 const LARGE_UNPAID_THRESHOLD = Number(process.env.LARGE_UNPAID_RENTAL_THRESHOLD || 100);
+
+// Cash-in (income) and refund (cash-out) transaction types. The legacy `transactions`
+// table this service used to read was frozen ~2026-05-30 when the app switched its
+// ledger to wallet_transactions, so daily totals read ~0 for any recent date. We now
+// read wallet_transactions using the same cash-basis type sets the rest of finances
+// uses. Deposits/top-ups count as money received; charges (debits against prepaid
+// balance) are NOT "payments" and are excluded.
+const DAILY_INCOME_TYPES = [...new Set([...PAYMENT_TYPES, 'wallet_deposit', 'deposit', 'bank_transfer_payment'])];
+const DAILY_REFUND_TYPES = [...new Set([...REFUND_TYPES, 'iyzico_refund'])];
 
 function getDayRange(dateStr) {
   const start = new Date(dateStr + 'T00:00:00.000Z');
@@ -11,14 +21,37 @@ function getDayRange(dateStr) {
 
 export async function fetchDailyPayments(start, end) {
   const result = await pool.query(
-    `SELECT id, user_id, amount, type, description, payment_method, reference_number, rental_id, transaction_date, created_by
-     FROM transactions
-     WHERE transaction_date >= $1 AND transaction_date < $2
-     ORDER BY transaction_date ASC, created_at ASC`,
-    [start, end]
+    `SELECT
+        wt.id,
+        wt.user_id,
+        -- Income positive, refunds negative (regardless of stored ledger sign), each
+        -- normalised to EUR so mixed-currency rows don't distort the day's totals.
+        CASE
+          WHEN wt.transaction_type = ANY($3) THEN  ABS(wt.amount) / COALESCE(cs.exchange_rate, 1)
+          WHEN wt.transaction_type = ANY($4) THEN -ABS(wt.amount) / COALESCE(cs.exchange_rate, 1)
+          ELSE 0
+        END AS amount,
+        -- Normalise refund variants to 'refund' so the anomaly + colour logic key off it;
+        -- the human-readable specifics remain in description.
+        CASE WHEN wt.transaction_type = ANY($4) THEN 'refund' ELSE wt.transaction_type END AS type,
+        wt.description,
+        wt.payment_method,
+        wt.rental_id,
+        wt.transaction_date,
+        wt.created_by
+     FROM wallet_transactions wt
+     LEFT JOIN currency_settings cs ON cs.currency_code = wt.currency AND cs.is_active = true
+     WHERE wt.transaction_date >= $1 AND wt.transaction_date < $2
+       AND wt.status = 'completed'
+       AND (wt.transaction_type = ANY($3) OR wt.transaction_type = ANY($4))
+       -- Keep staff payouts (salary/commission) out of customer cash totals.
+       AND (wt.entity_type IS NULL OR wt.entity_type NOT IN ('manager_payment','instructor_payment','manager','instructor'))
+     ORDER BY wt.transaction_date ASC, wt.created_at ASC`,
+    [start, end, DAILY_INCOME_TYPES, DAILY_REFUND_TYPES]
   );
   return result.rows.map(r => ({
     ...r,
+    reference_number: null,
     amount: Number(r.amount) || 0
   }));
 }

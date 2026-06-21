@@ -93,7 +93,9 @@ const FinanceEvents = () => {
       ];
     }
 
-    const paidEvents = events.filter(e => Number(e.price || 0) > 0);
+    // Cancelled events keep their price/registrations (status flip, not soft-delete),
+    // so exclude them from revenue + avg ticket price — that money was never collected.
+    const paidEvents = events.filter(e => Number(e.price || 0) > 0 && e.status !== 'cancelled');
     const totalRevenue = paidEvents.reduce((sum, e) => {
       return sum + (Number(e.price || 0) * Number(e.registration_count || 0));
     }, 0);

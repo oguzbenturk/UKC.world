@@ -10,6 +10,7 @@ import { CurrencyProvider } from './shared/contexts/CurrencyContext';
 import { CartProvider } from './shared/contexts/CartContext';
 import { ShopFiltersProvider } from './shared/contexts/ShopFiltersContext';
 import { ForecastProvider } from './features/forecast/contexts/ForecastContext';
+import { CustomerDrawerProvider } from './shared/contexts/CustomerDrawerContext';
 import AppRoutes from './routes/AppRoutes';
 import { Navbar } from './shared/components/layout/Navbar';
 import Sidebar from './shared/components/layout/Sidebar';
@@ -65,9 +66,11 @@ function App() {
                   <DataProvider>
                     <ToastProvider>
                       <ForecastProvider>
-                        <AppLayoutWithAuth />
-                        <AuthModal />
-                        <FloatingContactButtons />
+                        <CustomerDrawerProvider>
+                          <AppLayoutWithAuth />
+                          <AuthModal />
+                          <FloatingContactButtons />
+                        </CustomerDrawerProvider>
                       </ForecastProvider>
                     </ToastProvider>
                   </DataProvider>

@@ -81,10 +81,18 @@ const getHighlightStats = (kpis, operationalKpis, currencySymbol) => {
   const avgVal = Number(kpis?.avgBookingValue || 0);
   const avgLine = avgVal > 0 ? `Avg ${currencySymbol}${avgVal.toFixed(0)} / booking` : null;
 
+  // Average realised lesson rate = gross lesson revenue ÷ completed lesson hours
+  // (same completed-lessons population), shown inside this card so the hours figure
+  // ("…h total") and the rate stay consistent on one card.
+  const completedHours = Number(operationalKpis?.completedHours || 0);
+  const lessonHourlyRate = completedHours > 0 ? (Number(operationalKpis?.grossLessonRevenue || 0) / completedHours) : 0;
+  const rateLine = lessonHourlyRate > 0 ? `${currencySymbol}${lessonHourlyRate.toFixed(2)} / lesson hour` : null;
+
   const bookingSubtitles = [
-    `${completionRate} completion • ${Number(operationalKpis?.completedHours || 0).toFixed(0)}h total`,
+    `${completionRate} completion • ${completedHours.toFixed(0)}h total`,
     categoryLine,
     avgLine,
+    rateLine,
   ].filter(Boolean);
 
   const rentalBreakdownLine = formatRentalBreakdown(operationalKpis?.rentalServiceBreakdown);

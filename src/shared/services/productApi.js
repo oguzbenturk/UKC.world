@@ -70,6 +70,12 @@ export const productApi = {
       queryParams.append('in_stock', 'true');
     }
 
+    // Customer-facing storefront callers pass visible_only:true so products an
+    // admin has hidden ("Visible to the Shop/customer" off) are excluded.
+    if (params.visible_only) {
+      queryParams.append('visible_only', 'true');
+    }
+
   const response = await apiClient.get(`/products?${queryParams}`);
   return normalizeAuditPayload(response.data);
   },

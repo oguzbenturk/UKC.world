@@ -543,6 +543,11 @@ const Products = () => {
               {product.is_featured && (
                 <StarFilled className="text-amber-500 text-sm" />
               )}
+              {product.is_visible === false && (
+                <Tag color="default" className="!m-0 !text-[10px] !leading-tight !px-1.5 !py-0">
+                  {t('manager:products.hiddenFromShop', { defaultValue: 'Hidden' })}
+                </Tag>
+              )}
             </div>
             {product.subcategory && (
               <span className="text-xs text-slate-500 capitalize">

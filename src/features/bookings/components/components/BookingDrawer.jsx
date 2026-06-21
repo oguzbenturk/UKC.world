@@ -1097,13 +1097,15 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         return;
       }
 
-      // Track package remaining hours per (participantId, packageId) so each lesson sees fresh availability
-      const pkgRemaining = {};
+      // Track POOL remaining hours per participant (summed across ALL their
+      // packages) so each lesson sees fresh availability. The backend chains
+      // FIFO across packages and overflows the remainder to cash, so we use a
+      // package whenever the participant picked one AND the pool still has any
+      // hours — multi-lesson submits then spill across packages correctly.
+      const poolRemaining = {};
       for (const p of formData.participants || []) {
-        pkgRemaining[p.userId] = {};
-        for (const pkg of (allUserPackages[p.userId] || [])) {
-          pkgRemaining[p.userId][pkg.id] = Number(pkg.remaining_hours || pkg.remainingHours || 0);
-        }
+        poolRemaining[p.userId] = (allUserPackages[p.userId] || [])
+          .reduce((s, pkg) => s + Number(pkg.remaining_hours || pkg.remainingHours || 0), 0);
       }
 
       for (let i = 0; i < lessons.length; i++) {
@@ -1117,15 +1119,13 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           // ── Group booking (one per lesson) ──
           const processedParticipants = formData.participants.map(p => {
             const pkgId = getLessonParticipantPackage(i, p.userId);
-            const pkgs = allUserPackages[p.userId] || [];
-            const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
-            // Only treat as a package payment if there are hours left in this lesson's
-            // budget; otherwise the previous lessons in this submit already drained it
-            // and the backend would reject the now-used_up package.
-            const avail = pkg ? (pkgRemaining[p.userId]?.[pkgId] ?? 0) : 0;
-            const usePackage = !!pkg && avail > 0;
+            // Use packages whenever the participant picked one AND the pool still
+            // has any hours; the backend chains across packages (FIFO) and bills
+            // any overflow as cash. customerPackageId pins the first draw.
+            const poolAvail = poolRemaining[p.userId] || 0;
+            const usePackage = !!pkgId && poolAvail > 0.0001;
             if (usePackage) {
-              pkgRemaining[p.userId][pkgId] = Math.max(0, avail - lessonDuration);
+              poolRemaining[p.userId] = Math.max(0, poolAvail - lessonDuration);
             }
             return {
               userId: p.userId,
@@ -1173,15 +1173,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           // ── Single booking (one per lesson) ──
           const participant = formData.participants?.[0];
           const pkgId = participant ? getLessonParticipantPackage(i, participant.userId) : null;
-          const pkgs = participant ? (allUserPackages[participant.userId] || []) : [];
-          const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
-          // Treat package as usable only when hours remain after prior lessons in this
-          // submit have been deducted — otherwise the backend's status='active' check
-          // fails on a now-depleted package and the whole multi-booking aborts.
-          const pkgAvailNow = (pkg && pkgRemaining[participant.userId]?.[pkgId] != null) ? pkgRemaining[participant.userId][pkgId] : 0;
-          const usePackage = !!pkg && pkgAvailNow > 0;
-          const finalPrice = computeBookingPrice({ plannedHours: lessonDuration, hourlyRate, packageHoursAvailable: pkgAvailNow, step: 0.25, participants: pCount });
-          if (usePackage) pkgRemaining[participant.userId][pkgId] = Math.max(0, pkgAvailNow - lessonDuration);
+          // Use the package pool whenever one is picked and any hours remain; the
+          // backend chains FIFO across packages and overflows to cash.
+          const poolAvail = participant ? (poolRemaining[participant.userId] || 0) : 0;
+          const usePackage = !!pkgId && poolAvail > 0.0001;
+          const finalPrice = computeBookingPrice({ plannedHours: lessonDuration, hourlyRate, packageHoursAvailable: Math.min(lessonDuration, poolAvail), step: 0.25, participants: pCount });
+          if (usePackage && participant) poolRemaining[participant.userId] = Math.max(0, poolAvail - lessonDuration);
 
           const singleData = {
             date: lesson.date,
@@ -1318,17 +1315,44 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       let lessonPkgHours = 0;
 
       for (const p of participants) {
-        const pkgId = getLessonParticipantPackage(lIdx, p.userId);
-        const pkgs = allUserPackages[p.userId] || [];
-        const pkg = pkgId ? pkgs.find(x => x.id === pkgId) : null;
-        let fromPkg = 0;
-        let fromWallet = hrs;
-        if (pkg && remaining[p.userId]) {
-          const avail = remaining[p.userId][pkgId] || 0;
-          fromPkg = Math.min(hrs, avail);
-          fromWallet = hrs - fromPkg;
-          remaining[p.userId][pkgId] = Math.max(0, avail - fromPkg);
+        // Cross-package FIFO spillover preview: chain across the participant's
+        // packages oldest-first (the staff-pinned package first, if any),
+        // overflowing to the wallet only once the whole pool is exhausted —
+        // mirroring the backend's consumeAcrossPackages.
+        const pinnedPkgId = getLessonParticipantPackage(lIdx, p.userId);
+        const allPkgs = allUserPackages[p.userId] || [];
+        const pinnedPkg = pinnedPkgId ? allPkgs.find(x => x.id === pinnedPkgId) : null;
+        // Only chain across packages the backend would actually pool together:
+        // same lesson type AND discipline as the pinned package (NULL-permissive).
+        const tagMatch = (pkg) => {
+          if (!pinnedPkg) return true;
+          const catOk = !pinnedPkg.lesson_category_tag || !pkg.lesson_category_tag
+            || pinnedPkg.lesson_category_tag === pkg.lesson_category_tag;
+          const discOk = !pinnedPkg.discipline_tag || !pkg.discipline_tag
+            || pinnedPkg.discipline_tag === pkg.discipline_tag;
+          return catOk && discOk;
+        };
+        const ordered = allPkgs.filter(tagMatch).slice().sort((a, b) =>
+          new Date(a.purchase_date || a.purchaseDate || 0) - new Date(b.purchase_date || b.purchaseDate || 0));
+        if (pinnedPkgId) {
+          const idx = ordered.findIndex(x => x.id === pinnedPkgId);
+          if (idx > 0) { const [pin] = ordered.splice(idx, 1); ordered.unshift(pin); }
         }
+        let need = hrs;
+        const chain = [];
+        if (pinnedPkgId && remaining[p.userId]) {
+          for (const pkg of ordered) {
+            if (need <= 0.0001) break;
+            const avail = remaining[p.userId][pkg.id] ?? 0;
+            const take = Math.min(need, Math.max(0, avail));
+            if (take <= 0.0001) continue;
+            remaining[p.userId][pkg.id] = Math.max(0, avail - take);
+            chain.push({ pkgId: pkg.id, pkgName: pkg.package_name || pkg.packageName || 'Package', hours: Number(take.toFixed(2)) });
+            need = Number((need - take).toFixed(4));
+          }
+        }
+        const fromPkg = Number((hrs - need).toFixed(2));
+        const fromWallet = Number(need.toFixed(2));
         const walletCost = fromWallet * hourlyRate;
         lessonWalletCost += walletCost;
         lessonPkgHours += fromPkg;
@@ -1337,8 +1361,9 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         pBreakdown.push({
           userId: p.userId,
           userName: p.userName,
-          pkgId,
-          pkgName: pkg?.package_name || pkg?.packageName || null,
+          pkgId: chain[0]?.pkgId || pinnedPkgId || null,
+          pkgName: chain.length ? chain.map(c => c.pkgName).join(' + ') : null,
+          chain,
           fromPkg,
           fromWallet,
           walletCost,

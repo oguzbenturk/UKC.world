@@ -1513,6 +1513,10 @@ router.get(
         JOIN users u ON wt.user_id = u.id
         LEFT JOIN users admin ON wt.created_by = admin.id
         WHERE wt.transaction_type = 'iyzico_refund'
+          -- Deleting/voiding a refund flips the original row to status='cancelled'
+          -- (and mints a separate *_reversal partner). Without this filter the stale
+          -- cancelled refund still shows in the history as if it were effective.
+          AND wt.status = 'completed'
         ORDER BY wt.created_at DESC
         LIMIT $1 OFFSET $2
       `, [limit, offset]);

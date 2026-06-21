@@ -379,6 +379,8 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
     // EUR funds whenever the preferred-currency wallet had any non-zero balance.
     let balance = 0;
     let totalSpent = 0;
+    let inflowsEur = 0;
+    let lifetimeValue = 0;
     let walletSummary = null;
     const walletCurrency = 'EUR'; // Always report in EUR for consistent display
 
@@ -444,6 +446,52 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
       // no on-page contradiction. The fully-consistent end state remains MIGRATING
       // these debts into the wallet ledger as opening-balance transactions; until
       // then this staff-only fallback keeps admin views honest about who owes money.
+
+      // ─── Lifetime value (net value of services/products consumed) ─────────
+      // Derive it from the wallet identity rather than by summing debit rows:
+      //     available = moneyIn − consumption   ⇒   consumption = moneyIn − available
+      // Every refund, discount, price-edit adjustment and reversal is already
+      // baked into `available`, so we only have to classify the money-IN side
+      // (deposits, opening balances, incoming payments, less reversed-in
+      // payments) and convert each currency to EUR. This is far more robust
+      // than the old heuristic (EUR-only net debits with a derived-debits
+      // fallback), which mis-counted payment reversals as spending — e.g. an
+      // instructor whose wallet only ever receives salary credits was shown a
+      // large "lifetime value" instead of €0. With this identity moneyIn ==
+      // available for such accounts, so they correctly read €0.
+      try {
+        const { rows: inflowRows } = await pool.query(
+          `SELECT wt.currency, cs.exchange_rate,
+                  COALESCE(SUM(wt.available_delta), 0) AS inflows
+             FROM wallet_transactions wt
+             LEFT JOIN currency_settings cs ON cs.currency_code = wt.currency
+            WHERE wt.user_id = $1
+              AND wt.status = 'completed'
+              AND (
+                wt.transaction_type IN ('wallet_deposit', 'legacy_opening_balance')
+                OR (wt.transaction_type = 'payment' AND wt.available_delta > 0)
+                OR (wt.transaction_type = 'payment_reversal' AND wt.available_delta < 0)
+              )
+            GROUP BY wt.currency, cs.exchange_rate`,
+          [id]
+        );
+        for (const row of inflowRows) {
+          const amt = parseFloat(row.inflows || 0);
+          if (!amt) continue;
+          if (row.currency === 'EUR') {
+            inflowsEur += amt;
+          } else {
+            // Mirror the balance loop's missing-rate fallback (1:1) so a
+            // currency without a configured rate never silently distorts LTV.
+            const rate = parseFloat(row.exchange_rate || 0);
+            inflowsEur += rate > 0 ? amt / rate : amt;
+          }
+        }
+        lifetimeValue = Math.max(0, Math.round((inflowsEur - balance) * 100) / 100);
+      } catch (ltvErr) {
+        logger.error('Error computing lifetime value:', { userId: id, error: ltvErr?.message });
+        lifetimeValue = Math.max(0, totalSpent); // degrade to the legacy EUR figure
+      }
     } catch (aggErr) {
       logger.error('Error aggregating wallet balances:', { userId: id, error: aggErr?.message });
       // Fallback: single-currency query for EUR
@@ -451,6 +499,7 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
         const fallback = await calculateUserBalance(id, 'EUR');
         balance = fallback.balance;
         totalSpent = fallback.totalSpent;
+        lifetimeValue = Math.max(0, fallback.totalSpent || 0);
         walletSummary = fallback.walletSummary;
       } catch (_) {
         balance = parseFloat(account.db_balance || 0);
@@ -464,8 +513,8 @@ router.get('/accounts/:id', authenticateJWT, authorizeFinancialAccess, async (re
       role_id: account.role_id,
       role_name: account.role_name,
       balance,
-      total_spent: totalSpent,
-      lifetime_value: totalSpent,
+      total_spent: lifetimeValue,
+      lifetime_value: lifetimeValue,
       last_payment_date: account.last_payment_date || walletSummary?.lastCreditAt || null,
       account_status: account.account_status,
       preferred_currency: userPreferredCurrency,
@@ -723,7 +772,7 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
     // wallet_tx matching the current filter set; subtracted from totalCharges in
     // JS below. EXISTS instead of JOIN avoids fan-out when a booking has multiple
     // debit rows (booking_charge + booking_charge_adjustment etc.).
-    const DISCOUNT_ENTITY_TYPES = ['booking', 'rental', 'customer_package', 'accommodation_booking', 'shop_order'];
+    const DISCOUNT_ENTITY_TYPES = ['booking', 'rental', 'customer_package', 'accommodation_booking', 'shop_order', 'member_purchase'];
     const discountEntityTypesIdx = sIdx + 1;
     const statsParamsWithDiscountTypes = [...statsParams, DISCOUNT_ENTITY_TYPES];
     // For per-month discount attribution: distribute each entity's discount across
@@ -736,6 +785,12 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
       `related_entity_type = ANY($${discountEntityTypesIdx})`
     ];
     const debitShareWhere = `WHERE ${debitShareFilters.join(' AND ')}`;
+    // EUR-normalise each ledger row so mixed-currency (TRY/USD) charges aren't summed
+    // at face value. EUR rows resolve to exchange_rate 1, so EUR-only data is byte-for-
+    // byte unchanged; this only activates once a real non-EUR debit/credit row exists.
+    // (Discount amounts in the `discounts` table are already stored in EUR.)
+    const walletRatesJoin = `LEFT JOIN currency_settings cs ON cs.currency_code = wallet_transactions.currency AND cs.is_active = true`;
+    const absEur = `(abs(amount) / COALESCE(cs.exchange_rate, 1))`;
     const [statsResult, breakdownResult, trendResult, discountResult, monthDiscountResult] = await Promise.all([
       pool.query(`
         SELECT
@@ -745,7 +800,7 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
             'package_price_adjustment'
           )) as total_count,
           COALESCE(sum(CASE
-            WHEN direction = 'credit' AND transaction_type = ANY($${incomeTypesIdx}) THEN abs(amount)
+            WHEN direction = 'credit' AND transaction_type = ANY($${incomeTypesIdx}) THEN ${absEur}
             ELSE 0
           END), 0) as total_income,
           COALESCE(sum(CASE
@@ -753,16 +808,18 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
             -- total (totalDiscounts) below. Counting the discount_adjustment
             -- credit here too double-subtracted the discount on PAID items.
             WHEN transaction_type IN ('discount_adjustment', 'discount_adjustment_reversal') THEN 0
-            WHEN direction = 'debit' THEN abs(amount)
-            WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -abs(amount)
+            WHEN direction = 'debit' THEN ${absEur}
+            WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -${absEur}
             ELSE 0
           END), 0) as total_charges
         FROM wallet_transactions
+        ${walletRatesJoin}
         ${statsWhere}
       `, statsParamsWithIncome),
       pool.query(`
-        SELECT transaction_type, direction, count(*)::int as count, COALESCE(sum(abs(amount)), 0) as total
+        SELECT transaction_type, direction, count(*)::int as count, COALESCE(sum(${absEur}), 0) as total
         FROM wallet_transactions
+        ${walletRatesJoin}
         ${statsWhere}
         GROUP BY transaction_type, direction
         ORDER BY total DESC
@@ -771,16 +828,17 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
         SELECT
           to_char(transaction_date, 'YYYY-MM') as month,
           COALESCE(sum(CASE
-            WHEN direction = 'credit' AND transaction_type = ANY($${incomeTypesIdx}) THEN abs(amount)
+            WHEN direction = 'credit' AND transaction_type = ANY($${incomeTypesIdx}) THEN ${absEur}
             ELSE 0
           END), 0) as income,
           COALESCE(sum(CASE
             WHEN transaction_type IN ('discount_adjustment', 'discount_adjustment_reversal') THEN 0
-            WHEN direction = 'debit' THEN abs(amount)
-            WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -abs(amount)
+            WHEN direction = 'debit' THEN ${absEur}
+            WHEN direction = 'credit' AND NOT (transaction_type = ANY($${incomeTypesIdx})) THEN -${absEur}
             ELSE 0
           END), 0) as charges
         FROM wallet_transactions
+        ${walletRatesJoin}
         ${statsWhere}
         GROUP BY to_char(transaction_date, 'YYYY-MM')
         ORDER BY month
@@ -792,7 +850,12 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
            AND EXISTS (
              SELECT 1 FROM wallet_transactions
               WHERE wallet_transactions.related_entity_type = d.entity_type
-                AND wallet_transactions.related_entity_id::text = d.entity_id
+                -- INTEGER-PK entities (shop_order, member_purchase) carry a NULL
+                -- related_entity_id and store the id in metadata, so the plain
+                -- ::text cast NULL-missed their discounts. Match the canonical
+                -- fetchTransactions join so the headline nets the same discounts
+                -- the per-row list already shows.
+                AND COALESCE(wallet_transactions.related_entity_id::text, wallet_transactions.metadata->>'orderId', wallet_transactions.metadata->>'memberPurchaseId') = d.entity_id
                 AND wallet_transactions.direction = 'debit'
                 ${statsFilters.length > 0 ? `AND ${statsFilters.join(' AND ')}` : ''}
            )
@@ -808,9 +871,9 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
           SELECT
             to_char(transaction_date, 'YYYY-MM') AS month,
             related_entity_type AS et,
-            related_entity_id::text AS eid,
+            COALESCE(related_entity_id::text, metadata->>'orderId', metadata->>'memberPurchaseId') AS eid,
             abs(amount) AS row_amount,
-            SUM(abs(amount)) OVER (PARTITION BY related_entity_type, related_entity_id) AS entity_debit_total
+            SUM(abs(amount)) OVER (PARTITION BY related_entity_type, COALESCE(related_entity_id::text, metadata->>'orderId', metadata->>'memberPurchaseId')) AS entity_debit_total
           FROM wallet_transactions
           ${debitShareWhere}
         )
@@ -2356,6 +2419,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         ${discountSumLateral('mp_disc', 'member_purchase', 'member_purchases.id')}
         WHERE purchased_at >= $1::date AND purchased_at < ($2::date + interval '1 day')
           AND payment_status = 'completed'
+          AND status <> 'cancelled'
       `, [dateStart, dateEnd]),
 
       // 9. Package revenue (net of applied package discounts)
@@ -2436,8 +2500,13 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
     // separate discount_adjustment credit.
     const effectiveLessonRevenue = lessonRevenue;
 
-    // For rentals, use rentals table as primary source, wallet charges as fallback
-    const effectiveRentalRevenue = Math.max(rentalRevenue, walletRentalCharges);
+    // Rentals: the rentals-table query (#2) is the canonical net figure — discount-net
+    // (GREATEST(total_price - rt_disc.amt, 0)) and EUR-native (rentals.total_price is
+    // stored in EUR). The old Math.max(walletRentalCharges) fallback is dropped: rental_charge
+    // wallet rows are GROSS (never reduced by the discount_adjustment credit) AND recorded in
+    // the customer's native currency at face value (TRY/USD), so a single non-EUR charge — or
+    // any active rental discount — made the wrong, inflated figure win.
+    const effectiveRentalRevenue = rentalRevenue;
 
     // Other revenue: accommodation charges (not wallet deposits, which are just customer funds)
     const otherRevenue = walletAccommodationCharges;
@@ -2649,12 +2718,15 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
 
     // Equipment popularity: expand equipment_ids JSONB array and join to services
     const equipmentQuery = `
-      SELECT 
+      SELECT
         s.id AS service_id,
         s.name AS service_name,
         COUNT(r.id) AS rental_count,
-        COALESCE(SUM(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0)), 0) AS total_revenue,
-        COALESCE(AVG(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0)), 0) AS avg_price
+        -- Split each rental's revenue evenly across the equipment it includes, so a
+        -- multi-item rental doesn't credit its FULL price to every item (which made the
+        -- per-equipment revenue sum exceed total rental revenue).
+        COALESCE(SUM(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0) / NULLIF(jsonb_array_length(r.equipment_ids), 0)), 0) AS total_revenue,
+        COALESCE(AVG(GREATEST(COALESCE(r.total_price, 0) - rt_disc.amt, 0) / NULLIF(jsonb_array_length(r.equipment_ids), 0)), 0) AS avg_price
       FROM rentals r
       CROSS JOIN LATERAL jsonb_array_elements_text(r.equipment_ids) AS eid
       JOIN services s ON s.id = eid::uuid
@@ -2744,6 +2816,7 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
       ${discountSumLateral('mp_disc', 'member_purchase', 'mp.id')}
       WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
+        AND mp.status <> 'cancelled'
       GROUP BY mp.offering_id, mp.offering_name
       ORDER BY purchase_count DESC
       LIMIT 20
@@ -2760,6 +2833,7 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
       ${discountSumLateral('mp_disc', 'member_purchase', 'mp.id')}
       WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
+        AND mp.status <> 'cancelled'
       GROUP BY month
       ORDER BY month
     `;
@@ -2775,6 +2849,7 @@ router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['admin', 'm
       ${discountSumLateral('mp_disc', 'member_purchase', 'mp.id')}
       WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
+        AND mp.status <> 'cancelled'
       GROUP BY mp.payment_method
       ORDER BY count DESC
     `;
@@ -2854,6 +2929,7 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
       JOIN accommodation_units au ON au.id = ab.unit_id
       ${discountSumLateral('ab_disc', 'accommodation_booking', 'ab.id')}
       WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
+        AND ab.status <> 'cancelled'
       GROUP BY au.id, au.name, au.type
       ORDER BY revenue DESC
     `;
@@ -2873,6 +2949,7 @@ router.get('/accommodation-breakdown', authenticateJWT, authorizeRoles(['admin',
       FROM accommodation_bookings ab
       ${discountSumLateral('ab_disc', 'accommodation_booking', 'ab.id')}
       WHERE ab.check_in_date >= $1::date AND ab.check_out_date <= ($2::date + interval '1 day')
+        AND ab.status <> 'cancelled'
       GROUP BY TO_CHAR(ab.check_in_date, 'YYYY-MM')
       ORDER BY month ASC
     `;
@@ -2949,6 +3026,7 @@ router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
       FROM events e
       WHERE e.start_at >= $1::date AND e.start_at <= ($2::date + interval '1 day')
         AND e.deleted_at IS NULL
+        AND e.status <> 'cancelled'
       ORDER BY revenue DESC
     `;
     const eventResult = await pool.query(eventQuery, [dateStart, dateEnd]);
@@ -2967,18 +3045,22 @@ router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
       FROM events e
       WHERE e.start_at >= $1::date AND e.start_at <= ($2::date + interval '1 day')
         AND e.deleted_at IS NULL
+        AND e.status <> 'cancelled'
       GROUP BY TO_CHAR(e.start_at, 'YYYY-MM')
       ORDER BY month ASC
     `;
     const trendResult = await pool.query(trendQuery, [dateStart, dateEnd]);
 
-    // Event status breakdown
+    // Event status breakdown — keep the cancelled row's COUNT but show 0 revenue,
+    // since a cancelled event's ticket revenue was never (and won't be) collected.
     const statusQuery = `
       SELECT
         COALESCE(e.status, 'unknown') AS status,
         COUNT(e.id)::int AS count,
         COALESCE(SUM(
-          e.price * (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered')
+          CASE WHEN e.status <> 'cancelled'
+               THEN e.price * (SELECT COUNT(*) FROM event_registrations er WHERE er.event_id = e.id AND er.status = 'registered')
+               ELSE 0 END
         ), 0)::numeric AS revenue
       FROM events e
       WHERE e.start_at >= $1::date AND e.start_at <= ($2::date + interval '1 day')
@@ -3193,6 +3275,12 @@ router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manage
     let paramIdx = 1;
 
     dateConditions.push(`wt.transaction_type IN ('manual_credit', 'wallet_deposit')`);
+    // Only real, settled deposits. Soft-deleting a deposit flips the original row
+    // to status='cancelled' (no deleted_at column); without this filter those
+    // cancelled rows kept inflating the stats, Top Depositors and trends (e.g. a
+    // single deleted €18,280 deposit). Pending/unconfirmed deposits live in the
+    // dedicated Pending Deposits tab, so this analytics view shows completed only.
+    dateConditions.push(`wt.status = 'completed'`);
 
     if (startDate) {
       dateConditions.push(`wt.created_at >= $${paramIdx}::date`);

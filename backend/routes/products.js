@@ -3,6 +3,7 @@
 
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
@@ -36,9 +37,42 @@ const parseBoolean = (value) => {
   return Boolean(value);
 };
 
+// ONLY management staff may SEE products hidden from the customer shop
+// (`is_visible = false`): admin, super_admin, manager, and receptionist. Everyone
+// else is treated exactly like a guest here — students, trusted_customers,
+// instructors, freelancers, customers, outsiders, and anonymous callers can never
+// see a hidden product, no matter what they send. (`front_desk` is kept as a
+// defensive alias for `receptionist`; finance pages are gated to admin/manager/
+// super_admin, all of which are in this set, so financial reporting is unaffected.)
+const PRIVILEGED_VISIBILITY_ROLES = new Set(['admin', 'super_admin', 'manager', 'receptionist', 'front_desk']);
+
+// The product list/detail endpoints are public (guest browsing), so they have no
+// auth middleware. This decodes a Bearer token IF one is present — without ever
+// rejecting an anonymous caller — so visibility can be enforced from the
+// authenticated principal rather than a spoofable query parameter.
+const optionalAuth = (req, _res, next) => {
+  const token = (req.headers.authorization || '').split(' ')[1];
+  req.user = null;
+  if (token) {
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    } catch {
+      req.user = null;
+    }
+  }
+  next();
+};
+
+const callerCanSeeHidden = (req) => !!(req.user && PRIVILEGED_VISIBILITY_ROLES.has(req.user.role));
+
 // Get all products with filtering and pagination
 // Made public for guest browsing - no auth required, rate limited
-router.get('/', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
+router.get('/', optionalAuth, publicApiLimiter, cacheMiddleware(1800, (req) =>
+  // Vary the cache by privilege: privileged staff may receive hidden products, so
+  // their responses must never be served from the same cache slot as a guest's
+  // (the default key is URL-only, which would otherwise leak hidden products).
+  `api:GET:${req.originalUrl}:vis-${callerCanSeeHidden(req) ? 'priv' : 'pub'}`
+), async (req, res) => {
   try {
     const {
       page = 1,
@@ -68,6 +102,16 @@ router.get('/', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
       queryParams.push(status);
     }
 
+    // Visibility enforcement (security: NOT a client-trusted gate). Hidden
+    // products are returned ONLY to privileged staff. Guests and customers always
+    // get is_visible = true, regardless of any query parameter they send, so a
+    // hidden product can never be revealed by simply omitting a flag. Privileged
+    // staff see everything by default but may pass visible_only=true to preview
+    // the exact customer-facing list (e.g. the in-app storefront view).
+    if (!callerCanSeeHidden(req) || req.query.visible_only === 'true') {
+      whereConditions.push(`is_visible = true`);
+    }
+
     // Category filter
     if (category && category !== 'all') {
       whereConditions.push(`category = $${paramIndex++}`);
@@ -94,16 +138,21 @@ router.get('/', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
       whereConditions.push(subCondition);
     }
 
-    // Search filter — use full-text search when possible (GIN-indexed), fallback to ILIKE for SKU
+    // Search filter — substring (ILIKE) match on the identifying fields so the
+    // box filters as you type. The previous full-text plainto_tsquery only matched
+    // whole stemmed words, so "duo" never surfaced "Duotone" until the complete
+    // word was typed. ILIKE '%term%' matches any partial run of letters, which is
+    // what "Search by name, SKU, or brand" promises.
     if (search) {
       const trimmed = search.trim();
       if (trimmed) {
         whereConditions.push(`(
-          to_tsvector('english', name || ' ' || COALESCE(description, '') || ' ' || COALESCE(brand, '')) @@ plainto_tsquery('english', $${paramIndex})
-          OR sku ILIKE $${paramIndex + 1}
+          name ILIKE $${paramIndex}
+          OR brand ILIKE $${paramIndex}
+          OR sku ILIKE $${paramIndex}
         )`);
-        queryParams.push(trimmed, `%${trimmed}%`);
-        paramIndex += 2;
+        queryParams.push(`%${trimmed}%`);
+        paramIndex += 1;
       }
     }
 
@@ -176,6 +225,7 @@ router.get('/', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
         images,
         status,
         is_featured,
+        is_visible,
         tags,
         supplier_info,
         variants,
@@ -225,7 +275,7 @@ router.get('/', publicApiLimiter, cacheMiddleware(1800), async (req, res) => {
 const SHOP_PRODUCT_COLS = `
   id, name, description, sku, category, subcategory, brand,
   price, cost_price, original_price, currency, stock_quantity, min_stock_level,
-  weight, dimensions, image_url, images, status, is_featured,
+  weight, dimensions, image_url, images, status, is_featured, is_visible,
   tags, variants, colors, gender, sizes, source_url,
   created_at, updated_at,
   CASE WHEN stock_quantity <= min_stock_level THEN true ELSE false END AS is_low_stock`;
@@ -234,7 +284,7 @@ const SHOP_PRODUCT_COLS = `
 const SHOP_CARD_COLS = `
   id, name, sku, category, subcategory, brand,
   price, original_price, currency, stock_quantity, min_stock_level,
-  image_url, images, status, is_featured,
+  image_url, images, status, is_featured, is_visible,
   colors, gender, sizes, created_at,
   CASE WHEN stock_quantity <= min_stock_level THEN true ELSE false END AS is_low_stock`;
 
@@ -261,7 +311,7 @@ router.get('/shop/by-category', publicApiLimiter, cacheMiddleware(1800), async (
       result = await pool.query(`
         SELECT ${SHOP_CARD_COLS}
         FROM products
-        WHERE status = 'active' AND stock_quantity > 0 AND category = $1
+        WHERE status = 'active' AND is_visible = true AND stock_quantity > 0 AND category = $1
         ORDER BY is_featured DESC, created_at DESC
         LIMIT $2
       `, [categoryFilter, limitPerCategory]);
@@ -269,11 +319,11 @@ router.get('/shop/by-category', publicApiLimiter, cacheMiddleware(1800), async (
       // LATERAL join: uses the per-category index instead of a full-table window sort
       result = await pool.query(`
         SELECT p.*
-        FROM (SELECT DISTINCT category FROM products WHERE status = 'active' AND stock_quantity > 0) cats
+        FROM (SELECT DISTINCT category FROM products WHERE status = 'active' AND is_visible = true AND stock_quantity > 0) cats
         CROSS JOIN LATERAL (
           SELECT ${SHOP_CARD_COLS}
           FROM products
-          WHERE status = 'active' AND stock_quantity > 0 AND category = cats.category
+          WHERE status = 'active' AND is_visible = true AND stock_quantity > 0 AND category = cats.category
           ORDER BY is_featured DESC, created_at DESC
           LIMIT $1
         ) p
@@ -536,32 +586,38 @@ router.post('/vendors/sync', authenticateJWT, authorizeRoles(['admin', 'manager'
 
 // Get product by ID
 // Public endpoint - guests can view product details
-router.get('/:id', publicApiLimiter, async (req, res) => {
+router.get('/:id', optionalAuth, publicApiLimiter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const query = `
-      SELECT 
+      SELECT
         *,
-        CASE 
-          WHEN stock_quantity <= min_stock_level THEN true 
-          ELSE false 
+        CASE
+          WHEN stock_quantity <= min_stock_level THEN true
+          ELSE false
         END as is_low_stock,
-        CASE 
-          WHEN cost_price IS NOT NULL AND cost_price > 0 
+        CASE
+          WHEN cost_price IS NOT NULL AND cost_price > 0
           THEN ROUND(((price - cost_price) / cost_price * 100)::numeric, 2)
-          ELSE NULL 
+          ELSE NULL
         END as profit_margin_percent
-      FROM products 
+      FROM products
       WHERE id = $1
     `;
-    
+
     const result = await pool.query(query, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: true, message: 'Product not found' });
     }
-    
+
+    // A hidden product must not be reachable by direct id either. Return 404
+    // (not 403) to non-privileged callers so we don't even confirm it exists.
+    if (result.rows[0].is_visible === false && !callerCanSeeHidden(req)) {
+      return res.status(404).json({ error: true, message: 'Product not found' });
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     logger.error('Error fetching product:', error);
@@ -591,6 +647,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_des
       images,
       status = 'active',
       is_featured = false,
+      is_visible = true,
       tags,
       supplier_info,
       variants,
@@ -635,9 +692,9 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_des
         name, description, description_detailed, sku, category, subcategory, brand,
         price, cost_price, original_price, currency, stock_quantity, min_stock_level, weight, dimensions,
         image_url, images, status, is_featured, tags, supplier_info, created_by,
-        variants, colors, gender, sizes, source_url
+        variants, colors, gender, sizes, source_url, is_visible
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *
     `;
 
@@ -656,7 +713,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_des
       colors ? JSON.stringify(colors) : null,
       gender,
       sizes ? JSON.stringify(sizes) : null,
-      source_url
+      source_url,
+      is_visible !== false
     ];
 
     const result = await pool.query(query, values);
@@ -703,6 +761,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_d
       images,
       status,
       is_featured,
+      is_visible,
       tags,
       supplier_info,
       variants,
@@ -768,7 +827,8 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_d
         gender = COALESCE($24, gender),
         sizes = COALESCE($25, sizes),
         source_url = COALESCE($26, source_url),
-        original_price = $27
+        original_price = $27,
+        is_visible = COALESCE($31, is_visible)
       WHERE id = $1
       RETURNING *
     `;
@@ -791,7 +851,8 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_d
       original_price != null ? parseFloat(original_price) : null,
       hasImageUrl,
       hasImages,
-      hasColors
+      hasColors,
+      typeof is_visible === 'boolean' ? is_visible : null
     ];
 
     const result = await pool.query(query, values);

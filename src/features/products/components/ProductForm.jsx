@@ -222,6 +222,7 @@ const pickPlainProductForForm = (p) => {
     'gender',
     'status',
     'is_featured',
+    'is_visible',
     'source_url',
     'tags',
     'description',
@@ -690,6 +691,25 @@ const ProductForm = ({
                 <Switch checkedChildren={t('manager:products.form.featuredYes')} unCheckedChildren={t('manager:products.form.featuredNo')} />
               </Form.Item>
             </Col>
+            <Col xs={12} md={8}>
+              <Form.Item
+                name="is_visible"
+                label={(
+                  <span>
+                    {t('manager:products.form.visibleToShop', { defaultValue: 'Visible to the Shop/customer' })}{' '}
+                    <Tooltip title={t('manager:products.form.visibleToShopTooltip', { defaultValue: 'When off, this product is hidden from the customer-facing shop. Staff can still find it here in management.' })}>
+                      <InfoCircleOutlined className="text-slate-300" />
+                    </Tooltip>
+                  </span>
+                )}
+                valuePropName="checked"
+              >
+                <Switch
+                  checkedChildren={t('common:yes', { defaultValue: 'Yes' })}
+                  unCheckedChildren={t('common:no', { defaultValue: 'No' })}
+                />
+              </Form.Item>
+            </Col>
             <Col xs={24} md={12}>
               <Form.Item name="source_url" label="Source URL">
                 <Input placeholder="https://..." prefix={<LinkOutlined className="text-slate-300" />} />
@@ -920,6 +940,9 @@ const ProductForm = ({
         currency: selectedCurrency,
         status: 'active',
         is_featured: false,
+        // New products are visible to the shop/customer by default; staff can
+        // turn this off to hide a single item from the customer-facing storefront.
+        is_visible: true,
         tags: [],
         variants: [],
         colors: [],

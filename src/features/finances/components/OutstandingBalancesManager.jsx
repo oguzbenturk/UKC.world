@@ -40,6 +40,7 @@ import ReportingService from '../services/reportingService';
 import { formatCurrency, formatDate } from '@/shared/utils/formatters';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import { useCustomerDrawer } from '@/shared/contexts/CustomerDrawerContext';
  
 
 const { Option } = Select;
@@ -49,6 +50,7 @@ const { Search } = Input;
 function OutstandingBalancesManager() {
   const { t } = useTranslation(['manager']);
   const { businessCurrency, getCurrencySymbol } = useCurrency();
+  const { openCustomer } = useCustomerDrawer();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -187,15 +189,22 @@ function OutstandingBalancesManager() {
       title: t('manager:outstandingBalances.columns.customer'),
       dataIndex: 'customer_name',
       key: 'customer_name',
-      render: (text, record) => (
-        <div>
-          <div className="font-medium">{text}</div>
-          <div className="text-sm text-gray-500">{record.customer_email}</div>
-          {record.customer_phone && (
-            <div className="text-sm text-gray-500">{record.customer_phone}</div>
-          )}
-        </div>
-      ),
+      sorter: (a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''),
+      render: (text, record) => {
+        const canOpen = record.customer_id !== null && record.customer_id !== undefined;
+        return (
+          <div
+            className={canOpen ? 'cursor-pointer group' : undefined}
+            onClick={canOpen ? () => openCustomer({ id: record.customer_id, name: text, email: record.customer_email }) : undefined}
+          >
+            <div className={`font-medium ${canOpen ? 'text-indigo-600 group-hover:underline' : ''}`}>{text}</div>
+            <div className="text-sm text-gray-500">{record.customer_email}</div>
+            {record.customer_phone && (
+              <div className="text-sm text-gray-500">{record.customer_phone}</div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('manager:outstandingBalances.columns.outstandingBalance'),
@@ -227,6 +236,11 @@ function OutstandingBalancesManager() {
     {
       title: t('manager:outstandingBalances.columns.riskLevel'),
       key: 'risk_level',
+      filters: ['none', 'low', 'medium', 'high'].map(level => ({
+        text: t(`manager:outstandingBalances.riskLevels.${level}`),
+        value: level,
+      })),
+      onFilter: (value, record) => getRiskLevel(record.outstanding_balance, record.days_overdue).level === value,
       render: (_, record) => {
         const risk = getRiskLevel(record.outstanding_balance, record.days_overdue);
         return (
@@ -241,12 +255,14 @@ function OutstandingBalancesManager() {
       title: t('manager:outstandingBalances.columns.lastPayment'),
       dataIndex: 'last_payment_date',
       key: 'last_payment_date',
+      sorter: (a, b) => new Date(a.last_payment_date || 0) - new Date(b.last_payment_date || 0),
       render: (date) => date ? formatDate(date) : t('manager:outstandingBalances.noPayments'),
     },
     {
       title: t('manager:outstandingBalances.columns.totalBookings'),
       dataIndex: 'total_bookings',
       key: 'total_bookings',
+      sorter: (a, b) => (Number(a.total_bookings) || 0) - (Number(b.total_bookings) || 0),
       render: (count, record) => (
         <Tooltip title={`Total value: ${formatCurrency(record.total_booking_value)}`}>
           <span>{count}</span>

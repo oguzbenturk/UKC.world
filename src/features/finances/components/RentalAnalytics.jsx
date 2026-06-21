@@ -16,10 +16,14 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
 
     const rentalRevenue = Number(revenue.rental_revenue || 0);
     const rentalCount = Number(revenue.rental_count || 0);
+    // NOTE: these balances are ACCOUNT-WIDE customer debt/credit (across all services),
+    // not rental-specific — the /summary balances block isn't scoped by serviceType.
     const outstandingBalance = Number(balances.total_customer_debt || 0);
     const collectedPayments = Number(balances.total_customer_credit || 0);
     const avgRentalValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
-    const collectionRate = rentalRevenue > 0 ? 100 : 0;
+    // Real account-wide credit ratio instead of a hardcoded 100% that was always shown.
+    const accountTotal = collectedPayments + outstandingBalance;
+    const collectionRate = accountTotal > 0 ? (collectedPayments / accountTotal) * 100 : 0;
     const overdueAmount = outstandingBalance;
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
     const managerCommissionRate = rentalRevenue > 0 ? (managerCommission / rentalRevenue) * 100 : 0;
@@ -64,8 +68,8 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
     <div className="space-y-4">
       {rentalMetrics.overdueAmount > 0 && (
         <Alert
-          message="Outstanding Rentals Detected"
-          description={`${formatCurrency(rentalMetrics.overdueAmount)} in uncollected rental payments. Consider following up with customers.`}
+          message="Outstanding Customer Balances"
+          description={`${formatCurrency(rentalMetrics.overdueAmount)} owed across all services (account-wide, not rental-only). Consider following up with customers.`}
           type="warning"
           showIcon
           icon={<ExclamationCircleOutlined />}
@@ -106,14 +110,14 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="h-full">
             <Statistic
-              title="Collection Rate"
+              title="Collection Rate (all svc)"
               value={rentalMetrics.collectionRate}
               precision={1}
               suffix="%"
               valueStyle={{ color: rentalMetrics.collectionRate >= 90 ? '#52c41a' : '#faad14' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {formatCurrency(rentalMetrics.collectedPayments)} collected
+              {formatCurrency(rentalMetrics.collectedPayments)} customer credit (account-wide)
             </div>
           </Card>
         </Col>
@@ -121,13 +125,13 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="h-full">
             <Statistic
-              title="Outstanding"
+              title="Outstanding (all svc)"
               value={rentalMetrics.outstandingBalance}
               formatter={(value) => formatCurrency(value)}
               valueStyle={{ color: rentalMetrics.outstandingBalance > 0 ? '#cf1322' : '#52c41a' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {rentalMetrics.outstandingBalance > 0 ? 'Needs follow-up' : 'All settled'}
+              {rentalMetrics.outstandingBalance > 0 ? 'Account-wide customer debt' : 'All settled'}
             </div>
           </Card>
         </Col>

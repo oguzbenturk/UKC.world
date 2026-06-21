@@ -88,12 +88,18 @@ const ExpensesPage = () => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchExpenses = useCallback(async (page = 1, pageSize = 20) => {
+  // Server-side sort state (the /business-expenses endpoint validates these).
+  const [sort, setSort] = useState({ sort_by: 'expense_date', sort_order: 'DESC' });
+
+  const fetchExpenses = useCallback(async (page = 1, pageSize = 20, sortOverride = null) => {
     setLoading(true);
     try {
+      const activeSort = sortOverride || sort;
       const params = new URLSearchParams({
         page,
         limit: pageSize,
+        sort_by: activeSort.sort_by,
+        sort_order: activeSort.sort_order,
       });
 
       if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
@@ -124,7 +130,7 @@ const ExpensesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, sort]);
 
   // Initial load
   useEffect(() => {
@@ -138,8 +144,16 @@ const ExpensesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.dateRange, filters.category]);
 
-  const handleTableChange = (paginationConfig) => {
-    fetchExpenses(paginationConfig.current, paginationConfig.pageSize);
+  const handleTableChange = (paginationConfig, _filters, sorter) => {
+    // Translate Ant's sorter into the API's validated sort params (server-side
+    // sort, so it orders the FULL result set, not just the current page).
+    const VALID = ['expense_date', 'amount', 'category', 'created_at'];
+    const field = sorter?.field || sorter?.columnKey;
+    const nextSort = (sorter?.order && VALID.includes(field))
+      ? { sort_by: field, sort_order: sorter.order === 'ascend' ? 'ASC' : 'DESC' }
+      : { sort_by: 'expense_date', sort_order: 'DESC' };
+    setSort(nextSort);
+    fetchExpenses(paginationConfig.current, paginationConfig.pageSize, nextSort);
   };
 
   const handleSearch = (value) => {
@@ -274,6 +288,8 @@ const ExpensesPage = () => {
       dataIndex: 'expense_date',
       key: 'expense_date',
       width: 120,
+      sorter: true,
+      defaultSortOrder: 'descend',
       render: (date) => (
         <Text>{dayjs(date).format('MMM DD, YYYY')}</Text>
       ),
@@ -301,6 +317,7 @@ const ExpensesPage = () => {
       dataIndex: 'category',
       key: 'category',
       width: 160,
+      sorter: true,
       render: (category) => (
         <Tag color={getCategoryColor(category)}>
           {getCategoryLabel(category)}
@@ -313,9 +330,12 @@ const ExpensesPage = () => {
       key: 'amount',
       width: 120,
       align: 'right',
+      sorter: true,
       render: (amount) => (
         <Text strong style={{ color: '#cf1322' }}>
-          -{formatCurrency(amount)}
+          {/* Expenses are stored in EUR; label as EUR so a non-EUR viewer's symbol
+              isn't slapped on an unconverted number. */}
+          -{formatCurrency(amount, 'EUR')}
         </Text>
       ),
     },
@@ -412,7 +432,7 @@ const ExpensesPage = () => {
               title={t('manager:finances.expenses.summary.totalExpenses')}
               value={summary.totalExpenses}
               prefix={<DollarOutlined />}
-              formatter={(value) => formatCurrency(value)}
+              formatter={(value) => formatCurrency(value, 'EUR')}
               valueStyle={{ color: '#cf1322' }}
             />
           </Card>
@@ -431,7 +451,7 @@ const ExpensesPage = () => {
               <Statistic
                 title={getCategoryLabel(cat.category)}
                 value={cat.total_amount}
-                formatter={(value) => formatCurrency(value)}
+                formatter={(value) => formatCurrency(value, 'EUR')}
                 valueStyle={{ color: getCategoryColor(cat.category) === 'red' ? '#cf1322' : '#1890ff' }}
               />
             </Card>

@@ -206,6 +206,7 @@ const ShopPage = () => {
                     limit: 500,
                     category,
                     status: 'active',
+                    visible_only: true,
                     subcategory: filterSubcat && filterSubcat !== 'all' ? filterSubcat : undefined,
                     brand: filterBrand && filterBrand !== 'all' ? filterBrand : undefined,
                     min_price: filterPrice && filterPrice[0] > 0 ? filterPrice[0] : undefined,

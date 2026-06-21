@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { formatCurrency } from '@/shared/utils/formatters';
 import { UserOutlined } from '@ant-design/icons';
 import apiClient from '@/shared/services/apiClient';
+import { useCustomerDrawer } from '@/shared/contexts/CustomerDrawerContext';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#4f46e5', '#4338ca', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95'];
 const TREND_COLOR = '#6366f1';
@@ -46,6 +47,7 @@ const WalletDepositCharts = ({ dateRange }) => {
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const { openCustomer } = useCustomerDrawer();
 
   const loadData = async () => {
     setLoading(true);
@@ -128,6 +130,10 @@ const WalletDepositCharts = ({ dateRange }) => {
     depositCount: d.depositCount,
   }));
 
+  // Payment-method filter options, derived from the rows actually present.
+  const paymentMethodFilters = [...new Set(deposits.map(d => d.paymentMethod).filter(Boolean))]
+    .map(pm => ({ text: PAYMENT_METHOD_LABELS[pm] || pm, value: pm }));
+
   // Deposit table columns
   const depositColumns = [
     {
@@ -135,21 +141,28 @@ const WalletDepositCharts = ({ dateRange }) => {
       dataIndex: 'createdAt',
       key: 'date',
       width: 120,
+      defaultSortOrder: 'descend',
+      sorter: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
       render: (t) => t ? new Date(t).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
     },
     {
       title: 'Student',
       key: 'user',
+      sorter: (a, b) => (a.user?.name || '').localeCompare(b.user?.name || ''),
       render: (_, r) => {
         const name = r.user?.name || 'Unknown';
         const color = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+        const canOpen = r.userId !== null && r.userId !== undefined;
         return (
-          <div className="flex items-center gap-2 min-w-0">
+          <div
+            className={`flex items-center gap-2 min-w-0 ${canOpen ? 'cursor-pointer group' : ''}`}
+            onClick={canOpen ? () => openCustomer({ id: r.userId, name, email: r.user?.email }) : undefined}
+          >
             <Avatar size={28} style={{ backgroundColor: color, flexShrink: 0 }}>
               {name[0]?.toUpperCase() || <UserOutlined />}
             </Avatar>
             <div className="min-w-0">
-              <div className="font-medium text-slate-900 truncate text-sm">{name}</div>
+              <div className={`font-medium truncate text-sm ${canOpen ? 'text-indigo-600 group-hover:underline' : 'text-slate-900'}`}>{name}</div>
               <div className="text-xs text-slate-400 truncate">{r.user?.email}</div>
             </div>
           </div>
@@ -162,6 +175,7 @@ const WalletDepositCharts = ({ dateRange }) => {
       key: 'amount',
       width: 160,
       align: 'right',
+      sorter: (a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0),
       render: (v, r) => {
         const originalLabel = r.originalCurrency && r.originalCurrency !== 'EUR'
           ? formatOriginalAmount(r.originalAmount, r.originalCurrency)
@@ -181,6 +195,8 @@ const WalletDepositCharts = ({ dateRange }) => {
       dataIndex: 'paymentMethod',
       key: 'paymentMethod',
       width: 140,
+      filters: paymentMethodFilters,
+      onFilter: (value, r) => r.paymentMethod === value,
       render: (v) => {
         if (!v) return <span className="text-slate-400 text-sm">—</span>;
         const label = PAYMENT_METHOD_LABELS[v] || v;

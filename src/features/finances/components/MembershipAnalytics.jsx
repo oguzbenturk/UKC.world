@@ -15,6 +15,8 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
 
     const membershipRevenue = Number(revenue.membership_revenue || revenue.vip_membership_revenue || 0);
     const membershipCount = Number(revenue.membership_count || 0);
+    // Account-wide customer debt (across all services), not membership-specific — the
+    // /summary balances block isn't scoped by serviceType.
     const outstandingBalance = Number(balances.total_customer_debt || 0);
     const avgValue = membershipCount > 0 ? membershipRevenue / membershipCount : 0;
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
@@ -88,13 +90,13 @@ const MembershipAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={8}>
           <Card className="h-full">
             <Statistic
-              title="Outstanding"
+              title="Outstanding (all svc)"
               value={membershipMetrics.outstandingBalance}
               formatter={(value) => formatCurrency(value)}
               valueStyle={{ color: membershipMetrics.outstandingBalance > 0 ? '#cf1322' : '#52c41a' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {membershipMetrics.outstandingBalance > 0 ? 'Needs follow-up' : 'All settled'}
+              {membershipMetrics.outstandingBalance > 0 ? 'Account-wide customer debt' : 'All settled'}
             </div>
           </Card>
         </Col>

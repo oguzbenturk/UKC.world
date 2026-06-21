@@ -1123,12 +1123,16 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
     const sortDirection = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     const ordersResult = await pool.query(`
-      SELECT 
+      SELECT
         o.*,
         u.first_name,
         u.last_name,
         u.email,
         u.phone,
+        -- Staff line-item % discounts live in the separate discounts table and never
+        -- mutate o.total_amount, so the headline revenue must subtract them at read time.
+        COALESCE(d.amt, 0) AS total_discount_amount,
+        GREATEST(COALESCE(o.total_amount, 0) - COALESCE(d.amt, 0), 0) AS total_after_discount,
         (SELECT COUNT(*) FROM shop_order_items WHERE order_id = o.id) as item_count,
         (SELECT json_agg(json_build_object(
           'id', oi.id,
@@ -1142,6 +1146,7 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
         )) FROM shop_order_items oi WHERE oi.order_id = o.id) as items
       FROM shop_orders o
       LEFT JOIN users u ON o.user_id = u.id
+      ${discountSumLateral('d', 'shop_order', 'o.id')}
       ${whereClause}
       ORDER BY o.${sortColumn} ${sortDirection}
       LIMIT $${paramIndex++} OFFSET $${paramIndex++}
@@ -1154,7 +1159,8 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
       ${whereClause}
     `, params);
 
-    // Get summary stats
+    // Get summary stats. total_revenue is discount-net (subtracts the discounts-table
+    // amount that o.total_amount keeps gross of) so it reconciles with total_after_discount.
     const statsResult = await pool.query(`
       SELECT
         COUNT(*) as total_orders,
@@ -1163,8 +1169,9 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
         COUNT(*) FILTER (WHERE status = 'processing') as processing_count,
         COUNT(*) FILTER (WHERE status = 'shipped') as shipped_count,
         COUNT(*) FILTER (WHERE status = 'delivered') as delivered_count,
-        COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'completed'), 0) as total_revenue
-      FROM shop_orders
+        COALESCE(SUM(GREATEST(COALESCE(o.total_amount, 0) - COALESCE(d.amt, 0), 0)) FILTER (WHERE o.payment_status = 'completed'), 0) as total_revenue
+      FROM shop_orders o
+      ${discountSumLateral('d', 'shop_order', 'o.id')}
     `);
 
     res.json({

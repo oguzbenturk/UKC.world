@@ -109,7 +109,8 @@ const ProductAddOns = ({ category, subcategory, currentProductId, onSelectionCha
                 const result = await productApi.getProducts({
                     category,
                     limit: 200,
-                    status: 'active'
+                    status: 'active',
+                    visible_only: true
                 });
                 if (cancelled) return;
 
