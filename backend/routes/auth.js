@@ -519,23 +519,32 @@ router.post('/refresh-token', authenticateJWT, async (req, res) => {
     
     // Get full user data for frontend
     const fullUserResult = await pool.query(`
-      SELECT 
-        u.id, 
-        u.email, 
+      SELECT
+        u.id,
+        u.email,
         COALESCE(u.name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, ''))) as name,
-        u.first_name, 
+        u.first_name,
         u.last_name,
-        u.created_at, 
+        u.created_at,
         u.updated_at,
         u.profile_image_url,
-        r.name as role
+        r.name as role,
+        r.permissions as role_permissions
       FROM users u
       LEFT JOIN roles r ON r.id = u.role_id
       WHERE u.id = $1 AND u.deleted_at IS NULL
     `, [userId]);
-    
+
     const userData = fullUserResult.rows[0];
-    
+
+    // Include role permissions so custom-role route/sidebar guards keep working after a
+    // refresh. Omitting this wiped user.permissions on every silent refresh, which bounced
+    // custom roles (e.g. receptionist) out of every permission-gated page.
+    if (userData) {
+      userData.permissions = userData.role_permissions || {};
+      delete userData.role_permissions;
+    }
+
     // Get consent status
     let consent = null;
     try {
@@ -645,13 +654,22 @@ router.post('/refresh-session', async (req, res) => {
         u.created_at,
         u.updated_at,
         u.profile_image_url,
-        r.name as role
+        r.name as role,
+        r.permissions as role_permissions
       FROM users u
       LEFT JOIN roles r ON r.id = u.role_id
       WHERE u.id = $1 AND u.deleted_at IS NULL
     `, [account.id]);
 
     const userData = fullUserResult.rows[0];
+
+    // Include role permissions so custom-role route/sidebar guards keep working after a
+    // refresh. Omitting this wiped user.permissions on every silent refresh, which bounced
+    // custom roles (e.g. receptionist) out of every permission-gated page.
+    if (userData) {
+      userData.permissions = userData.role_permissions || {};
+      delete userData.role_permissions;
+    }
 
     let consent = null;
     try {

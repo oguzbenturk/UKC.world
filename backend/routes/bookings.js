@@ -29,8 +29,28 @@ import socketService from '../services/socketService.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
+import { applyDiscount } from '../services/discountService.js';
+import { switchBookingFunding } from '../services/bookingFundingService.js';
 
 const router = express.Router();
+
+// Apply a manual % discount to a just-created booking, using the SAME mechanism
+// as the customer-drawer "Discount" action (discounts table + wallet credit on
+// paid + commission/earnings recompute) so a staff discount entered in a create
+// form is applied at booking time instead of as a separate step afterwards.
+// Runs inside the create transaction; a bad percent rolls the whole booking back.
+async function applyCreationDiscountForBooking(client, booking, req, actorId) {
+  const pct = parseFloat(req.body?.discount_percent);
+  if (!(pct > 0) || !booking?.id || !booking?.student_user_id) return;
+  await applyDiscount(client, {
+    customerId: booking.student_user_id,
+    entityType: 'booking',
+    entityId: booking.id,
+    percent: pct,
+    reason: req.body?.discount_reason || 'Discount applied at booking creation',
+    createdBy: actorId,
+  });
+}
 
 // If the booking's student is personally linked to its instructor (self-student),
 // freeze a booking_custom_commissions row at the instructor's per-instructor
@@ -2929,6 +2949,10 @@ router.post('/',
         );
       }
     }
+
+    // Apply a staff discount entered in the create form (same as the drawer).
+    await applyCreationDiscountForBooking(client, booking, req, actorId);
+
       await client.query('COMMIT');
 
     // Seed the instructor_earnings snapshot at creation (S1), matching POST
@@ -3937,9 +3961,12 @@ router.post('/group',
         );
       }
     }
-    
+
+    // Apply a staff discount entered in the create form (same as the drawer).
+    await applyCreationDiscountForBooking(client, booking, req, actorId);
+
     await client.query('COMMIT');
-    
+
     // Fetch the complete booking with participants for response
     const completeBookingQuery = `
       SELECT 
@@ -4624,6 +4651,10 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
           throw walletError;
         }
       }
+
+      // Apply a staff discount entered in the create form (same as the drawer).
+      await applyCreationDiscountForBooking(client, booking.rows[0], req, actorId);
+
         // Commit transaction
       await client.query('COMMIT');
 
@@ -7129,6 +7160,40 @@ async function ensureRentalFromBooking(client, booking, actorUserId) {
     });
   }
 }
+
+// POST /:id/switch-funding - Convert an existing booking between cash and package
+// funding from the booking detail view. Atomic: the ledger write, wallet
+// settlement and earnings/commission cascade all commit (or roll back) together.
+//   body: { mode: 'package' | 'cash', customer_package_id?: <uuid> }
+router.post('/:id/switch-funding', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist', 'owner']), async (req, res) => {
+  const { id } = req.params;
+  const { mode, customer_package_id } = req.body || {};
+  const actorId = resolveActorId(req);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await switchBookingFunding(client, {
+      bookingId: id,
+      mode,
+      requestedPackageId: customer_package_id || null,
+      actorId,
+    });
+    await client.query('COMMIT');
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    const status = error.statusCode || 500;
+    if (status >= 500) {
+      logger.error('Failed to switch booking funding', {
+        bookingId: id, mode, error: error.message, stack: error.stack,
+      });
+    }
+    return res.status(status).json({ error: error.message || 'Failed to switch booking funding' });
+  } finally {
+    client.release();
+  }
+});
 
 // PATCH /:id/status - Update booking status (for approve/decline actions from notifications)
 router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'owner']), async (req, res) => {

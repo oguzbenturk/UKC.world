@@ -602,6 +602,10 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
     item('/admin/ratings-analytics', 'Rating Analytics', 'PresentationChartBarIcon', {
       labelKey: 'common:nav.ratingAnalytics',
       customStyle: { textColor: '#f59e0b' }
+    }),
+    item('/wind-report', 'Wind Report', 'CloudIcon', {
+      labelKey: 'common:nav.windReport',
+      customStyle: { textColor: '#0ea5e9' }
     })
   ];
 

@@ -1080,7 +1080,9 @@ function CalendarProvider({ children }) {
         paymentStatus: 'paid', // Pay-and-go: default to paid
         checkinStatus: 'pending',
         checkoutStatus: 'pending',
-        allowNegativeBalance: bookingData.allowNegativeBalance === true // Allow wallet to go negative if explicitly enabled
+        allowNegativeBalance: bookingData.allowNegativeBalance === true, // Allow wallet to go negative if explicitly enabled
+        // Staff discount applied at booking time (backend applies via discounts table)
+        ...(bookingData.discount_percent > 0 ? { discount_percent: Number(bookingData.discount_percent) } : {})
       };
 
       // Debug logging for package consumption

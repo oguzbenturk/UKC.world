@@ -34,6 +34,7 @@ import FinancialService from '../../finances/services/financialService';
 import eventBus from '@/shared/utils/eventBus';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import UnifiedTable from '@/shared/components/tables/UnifiedTable';
+import UpgradePackageModal from './UpgradePackageModal';
 
 // Select.Option not used in the new wizard UI
 
@@ -510,6 +511,28 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
     }
   }, [customer, availablePackages, selectedParticipants, form, loadCustomerFinancialData, onPackageAssigned, startAssignFlow, onClose]);
 
+  // Package targeted by the Upgrade modal (null = closed).
+  const [upgradePkg, setUpgradePkg] = useState(null);
+
+  // Lesson packages are the only upgrade candidates (rental/accommodation-only
+  // packages have no per-hour lesson rate to re-price).
+  const isLessonPackage = (record) =>
+    record && record.includesLessons !== false && Number(record.totalHours ?? record.total_hours ?? 0) > 0;
+
+  const handleUpgraded = async (result) => {
+    try {
+      const repriced = result?.affectedLessons?.length || 0;
+      message.success(
+        repriced
+          ? `Package upgraded — ${repriced} lesson${repriced === 1 ? '' : 's'} re-priced`
+          : 'Package upgraded'
+      );
+      eventBus.emit('packages:changed', { reason: 'upgrade', customers: [customer?.id] });
+      await loadCustomerFinancialData();
+      if (onPackageAssigned) onPackageAssigned();
+    } catch { /* ignore */ }
+  };
+
   const handleDeletePackage = async (packageId) => {
     try {
       setLoading(true);
@@ -817,6 +840,9 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
               })}
             >Edit Price</Button>
           )}
+          {!disableActions && isLessonPackage(record) && (
+            <Button type="link" size="small" onClick={() => setUpgradePkg(record)}>Upgrade</Button>
+          )}
           {!disableActions && (
             <Popconfirm
               title="Are you sure you want to delete this package?"
@@ -919,7 +945,9 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
   const renderCardActions = (record, _statusText) => (
     disableActions ? null : (
       <Space size="small">
-        {/* Use Hours button removed per requirements */}
+        {isLessonPackage(record) && (
+          <Button size="small" onClick={() => setUpgradePkg(record)}>Upgrade</Button>
+        )}
         <Popconfirm
           title="Delete this package?"
           onConfirm={() => handleDeletePackage(record.id)}
@@ -1093,6 +1121,15 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
           )
         ) : (
           <Empty description="No packages found for this customer" />
+        )}
+
+        {upgradePkg && (
+          <UpgradePackageModal
+            open={!!upgradePkg}
+            pkg={upgradePkg}
+            onClose={() => setUpgradePkg(null)}
+            onUpgraded={handleUpgraded}
+          />
         )}
       </div>
   );

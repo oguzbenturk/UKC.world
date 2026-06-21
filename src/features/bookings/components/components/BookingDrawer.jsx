@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useMemo, useRef, Component } from 'react';
-import { Drawer, Select, Spin, Alert, Checkbox, Modal, AutoComplete, App } from 'antd';
+import { Drawer, Select, Spin, Alert, Checkbox, Modal, AutoComplete, App, InputNumber } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
   CheckCircleFilled,
@@ -1151,7 +1151,9 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             notes: formData.notes || '',
             location: 'TBD',
             participants: processedParticipants,
-            allowNegativeBalance: formData.allowNegativeBalance === true
+            allowNegativeBalance: formData.allowNegativeBalance === true,
+            // Staff discount applied at booking time (backend → discounts table, same as drawer)
+            ...(formData.discountPercent > 0 ? { discount_percent: Number(formData.discountPercent) } : {})
           };
 
           const token = localStorage.getItem('token');
@@ -1197,7 +1199,9 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             paymentMethod: usePackage ? 'package' : 'cash',
             customerPackageId: usePackage ? pkgId : null,
             isGroupBooking: false,
-            participants: formData.participants || []
+            participants: formData.participants || [],
+            // Staff discount applied at booking time (backend → discounts table, same as drawer)
+            ...(formData.discountPercent > 0 ? { discount_percent: Number(formData.discountPercent) } : {})
           };
           resp = await createBooking(singleData);
         }
@@ -1383,6 +1387,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
   // Wallet-side total cost for the whole booking series
   const effectiveTotal = lessonBreakdown.grandTotal;
+
+  // Live discount preview — mirrors the staff discount applied at booking time
+  const discountPct = Math.min(Math.max(Number(formData.discountPercent) || 0, 0), 100);
+  const discountAmount = effectiveTotal * (discountPct / 100);
+  const discountedTotal = effectiveTotal - discountAmount;
 
   // Per-participant single-lesson cost (used by the "wallet payer" badge in review)
   const perPersonCost = useMemo(() => {
@@ -2095,9 +2104,43 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                   )}
                 </div>
               ))}
+              {discountPct > 0 && (
+                <div className="py-1.5 flex justify-between items-center -mx-5 px-5 text-sm">
+                  <span className="text-emerald-600">Discount ({discountPct}%)</span>
+                  <span className="text-emerald-600 font-medium">−{formatPrice(discountAmount)}</span>
+                </div>
+              )}
               <div className="py-3 flex justify-between items-center bg-slate-50 -mx-5 px-5 rounded-lg mt-2">
                 <span className="text-slate-600 font-semibold">Total (wallet)</span>
-                <span className="text-lg font-bold text-slate-900">{formatPrice(effectiveTotal)}</span>
+                <span className="text-lg font-bold text-slate-900">
+                  {discountPct > 0 && (
+                    <span className="text-sm font-normal text-slate-400 line-through mr-1.5">{formatPrice(effectiveTotal)}</span>
+                  )}
+                  {formatPrice(discountedTotal)}
+                </span>
+              </div>
+            </div>
+
+            {/* Discount — applied at booking time, same mechanism as the customer drawer */}
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-slate-600">Discount</label>
+              <div className="flex items-center gap-2">
+                <InputNumber
+                  min={0}
+                  max={100}
+                  step={1}
+                  precision={2}
+                  value={formData.discountPercent ?? null}
+                  onChange={(v) => updateFormData({ discountPercent: v })}
+                  addonAfter="%"
+                  placeholder="0"
+                  style={{ width: 130 }}
+                />
+                {formData.discountPercent > 0 && (
+                  <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">
+                    −{formData.discountPercent}% applied
+                  </span>
+                )}
               </div>
             </div>
 

@@ -4,7 +4,8 @@ import { Drawer, Modal, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
-import { XMarkIcon, PencilSquareIcon, TrashIcon, CheckCircleIcon, CheckIcon, ClockIcon, CurrencyDollarIcon, UserCircleIcon, CalendarDaysIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PencilSquareIcon, TrashIcon, CheckCircleIcon, CheckIcon, ClockIcon, CurrencyDollarIcon, UserCircleIcon, CalendarDaysIcon, InformationCircleIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
+import BookingFundingModal from './BookingFundingModal';
 import { format } from 'date-fns';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useData } from '@/shared/hooks/useData';
@@ -91,6 +92,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showFundingModal, setShowFundingModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState(null);
@@ -1725,6 +1727,22 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           </button>
                         )}
 
+                        {/* Switch funding: cash ↔ package. Single-participant only (backend
+                            rejects group switching in v1). */}
+                        {booking.status !== 'cancelled' && !(booking.participants && booking.participants.length > 1) && (
+                          <button
+                            type="button"
+                            className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 transition-colors"
+                            onClick={() => setShowFundingModal(true)}
+                            disabled={isProcessing}
+                          >
+                            <ArrowsRightLeftIcon className="h-3.5 w-3.5 mr-1" />
+                            {isPackageBooking(booking) || booking.payment_status === 'partial'
+                              ? 'Switch to Cash'
+                              : 'Assign to Package'}
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 transition-colors"
@@ -1923,6 +1941,22 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
           onUpdate={() => {}}
         />
       </Suspense>
+    )}
+
+    {showFundingModal && (
+      <BookingFundingModal
+        open={showFundingModal}
+        booking={booking}
+        onClose={() => setShowFundingModal(false)}
+        onDone={(result) => {
+          try {
+            const label = result?.mode === 'cash' ? 'Lesson switched to cash' : 'Lesson assigned to package';
+            showSuccess?.(label);
+          } catch { /* ignore */ }
+          refreshData?.();
+          onClose?.();
+        }}
+      />
     )}
   </>
   );

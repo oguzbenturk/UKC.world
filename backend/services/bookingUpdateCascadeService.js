@@ -425,9 +425,19 @@ class BookingUpdateCascadeService {
           await this.updateCustomerBalance(client, booking, changes);
         }
         
-        // 4. Update package calculations (if using packages)
-        if (booking.payment_status === 'package' && changes.final_amount !== undefined) {
-          await this.updatePackageCalculations(client, booking, changes);
+        // 4. Keep a package booking's displayed price (final_amount) in lockstep
+        // with its lesson value when the DURATION changes — e.g. a 2h package
+        // lesson checked out at 1.5h. The reconcile updates package hours but
+        // leaves final_amount stale; without this the row keeps showing the 2h
+        // price. No wallet movement — package bookings are paid in hours
+        // (updateCustomerBalance skips payment_status='package'). Works for
+        // legacy single-package AND spillover (computeLessonAmount is ledger-first).
+        // NOTE: the legacy updatePackageCalculations() call was removed — it only
+        // INSERTed into a non-existent `package_usage_log` table, and that failed
+        // query silently poisoned the surrounding transaction.
+        if (booking.payment_status === 'package' && booking.customer_package_id
+            && (changes.duration !== undefined || changes.final_amount !== undefined)) {
+          await this.syncBookingFinalAmountFromPackage(client, booking);
         }
         
         // 5. Invalidate cached analytics

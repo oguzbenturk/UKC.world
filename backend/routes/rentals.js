@@ -12,6 +12,7 @@ import bookingNotificationService from '../services/bookingNotificationService.j
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+import { applyDiscount } from '../services/discountService.js';
 
 const RENTAL_CACHE_PATTERNS = ['api:GET:/api/rentals*'];
 
@@ -747,7 +748,23 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
         );
       }
     }
-    
+
+    // Apply a staff discount entered in the create form (same mechanism as the
+    // customer-drawer Discount action: discounts table + wallet credit if paid).
+    {
+      const pct = parseFloat(req.body?.discount_percent);
+      if (pct > 0 && rental?.id && user_id) {
+        await applyDiscount(client, {
+          customerId: user_id,
+          entityType: 'rental',
+          entityId: rental.id,
+          percent: pct,
+          reason: req.body?.discount_reason || 'Discount applied at rental creation',
+          createdBy: actorId || null,
+        });
+      }
+    }
+
     await client.query('COMMIT');
     
     // Fetch the complete rental data with enriched equipment info

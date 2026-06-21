@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Drawer, Select, Spin, message, Tooltip } from 'antd';
+import { Drawer, Select, Spin, message, Tooltip, InputNumber, DatePicker } from 'antd';
+import dayjs from 'dayjs';
+import { applyDiscount } from '@/features/customers/components/customerBill/discountApi';
 import {
   CrownOutlined,
   SearchOutlined,
@@ -166,6 +168,10 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [units, setUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(null);
+  // Membership start date — defaults to today; staff can back/forward-date it.
+  // Drives purchased_at and (with the plan's duration) the expiry on the backend.
+  const [startDate, setStartDate] = useState(() => dayjs());
 
   const isStorage = selectedOffering?.category === 'storage';
 
@@ -203,6 +209,8 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     setSelectedCustomers([]); setCustomerSearch('');
     setSelectedOffering(null);
     setSelectedUnit(null); setUnits([]); setUnitsLoading(false);
+    setDiscountPercent(null);
+    setStartDate(dayjs());
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -215,13 +223,32 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
       setSubmitting(true);
       // For storage, the SAME box # is sent for every selected customer, so a group shares
       // one physical box (each gets their own record on that unit).
-      await Promise.all(selectedCustomers.map(userId =>
+      const purchaseResponses = await Promise.all(selectedCustomers.map(userId =>
         apiClient.post('/member-offerings/admin/purchases', {
           userId, offeringId: selectedOffering.id, paymentMethod: 'wallet',
           allowNegativeBalance: isElevated,
+          ...(startDate ? { startDate: startDate.format('YYYY-MM-DD') } : {}),
           ...(isStorage ? { storageUnit: selectedUnit } : {}),
         })
       ));
+      // Staff discount applied at creation — same mechanism as the customer drawer
+      // (POST /api/discounts → discounts table + wallet credit). The membership's
+      // wallet charge is posted post-commit, so we apply the discount here (after
+      // the purchase + its charge exist) rather than inside the create transaction.
+      const pct = Number(discountPercent);
+      if (pct > 0) {
+        await Promise.all(purchaseResponses.map((resp, i) => {
+          const purchaseId = resp?.data?.id;
+          if (!purchaseId) return null;
+          return applyDiscount({
+            customerId: selectedCustomers[i],
+            entityType: 'member_purchase',
+            entityId: purchaseId,
+            percent: pct,
+            reason: 'Discount applied at membership creation',
+          }).catch((e) => { message.warning(`Membership created, but discount failed: ${e.message}`); });
+        }));
+      }
       message.success(`Membership assigned to ${selectedCustomers.length} customer${selectedCustomers.length > 1 ? 's' : ''}!`);
       queryClient.invalidateQueries(['admin-member-purchases']);
       queryClient.invalidateQueries(['admin-member-stats']);
@@ -248,6 +275,8 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     selectedOffering, setSelectedOffering,
     isStorage,
     selectedUnit, setSelectedUnit, units, unitsLoading,
+    discountPercent, setDiscountPercent,
+    startDate, setStartDate,
     canSubmit: !!(
       selectedCustomers.length &&
       selectedOffering &&
@@ -295,7 +324,12 @@ const CustomerPicker = ({ filteredCustomers, selectedCustomers, onSelect, onSear
   </div>
 );
 
-const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, isStorage, selectedUnit }) => (
+const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, isStorage, selectedUnit, discountPercent, startDate }) => {
+  const subtotal = (selectedOffering?.price || 0) * count;
+  const pct = Math.min(Math.max(Number(discountPercent) || 0, 0), 100);
+  const discountAmount = subtotal * (pct / 100);
+  const total = subtotal - discountAmount;
+  return (
   <div className="rounded-xl border border-slate-200 overflow-hidden">
     <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Summary</p>
@@ -309,6 +343,17 @@ const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, is
         <span className="text-slate-500">Plan</span>
         <span className="font-medium text-slate-800 truncate max-w-[200px] text-right">{selectedOffering?.name}</span>
       </div>
+      {startDate && (
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Starts</span>
+          <span className="font-medium text-slate-800">
+            {startDate.format('DD MMM YYYY')}
+            {selectedOffering?.duration_days
+              ? <span className="text-slate-400 font-normal"> → {startDate.clone().add(selectedOffering.duration_days, 'day').format('DD MMM YYYY')}</span>
+              : null}
+          </span>
+        </div>
+      )}
       {isStorage && selectedUnit != null && (
         <div className="flex justify-between text-sm">
           <span className="text-slate-500">Box</span>
@@ -323,12 +368,22 @@ const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, is
         <p className="text-xs text-amber-600 pt-0.5">Negative balance allowed for your role</p>
       )}
     </div>
+    {pct > 0 && (
+      <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-sm">
+        <span className="text-emerald-600">Discount ({pct}%)</span>
+        <span className="font-medium text-emerald-600">−{formatCurrency(discountAmount)}</span>
+      </div>
+    )}
     <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
       <span className="text-sm font-semibold text-slate-600">Total{count > 1 && <span className="text-slate-400 font-normal text-xs ml-1">({formatCurrency(selectedOffering?.price || 0)} × {count})</span>}</span>
-      <span className="text-lg font-bold text-slate-900">{formatCurrency((selectedOffering?.price || 0) * count)}</span>
+      <span className="text-lg font-bold text-slate-900">
+        {pct > 0 && <span className="text-sm font-normal text-slate-400 line-through mr-1.5">{formatCurrency(subtotal)}</span>}
+        {formatCurrency(total)}
+      </span>
     </div>
   </div>
-);
+  );
+};
 
 const DrawerFooter = ({ canSubmit, submitting, count, onClose, onSubmit }) => (
   <div className="flex gap-2">
@@ -365,6 +420,8 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
     selectedOffering, setSelectedOffering,
     isStorage,
     selectedUnit, setSelectedUnit, units, unitsLoading,
+    discountPercent, setDiscountPercent,
+    startDate, setStartDate,
     canSubmit,
     handleClose, handleSubmit,
   } = useMemberDrawer(isOpen, onClose, isElevated);
@@ -416,6 +473,22 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
         )}
 
         <div className="mt-5">
+          <SectionHeader label="Start Date" />
+          <DatePicker
+            value={startDate}
+            onChange={setStartDate}
+            allowClear={false}
+            format="DD MMM YYYY"
+            className="w-full"
+            size="large"
+            getPopupContainer={(trigger) => trigger.parentElement}
+          />
+          <p className="text-xs text-slate-400 mt-1.5">
+            When the membership starts. Expiry is calculated from this date and the plan's duration.
+          </p>
+        </div>
+
+        <div className="mt-5">
           <SectionHeader label="Payment" />
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50">
             <WalletOutlined className="text-slate-400" />
@@ -423,6 +496,25 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
               <p className="text-sm font-medium text-slate-700">Wallet Balance</p>
               <p className="text-xs text-slate-400">{isElevated ? 'Negative balance allowed for your role' : 'Deducted from customer wallet'}</p>
             </div>
+          </div>
+        </div>
+
+        {/* Discount — applied at creation, same mechanism as the customer drawer */}
+        <div className="mt-5">
+          <SectionHeader label="Discount (optional)" />
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200">
+            <span className="text-sm text-slate-600">Staff discount</span>
+            <InputNumber
+              min={0}
+              max={100}
+              step={1}
+              precision={2}
+              value={discountPercent}
+              onChange={setDiscountPercent}
+              addonAfter="%"
+              placeholder="0"
+              style={{ width: 130 }}
+            />
           </div>
         </div>
 
@@ -435,6 +527,8 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
             isElevated={isElevated}
             isStorage={isStorage}
             selectedUnit={selectedUnit}
+            discountPercent={discountPercent}
+            startDate={startDate}
           />
           </div>
         )}

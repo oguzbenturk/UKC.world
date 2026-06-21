@@ -8,7 +8,7 @@ import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
 import CurrencyService from '../services/currencyService.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getWalletAccountSummary, recordLegacyTransaction, recordTransaction } from '../services/walletService.js';
-import { forceDeleteCustomerPackage, mapWalletTransactionForResponse, updateCustomerPackagePrice } from '../services/customerPackageService.js';
+import { forceDeleteCustomerPackage, mapWalletTransactionForResponse, updateCustomerPackagePrice, upgradeCustomerPackage } from '../services/customerPackageService.js';
 import { upgradeOutsiderToStudent, isOutsiderRole } from '../services/roleUpgradeService.js';
 import { setPackagePrices, getPackagePrices, getPackagePricesBatch, setServicePrices, getServicePrices, getServicePricesBatch, getPackagePriceInCurrency, getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
 import voucherService from '../services/voucherService.js';
@@ -2359,6 +2359,91 @@ router.patch('/customer-packages/:id/price', authenticateJWT, authorize(['admin'
       });
     }
     return res.status(status).json({ error: error.message || 'Failed to edit package price' });
+  } finally {
+    client.release();
+  }
+});
+
+// Upgrade a customer package to a bigger/better tier and re-price its completed
+// lessons. See upgradeCustomerPackage for the full cascade. Receptionist +
+// front_desk share the same staff access as the customer-drawer package actions.
+const UPGRADE_ROLES = ['admin', 'manager', 'front_desk', 'receptionist', 'owner'];
+
+// Dry-run preview: returns the exact summary (per-lesson old→new, wallet delta,
+// paid-out count) WITHOUT persisting — the transaction is rolled back.
+router.post('/customer-packages/:id/upgrade/preview', authenticateJWT, authorize(UPGRADE_ROLES), async (req, res) => {
+  const { id } = req.params;
+  const { new_service_package_id, settle_wallet } = req.body || {};
+  const actorId = resolveActorId(req);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await upgradeCustomerPackage({
+      client,
+      packageId: id,
+      newServicePackageId: new_service_package_id,
+      reason: 'preview',
+      settleWallet: settle_wallet !== false,
+      actorId,
+      dryRun: true,
+    });
+    await client.query('ROLLBACK'); // never persist a preview
+    return res.json({ success: true, preview: true, ...result });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    const status = error.statusCode || 500;
+    if (status >= 500) {
+      logger.error('Failed to preview package upgrade', { packageId: id, error: error.message, stack: error.stack });
+    }
+    return res.status(status).json({ error: error.message || 'Failed to preview package upgrade' });
+  } finally {
+    client.release();
+  }
+});
+
+router.post('/customer-packages/:id/upgrade', authenticateJWT, authorize(UPGRADE_ROLES), async (req, res) => {
+  const { id } = req.params;
+  const { new_service_package_id, reason, settle_wallet } = req.body || {};
+  const actorId = resolveActorId(req);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await upgradeCustomerPackage({
+      client,
+      packageId: id,
+      newServicePackageId: new_service_package_id,
+      reason,
+      settleWallet: settle_wallet !== false,
+      actorId,
+      dryRun: false,
+    });
+    await client.query('COMMIT');
+    return res.json({
+      success: true,
+      package: result.package,
+      oldPrice: result.oldPrice,
+      newPrice: result.newPrice,
+      delta: result.delta,
+      tierName: result.tierName,
+      newTotalHours: result.newTotalHours,
+      newRatePerHour: result.newRatePerHour,
+      ledgerRowsRepriced: result.ledgerRowsRepriced,
+      walletAdjustment: mapWalletTransactionForResponse(result.walletAdjustment),
+      discount: result.discount,
+      commissions: result.commissions,
+      instructorEarnings: result.instructorEarnings,
+      affectedLessons: result.affectedLessons,
+      paidOutCount: result.paidOutCount,
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+    const status = error.statusCode || 500;
+    if (status >= 500) {
+      logger.error('Failed to upgrade customer package', { packageId: id, error: error.message, stack: error.stack });
+    }
+    return res.status(status).json({ error: error.message || 'Failed to upgrade package' });
   } finally {
     client.release();
   }

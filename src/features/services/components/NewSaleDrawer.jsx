@@ -33,6 +33,7 @@ import {
   sizeOptionsFor,
   resolveCombo,
 } from '@/features/products/utils/variantSelection';
+import { applyDiscount } from '@/features/customers/components/customerBill/discountApi';
 
 // Thin order-item wrappers over the shared point-of-sale variant helpers.
 const getSizeOptions = (item) =>
@@ -208,6 +209,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
   const [orderItems, setOrderItems] = useState([]);
   const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [allowNegativeBalance, setAllowNegativeBalance] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(null);
 
   const isAdminOrManager = ['admin', 'manager', 'super_admin', 'owner'].includes(user?.role?.toLowerCase?.());
   // Front-desk staff (receptionist / front_desk) may also sell on behalf of a
@@ -261,6 +263,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
       });
       setOrderItems([]);
       setAllowNegativeBalance(false);
+      setDiscountPercent(null);
     }
   }, [isOpen, form, loadCustomers, loadProducts]);
 
@@ -344,6 +347,11 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
     }, 0);
   }, [orderItems]);
 
+  // Discount preview — mirrors the staff discount applied at creation
+  const discountPct = Math.min(Math.max(Number(discountPercent) || 0, 0), 100);
+  const discountAmount = orderTotal * (discountPct / 100);
+  const discountedTotal = orderTotal - discountAmount;
+
   // Submit order
   // eslint-disable-next-line complexity
   const handleSubmit = async () => {
@@ -382,7 +390,24 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
         created_at: values.order_date ? values.order_date.toISOString() : undefined,
       };
 
-      await client.post('/shop-orders', payload);
+      const resp = await client.post('/shop-orders', payload);
+      // Staff discount applied at creation — same mechanism as the customer drawer
+      // (POST /api/discounts → discounts table + wallet credit on the paid order).
+      const pct = Number(discountPercent);
+      const orderId = resp?.data?.order?.id;
+      if (pct > 0 && orderId) {
+        try {
+          await applyDiscount({
+            customerId: values.customer_id,
+            entityType: 'shop_order',
+            entityId: orderId,
+            percent: pct,
+            reason: 'Discount applied at sale creation',
+          });
+        } catch (e) {
+          messageApi.warning(`Sale created, but discount failed: ${e.message}`);
+        }
+      }
       messageApi.success('Sale created successfully');
       onSuccess?.();
       onClose();
@@ -409,7 +434,13 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           <div>
             {orderItems.length > 0 && (
               <span className="text-base font-bold text-slate-900">
-                Total: {formatCurrency(orderTotal, businessCurrency)}
+                Total:{' '}
+                {discountPct > 0 && (
+                  <span className="text-sm font-normal text-slate-400 line-through mr-1">
+                    {formatCurrency(orderTotal, businessCurrency)}
+                  </span>
+                )}
+                {formatCurrency(discountedTotal, businessCurrency)}
               </span>
             )}
           </div>
@@ -534,6 +565,20 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
                 {formatCurrency(orderTotal, businessCurrency)}
               </span>
             </div>
+            {discountPct > 0 && (
+              <>
+                <div className="flex items-center justify-between px-1 text-xs text-emerald-600">
+                  <span>Discount ({discountPct}%)</span>
+                  <span>−{formatCurrency(discountAmount, businessCurrency)}</span>
+                </div>
+                <div className="flex items-center justify-between px-1 pt-0.5 border-t border-slate-100">
+                  <span className="text-xs font-semibold text-slate-600">After discount</span>
+                  <span className="text-sm font-bold text-slate-900">
+                    {formatCurrency(discountedTotal, businessCurrency)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -557,6 +602,22 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
             className="w-full"
             placeholder="Today"
             disabledDate={canSelectPastDates ? undefined : (current) => current && current < dayjs().startOf('day')}
+          />
+        </Form.Item>
+
+        {/* Discount — applied at creation, same mechanism as the customer drawer */}
+        <Form.Item label="Discount" className="!mb-2">
+          <InputNumber
+            size="large"
+            className="w-full"
+            min={0}
+            max={100}
+            step={1}
+            precision={2}
+            value={discountPercent}
+            onChange={setDiscountPercent}
+            addonAfter="%"
+            placeholder="0"
           />
         </Form.Item>
 

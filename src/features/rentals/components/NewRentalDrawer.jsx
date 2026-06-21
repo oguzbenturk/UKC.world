@@ -178,6 +178,16 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
     fetchPackages();
   }, [watchedCustomerId, apiClient]);
 
+  // Live discount preview — mirrors the staff discount applied at creation
+  const watchedTotalPrice = Form.useWatch('total_price', form);
+  const watchedDiscountPercent = Form.useWatch('discount_percent', form);
+  const discountPreview = useMemo(() => {
+    const base = Number(watchedTotalPrice) || 0;
+    const pct = Math.min(Math.max(Number(watchedDiscountPercent) || 0, 0), 100);
+    const amount = base * (pct / 100);
+    return { base, pct, amount, total: base - amount };
+  }, [watchedTotalPrice, watchedDiscountPercent]);
+
   // Equipment summary
   const watchedEquipmentIds = Form.useWatch('equipment_ids', form);
   const normalizedEquipmentIds = useMemo(
@@ -288,6 +298,11 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
 
       if (values.total_price !== undefined && values.total_price !== null && values.total_price !== '') {
         basePayload.total_price = Number(values.total_price);
+      }
+
+      // Staff discount applied at creation (backend → discounts table, same as drawer)
+      if (!editingRental && values.discount_percent > 0) {
+        basePayload.discount_percent = Number(values.discount_percent);
       }
 
       const customerIds = toArray(values.customer_ids);
@@ -529,6 +544,39 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
                 disabled={usePackage && !!selectedPackageId}
               />
             </Form.Item>
+
+            {/* Discount — applied at creation, same as the customer drawer */}
+            <Form.Item name="discount_percent" label="Discount" className="!mb-2">
+              <InputNumber
+                size="large"
+                className="w-full"
+                min={0}
+                max={100}
+                step={1}
+                precision={2}
+                placeholder="0"
+                addonAfter="%"
+                disabled={editingRental != null}
+              />
+            </Form.Item>
+
+            {/* Discounted total preview */}
+            {discountPreview.pct > 0 && discountPreview.base > 0 && (
+              <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Subtotal</span>
+                  <span className="text-slate-700">{formatCurrency(discountPreview.base, businessCurrency)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-emerald-600">Discount ({discountPreview.pct}%)</span>
+                  <span className="text-emerald-600">−{formatCurrency(discountPreview.amount, businessCurrency)}</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-slate-200">
+                  <span className="text-sm font-semibold text-slate-600">Total</span>
+                  <span className="text-base font-bold text-slate-900">{formatCurrency(discountPreview.total, businessCurrency)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             <Form.Item name="notes" label={t('manager:newRentalDrawer.fields.notes')} className="!mb-0">

@@ -54,6 +54,7 @@ export function AuthProvider({ children }) {
   const [consentLoading, setConsentLoading] = useState(false);
   const [familyGroup, setFamilyGroup] = useState(null);
   const authCheckRef = useRef(false);
+  const userRef = useRef(null);
   const refreshTimerRef = useRef(null);
   const lastProactiveRef = useRef(0);
   const refreshFailRef = useRef(0);
@@ -75,6 +76,22 @@ export function AuthProvider({ children }) {
     }
   }, []);
   
+  // Keep a ref to the latest user so refresh handlers can read it synchronously
+  // (e.g. to preserve permissions a refresh response may omit).
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // A token refresh response may not carry the role's `permissions` map. Dropping it
+  // would wipe custom-role access (e.g. receptionist) and bounce them out of every
+  // permission-gated page, so fall back to the permissions we already hold.
+  const preservePermissions = useCallback((nextUser) => {
+    if (nextUser && nextUser.permissions == null && userRef.current?.permissions) {
+      nextUser.permissions = userRef.current.permissions;
+    }
+    return nextUser;
+  }, []);
+
   // Helper to determine if current state is guest mode
   // Guest = not authenticated but also not loading
   const isGuest = !isAuthenticated && !loading;
@@ -397,9 +414,9 @@ export function AuthProvider({ children }) {
     try {
       const userData = await authService.getCurrentUser();
       if (userData) {
-        const normalizedUser = { ...userData };
+        const normalizedUser = preservePermissions({ ...userData });
         setUser(normalizedUser);
-        
+
         // Update localStorage
         localStorage.setItem('user', JSON.stringify(normalizedUser));
         
@@ -432,13 +449,13 @@ export function AuthProvider({ children }) {
       if (response?.token && response?.user) {
         // Update token
         localStorage.setItem('token', response.token);
-        
+
         // Update user data
-        const normalizedUser = { ...response.user };
+        const normalizedUser = preservePermissions({ ...response.user });
         if (response.consent) {
           normalizedUser.consent = response.consent;
         }
-        
+
         setUser(normalizedUser);
         localStorage.setItem('user', JSON.stringify(normalizedUser));
         
@@ -469,7 +486,7 @@ export function AuthProvider({ children }) {
     try {
       const data = await authService.refreshToken();
       if (data?.token) {
-        const normalizedUser = data.user ? { ...data.user } : null;
+        const normalizedUser = data.user ? preservePermissions({ ...data.user }) : null;
         if (normalizedUser) {
           if (data.consent) normalizedUser.consent = data.consent;
           setUser(normalizedUser);
@@ -485,7 +502,7 @@ export function AuthProvider({ children }) {
       // Transient failure (e.g. a network blip) must not log the kiosk out.
       return null;
     }
-  }, [applyConsent]);
+  }, [applyConsent, preservePermissions]);
 
   const scheduleRefresh = useCallback(() => {
     if (refreshTimerRef.current) {
