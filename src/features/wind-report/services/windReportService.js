@@ -24,3 +24,9 @@ export const fetchUkcLive = async () => {
   const { data } = await apiClient.get('/weather/live');
   return data;
 };
+
+/** UKC's own live Weather Underground PWS (current measured conditions at Gülbahçe). */
+export const fetchPwsLive = async () => {
+  const { data } = await apiClient.get('/weather/pws');
+  return data;
+};

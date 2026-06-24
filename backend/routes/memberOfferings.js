@@ -1121,6 +1121,108 @@ router.post('/admin/purchases/:id/cancel', authenticateJWT, authorizeRoles(['adm
 });
 
 /**
+ * DELETE /member-offerings/admin/purchases/:id
+ * Admin HARD delete of a single customer membership. Same full financial reversal
+ * as the cancel endpoint (idempotent wallet refund, storage box released, pending
+ * bank-transfer receipt resolved, pending manager commission cancelled) — but the
+ * row is then physically removed so the membership disappears from EVERY surface
+ * (active list, purchase history, analytics), unlike cancel which keeps a
+ * "cancelled" record for the books.
+ *
+ * Safe because the only FK into member_purchases (bank_transfer_receipts) is
+ * ON DELETE SET NULL; refund wallet_transactions reference the id only via metadata.
+ * Body: { reason?, refundWallet=true }.
+ */
+router.delete('/admin/purchases/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'developer', 'owner']), async (req, res) => {
+  const { id } = req.params;
+  const { reason = null, refundWallet = true } = req.body || {};
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Row-lock the purchase so a concurrent edit/refund/cancel can't race us.
+    const { rows: [purchase] } = await client.query(
+      `SELECT * FROM member_purchases WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (!purchase) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Membership not found' });
+    }
+
+    // Refund EXACTLY the outstanding wallet charge, per currency — only if this
+    // membership isn't already cancelled (a cancel already refunded). getEntityNetCharges
+    // nets the charge against any prior refund, so this is idempotent regardless.
+    const refunds = [];
+    if (refundWallet && purchase.status !== 'cancelled') {
+      const netCharges = await getEntityNetCharges({ client, memberPurchaseId: id });
+      for (const rc of netCharges) {
+        if (!(rc.amount > 0)) continue;
+        await recordTransaction({
+          client,
+          userId: purchase.user_id,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'refund',
+          direction: 'credit',
+          availableDelta: rc.amount,
+          description: `Membership deleted: ${purchase.offering_name}${purchase.storage_unit ? ` (unit #${purchase.storage_unit})` : ''}`,
+          createdBy: req.user.id,
+          relatedEntityType: 'member_purchase_refund',
+          metadata: { memberPurchaseId: Number(id), offeringId: purchase.offering_id, reason },
+          idempotencyKey: `member-purchase-refund:${id}:${rc.currency}`,
+          allowNegative: true,
+        });
+        refunds.push({ currency: rc.currency, amount: rc.amount });
+      }
+    }
+
+    // Resolve any still-pending bank-transfer receipt so it can't be approved later.
+    // (The FK is ON DELETE SET NULL, so after the row is gone an Approve couldn't
+    // resurrect it anyway, but resolving it keeps the pending queue clean.)
+    await client.query(
+      `UPDATE bank_transfer_receipts
+          SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), updated_at = NOW(),
+              admin_notes = CASE WHEN admin_notes IS NULL THEN 'Membership deleted by admin'
+                                 ELSE admin_notes || ' | Membership deleted by admin' END
+        WHERE member_purchase_id = $1 AND status = 'pending'`,
+      [id, req.user.id]
+    );
+
+    // Drop the per-membership manual discount row (keyed by text id, no FK).
+    await client.query(
+      `DELETE FROM discounts WHERE entity_type = 'member_purchase' AND entity_id = $1`,
+      [String(id)]
+    );
+
+    // Physically remove the membership.
+    await client.query(`DELETE FROM member_purchases WHERE id = $1`, [id]);
+
+    await client.query('COMMIT');
+
+    // After commit, non-fatal: cancel any PENDING manager commission for this membership.
+    cancelCommission('membership', id, reason || 'admin_deleted').catch(() => {});
+
+    const refundAmount = refunds.reduce((s, r) => s + r.amount, 0);
+    logger.info(`Admin DELETED membership ${id} (user ${purchase.user_id}) by ${req.user.id}; refunded=${refunds.length > 0} amount=${refundAmount}`);
+    return res.json({
+      message: 'Membership deleted',
+      deleted: true,
+      refunded: refunds.length > 0,
+      refunds,
+      refundAmount,
+      refundCurrency: refunds[0]?.currency || null,
+    });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* already settled */ }
+    logger.error('Error deleting membership (admin):', err);
+    return res.status(500).json({ error: 'Failed to delete membership' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * POST /member-offerings/admin/purchases
  * Create a purchase for a user (Admin only - for manual/reception purchases)
  */
@@ -1133,6 +1235,7 @@ router.post(
     body('offeringId').isInt().withMessage('Offering ID is required'),
     body('paymentMethod').isIn(['wallet', 'cash', 'card', 'transfer']).withMessage('Invalid payment method'),
     body('startDate').optional().isISO8601().withMessage('Invalid start date'),
+    body('endDate').optional().isISO8601().withMessage('Invalid end date'),
     body('storageUnit').optional({ nullable: true }).isInt({ min: 1 }).withMessage('storageUnit must be a positive integer'),
   ],
   async (req, res) => {
@@ -1143,7 +1246,7 @@ router.post(
 
     const client = await pool.connect();
     try {
-      const { userId, offeringId, paymentMethod, notes, startDate, storageUnit: requestedUnit } = req.body;
+      const { userId, offeringId, paymentMethod, notes, startDate, endDate, storageUnit: requestedUnit } = req.body;
 
       await client.query('BEGIN');
 
@@ -1159,13 +1262,33 @@ router.post(
 
       const isStorage = offering.category === 'storage' && offering.total_capacity != null;
 
-      // Calculate expiration date from startDate (or today)
+      // A "Daily" offering (duration_days === 1) is billed as a PER-DAY rate: when staff
+      // pick an end date the price scales by the inclusive day span (start..end). The whole
+      // price scales (beach + storage portions both), so the beach/storage ratio — and thus
+      // the manager-commission base — is preserved. Backend is authoritative: it recomputes
+      // the span from the dates rather than trusting any client-sent total.
       const baseDate = startDate ? new Date(startDate) : new Date();
-      let expiresAt = null;
-      if (offering.duration_days) {
-        expiresAt = new Date(baseDate);
-        expiresAt.setDate(expiresAt.getDate() + offering.duration_days);
+      let effectiveDays = offering.duration_days;   // may be null (unlimited)
+      let priceMultiplier = 1;
+      if (offering.duration_days === 1 && endDate && startDate) {
+        // Both dates are YYYY-MM-DD → UTC midnight, so the diff is an exact day multiple.
+        const span = Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1;
+        effectiveDays = Math.max(1, span);
+        priceMultiplier = effectiveDays;
       }
+
+      // Calculate expiration from baseDate + effectiveDays (matches the prior
+      // baseDate + duration_days formula, so a single-day pass is unchanged).
+      let expiresAt = null;
+      if (effectiveDays) {
+        expiresAt = new Date(baseDate);
+        expiresAt.setDate(expiresAt.getDate() + effectiveDays);
+      }
+
+      // Round to 2dp so the integer-day multiply can't leave float noise on the wallet charge.
+      const round2 = (n) => Math.round(n * 100) / 100;
+      const effectivePrice = round2(Number(offering.price) * priceMultiplier);
+      const effectiveBeachFee = round2(Number(offering.beach_fee_amount ?? offering.price) * priceMultiplier);
 
       // Resolve the storage box (if any). Staff may PICK a specific box — including an
       // occupied one — to deliberately SHARE it (same storage_unit on each person). If no box
@@ -1239,14 +1362,14 @@ router.post(
         userId,
         offeringId,
         offering.name,
-        offering.price,
+        effectivePrice,
         baseDate,
         expiresAt,
         paymentMethod,
         notes,
         req.user.id,
         storageUnit,
-        offering.beach_fee_amount ?? offering.price
+        effectiveBeachFee
       ]);
 
       await client.query('COMMIT');
@@ -1257,7 +1380,7 @@ router.post(
       // the prior non-fatal behavior. Cash/card/transfer write an audit row without moving the
       // balance; wallet payments allow negative because the route is staff-gated.
       try {
-        const price = parseFloat(offering.price) || 0;
+        const price = parseFloat(effectivePrice) || 0;
         if (price > 0) {
           const txCurrency = offering.currency || 'EUR';
           await recordTransaction({
@@ -1267,7 +1390,7 @@ router.post(
             transactionType: 'payment',
             direction: 'debit',
             availableDelta: paymentMethod === 'wallet' ? -price : 0,
-            description: `${isStorage ? 'Storage' : 'Membership'} purchase: ${offering.name}${storageUnit ? ` (unit #${storageUnit})` : ''}`,
+            description: `${isStorage ? 'Storage' : 'Membership'} purchase: ${offering.name}${priceMultiplier > 1 ? ` (${effectiveDays} days)` : ''}${storageUnit ? ` (unit #${storageUnit})` : ''}`,
             paymentMethod,
             createdBy: req.user.id,
             relatedEntityType: 'member_purchase',

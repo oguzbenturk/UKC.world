@@ -72,6 +72,7 @@ const OfferingList = ({ offerings, selectedOffering, onSelect, formatCurrency })
           </div>
           <p className="text-sm font-semibold flex-shrink-0" style={{ color: isSelected ? color : '#374151' }}>
             {formatCurrency(offering.price || 0)}
+            {offering.duration_days === 1 && <span className="text-xs font-normal text-slate-400">/day</span>}
           </p>
           <div
             className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
@@ -172,8 +173,25 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
   // Membership start date — defaults to today; staff can back/forward-date it.
   // Drives purchased_at and (with the plan's duration) the expiry on the backend.
   const [startDate, setStartDate] = useState(() => dayjs());
+  // End date — only used for "Daily" offerings (duration_days === 1), which are billed
+  // as a per-day rate. The inclusive span start..end multiplies the price on the backend.
+  const [endDate, setEndDate] = useState(null);
 
   const isStorage = selectedOffering?.category === 'storage';
+  const isDaily = selectedOffering?.duration_days === 1;
+
+  // Inclusive day span + per-customer charge (display only — the backend re-derives the
+  // authoritative price from the dates). Non-daily offerings fall back to the flat price.
+  const beachDays = isDaily && startDate && endDate ? endDate.diff(startDate, 'day') + 1 : null;
+  const perCustomer = isDaily && beachDays != null
+    ? Number(selectedOffering?.price || 0) * beachDays
+    : Number(selectedOffering?.price || 0);
+
+  // Moving the start date past the end date drags the end date along with it.
+  const handleStartDateChange = (next) => {
+    setStartDate(next);
+    setEndDate((prev) => (prev && next && prev.isBefore(next, 'day') ? next : prev));
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -205,12 +223,24 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
       .finally(() => setUnitsLoading(false));
   }, [isOpen, selectedOffering]);
 
+  // Daily (per-day) offerings are billed by date range: default the end date to the start
+  // date (a single day) when such an offering is selected; clear it for any other offering.
+  useEffect(() => {
+    if (selectedOffering?.duration_days === 1) {
+      setEndDate((prev) => prev || startDate);
+    } else {
+      setEndDate(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOffering]);
+
   const reset = () => {
     setSelectedCustomers([]); setCustomerSearch('');
     setSelectedOffering(null);
     setSelectedUnit(null); setUnits([]); setUnitsLoading(false);
     setDiscountPercent(null);
     setStartDate(dayjs());
+    setEndDate(null);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -219,6 +249,7 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     if (!selectedCustomers.length) { message.warning('Please select at least one customer'); return; }
     if (!selectedOffering) { message.warning('Please select a membership plan'); return; }
     if (isStorage && units.length > 0 && selectedUnit == null) { message.warning('Please select a storage box'); return; }
+    if (isDaily && (!endDate || endDate.isBefore(startDate, 'day'))) { message.warning('Please select a valid end date'); return; }
     try {
       setSubmitting(true);
       // For storage, the SAME box # is sent for every selected customer, so a group shares
@@ -228,6 +259,7 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
           userId, offeringId: selectedOffering.id, paymentMethod: 'wallet',
           allowNegativeBalance: isElevated,
           ...(startDate ? { startDate: startDate.format('YYYY-MM-DD') } : {}),
+          ...(isDaily && endDate ? { endDate: endDate.format('YYYY-MM-DD') } : {}),
           ...(isStorage ? { storageUnit: selectedUnit } : {}),
         })
       ));
@@ -274,15 +306,19 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     customerSearch, setCustomerSearch,
     selectedOffering, setSelectedOffering,
     isStorage,
+    isDaily, beachDays, perCustomer,
     selectedUnit, setSelectedUnit, units, unitsLoading,
     discountPercent, setDiscountPercent,
-    startDate, setStartDate,
+    startDate, setStartDate, handleStartDateChange,
+    endDate, setEndDate,
     canSubmit: !!(
       selectedCustomers.length &&
       selectedOffering &&
       // Storage: require a box only when boxes are actually configured for the plan.
       // (Unconfigured storage plans — no total_capacity — assign with no box, as before.)
-      (!isStorage || (units.length === 0 && !unitsLoading) || selectedUnit != null)
+      (!isStorage || (units.length === 0 && !unitsLoading) || selectedUnit != null) &&
+      // Daily (per-day) plans require a valid end date on/after the start date.
+      (!isDaily || (endDate != null && !endDate.isBefore(startDate, 'day')))
     ),
     handleClose, handleSubmit,
   };
@@ -324,8 +360,10 @@ const CustomerPicker = ({ filteredCustomers, selectedCustomers, onSelect, onSear
   </div>
 );
 
-const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, isStorage, selectedUnit, discountPercent, startDate }) => {
-  const subtotal = (selectedOffering?.price || 0) * count;
+const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, isStorage, selectedUnit, discountPercent, startDate, isDaily, beachDays, perCustomer, endDate }) => {
+  // Per-customer charge: daily plans are priced by the day span; everything else is flat.
+  const unit = isDaily ? (perCustomer || 0) : (selectedOffering?.price || 0);
+  const subtotal = unit * count;
   const pct = Math.min(Math.max(Number(discountPercent) || 0, 0), 100);
   const discountAmount = subtotal * (pct / 100);
   const total = subtotal - discountAmount;
@@ -345,13 +383,21 @@ const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, is
       </div>
       {startDate && (
         <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Starts</span>
+          <span className="text-slate-500">{isDaily ? 'Dates' : 'Starts'}</span>
           <span className="font-medium text-slate-800">
             {startDate.format('DD MMM YYYY')}
-            {selectedOffering?.duration_days
-              ? <span className="text-slate-400 font-normal"> → {startDate.clone().add(selectedOffering.duration_days, 'day').format('DD MMM YYYY')}</span>
-              : null}
+            {isDaily
+              ? (endDate ? <span className="text-slate-400 font-normal"> → {endDate.format('DD MMM YYYY')}</span> : null)
+              : (selectedOffering?.duration_days
+                  ? <span className="text-slate-400 font-normal"> → {startDate.clone().add(selectedOffering.duration_days, 'day').format('DD MMM YYYY')}</span>
+                  : null)}
           </span>
+        </div>
+      )}
+      {isDaily && beachDays != null && (
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Beach days</span>
+          <span className="font-medium text-slate-800">{beachDays} × {formatCurrency(selectedOffering?.price || 0)}/day</span>
         </div>
       )}
       {isStorage && selectedUnit != null && (
@@ -375,7 +421,7 @@ const DrawerSummary = ({ count, selectedOffering, formatCurrency, isElevated, is
       </div>
     )}
     <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-      <span className="text-sm font-semibold text-slate-600">Total{count > 1 && <span className="text-slate-400 font-normal text-xs ml-1">({formatCurrency(selectedOffering?.price || 0)} × {count})</span>}</span>
+      <span className="text-sm font-semibold text-slate-600">Total{count > 1 && <span className="text-slate-400 font-normal text-xs ml-1">({formatCurrency(unit)} × {count})</span>}</span>
       <span className="text-lg font-bold text-slate-900">
         {pct > 0 && <span className="text-sm font-normal text-slate-400 line-through mr-1.5">{formatCurrency(subtotal)}</span>}
         {formatCurrency(total)}
@@ -419,9 +465,11 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
     setCustomerSearch,
     selectedOffering, setSelectedOffering,
     isStorage,
+    isDaily, beachDays, perCustomer,
     selectedUnit, setSelectedUnit, units, unitsLoading,
     discountPercent, setDiscountPercent,
-    startDate, setStartDate,
+    startDate, setStartDate, handleStartDateChange,
+    endDate, setEndDate,
     canSubmit,
     handleClose, handleSubmit,
   } = useMemberDrawer(isOpen, onClose, isElevated);
@@ -472,21 +520,55 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
           />
         )}
 
-        <div className="mt-5">
-          <SectionHeader label="Start Date" />
-          <DatePicker
-            value={startDate}
-            onChange={setStartDate}
-            allowClear={false}
-            format="DD MMM YYYY"
-            className="w-full"
-            size="large"
-            getPopupContainer={(trigger) => trigger.parentElement}
-          />
-          <p className="text-xs text-slate-400 mt-1.5">
-            When the membership starts. Expiry is calculated from this date and the plan's duration.
-          </p>
-        </div>
+        {isDaily ? (
+          <div className="mt-5">
+            <SectionHeader label="Beach Dates" />
+            <div className="flex gap-2">
+              <DatePicker
+                value={startDate}
+                onChange={handleStartDateChange}
+                allowClear={false}
+                format="DD MMM YYYY"
+                className="flex-1"
+                size="large"
+                placeholder="Start date"
+                getPopupContainer={(trigger) => trigger.parentElement}
+              />
+              <DatePicker
+                value={endDate}
+                onChange={setEndDate}
+                allowClear={false}
+                format="DD MMM YYYY"
+                className="flex-1"
+                size="large"
+                placeholder="End date"
+                disabledDate={(d) => startDate && d && d.isBefore(startDate, 'day')}
+                getPopupContainer={(trigger) => trigger.parentElement}
+              />
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5">
+              {beachDays != null
+                ? <>{beachDays} day{beachDays !== 1 ? 's' : ''} × {formatCurrency(selectedOffering?.price || 0)}/day — first and last beach day included.</>
+                : 'Select the first and last beach day.'}
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <SectionHeader label="Start Date" />
+            <DatePicker
+              value={startDate}
+              onChange={setStartDate}
+              allowClear={false}
+              format="DD MMM YYYY"
+              className="w-full"
+              size="large"
+              getPopupContainer={(trigger) => trigger.parentElement}
+            />
+            <p className="text-xs text-slate-400 mt-1.5">
+              When the membership starts. Expiry is calculated from this date and the plan's duration.
+            </p>
+          </div>
+        )}
 
         <div className="mt-5">
           <SectionHeader label="Payment" />
@@ -526,9 +608,13 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
             formatCurrency={formatCurrency}
             isElevated={isElevated}
             isStorage={isStorage}
+            isDaily={isDaily}
+            beachDays={beachDays}
+            perCustomer={perCustomer}
             selectedUnit={selectedUnit}
             discountPercent={discountPercent}
             startDate={startDate}
+            endDate={endDate}
           />
           </div>
         )}

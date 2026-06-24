@@ -4,7 +4,7 @@ import { useAuth } from '@/shared/hooks/useAuth';
 import { UkcBrandDot } from '@/shared/components/ui/UkcBrandDot';
 import { useAllReports } from '../hooks/useAllReports';
 import SpotCard from '../components/SpotCard';
-import UkcLiveStation from '../components/UkcLiveStation';
+import PwsLiveStation from '../components/PwsLiveStation';
 import WeightPickerBar from '../components/WeightPickerBar';
 import { initialWeight } from '../utils/kiteSize';
 
@@ -81,7 +81,7 @@ const WindReportPage = () => {
           <div>
             <div className="mb-1 flex items-center gap-2 text-[10px] font-gotham-medium uppercase tracking-[0.3em] text-slate-500">
               <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-              <span>Live · {t('windReport.sources.servedBy')}</span>
+              <span>Live · {t('windReport.sources.servedByPws', { defaultValue: 'via Weather Underground' })}</span>
             </div>
             <h1 className="font-duotone-bold-extended text-[32px] leading-[0.95] tracking-tight text-slate-900 sm:text-[36px]">
               {t('windReport.title')}
@@ -96,7 +96,7 @@ const WindReportPage = () => {
         </header>
 
         {/* UKC's own live station — the real-time number at Gülbahçe */}
-        <UkcLiveStation />
+        <PwsLiveStation />
 
         {/* Unified toolbar: weight + legend */}
         <div className="mb-5">

@@ -1,6 +1,6 @@
 // src/features/members/components/MemberPurchasesSection.jsx
 import { Card, Typography, Tag, Space, Empty, Spin, Button, Tooltip, App } from 'antd';
-import { CrownOutlined, StarOutlined, TrophyOutlined, ThunderboltOutlined, GiftOutlined, CheckCircleOutlined, ClockCircleOutlined, HistoryOutlined, PercentageOutlined, DeleteOutlined } from '@ant-design/icons';
+import { CrownOutlined, StarOutlined, TrophyOutlined, ThunderboltOutlined, GiftOutlined, CheckCircleOutlined, ClockCircleOutlined, HistoryOutlined, PercentageOutlined, DeleteOutlined, StopOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/shared/services/apiClient';
 import { message } from '@/shared/utils/antdStatic';
@@ -154,20 +154,49 @@ const MemberPurchasesSection = ({
   const canManageMemberships = MEMBERSHIP_MANAGE_ROLES.includes((currentUser?.role || '').toLowerCase());
   const canActions = isAdminView && !readOnly && canManageMemberships;
 
+  // Soft cancel — keeps a "cancelled" record visible in Purchase History.
+  const handleCancel = (purchase) => {
+    const name = purchase.offering_name || 'membership';
+    modal.confirm({
+      title: 'Cancel membership',
+      content: `Cancel "${name}"? Any wallet payment is refunded to the customer and the storage box is released. The membership is kept as "cancelled" in the purchase history for the record.`,
+      okText: 'Cancel membership',
+      okType: 'danger',
+      cancelText: 'Keep',
+      onOk: async () => {
+        try {
+          const { data } = await apiClient.post(`/member-offerings/admin/purchases/${purchase.id}/cancel`, { reason: 'admin_cancelled' });
+          if (data?.refunded) {
+            message.success(`Membership cancelled · ${fmt(data.refundAmount, data.refundCurrency)} refunded to wallet`);
+          } else {
+            message.warning('Membership cancelled. No wallet charge was found to refund — adjust the balance manually if needed.');
+          }
+          queryClient.invalidateQueries({ queryKey: ['member-purchases', targetUserId, isAdminView] });
+          if (typeof onChanged === 'function') onChanged();
+        } catch (err) {
+          message.error(err?.response?.data?.error || 'Failed to cancel membership');
+        }
+      },
+    });
+  };
+
+  // Hard delete — refunds + releases box like cancel, then physically removes the
+  // membership so it disappears from every surface (active list, history, analytics).
   const handleDelete = (purchase) => {
     const name = purchase.offering_name || 'membership';
     modal.confirm({
-      title: 'Delete membership',
-      content: `Delete "${name}"? Any wallet payment is refunded to the customer and the storage box is released. The membership is kept as "cancelled" for the record.`,
-      okText: 'Delete',
+      title: 'Delete membership permanently',
+      content: `Permanently delete "${name}"? Any wallet payment is refunded and the storage box is released, then the membership is removed completely — it will no longer appear anywhere, including the purchase history. This cannot be undone.`,
+      okText: 'Delete permanently',
       okType: 'danger',
+      cancelText: 'Keep',
       onOk: async () => {
         try {
-          const { data } = await apiClient.post(`/member-offerings/admin/purchases/${purchase.id}/cancel`, { reason: 'admin_deleted' });
+          const { data } = await apiClient.delete(`/member-offerings/admin/purchases/${purchase.id}`, { data: { reason: 'admin_deleted' } });
           if (data?.refunded) {
             message.success(`Membership deleted · ${fmt(data.refundAmount, data.refundCurrency)} refunded to wallet`);
           } else {
-            message.warning('Membership deleted. No wallet charge was found to refund — adjust the balance manually if needed.');
+            message.success('Membership deleted permanently.');
           }
           queryClient.invalidateQueries({ queryKey: ['member-purchases', targetUserId, isAdminView] });
           if (typeof onChanged === 'function') onChanged();
@@ -294,16 +323,28 @@ const MemberPurchasesSection = ({
                           </Button>
                         )}
                         {canActions && (
-                          <Tooltip title="Delete membership">
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<DeleteOutlined />}
-                              className={canDiscount ? '!px-1' : 'ml-auto !px-1'}
-                              onClick={() => handleDelete(purchase)}
-                            />
-                          </Tooltip>
+                          <span className={canDiscount ? 'flex items-center' : 'ml-auto flex items-center'}>
+                            <Tooltip title="Cancel membership (keeps a cancelled record)">
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                icon={<StopOutlined />}
+                                className="!px-1"
+                                onClick={() => handleCancel(purchase)}
+                              />
+                            </Tooltip>
+                            <Tooltip title="Delete permanently (removes everywhere)">
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                className="!px-1"
+                                onClick={() => handleDelete(purchase)}
+                              />
+                            </Tooltip>
+                          </span>
                         )}
                       </div>
                       <div className="text-slate-500 text-sm mt-1 flex items-center gap-1 flex-wrap">
@@ -384,8 +425,19 @@ const MemberPurchasesSection = ({
                         Discount
                       </Button>
                     )}
+                    {canActions && purchase.status !== 'cancelled' && (
+                      <Tooltip title="Cancel membership (keeps a cancelled record)">
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<StopOutlined />}
+                          onClick={() => handleCancel(purchase)}
+                        />
+                      </Tooltip>
+                    )}
                     {canActions && (
-                      <Tooltip title="Delete membership">
+                      <Tooltip title="Delete permanently (removes everywhere)">
                         <Button
                           type="text"
                           danger
