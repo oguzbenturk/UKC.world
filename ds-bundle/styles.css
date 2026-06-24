@@ -1,0 +1,62 @@
+/* ============================================================================
+   Plannivo brand — global stylesheet for Claude Design.
+   Every rendered design inherits THIS file's @import closure, so the tokens,
+   fonts and signature components below are available to every page the agent builds.
+   Mirrors the real app (src/index.css, src/main.jsx). Light themes only.
+   ============================================================================ */
+@import './tokens/tokens.css';
+
+/* ---- Brand fonts: Duotone display (Basic Latin) + Gotham-TR fallback (Turkish/accents) ---- */
+@font-face { font-family: 'Duotone Bold Extended';    src: url('./fonts/DUOTONE-BoldExtended.woff2') format('woff2');   font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0020-007F; }
+@font-face { font-family: 'Duotone Bold';             src: url('./fonts/DUOTONE-Bold.woff2') format('woff2');           font-weight: 700; font-style: normal; font-display: swap; unicode-range: U+0020-007F; }
+@font-face { font-family: 'Duotone Regular';          src: url('./fonts/DUOTONE-Regular.woff2') format('woff2');        font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0020-007F; }
+@font-face { font-family: 'Duotone Light Condensed';  src: url('./fonts/DUOTONE-LightCondensed.woff2') format('woff2'); font-weight: 300; font-style: normal; font-display: swap; unicode-range: U+0020-007F; }
+@font-face { font-family: 'Duotone Medium Condensed'; src: url('./fonts/DUOTONE-MediumCondensed.woff2') format('woff2');font-weight: 500; font-style: normal; font-display: swap; unicode-range: U+0020-007F; }
+@font-face { font-family: 'Gotham Bold';   src: url('./fonts/Gotham-Bold-TR.woff2') format('woff2');   font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham Medium'; src: url('./fonts/Gotham-Medium-TR.woff2') format('woff2'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham Light';  src: url('./fonts/Gotham-Light-TR.woff2') format('woff2');  font-weight: 300; font-style: normal; font-display: swap; }
+
+/* ---- Brand font utility classes (identical names to the app's src/index.css) ---- */
+.font-duotone-bold-extended   { font-family: var(--ds-font-display); }
+.font-duotone-bold            { font-family: var(--ds-font-heading); }
+.font-duotone-regular         { font-family: 'Duotone Regular', 'Gotham Medium', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+.font-duotone-light-condensed { font-family: 'Duotone Light Condensed', 'Gotham Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+.font-gotham-bold             { font-family: 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+.font-gotham-medium           { font-family: 'Gotham Medium', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+.font-gotham-light            { font-family: 'Gotham Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+
+/* Uppercased, letter-spaced micro-label — a Plannivo form-label tell. */
+.plannivo-label { font-family: var(--ds-font-heading); text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; color: var(--ds-antrasit); }
+
+/* ---- Signature surfaces (verbatim from src/index.css) ---- */
+.plannivo-card {
+  background: var(--ds-white);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  box-shadow: var(--ds-shadow-card);
+}
+
+.btn-floating {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 44px; border-radius: var(--ds-radius-pill); padding: .75rem 1.75rem;
+  font-weight: 600; line-height: 1.2; border: 0; cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+}
+.btn-floating-primary {
+  color: #fff; border: 1px solid rgba(255,255,255,.28);
+  background: linear-gradient(135deg, rgba(37,99,235,.92) 0%, rgba(56,189,248,.88) 100%);
+  box-shadow: 24px 24px 38px rgba(51,65,85,.42), 12px 14px 26px rgba(15,23,42,.24);
+  text-shadow: 0 1px 3px rgba(15,23,42,.25);
+}
+.btn-floating-primary:hover { transform: translateY(-2px); }
+.btn-floating-secondary {
+  color: #1f2937; background: rgba(255,255,255,.98); border: 1px solid rgba(226,232,240,.92);
+  box-shadow: 24px 24px 38px rgba(51,65,85,.32), 12px 14px 26px rgba(15,23,42,.22);
+}
+.btn-floating-secondary:hover { transform: translateY(-2px); }
+.btn-floating-danger {
+  color: #fff; border: 1px solid rgba(254,226,226,.32);
+  background: linear-gradient(135deg, rgba(244,63,94,.95) 0%, rgba(251,113,133,.9) 100%);
+  box-shadow: 24px 24px 38px rgba(190,18,60,.38), 12px 14px 26px rgba(225,29,72,.34);
+}
+.btn-floating-danger:hover { transform: translateY(-2px); }

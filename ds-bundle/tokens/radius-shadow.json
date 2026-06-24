@@ -1,0 +1,27 @@
+{
+  "$description": "Plannivo shape language — radii, shadows, gradients. Extracted from src/index.css. The look is soft and rounded: pill actions, generously-rounded cards, low-contrast elevation on a light canvas.",
+  "radius": {
+    "pill":    { "value": "9999px", "use": "FABs, floating buttons, tags, chips." },
+    "input":   { "value": "12px",   "use": "Inputs, selects, pickers (dark-form + phone inputs)." },
+    "sm":      { "value": "10px",   "use": "Small buttons, list/option rows, form fields." },
+    "card":    { "value": "20px",   "use": "Cards, public form cards, modals." },
+    "cardSm":  { "value": "14px",   "use": "Calendar panels, compact cards." }
+  },
+  "shadow": {
+    "card":  { "value": "0 4px 24px rgba(0,0,0,0.08)", "use": "Default card / sheet elevation." },
+    "pop":   { "value": "0 10px 40px rgba(0,0,0,0.15)", "use": "Dropdowns, popovers, floating menus." },
+    "floatingPrimary": { "value": "24px 24px 38px rgba(51,65,85,0.42), 12px 14px 26px rgba(15,23,42,0.24)", "use": "Signature offset shadow on .btn-floating-primary." }
+  },
+  "gradient": {
+    "primary": { "value": "linear-gradient(135deg, #2563EB 0%, #38BDF8 100%)", "use": "Primary CTAs, hero accents — the Plannivo blue→sky sweep." },
+    "danger":  { "value": "linear-gradient(135deg, #F43F5E 0%, #FB7185 100%)", "use": "Destructive CTAs." },
+    "teal":    { "value": "linear-gradient(135deg, #0077B6 0%, #0096C7 100%)", "use": "Form-builder / lead-capture primary buttons." }
+  },
+  "motion": {
+    "$note": "Buttons lift, never flash. .ant-btn scales 1.02 on hover / 0.95 on active; floating buttons translateY(-2px) on hover.",
+    "buttonHoverScale": "1.02",
+    "buttonActiveScale": "0.95",
+    "easing": "ease",
+    "duration": "150ms"
+  }
+}

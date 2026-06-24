@@ -1,0 +1,38 @@
+{
+  "$description": "Plannivo typography. The Duotone family is the brand display face (kite-brand, Basic Latin only); Gotham-TR is the same-brand fallback that covers Turkish (ğ ı ş İ) and accented Latin. Applied in the app via utility classes on headings/brand text — NOT as a global body font. Body text uses the Ant Design / system sans default.",
+  "families": {
+    "display": {
+      "class": "font-duotone-bold-extended",
+      "stack": "'Duotone Bold Extended', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+      "use": "Hero / page titles / big brand statements."
+    },
+    "headingBold": {
+      "class": "font-duotone-bold",
+      "stack": "'Duotone Bold', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+      "use": "Section headings, card titles, emphasis."
+    },
+    "regular": {
+      "class": "font-duotone-regular",
+      "stack": "'Duotone Regular', 'Gotham Medium', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+      "use": "Brand body lines / lead paragraphs when a branded look is wanted."
+    },
+    "lightCondensed": {
+      "class": "font-duotone-light-condensed",
+      "stack": "'Duotone Light Condensed', 'Gotham Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+      "use": "Tall, airy subheads / stat numbers."
+    },
+    "body": {
+      "class": null,
+      "stack": "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+      "use": "Default UI / body text (Ant Design default). Do NOT force Duotone on long paragraphs — it ships Basic Latin only."
+    }
+  },
+  "weights": { "light": 300, "medium": 500, "bold": 700 },
+  "labels": {
+    "$note": "Form labels in the app are uppercased, letter-spaced, small — a recognizable Plannivo tell.",
+    "transform": "uppercase",
+    "letterSpacing": "0.1em",
+    "fontSize": "11px",
+    "family": "font-duotone-bold"
+  }
+}

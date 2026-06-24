@@ -108,3 +108,6 @@ backend/.env.development
 
 # push-all temporary deploy tarballs
 __deploy_*.tgz
+
+# design-sync assembled brand-kit fonts (copied from DuotoneFonts/, regenerable)
+ds-bundle/fonts/

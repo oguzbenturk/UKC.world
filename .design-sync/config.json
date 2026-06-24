@@ -1,0 +1,11 @@
+{
+  "projectId": "33e9d4c1-d22c-4ecb-94a6-0bf3aff14db3",
+  "projectName": "UKC · Plannivo Brand",
+  "shape": "tokens-only",
+  "note": "Plannivo is a deployed React APP, not a component library (private package, no exports, app-style dist/, UI = Ant Design + MUI + Headless UI + Tailwind composed inline in coupled feature modules). /design-sync therefore produces a hand-authored BRAND FOUNDATION only — tokens + fonts + styles.css + guidelines — so the Claude Design agent designs new pages on-brand. No _ds_bundle.js / components / _ds_sync.json (no isolable library to bundle, nothing to render-verify).",
+  "sourcesOfTruth": [
+    "tailwind.config.js (fonts, brand colors antrasit/duotone-blue)",
+    "src/main.jsx (Antd ConfigProvider theme tokens: colorPrimary/info/success/warning, Button hovers)",
+    "src/index.css (:root brand vars, @font-face, btn-floating gradients, form-builder teal accents, radii/shadows)"
+  ]
+}

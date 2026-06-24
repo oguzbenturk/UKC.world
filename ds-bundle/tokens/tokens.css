@@ -1,0 +1,58 @@
+/* Plannivo design tokens as CSS custom properties.
+   Imported by styles.css → reaches every design. Use these vars (or the matching
+   Tailwind class) instead of hardcoding hex values. The --brand-* names mirror the
+   live app (src/index.css :root) exactly; --ds-* names are the full token set. */
+:root {
+  /* ---- canonical app vars (identical to the running app) ---- */
+  --brand-primary: #3B82F6;
+  --brand-success: #10B981;
+  --brand-warning: #F59E0B;
+
+  /* ---- brand ---- */
+  --ds-primary:        #3B82F6;
+  --ds-primary-active: #2563EB;
+  --ds-sky:            #38BDF8;
+  --ds-cyan:           #00A8C4; /* tailwind 'duotone-blue' */
+  --ds-antrasit:       #4B4F54; /* tailwind 'antrasit'    */
+
+  /* ---- semantic ---- */
+  --ds-success: #10B981;
+  --ds-warning: #F59E0B;
+  --ds-danger:  #F43F5E;
+  --ds-info:    #3B82F6;
+
+  /* ---- secondary teal (form / lead-capture surfaces) ---- */
+  --ds-teal:        #0077B6;
+  --ds-teal-bright: #0096C7;
+  --ds-teal-light:  #48CAE4;
+
+  /* ---- neutrals (slate, light only) ---- */
+  --ds-ink:       #1F2937;
+  --ds-body:      #475569;
+  --ds-muted:     #94A3B8;
+  --ds-border:    #E2E8F0;
+  --ds-surface-2: #F1F5F9;
+  --ds-surface-1: #F8FAFC;
+  --ds-white:     #FFFFFF;
+
+  /* ---- radii ---- */
+  --ds-radius-pill:    9999px;
+  --ds-radius-input:   12px;
+  --ds-radius-sm:      10px;
+  --ds-radius-card:    20px;
+  --ds-radius-card-sm: 14px;
+
+  /* ---- shadows ---- */
+  --ds-shadow-card: 0 4px 24px rgba(0,0,0,0.08);
+  --ds-shadow-pop:  0 10px 40px rgba(0,0,0,0.15);
+
+  /* ---- gradients ---- */
+  --ds-gradient-primary: linear-gradient(135deg, #2563EB 0%, #38BDF8 100%);
+  --ds-gradient-danger:  linear-gradient(135deg, #F43F5E 0%, #FB7185 100%);
+  --ds-gradient-teal:    linear-gradient(135deg, #0077B6 0%, #0096C7 100%);
+
+  /* ---- type ---- */
+  --ds-font-display: 'Duotone Bold Extended', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --ds-font-heading: 'Duotone Bold', 'Gotham Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --ds-font-body:    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}

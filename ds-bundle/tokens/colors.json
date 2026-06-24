@@ -1,0 +1,32 @@
+{
+  "$description": "Plannivo brand colors. Extracted verbatim from tailwind.config.js, src/main.jsx (Ant Design ConfigProvider theme) and src/index.css (:root vars + component styles). Hex values are authoritative; the 'note' records where each comes from.",
+  "brand": {
+    "primary":       { "value": "#3B82F6", "note": "Antd colorPrimary + colorInfo; --brand-primary. The Plannivo blue. (Tailwind blue-500 / sky-500)" },
+    "primaryActive": { "value": "#2563EB", "note": "Antd Button colorPrimaryActive; start of the signature primary gradient. (blue-600)" },
+    "sky":           { "value": "#38BDF8", "note": "End of the primary gradient; bright secondary accent. (sky-400)" },
+    "cyan":          { "value": "#00A8C4", "note": "Tailwind custom color 'duotone-blue' — the kite-brand cyan accent." },
+    "antrasit":      { "value": "#4B4F54", "note": "Tailwind custom color 'antrasit' — brand charcoal, used for headings/labels/icons." }
+  },
+  "semantic": {
+    "success": { "value": "#10B981", "note": "Antd colorSuccess; --brand-success. (emerald-500)" },
+    "warning": { "value": "#F59E0B", "note": "Antd colorWarning; --brand-warning. (amber-500)" },
+    "danger":  { "value": "#F43F5E", "note": "Start of btn-floating-danger gradient. (rose-500)" },
+    "info":    { "value": "#3B82F6", "note": "Same as brand.primary." }
+  },
+  "accentTeal": {
+    "$note": "Secondary teal palette used on the public form-builder / lead-capture surfaces only. Use sparingly; brand.primary is the default action color.",
+    "base":   { "value": "#0077B6" },
+    "bright": { "value": "#0096C7" },
+    "light":  { "value": "#48CAE4" }
+  },
+  "neutral": {
+    "$note": "Tailwind slate scale — the app's only neutral family. Light surfaces only.",
+    "ink":      { "value": "#1F2937", "note": "Primary text / strong headings. (slate-800)" },
+    "body":     { "value": "#475569", "note": "Body copy. (slate-600)" },
+    "muted":    { "value": "#94A3B8", "note": "Secondary text / placeholders / separators. (slate-400)" },
+    "border":   { "value": "#E2E8F0", "note": "Borders & dividers. (slate-200)" },
+    "surface2": { "value": "#F1F5F9", "note": "Subtle panel / inset background. (slate-100)" },
+    "surface1": { "value": "#F8FAFC", "note": "App canvas background. (slate-50)" },
+    "white":    { "value": "#FFFFFF", "note": "Cards, sheets, modals." }
+  }
+}
