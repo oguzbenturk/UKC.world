@@ -44,6 +44,40 @@ export const MANAGER_COMMISSION_LIVE_GUARD_SQL = `(
 const DEFAULT_MANAGER_COMMISSION_RATE = 10.0;
 
 /**
+ * Commissionable (beach-fee) base for a membership purchase.
+ *
+ * The manager earns commission on the BEACH-FACILITIES portion of a membership
+ * only — never the equipment-storage portion. A bundled "Storage + Beach"
+ * offering carries one `offering_price`; `beach_fee_amount` is the slice of that
+ * the manager is paid on (storage portion = offering_price - beach_fee_amount).
+ *
+ * - `beachFeeAmount == null` ⇒ legacy / non-split offering ⇒ fully commissionable
+ *   (whole price), preserving pre-split behavior for plain beach passes.
+ * - Any active member_purchase discount is PRO-RATED to the beach portion so a
+ *   discount on the full bundle doesn't over-reduce (or under-reduce) the
+ *   beach-only base. ratio = beach / price.
+ *
+ * Used by the record, discount-recompute, projection, and backfill paths so the
+ * beach-only math is identical everywhere (single source of truth).
+ *
+ * @returns {number} EUR beach-fee base, rounded to 2dp, floored at 0.
+ */
+export function membershipCommissionableBase({ offeringPrice, beachFeeAmount, discount = 0 }) {
+  const price = toNumber(offeringPrice);
+  if (price <= 0) return 0;
+  // Clamp the beach portion into [0, price]; null ⇒ full price (legacy behavior).
+  const beach = beachFeeAmount == null
+    ? price
+    : Math.min(Math.max(toNumber(beachFeeAmount), 0), price);
+  const disc = toNumber(discount);
+  if (disc > 0) {
+    const ratio = price > 0 ? beach / price : 0;
+    return Number.parseFloat(Math.max(0, beach - disc * ratio).toFixed(2));
+  }
+  return Number.parseFloat(beach.toFixed(2));
+}
+
+/**
  * Get manager commission settings
  * @param {string} managerUserId - Manager user ID
  * @returns {Promise<Object|null>} Commission settings or null
@@ -120,8 +154,16 @@ function getCommissionRate(settings, sourceType) {
         return parseFloat(settings.package_rate) || 0;
       case 'shop':
         return parseFloat(settings.shop_rate) || 0;
-      case 'membership':
-        return parseFloat(settings.membership_rate) || 0;
+      case 'membership': {
+        // The owner's intent is a 10% beach-fee commission on memberships. An
+        // UNSET membership_rate (null) historically resolved to 0, silently
+        // paying the manager nothing. Treat "unset" as inherit-default (else the
+        // 10% system default), while still honoring an EXPLICIT 0 (disable).
+        const r = parseFloat(settings.membership_rate);
+        if (Number.isFinite(r)) return r;
+        const d = parseFloat(settings.default_rate);
+        return Number.isFinite(d) && d > 0 ? d : DEFAULT_MANAGER_COMMISSION_RATE;
+      }
       default:
         return 0;
     }
@@ -842,7 +884,23 @@ export async function recomputeManagerCommissionForEntity(client, entityType, en
   const entity = entityRows[0];
 
   let newSourceAmount;
-  if (entity.skip_pkg && entityType === WALLET_ENTITY_TYPE.BOOKING) {
+  if (entityType === 'member_purchase') {
+    // Membership: the commission base is the BEACH-FEE portion only (never
+    // storage), with any member_purchase discount pro-rated to the beach slice.
+    // Mirrors recordMembershipCommission so a discount edit can't re-inflate the
+    // base back to the full bundled price.
+    const { rows: mpRows } = await client.query(
+      `SELECT offering_price, beach_fee_amount FROM member_purchases WHERE id = $1::integer LIMIT 1`,
+      [String(entityId)]
+    );
+    if (!mpRows.length) return { skipped: 'entity_not_found' };
+    const disc = await getActiveDiscountAmount(client, 'member_purchase', entityId);
+    newSourceAmount = membershipCommissionableBase({
+      offeringPrice: mpRows[0].offering_price,
+      beachFeeAmount: mpRows[0].beach_fee_amount,
+      discount: disc,
+    });
+  } else if (entity.skip_pkg && entityType === WALLET_ENTITY_TYPE.BOOKING) {
     // Package-paid booking — derive total via the shared helper so the
     // discount math (package + per-booking) is identical to what the
     // instructor earnings path produces.
@@ -1151,19 +1209,51 @@ export async function recordShopCommission(order) {
 }
 
 /**
- * Record manager commission for a membership / seasonal pass purchase
+ * Record manager commission for a membership / seasonal pass purchase.
+ *
+ * The base is the BEACH-FEE portion only (not storage). We compute the
+ * post-discount beach base here via the shared helper and pass it as the final
+ * `amount` (so recordGenericCommission does NOT subtract the discount a second
+ * time — `discountEntityType` is intentionally omitted). A pure-storage purchase
+ * (beach base 0) yields amount<=0 and records no commission row at all.
+ *
+ * `purchase` must carry `beach_fee_amount` (snapshot column) — every INSERT path
+ * and the card/bank callbacks now select it. When absent (legacy callers) it
+ * falls back to the full offering_price, preserving old behavior.
  */
 export async function recordMembershipCommission(purchase) {
+  const offeringPrice = purchase.offering_price ?? purchase.price;
+  // Pull the active member_purchase discount once so the beach base is netted
+  // consistently with the recompute path.
+  let discount = 0;
+  try {
+    discount = await getActiveDiscountAmount(pool, 'member_purchase', purchase.id);
+  } catch { /* no discount / lookup failed → treat as 0 */ }
+
+  const beachBase = membershipCommissionableBase({
+    offeringPrice,
+    beachFeeAmount: purchase.beach_fee_amount,
+    discount,
+  });
+
+  const fullPrice = toNumber(offeringPrice);
+  const storageExcluded = Number.parseFloat(Math.max(0, fullPrice - beachBase - discount).toFixed(2));
+
   return recordGenericCommission('membership', {
     id: purchase.id,
-    amount: purchase.offering_price || purchase.price,
+    amount: beachBase,
     currency: purchase.currency || 'EUR',
     date: purchase.purchased_at || purchase.created_at,
-    discountEntityType: 'member_purchase',
+    // discountEntityType omitted on purpose — discount already applied to beachBase.
     metadata: {
       offeringName: purchase.offering_name || null,
       userId: purchase.user_id || null,
-      durationDays: purchase.duration_days || null
+      durationDays: purchase.duration_days || null,
+      category: purchase.category || null,
+      storageUnit: purchase.storage_unit ?? null,
+      fullPrice,
+      beachBase,
+      storageExcluded,
     }
   });
 }
@@ -1319,6 +1409,112 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
 }
 
 /**
+ * Detailed manager MEMBERSHIP earnings breakdown.
+ *
+ * Splits the manager's membership commission (which is beach-fee-only) by
+ * offering and by customer, and surfaces the storage value that was EXCLUDED
+ * from commission — so the "more detailed" earnings view can show beach vs
+ * storage, per-offering and per-customer.
+ *
+ * Only non-cancelled `source_type='membership'` rows are counted. Pure-storage
+ * purchases never produced a commission row (beach base 0), so they don't appear
+ * here; bundled "Storage + Beach" purchases appear with a non-zero
+ * `storageExcluded`.
+ *
+ * @param {string} managerUserId
+ * @param {{startDate?:string,endDate?:string,periodMonth?:string}} options
+ */
+export async function getManagerMembershipBreakdown(managerUserId, options = {}) {
+  const { startDate, endDate, periodMonth } = options;
+  try {
+    let whereClause = `WHERE mc.manager_user_id = $1
+        AND mc.source_type = 'membership'
+        AND mc.status != 'cancelled'`;
+    const params = [managerUserId];
+    let p = 2;
+    if (periodMonth) {
+      whereClause += ` AND mc.period_month = $${p}`; params.push(periodMonth); p++;
+    } else {
+      if (startDate) { whereClause += ` AND mc.source_date >= $${p}`; params.push(startDate); p++; }
+      if (endDate) { whereClause += ` AND mc.source_date <= $${p}`; params.push(endDate); p++; }
+    }
+
+    // Per-offering rollup. source_id holds the member_purchases int id for
+    // membership rows, so the ::integer cast + join is safe under the filter.
+    const byOfferingRes = await pool.query(
+      `SELECT
+         mp.offering_id,
+         COALESCE(mo.name, mp.offering_name, 'Unknown') AS offering_name,
+         COALESCE(mo.category, 'membership') AS category,
+         COUNT(*)::int AS count,
+         COALESCE(SUM(mc.source_amount), 0) AS beach_base,
+         COALESCE(SUM(mc.commission_amount), 0) AS commission,
+         COALESCE(SUM(mp.offering_price), 0) AS full_price,
+         COALESCE(SUM(GREATEST(mp.offering_price - COALESCE(mp.beach_fee_amount, mp.offering_price), 0)), 0) AS storage_excluded
+       FROM manager_commissions mc
+       JOIN member_purchases mp ON mp.id::text = mc.source_id
+       LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
+       ${whereClause}
+       GROUP BY mp.offering_id, mo.name, mp.offering_name, mo.category
+       ORDER BY commission DESC`,
+      params
+    );
+
+    // Per-customer rollup.
+    const byCustomerRes = await pool.query(
+      `SELECT
+         mp.user_id,
+         COALESCE(u.name, 'Unknown') AS customer_name,
+         COUNT(*)::int AS count,
+         COALESCE(SUM(mc.commission_amount), 0) AS commission,
+         COALESCE(SUM(mc.source_amount), 0) AS beach_base
+       FROM manager_commissions mc
+       JOIN member_purchases mp ON mp.id::text = mc.source_id
+       LEFT JOIN users u ON u.id = mp.user_id
+       ${whereClause}
+       GROUP BY mp.user_id, u.name
+       ORDER BY commission DESC`,
+      params
+    );
+
+    const byOffering = byOfferingRes.rows.map((r) => ({
+      offeringId: r.offering_id,
+      offeringName: r.offering_name,
+      category: r.category,
+      count: r.count,
+      beachBase: toNumber(r.beach_base),
+      commission: toNumber(r.commission),
+      fullPrice: toNumber(r.full_price),
+      storageExcluded: toNumber(r.storage_excluded),
+    }));
+    const byCustomer = byCustomerRes.rows.map((r) => ({
+      userId: r.user_id,
+      customerName: r.customer_name,
+      count: r.count,
+      commission: toNumber(r.commission),
+      beachBase: toNumber(r.beach_base),
+    }));
+
+    const round2 = (n) => Number.parseFloat((n || 0).toFixed(2));
+    return {
+      currency: 'EUR',
+      totals: {
+        commission: round2(byOffering.reduce((s, o) => s + o.commission, 0)),
+        beachBase: round2(byOffering.reduce((s, o) => s + o.beachBase, 0)),
+        fullPrice: round2(byOffering.reduce((s, o) => s + o.fullPrice, 0)),
+        storageExcluded: round2(byOffering.reduce((s, o) => s + o.storageExcluded, 0)),
+        count: byOffering.reduce((s, o) => s + o.count, 0),
+      },
+      byOffering,
+      byCustomer,
+    };
+  } catch (error) {
+    logger.error('Error fetching manager membership breakdown:', { error: error.message, managerUserId });
+    throw error;
+  }
+}
+
+/**
  * Get manager's commission history (paginated)
  * @param {string} managerUserId - Manager user ID
  * @param {Object} options - Filter and pagination options
@@ -1446,8 +1642,13 @@ export async function getManagerCommissions(managerUserId, options = {}) {
           WHEN mc.source_type = 'membership' THEN (
             SELECT jsonb_build_object(
               'customer_name', COALESCE(u.name, 'Unknown'),
-              'offering_name', COALESCE(mo.name, 'Unknown'),
-              'duration_days', mo.duration_days
+              'offering_name', COALESCE(mo.name, mp.offering_name, 'Unknown'),
+              'duration_days', mo.duration_days,
+              'category', COALESCE(mo.category, 'membership'),
+              'storage_unit', mp.storage_unit,
+              'full_price', mp.offering_price,
+              'beach_fee', COALESCE(mp.beach_fee_amount, mp.offering_price),
+              'storage_excluded', GREATEST(mp.offering_price - COALESCE(mp.beach_fee_amount, mp.offering_price), 0)
             )
             FROM member_purchases mp
             LEFT JOIN users u ON u.id = mp.user_id
@@ -2069,6 +2270,7 @@ export async function getManagerUpcomingIncome(managerUserId) {
            mp.status,
            mp.payment_status,
            mp.offering_price,
+           mp.beach_fee_amount,
            mp.offering_currency,
            mp.offering_name,
            u.name AS user_name
@@ -2216,7 +2418,13 @@ export async function getManagerUpcomingIncome(managerUserId) {
     }
 
     for (const r of memberRes.rows) {
-      const sourceAmount = parseFloat(r.offering_price) || 0;
+      // Project on the BEACH-FEE base only (storage earns nothing). Pure-storage
+      // purchases project to 0 → skip so they don't clutter the forecast.
+      const sourceAmount = membershipCommissionableBase({
+        offeringPrice: r.offering_price,
+        beachFeeAmount: r.beach_fee_amount,
+      });
+      if (sourceAmount <= 0) continue;
       const sourceCurrency = r.offering_currency || 'EUR';
       const amountEur = toEur(sourceAmount, sourceCurrency);
       const { rate, amount } = projectFor('membership', amountEur);

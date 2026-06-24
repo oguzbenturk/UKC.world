@@ -156,6 +156,10 @@ function MembershipSettings() {
     setEditingOffering(record);
     // imageUrl will be synced by useEffect
     form.resetFields();
+    // For storage offerings, split the stored price into its beach-fee
+    // (commissionable) + storage components for the two-field editor.
+    const isStorageRec = (record.category || 'membership') === 'storage';
+    const beachFee = record.beach_fee_amount != null ? Number(record.beach_fee_amount) : Number(record.price || 0);
     form.setFieldsValue({
       ...record,
       features: Array.isArray(record.features) ? record.features : [],
@@ -167,6 +171,8 @@ function MembershipSettings() {
       category: record.category || 'membership',
       total_capacity: record.total_capacity,
       group_key: record.group_key || '',
+      beach_fee_amount: isStorageRec ? beachFee : undefined,
+      storage_fee_amount: isStorageRec ? Math.max(0, Number(record.price || 0) - beachFee) : undefined,
     });
     setModalVisible(true);
   };
@@ -187,9 +193,14 @@ function MembershipSettings() {
       const isStorage = values.category === 'storage';
 
       if (editingOffering) {
+        // Storage offerings split price into beach (commissionable) + storage.
+        // Memberships are fully commissionable — backend sets beach = price.
+        const beach = Number(values.beach_fee_amount) || 0;
+        const storage = Number(values.storage_fee_amount) || 0;
         const payload = {
           ...values,
-          price: Number(values.price),
+          price: isStorage ? beach + storage : Number(values.price),
+          beach_fee_amount: isStorage ? beach : undefined,
           duration_days: values.duration_days ? Number(values.duration_days) : null,
           image_url: imageUrl,
           total_capacity: isStorage ? (values.total_capacity ? Number(values.total_capacity) : null) : null,
@@ -201,12 +212,27 @@ function MembershipSettings() {
         const tierList = [];
         TIER_PRESETS.forEach(preset => {
           const t = tiers[preset.key];
-          if (t?.enabled && t?.price) {
+          if (!t?.enabled) return;
+          if (isStorage) {
+            // Each storage tier carries a beach + storage amount; price = sum.
+            const beach = Number(t.beach) || 0;
+            const storage = Number(t.storage) || 0;
+            if (beach + storage <= 0) return;
+            tierList.push({ label: preset.label, duration_days: preset.duration_days, price: beach + storage, beach_fee_amount: beach });
+          } else if (t.price) {
             tierList.push({ label: preset.label, duration_days: preset.duration_days, price: Number(t.price) });
           }
         });
-        if (customTier.enabled && customTier.days && customTier.price) {
-          tierList.push({ label: `${customTier.days} Days`, duration_days: Number(customTier.days), price: Number(customTier.price) });
+        if (customTier.enabled && customTier.days) {
+          if (isStorage) {
+            const beach = Number(customTier.beach) || 0;
+            const storage = Number(customTier.storage) || 0;
+            if (beach + storage > 0) {
+              tierList.push({ label: `${customTier.days} Days`, duration_days: Number(customTier.days), price: beach + storage, beach_fee_amount: beach });
+            }
+          } else if (customTier.price) {
+            tierList.push({ label: `${customTier.days} Days`, duration_days: Number(customTier.days), price: Number(customTier.price) });
+          }
         }
         if (tierList.length === 0) {
           message.warning('Enable at least one duration tier');
@@ -631,17 +657,38 @@ function MembershipSettings() {
                 </Form.Item>
               )}
 
-              {/* ── EDIT MODE: single price/duration ── */}
+              {/* ── EDIT MODE: price (split for storage) + duration ── */}
               {editingOffering && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Form.Item name="price" label="Price" rules={[{ required: true }]}>
-                      <InputNumber className="w-full" min={0} precision={2} prefix="€" />
-                    </Form.Item>
-                    <Form.Item name="duration_days" label="Duration (Days)">
-                      <InputNumber className="w-full" min={1} placeholder="30" />
-                    </Form.Item>
-                  </div>
+                  {formValues?.category === 'storage' ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Form.Item name="beach_fee_amount" label="Beach Fee" rules={[{ required: true }]}
+                          extra="Manager earns 10% on this">
+                          <InputNumber className="w-full" min={0} precision={2} prefix="€" />
+                        </Form.Item>
+                        <Form.Item name="storage_fee_amount" label="Storage Fee" rules={[{ required: true }]}
+                          extra="No manager commission">
+                          <InputNumber className="w-full" min={0} precision={2} prefix="€" />
+                        </Form.Item>
+                      </div>
+                      <div className="text-[11px] text-slate-400 -mt-2 mb-3">
+                        Customer pays €{((Number(formValues?.beach_fee_amount) || 0) + (Number(formValues?.storage_fee_amount) || 0)).toFixed(2)} total (beach + storage). The manager's 10% applies to the beach fee only.
+                      </div>
+                      <Form.Item name="duration_days" label="Duration (Days)">
+                        <InputNumber className="w-full" min={1} placeholder="30" />
+                      </Form.Item>
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Form.Item name="price" label="Price" rules={[{ required: true }]}>
+                        <InputNumber className="w-full" min={0} precision={2} prefix="€" />
+                      </Form.Item>
+                      <Form.Item name="duration_days" label="Duration (Days)">
+                        <InputNumber className="w-full" min={1} placeholder="30" />
+                      </Form.Item>
+                    </div>
+                  )}
                   <Form.Item
                     name="group_key"
                     label="Group Key"
@@ -656,6 +703,11 @@ function MembershipSettings() {
               {!editingOffering && (
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 mt-1">Duration & Pricing</div>
+                  {formValues?.category === 'storage' && (
+                    <div className="text-[11px] text-slate-400 mb-2 -mt-1">
+                      For each tier set the <span className="font-medium text-emerald-600">Beach fee</span> (manager earns 10%) and the <span className="font-medium text-slate-500">Storage fee</span> (no commission). Customer pays the sum.
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {TIER_PRESETS.map(preset => (
                       <div key={preset.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${tiers[preset.key]?.enabled ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200'}`}>
@@ -668,13 +720,31 @@ function MembershipSettings() {
                           <span className="text-xs text-slate-400 ml-1.5">{preset.duration_days}d</span>
                         </div>
                         {tiers[preset.key]?.enabled && (
-                          <InputNumber
-                            size="small" min={0} precision={2} prefix="€"
-                            placeholder="Price"
-                            value={tiers[preset.key]?.price}
-                            onChange={val => setTiers(prev => ({ ...prev, [preset.key]: { ...prev[preset.key], price: val } }))}
-                            className="w-28"
-                          />
+                          formValues?.category === 'storage' ? (
+                            <div className="flex items-center gap-1">
+                              <InputNumber
+                                size="small" min={0} precision={2} prefix="€" placeholder="Beach"
+                                value={tiers[preset.key]?.beach}
+                                onChange={val => setTiers(prev => ({ ...prev, [preset.key]: { ...prev[preset.key], beach: val } }))}
+                                className="w-24"
+                              />
+                              <span className="text-slate-300 text-xs">+</span>
+                              <InputNumber
+                                size="small" min={0} precision={2} prefix="€" placeholder="Storage"
+                                value={tiers[preset.key]?.storage}
+                                onChange={val => setTiers(prev => ({ ...prev, [preset.key]: { ...prev[preset.key], storage: val } }))}
+                                className="w-24"
+                              />
+                            </div>
+                          ) : (
+                            <InputNumber
+                              size="small" min={0} precision={2} prefix="€"
+                              placeholder="Price"
+                              value={tiers[preset.key]?.price}
+                              onChange={val => setTiers(prev => ({ ...prev, [preset.key]: { ...prev[preset.key], price: val } }))}
+                              className="w-28"
+                            />
+                          )
                         )}
                       </div>
                     ))}
@@ -693,12 +763,30 @@ function MembershipSettings() {
                             onChange={val => setCustomTier(prev => ({ ...prev, days: val }))}
                             className="w-20"
                           />
-                          <InputNumber
-                            size="small" min={0} precision={2} prefix="€" placeholder="Price"
-                            value={customTier.price}
-                            onChange={val => setCustomTier(prev => ({ ...prev, price: val }))}
-                            className="w-28"
-                          />
+                          {formValues?.category === 'storage' ? (
+                            <div className="flex items-center gap-1">
+                              <InputNumber
+                                size="small" min={0} precision={2} prefix="€" placeholder="Beach"
+                                value={customTier.beach}
+                                onChange={val => setCustomTier(prev => ({ ...prev, beach: val }))}
+                                className="w-24"
+                              />
+                              <span className="text-slate-300 text-xs">+</span>
+                              <InputNumber
+                                size="small" min={0} precision={2} prefix="€" placeholder="Storage"
+                                value={customTier.storage}
+                                onChange={val => setCustomTier(prev => ({ ...prev, storage: val }))}
+                                className="w-24"
+                              />
+                            </div>
+                          ) : (
+                            <InputNumber
+                              size="small" min={0} precision={2} prefix="€" placeholder="Price"
+                              value={customTier.price}
+                              onChange={val => setCustomTier(prev => ({ ...prev, price: val }))}
+                              className="w-28"
+                            />
+                          )}
                         </>
                       )}
                     </div>

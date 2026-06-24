@@ -37,6 +37,7 @@ router.get('/', async (req, res) => {
         mo.badge,
         mo.badge_color,
         mo.highlighted,
+        mo.beach_fee_amount,
         mo.duration_days,
         mo.image_url,
         mo.use_image_background,
@@ -309,18 +310,19 @@ router.post(
       // Create the purchase record
       const { rows: [purchase] } = await client.query(`
         INSERT INTO member_purchases (
-          user_id, 
-          offering_id, 
-          offering_name, 
-          offering_price, 
-          purchased_at, 
-          expires_at, 
-          status, 
-          payment_method, 
+          user_id,
+          offering_id,
+          offering_name,
+          offering_price,
+          purchased_at,
+          expires_at,
+          status,
+          payment_method,
           payment_status,
-          storage_unit
+          storage_unit,
+          beach_fee_amount
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `, [
         userId,
@@ -332,7 +334,8 @@ router.post(
         purchaseStatus,
         paymentMethod,
         paymentStatus,
-        storageUnit
+        storageUnit,
+        offering.beach_fee_amount ?? offering.price
       ]);
 
       // Stamp the wallet/cash debit with the new purchase id so a later admin cancel can
@@ -389,9 +392,13 @@ router.post(
         });
       }
 
-      // Fire-and-forget manager commission for completed membership purchases
-      if (paymentStatus === 'completed') {
-        recordMembershipCommission(purchase).catch(() => {});
+      // Fire-and-forget manager commission for ACTIVE membership sales (wallet,
+      // cash, pay-at-center). Card & bank transfer start pending_payment and record
+      // later — on the Iyzico callback / on bank-transfer approval respectively.
+      // Commission base is beach-fee only (see recordMembershipCommission); pure
+      // storage records nothing. category isn't a purchase column, so attach it.
+      if (purchaseStatus === 'active') {
+        recordMembershipCommission({ ...purchase, category: offering.category }).catch(() => {});
       }
 
       // For credit card payments (full or deposit), initiate Iyzico checkout
@@ -669,23 +676,31 @@ router.post(
         text_color = 'dark',
         gradient_opacity = 70,
         category = 'membership',
-        total_capacity
+        total_capacity,
+        beach_fee_amount
       } = req.body;
+
+      // Commissionable (beach-fee) portion. Non-storage offerings are fully
+      // commissionable (beach = price). Storage offerings use the explicit beach
+      // portion (the rest is storage, which earns the manager nothing); default 0.
+      const beachFee = category === 'storage'
+        ? (beach_fee_amount != null ? Number(beach_fee_amount) : 0)
+        : Number(price);
 
       const { rows: [offering] } = await pool.query(`
         INSERT INTO member_offerings (
-          name, description, price, period, features, icon, 
-          badge, badge_color, highlighted, is_active, sort_order, duration_days, 
+          name, description, price, period, features, icon,
+          badge, badge_color, highlighted, is_active, sort_order, duration_days,
           image_url, use_image_background, card_style, button_text, gradient_color, text_color, gradient_opacity,
-          category, total_capacity
+          category, total_capacity, beach_fee_amount
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         RETURNING *
       `, [
         name, description, price, period, JSON.stringify(features), icon,
-        badge, badge_color, highlighted, is_active, sort_order, duration_days, 
+        badge, badge_color, highlighted, is_active, sort_order, duration_days,
         image_url, use_image_background ?? true, card_style, button_text, gradient_color, text_color, gradient_opacity,
-        category, total_capacity || null
+        category, total_capacity || null, beachFee
       ]);
 
       logger.info(`Member offering created: ${name} by user ${req.user.id}`);
@@ -747,19 +762,25 @@ router.post(
           : tier.duration_days <= 180 ? 'season'
           : 'year';
 
+        // Beach-fee (commissionable) portion per tier. Non-storage → full tier
+        // price; storage → explicit tier beach portion (rest is storage), default 0.
+        const tierBeachFee = category === 'storage'
+          ? (tier.beach_fee_amount != null ? Number(tier.beach_fee_amount) : 0)
+          : Number(tier.price);
+
         const { rows: [offering] } = await client.query(`
           INSERT INTO member_offerings (
             name, description, price, period, features, icon,
             badge, badge_color, highlighted, is_active, sort_order, duration_days,
-            image_url, card_style, button_text, category, total_capacity
+            image_url, card_style, button_text, category, total_capacity, beach_fee_amount
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, 'simple', 'Choose Plan', $13, $14)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12, 'simple', 'Choose Plan', $13, $14, $15)
           RETURNING *
         `, [
           tierName, description, tier.price, period,
           JSON.stringify(features), icon, badge, tierColor,
           highlighted, i, tier.duration_days, image_url,
-          category, total_capacity || null
+          category, total_capacity || null, tierBeachFee
         ]);
         results.push(offering);
       }
@@ -810,7 +831,8 @@ router.put(
         gradient_opacity,
         category,
         total_capacity,
-        group_key
+        group_key,
+        beach_fee_amount
       } = req.body;
 
       const { rows: [offering] } = await pool.query(`
@@ -837,6 +859,14 @@ router.put(
           category = COALESCE($21, category),
           total_capacity = $22,
           group_key = $23,
+          -- Beach-fee (commissionable) portion: non-storage offerings are always
+          -- fully commissionable (beach = effective price); storage offerings use
+          -- the supplied beach portion, keeping the existing value (or 0) if absent.
+          beach_fee_amount = CASE
+            WHEN COALESCE($21, category) = 'storage'
+              THEN COALESCE($24, beach_fee_amount, 0)
+            ELSE COALESCE($4, price)
+          END,
           updated_at = NOW()
         WHERE id = $1
         RETURNING *
@@ -846,7 +876,8 @@ router.put(
         icon, badge, badge_color, highlighted, is_active, sort_order,
         duration_days, image_url, use_image_background, card_style, button_text, gradient_color, text_color, gradient_opacity,
         category, total_capacity !== undefined ? (total_capacity || null) : null,
-        group_key !== undefined ? (group_key || null) : null
+        group_key !== undefined ? (group_key || null) : null,
+        beach_fee_amount != null ? Number(beach_fee_amount) : null
       ]);
 
       if (!offering) {
@@ -1199,9 +1230,10 @@ router.post(
           payment_status,
           notes,
           created_by,
-          storage_unit
+          storage_unit,
+          beach_fee_amount
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, 'completed', $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, 'completed', $8, $9, $10, $11)
         RETURNING *
       `, [
         userId,
@@ -1213,7 +1245,8 @@ router.post(
         paymentMethod,
         notes,
         req.user.id,
-        storageUnit
+        storageUnit,
+        offering.beach_fee_amount ?? offering.price
       ]);
 
       await client.query('COMMIT');
@@ -1263,6 +1296,12 @@ router.post(
           error: txErr.message,
         });
       }
+
+      // Fire-and-forget manager commission for the reception/admin sale. This path
+      // historically recorded NOTHING — most memberships are sold here, so the
+      // manager was never paid. Base is beach-fee only (storage excluded); pure
+      // storage records nothing. Runs after commit, non-fatal.
+      recordMembershipCommission({ ...purchase, category: offering.category }).catch(() => {});
 
       logger.info(`Member purchase created by admin: user=${userId}, offering=${offering.name}${storageUnit ? `, unit=#${storageUnit}` : ''}`);
       res.status(201).json(purchase);
@@ -1407,6 +1446,9 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
 
     const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
+    // Captured for after-commit manager-commission recording (approve path).
+    let approvedPurchase = null;
+
     await client.query(
       `UPDATE bank_transfer_receipts
        SET status = $1, reviewed_by = $2, reviewed_at = NOW(),
@@ -1424,7 +1466,11 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
       // its current status before activating (the receipt alone isn't enough — the
       // membership may have been cancelled while this receipt sat in the queue).
       const mpRes = await client.query(
-        `SELECT status FROM member_purchases WHERE id = $1 FOR UPDATE`,
+        `SELECT mp.*, mo.category AS offering_category
+           FROM member_purchases mp
+           LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
+          WHERE mp.id = $1
+          FOR UPDATE OF mp`,
         [receipt.member_purchase_id]
       );
       if (mpRes.rows.length === 0) {
@@ -1435,6 +1481,7 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'This membership was cancelled and cannot be reactivated. Create a new membership instead.' });
       }
+      approvedPurchase = mpRes.rows[0];
 
       // Activate the membership
       await client.query(
@@ -1501,6 +1548,14 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
     }
 
     await client.query('COMMIT');
+
+    // Fire-and-forget manager commission once a bank-transfer membership is
+    // approved/activated (previously this path recorded none). Base is beach-fee
+    // only; pure storage records nothing. recordMembershipCommission de-dupes, so a
+    // re-approval can't double-record.
+    if (newStatus === 'approved' && approvedPurchase) {
+      recordMembershipCommission({ ...approvedPurchase, category: approvedPurchase.offering_category }).catch(() => {});
+    }
 
     // Emit real-time event
     req.socketService?.emitToChannel('dashboard', 'pending-membership-payment:updated', {

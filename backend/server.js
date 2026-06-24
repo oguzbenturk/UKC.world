@@ -882,7 +882,11 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
 
       // === Member Offering purchase — look up by token first, then conversationId ===
       const moByToken = await pool.query(
-        `SELECT id, user_id, payment_status, status, offering_name, offering_price FROM member_purchases WHERE gateway_transaction_id = $1 LIMIT 1`,
+        `SELECT mp.id, mp.user_id, mp.payment_status, mp.status, mp.offering_name, mp.offering_price,
+                mp.beach_fee_amount, mp.storage_unit, mo.category
+           FROM member_purchases mp
+           LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
+          WHERE mp.gateway_transaction_id = $1 LIMIT 1`,
         [token]
       );
       if (moByToken.rows.length > 0 || (conversationId && conversationId.startsWith('MO-'))) {
@@ -893,7 +897,11 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           const moResult = moByToken.rows.length > 0
             ? moByToken
             : await pool.query(
-                `SELECT id, user_id, payment_status, status, offering_name, offering_price FROM member_purchases WHERE id = $1`,
+                `SELECT mp.id, mp.user_id, mp.payment_status, mp.status, mp.offering_name, mp.offering_price,
+                        mp.beach_fee_amount, mp.storage_unit, mo.category
+                   FROM member_purchases mp
+                   LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
+                  WHERE mp.id = $1`,
                 [purchaseId]
               );
 

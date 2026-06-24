@@ -22,6 +22,7 @@ import {
   getManagerCommissionSettings,
   getManagerCommissionSummary,
   getManagerCommissions,
+  getManagerMembershipBreakdown,
   upsertManagerCommissionSettings,
   getAllManagersWithCommissionSettings,
   getManagerPayrollEarnings,
@@ -165,6 +166,30 @@ router.get('/summary', authenticateJWT, authorizeRoles(['manager']), async (req,
   } catch (error) {
     logger.error('Error fetching manager commission summary:', { error: error.message, userId: req.user?.id });
     res.status(500).json({ success: false, error: 'Failed to fetch commission summary' });
+  }
+});
+
+/**
+ * @route   GET /api/manager/commissions/membership-breakdown
+ * @desc    Detailed manager membership earnings: beach-fee vs storage, split by
+ *          offering and by customer (for the "more detailed" earnings view).
+ * @access  Manager only
+ */
+router.get('/membership-breakdown', authenticateJWT, authorizeRoles(['manager']), async (req, res) => {
+  try {
+    const managerId = req.user.id;
+    const { startDate, endDate, period } = req.query;
+
+    const data = await getManagerMembershipBreakdown(managerId, {
+      startDate,
+      endDate,
+      periodMonth: period,
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error('Error fetching manager membership breakdown:', { error: error.message, userId: req.user?.id });
+    res.status(500).json({ success: false, error: 'Failed to fetch membership breakdown' });
   }
 });
 

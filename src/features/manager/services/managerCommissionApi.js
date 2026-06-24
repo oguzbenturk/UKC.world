@@ -51,6 +51,21 @@ export async function getManagerCommissionSummary(options = {}) {
 }
 
 /**
+ * Get manager's detailed MEMBERSHIP earnings breakdown
+ * (beach-fee vs storage, split by offering and by customer)
+ */
+export async function getManagerMembershipBreakdown(options = {}) {
+  const { startDate, endDate, period } = options;
+  const params = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  if (period) params.period = period;
+
+  const response = await apiClient.get('/manager/commissions/membership-breakdown', { params });
+  return response.data;
+}
+
+/**
  * Get manager's upcoming projected income (bookings/rentals not yet finalized)
  */
 export async function getManagerUpcomingIncome(options = {}) {
@@ -161,6 +176,7 @@ export default {
   getManagerDashboard,
   getManagerCommissionHistory,
   getManagerCommissionSummary,
+  getManagerMembershipBreakdown,
   getManagerUpcomingIncome,
   getAllManagersWithSettings,
   getManagerSettings,

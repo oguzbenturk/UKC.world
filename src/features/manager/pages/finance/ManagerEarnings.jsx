@@ -6,9 +6,9 @@ import { message } from '@/shared/utils/antdStatic';
 import {
   DollarOutlined, CalendarOutlined, RiseOutlined, FallOutlined,
   CheckCircleOutlined, ClockCircleOutlined, PercentageOutlined,
-  ThunderboltOutlined, BarChartOutlined,
+  ThunderboltOutlined, BarChartOutlined, CrownOutlined,
 } from '@ant-design/icons';
-import { getManagerDashboard, getManagerCommissionHistory } from '../../services/managerCommissionApi';
+import { getManagerDashboard, getManagerCommissionHistory, getManagerMembershipBreakdown } from '../../services/managerCommissionApi';
 import StatBox from '../../components/finance/StatBox';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { SOURCE_COLOR, SOURCE_TAG } from '../../constants/commissionSources';
@@ -28,6 +28,7 @@ function ManagerEarnings() {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
+  const [membershipDetail, setMembershipDetail] = useState(null);
   const [commissions, setCommissions] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 15, total: 0 });
   const [filters, setFilters] = useState({ sourceType: null, status: null, dateRange: null });
@@ -65,8 +66,21 @@ function ManagerEarnings() {
     }
   }, [filters, pagination.limit, t]);
 
+  const fetchMembershipDetail = useCallback(async () => {
+    try {
+      const options = {};
+      if (filters.dateRange?.length === 2) {
+        options.startDate = filters.dateRange[0].format('YYYY-MM-DD');
+        options.endDate = filters.dateRange[1].format('YYYY-MM-DD');
+      }
+      const response = await getManagerMembershipBreakdown(options);
+      if (response.success) setMembershipDetail(response.data);
+    } catch { /* non-fatal: detail section just won't render */ }
+  }, [filters.dateRange]);
+
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
   useEffect(() => { fetchCommissions(1); }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchMembershipDetail(); }, [fetchMembershipDetail]);
 
   if (loading) {
     return <div className="flex justify-center items-center min-h-[400px]"><Spin size="large" /></div>;
@@ -125,6 +139,27 @@ function ManagerEarnings() {
       title: t('manager:dashboard.history.columns.details'), key: 'details', ellipsis: true,
       render: (_, r) => {
         const d = r.source_details || r.metadata || {};
+        if (r.source_type === 'membership') {
+          const isStorage = d.category === 'storage';
+          const main = [d.offering_name, d.customer_name].filter(Boolean).join(' · ');
+          const storageExcl = Number(d.storage_excluded) || 0;
+          return (
+            <span className="text-xs text-gray-600 inline-flex items-center gap-1.5 flex-wrap">
+              {main || '—'}
+              {d.category && (
+                <Tag color={isStorage ? 'gold' : 'blue'} className="!text-[10px] !leading-4 !px-1 !m-0">
+                  {isStorage ? 'beach + storage' : 'beach'}
+                </Tag>
+              )}
+              {d.storage_unit != null && (
+                <Tag color="purple" className="!text-[10px] !leading-4 !px-1 !m-0">Box #{d.storage_unit}</Tag>
+              )}
+              {storageExcl > 0 && (
+                <span className="text-[10px] text-gray-400">storage {formatCurrency(storageExcl, 'EUR')} excl.</span>
+              )}
+            </span>
+          );
+        }
         const parts = [d.student_name, d.instructor_name, d.service_name].filter(Boolean);
         return <span className="text-xs text-gray-600">{parts.join(' · ') || '—'}</span>;
       },
@@ -254,6 +289,79 @@ function ManagerEarnings() {
             </div>
             <div className="text-xs text-gray-400 mt-1">{t('manager:dashboard.stats.collected')}</div>
           </div>
+        </div>
+      )}
+
+      {membershipDetail && (membershipDetail.totals?.count > 0 || (membershipDetail.byOffering?.length || 0) > 0) && (
+        <div className="rounded-xl border border-gray-100 bg-white p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <CrownOutlined className="text-amber-500" />
+            {t('manager:dashboard.membershipDetail.title', { defaultValue: 'Membership earnings — detail' })}
+          </h3>
+
+          {/* Beach vs storage summary — the manager's 10% applies to the beach fee only */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
+              <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.beachCommission', { defaultValue: 'Beach-fee commission' })}</div>
+              <div className="text-lg font-bold text-emerald-600">{formatCurrency(membershipDetail.totals.commission, 'EUR')}</div>
+            </div>
+            <div className="rounded-lg border border-gray-100 p-3">
+              <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.beachBase', { defaultValue: 'Beach fees (base)' })}</div>
+              <div className="text-lg font-bold text-gray-700">{formatCurrency(membershipDetail.totals.beachBase, 'EUR')}</div>
+            </div>
+            <div className="rounded-lg border border-gray-100 p-3">
+              <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.storageExcluded', { defaultValue: 'Storage (excluded)' })}</div>
+              <div className="text-lg font-bold text-gray-400">{formatCurrency(membershipDetail.totals.storageExcluded, 'EUR')}</div>
+            </div>
+            <div className="rounded-lg border border-gray-100 p-3">
+              <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.sold', { defaultValue: 'Memberships sold' })}</div>
+              <div className="text-lg font-bold text-gray-700">{membershipDetail.totals.count}</div>
+            </div>
+          </div>
+
+          {/* By offering */}
+          {membershipDetail.byOffering?.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">{t('manager:dashboard.membershipDetail.byOffering', { defaultValue: 'By offering' })}</div>
+              <Table
+                size="small" pagination={false} rowKey={(r) => r.offeringId ?? r.offeringName}
+                dataSource={membershipDetail.byOffering}
+                scroll={{ x: 520 }}
+                columns={[
+                  {
+                    title: t('manager:dashboard.membershipDetail.offering', { defaultValue: 'Offering' }), key: 'name', ellipsis: true,
+                    render: (_, r) => (
+                      <span className="text-sm text-gray-700 inline-flex items-center gap-2">
+                        <Tag color={r.category === 'storage' ? 'gold' : 'blue'} className="capitalize !m-0">{r.category}</Tag>
+                        {r.offeringName}
+                      </span>
+                    ),
+                  },
+                  { title: t('manager:dashboard.membershipDetail.soldCol', { defaultValue: 'Sold' }), dataIndex: 'count', align: 'center', width: 64 },
+                  { title: t('manager:dashboard.membershipDetail.beachBaseCol', { defaultValue: 'Beach base' }), key: 'beachBase', align: 'right', width: 100, render: (_, r) => <span className="text-gray-500">{formatCurrency(r.beachBase, 'EUR')}</span> },
+                  { title: t('manager:dashboard.membershipDetail.storageExclCol', { defaultValue: 'Storage excl.' }), key: 'se', align: 'right', width: 100, render: (_, r) => (r.storageExcluded > 0 ? <span className="text-gray-400">{formatCurrency(r.storageExcluded, 'EUR')}</span> : '—') },
+                  { title: t('manager:dashboard.history.columns.commission'), key: 'comm', align: 'right', width: 100, render: (_, r) => <span className="font-semibold text-green-600">{formatCurrency(r.commission, 'EUR')}</span> },
+                ]}
+              />
+            </div>
+          )}
+
+          {/* By customer */}
+          {membershipDetail.byCustomer?.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">{t('manager:dashboard.membershipDetail.byCustomer', { defaultValue: 'By customer' })}</div>
+              <Table
+                size="small" pagination={{ pageSize: 5, size: 'small', hideOnSinglePage: true }} rowKey={(r) => r.userId ?? r.customerName}
+                dataSource={membershipDetail.byCustomer}
+                scroll={{ x: 420 }}
+                columns={[
+                  { title: t('manager:dashboard.membershipDetail.customer', { defaultValue: 'Customer' }), dataIndex: 'customerName', key: 'cust', ellipsis: true, render: (v) => <span className="text-sm text-gray-700">{v}</span> },
+                  { title: t('manager:dashboard.membershipDetail.membershipsCol', { defaultValue: 'Memberships' }), dataIndex: 'count', align: 'center', width: 110 },
+                  { title: t('manager:dashboard.history.columns.commission'), key: 'comm', align: 'right', width: 110, render: (_, r) => <span className="font-semibold text-green-600">{formatCurrency(r.commission, 'EUR')}</span> },
+                ]}
+              />
+            </div>
+          )}
         </div>
       )}
 
