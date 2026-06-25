@@ -27,6 +27,16 @@ const latinize = (value) => {
 
 const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple' };
 
+// Render a commission rate by its backend commission_type family
+// (deriveTotalEarnings): fixed/fixed_per_hour = money/h, fixed_per_lesson =
+// money/lesson, everything else = whole percent. `money` formats a currency amount.
+const formatCommissionRate = (type, value, money) => {
+  const rv = Number.parseFloat(value ?? 0) || 0;
+  if (type === 'fixed' || type === 'fixed_per_hour') return `${money(rv)}/h`;
+  if (type === 'fixed_per_lesson') return `${money(rv)}/lesson`;
+  return `${rv.toFixed(1)}%`;
+};
+
 const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
   const { t } = useTranslation(['instructor']);
   const { apiClient } = useData();
@@ -170,9 +180,11 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
     if (!hideLessonAmount) {
       row['Lesson Amount'] = formatCurrency(parseFloat(e.lesson_amount) || 0, businessCurrency || 'EUR');
     }
-    row['Commission Rate'] = e.commission_type === 'fixed'
-      ? `${formatCurrency(Number.parseFloat(e.commission_rate) || 0, businessCurrency || 'EUR')}/h`
-      : `${Number.parseFloat(e.commission_rate || 0).toFixed(2)}%`;
+    row['Commission Rate'] = formatCommissionRate(
+      e.commission_type,
+      e.commission_rate,
+      (n) => formatCurrency(n, businessCurrency || 'EUR'),
+    );
     row.Commission = formatCurrency(parseFloat(e.commission_amount) || 0, businessCurrency || 'EUR');
     row.Status = (e.status || 'pending').toUpperCase();
     return row;
@@ -346,7 +358,7 @@ const PayrollDashboard = forwardRef(({ instructor, defaultPeriod }, ref) => {
             { title: t('instructor:payroll.columns.duration'), dataIndex: 'lesson_duration', key: 'dur', render: v => `${v || 0}h`, width: 80 },
             ...(hideLessonAmount ? [] : [{ title: t('instructor:payroll.columns.amount'), dataIndex: 'lesson_amount', key: 'amt', render: v => fmt(v), width: 100 }]),
             { title: t('instructor:payroll.columns.rate'), dataIndex: 'commission_rate', key: 'rate', width: 90,
-              render: (v, r) => r.commission_type === 'fixed' ? `${fmt(v)}/h` : `${Number.parseFloat(v ?? 0).toFixed(1)}%` },
+              render: (v, r) => formatCommissionRate(r.commission_type, v, fmt) },
             { title: t('instructor:payroll.columns.commission'), dataIndex: 'commission_amount', key: 'comm', render: v => <span className="font-medium text-emerald-700">{fmt(v)}</span>, width: 110 },
             { title: t('instructor:payroll.columns.status'), dataIndex: 'status', key: 'status', width: 100,
               render: s => <Tag color={s === 'completed' ? 'green' : s === 'confirmed' ? 'blue' : 'orange'} bordered={false} className="rounded-full capitalize m-0">{s || 'pending'}</Tag> },

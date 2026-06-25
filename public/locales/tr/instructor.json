@@ -67,6 +67,7 @@
     "pending": "Bekleyen",
     "paidOut": "Ödenen",
     "net": "Net {{amount}}",
+    "grossPaid": "Brüt {{amount}}",
     "lastPayout": "Son Ödeme",
     "paid": "{{datetime}} ödendi",
     "noPayoutsYet": "Henüz ödeme kaydı yok.",

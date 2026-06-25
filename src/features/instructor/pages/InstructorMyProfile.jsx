@@ -446,7 +446,7 @@ function EarningsSection({ finance = {}, formatAmt }) {
             <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:finance.totalEarned')}</div>
           </div>
           <div>
-            <div className="text-sm font-bold text-green-600">{formatAmt(finance.totalPaid || 0)}</div>
+            <div className="text-sm font-bold text-green-600">{formatAmt(finance.netPayments ?? finance.totalPaid ?? 0)}</div>
             <div className="text-[11px] text-gray-400 mt-0.5">{t('instructor:finance.paidOut')}</div>
           </div>
           <div>

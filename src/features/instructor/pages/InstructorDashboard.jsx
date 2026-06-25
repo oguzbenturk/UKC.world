@@ -574,7 +574,7 @@ const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, p
         <FinanceTile label={t('instructor:finance.totalEarned')} value={formatAmount(finance?.totalEarned)} accent="text-emerald-600" />
         <FinanceTile label={t('instructor:finance.monthToDate')} value={formatAmount(finance?.monthToDate)} accent="text-sky-600" />
         <FinanceTile label={t('instructor:finance.pending')} value={formatAmount(finance?.pending)} accent="text-amber-600" hint={effectivePendingHint} />
-        <FinanceTile label={t('instructor:finance.paidOut')} value={formatAmount(finance?.totalPaid)} accent="text-violet-600" hint={t('instructor:finance.net', { amount: formatAmount(finance?.netPayments) })} />
+        <FinanceTile label={t('instructor:finance.paidOut')} value={formatAmount(finance?.netPayments)} accent="text-violet-600" hint={t('instructor:finance.grossPaid', { amount: formatAmount(finance?.totalPaid) })} />
       </div>
 
       <EarningsTrendCard
@@ -673,7 +673,12 @@ const FinancePaymentsTable = ({ payments, formatAmount }) => {
           {payments?.length ? payments.map((payment) => (
             <tr key={payment.id} className="hover:bg-slate-50/50 transition">
               <td className="py-2.5 px-4 text-slate-600 text-xs">{formatDateTime(payment.paymentDate)}</td>
-              <td className="py-2.5 px-4 font-semibold text-emerald-600 tabular-nums">{formatAmount(payment.amount)}</td>
+              <td className="py-2.5 px-4 font-semibold tabular-nums">
+                <span className={payment.amount < 0 ? 'text-rose-600' : 'text-emerald-600'}>{formatAmount(payment.amount)}</span>
+                {payment.type === 'deduction' && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-rose-50 text-rose-600 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide">{t('instructor:payroll.deductionTag')}</span>
+                )}
+              </td>
               <td className="py-2.5 px-4 text-slate-600">{payment.description || t('instructor:finance.instructorPayout')}</td>
               <td className="py-2.5 px-4 text-slate-500 capitalize">{payment.method || 'balance'}</td>
               <td className="py-2.5 px-4 text-slate-400 font-mono text-xs">{payment.referenceNumber || '\u2014'}</td>
@@ -691,7 +696,12 @@ const FinancePaymentsTable = ({ payments, formatAmount }) => {
       {payments?.length ? payments.map((payment) => (
         <div key={payment.id} className="rounded-lg border border-slate-100 px-3 py-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-600 tabular-nums">{formatAmount(payment.amount)}</span>
+            <span className="flex items-center gap-1.5">
+              <span className={`text-xs font-semibold tabular-nums ${payment.amount < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatAmount(payment.amount)}</span>
+              {payment.type === 'deduction' && (
+                <span className="inline-flex items-center rounded-full bg-rose-50 text-rose-600 px-1.5 py-0.5 text-[8px] font-medium uppercase">{t('instructor:payroll.deductionTag')}</span>
+              )}
+            </span>
             <span className="text-[10px] text-slate-400 capitalize">{payment.method || 'balance'}</span>
           </div>
           <div className="flex items-center justify-between mt-1">

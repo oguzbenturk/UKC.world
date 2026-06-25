@@ -236,7 +236,7 @@ router.get(
         const actual = await getInstructorEarningsData(userId, {
           startDate: start,
           endDate: end,
-          statuses: ['completed'],
+          statuses: ['completed', 'done', 'checked_out'],
         });
         result.actual = {
           totalEarnings: actual.totals.totalEarnings,

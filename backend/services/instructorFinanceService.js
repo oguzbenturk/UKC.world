@@ -3,6 +3,14 @@ import { deriveLessonAmount, deriveTotalEarnings, toNumber, partialLessonValue }
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from './managerCommissionService.js';
 
+// A lesson is "completed" (and therefore earns the instructor commission) when it
+// reaches ANY terminal-completed status — not just 'completed'. The booking cascade
+// credits the instructor (and the manager commission) for 'done'/'checked_out' too
+// (see bookings.js COMPLETED_BOOKING_STATUSES + serviceRevenueLedger), so the
+// earnings engine MUST count the same set or the instructor dashboard / payroll /
+// balances under-count by silently dropping done/checked_out lessons.
+const COMPLETED_BOOKING_STATUSES = ['completed', 'done', 'checked_out'];
+
 const mapEarningRow = (row) => {
   const lessonDuration = toNumber(row.lesson_duration);
   const baseAmount = toNumber(row.base_amount);
@@ -110,7 +118,7 @@ const mapEarningRow = (row) => {
 
 export async function getInstructorEarningsData(
   instructorId,
-  { startDate, endDate, statuses = ['completed'] } = {},
+  { startDate, endDate, statuses = COMPLETED_BOOKING_STATUSES } = {},
 ) {
   try {
     let query = `
@@ -197,7 +205,7 @@ export async function getInstructorEarningsData(
     const params = [instructorId];
     let paramIndex = 2;
 
-    const statusList = Array.isArray(statuses) && statuses.length ? statuses : ['completed'];
+    const statusList = Array.isArray(statuses) && statuses.length ? statuses : COMPLETED_BOOKING_STATUSES;
     query += ` AND b.status = ANY($${paramIndex}::text[])`;
     params.push(statusList);
     paramIndex += 1;
@@ -259,7 +267,7 @@ export async function getInstructorEarningsData(
 export async function getLessonFinanceBreakdown({
   startDate,
   endDate,
-  statuses = ['completed', 'done', 'checked_out'],
+  statuses = COMPLETED_BOOKING_STATUSES,
 } = {}) {
   const query = `
     SELECT
@@ -347,7 +355,7 @@ export async function getLessonFinanceBreakdown({
       AND b.status = ANY($1::text[])
   `;
 
-  const params = [Array.isArray(statuses) && statuses.length ? statuses : ['completed']];
+  const params = [Array.isArray(statuses) && statuses.length ? statuses : COMPLETED_BOOKING_STATUSES];
   let q = query;
   let idx = 2;
   if (startDate) { q += ` AND b.date >= $${idx}`; params.push(startDate); idx += 1; }
@@ -448,21 +456,27 @@ export async function getInstructorPayrollHistory(instructorId, options = {}) {
     limitClause = ' LIMIT $2';
   }
 
+  // payment_date = the manager-entered date (stored in metadata.paymentDate),
+  // NOT created_at (the row-insertion time). createStaffPayment lets created_at
+  // default to NOW() and keeps the chosen date only in metadata, and an edit
+  // cancels+re-inserts (created_at = NOW()) — so surfacing created_at would show
+  // the entry time and silently re-date a row to today on every edit. The
+  // replacement row carries metadata.paymentDate forward, so COALESCE is stable.
   const { rows } = await pool.query(
-    `SELECT 
+    `SELECT
         id,
         amount,
         transaction_type as type,
         description,
         payment_method,
         reference_number,
-        created_at as payment_date
-      FROM wallet_transactions 
-      WHERE user_id = $1 
+        COALESCE((metadata->>'paymentDate')::timestamptz, created_at) as payment_date
+      FROM wallet_transactions
+      WHERE user_id = $1
         AND transaction_type IN ('payment', 'deduction')
         AND (entity_type IS NULL OR entity_type = 'instructor_payment')
         AND status != 'cancelled'
-      ORDER BY created_at DESC${limitClause}`,
+      ORDER BY COALESCE((metadata->>'paymentDate')::timestamptz, created_at) DESC${limitClause}`,
     params
   );
   return rows;
@@ -480,13 +494,15 @@ export async function getInstructorPaymentsSummary(instructorId) {
       AND status != 'cancelled';
   `;
 
+  // Last payout date = manager-entered date (metadata.paymentDate), aliased back
+  // to created_at so getInstructorDashboard's lastPayout.created_at keeps working.
   const lastPaymentQuery = `
-    SELECT amount, created_at
+    SELECT amount, COALESCE((metadata->>'paymentDate')::timestamptz, created_at) AS created_at
     FROM wallet_transactions
     WHERE user_id = $1 AND transaction_type = 'payment'
       AND (entity_type IS NULL OR entity_type = 'instructor_payment')
       AND status != 'cancelled'
-    ORDER BY created_at DESC
+    ORDER BY COALESCE((metadata->>'paymentDate')::timestamptz, created_at) DESC
     LIMIT 1;
   `;
 
@@ -569,7 +585,7 @@ export async function getAllInstructorBalances() {
     LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = b.instructor_user_id
     ${discountSumLateral('bk_disc', 'booking', 'b.id')}
     ${discountSumLateral('cp_disc', 'customer_package', 'cp.id')}
-    WHERE b.deleted_at IS NULL AND b.status = 'completed'
+    WHERE b.deleted_at IS NULL AND b.status = ANY($1::text[])
       AND u.deleted_at IS NULL
   `;
 
@@ -587,15 +603,15 @@ export async function getAllInstructorBalances() {
       AND EXISTS (
         SELECT 1 FROM bookings b
         WHERE b.instructor_user_id = u.id
-          AND b.status = 'completed'
+          AND b.status = ANY($1::text[])
           AND b.deleted_at IS NULL
       )
     GROUP BY wt.user_id
   `;
 
   const [bookingsRes, paymentsRes] = await Promise.all([
-    pool.query(bookingsQuery),
-    pool.query(paymentsQuery),
+    pool.query(bookingsQuery, [COMPLETED_BOOKING_STATUSES]),
+    pool.query(paymentsQuery, [COMPLETED_BOOKING_STATUSES]),
   ]);
 
   const result = {};

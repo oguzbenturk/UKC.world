@@ -38,6 +38,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
 
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
+  const [totalPaidGross, setTotalPaidGross] = useState(0);
   const [unpaidEarnings, setUnpaidEarnings] = useState([]);
 
   const [isCommissionModalVisible, setIsCommissionModalVisible] = useState(false);
@@ -72,15 +73,24 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
         };
       });
 
-      // Both payments (positive) and deductions (negative) reduce what's still
-      // owed — sum |amount| so a deduction lowers the balance like a payment.
-      let paidTotal = new Decimal(0);
-      for (const p of history) paidTotal = paidTotal.plus(new Decimal(p.amount || 0).abs());
+      // Deductions are stored NEGATIVE (a clawback), so the balance still owed
+      // must use the SIGNED net (a deduction INCREASES what's owed). This matches
+      // the instructor dashboard (pending = earned − netPayments) and the manager
+      // balances page (balance = earned − SUM(amount)); summing |amount| here made
+      // a deduction lower the balance and disagree with both surfaces.
+      let paidNet = new Decimal(0);   // payments + deductions (signed) → drives balance
+      let paidGross = new Decimal(0); // positive payouts only → "Total Paid Out" KPI
+      for (const p of history) {
+        const amt = new Decimal(p.amount || 0);
+        paidNet = paidNet.plus(amt);
+        if (amt.greaterThan(0)) paidGross = paidGross.plus(amt);
+      }
 
-      const balance = calcEarnings.minus(paidTotal);
+      const balance = calcEarnings.minus(paidNet);
 
       setTotalEarnings(calcEarnings.toNumber());
-      setTotalPaid(paidTotal.toNumber());
+      setTotalPaid(paidNet.toNumber());
+      setTotalPaidGross(paidGross.toNumber());
       setPayrollHistory(history);
       setUnpaidEarnings(balance.greaterThan(0) ? processed : []);
     } catch (err) {
@@ -209,7 +219,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: t('instructor:payroll.lifetimeEarnings'), value: fmt(totalEarnings), icon: <DollarCircleOutlined />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: t('instructor:payroll.totalPaidOut'), value: fmt(totalPaid), icon: <ArrowUpOutlined />, color: 'text-red-500', bg: 'bg-red-50' },
+            { label: t('instructor:payroll.totalPaidOut'), value: fmt(totalPaidGross), icon: <ArrowUpOutlined />, color: 'text-red-500', bg: 'bg-red-50' },
             { label: t('instructor:payroll.balanceOwed'), value: fmt(availableBalance), icon: <CheckCircleOutlined />, color: 'text-blue-600', bg: 'bg-blue-50' },
           ].map(s => (
             <div key={s.label} className="rounded-lg border border-gray-100 bg-white p-2.5">
@@ -257,10 +267,13 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
               ...(hideLessonAmount ? [] : [{ title: t('instructor:payroll.columns.amount'), dataIndex: 'lesson_amount', key: 'amt', render: (val, r) => formatCurrency(val || 0, r.currency || businessCurrency || 'EUR'), width: 100 }]),
               { title: t('instructor:payroll.columns.rate'), dataIndex: 'commission_rate', key: 'rate', width: 90,
                 render: (v, r) => {
-                  const rv = typeof v === 'number' ? v : parseFloat(v || '0');
-                  return r.commission_type === 'fixed'
-                    ? formatCurrency(rv, r.currency || businessCurrency || 'EUR') + '/h'
-                    : `${(rv < 1 ? rv * 100 : rv).toFixed(1)}%`;
+                  const rv = Number.parseFloat(v ?? 0) || 0;
+                  const cur = r.currency || businessCurrency || 'EUR';
+                  // Match the backend's commission_type families (deriveTotalEarnings):
+                  // fixed/fixed_per_hour = €/h, fixed_per_lesson = €/lesson, else whole %.
+                  if (r.commission_type === 'fixed' || r.commission_type === 'fixed_per_hour') return `${formatCurrency(rv, cur)}/h`;
+                  if (r.commission_type === 'fixed_per_lesson') return `${formatCurrency(rv, cur)}/lesson`;
+                  return `${rv.toFixed(1)}%`;
                 }
               },
               { title: t('instructor:payroll.columns.commission'), dataIndex: 'commission_amount', key: 'comm',
@@ -389,7 +402,9 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
             afterOpenChange={(open) => {
               if (open && selectedBooking) {
                 commissionForm.resetFields();
-                commissionForm.setFieldsValue({ commissionRate: selectedBooking.commission_rate * 100 });
+                // commission_rate is already a WHOLE percent (e.g. 45 = 45%); do
+                // not ×100 — that produced 4500 and tripped the 0–100 validator.
+                commissionForm.setFieldsValue({ commissionRate: selectedBooking.commission_rate });
               }
             }}
           >

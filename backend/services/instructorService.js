@@ -15,7 +15,7 @@ const DASHBOARD_CACHE_TTL_SECONDS = Number(process.env.INSTRUCTOR_DASHBOARD_TTL 
 
 const dashboardCacheKey = (instructorId) => `instructor:dashboard:${instructorId}`;
 
-const invalidateInstructorDashboardCache = async (instructorId) => {
+export const invalidateInstructorDashboardCache = async (instructorId) => {
   try {
     await cacheService.del(dashboardCacheKey(instructorId));
   } catch (error) {
@@ -797,6 +797,10 @@ export async function getInstructorDashboard(instructorId) {
 
     const { netPayments, totalPaid, lastPayment } = paymentsSummary;
     const pendingBalance = totalEarned - netPayments;
+    // Clamp once and reuse for BOTH the displayed pending and the payout-threshold
+    // messaging — otherwise an overpaid instructor (negative pendingBalance) sees
+    // "€0 pending" next to a "€X until threshold" nudge computed off the negative.
+    const displayPending = Math.max(pendingBalance, 0);
 
     const toTwoDecimals = (value) => Number(Number(value || 0).toFixed(2));
 
@@ -837,15 +841,15 @@ export async function getInstructorDashboard(instructorId) {
     const result = {
       finance: {
         totalEarned: Number(totalEarned.toFixed(2)),
-        pending: Number(Math.max(pendingBalance, 0).toFixed(2)),
+        pending: Number(displayPending.toFixed(2)),
         monthToDate: Number(monthToDate.toFixed(2)),
         totalPaid: Number(totalPaid.toFixed(2)),
         totalHours: Number(totalHours.toFixed(2)),
         netPayments: Number(netPayments.toFixed(2)),
         pendingThreshold: {
           amount: Number(PAYOUT_THRESHOLD.toFixed(2)),
-          meetsThreshold: pendingBalance >= PAYOUT_THRESHOLD,
-          shortfall: Number(Math.max(PAYOUT_THRESHOLD - pendingBalance, 0).toFixed(2)),
+          meetsThreshold: displayPending >= PAYOUT_THRESHOLD,
+          shortfall: Number(Math.max(PAYOUT_THRESHOLD - displayPending, 0).toFixed(2)),
         },
         timeseries: earningsTimeseries,
         lastPayout: lastPayment ? {

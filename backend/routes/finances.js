@@ -31,6 +31,8 @@ import {
 import { initiateDeposit, verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
 import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from '../services/managerCommissionService.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
+import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
+import { invalidateInstructorDashboardCache } from '../services/instructorService.js';
 
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
@@ -2055,11 +2057,17 @@ router.get('/instructor-earnings/:instructorId',
   logger.debug('[DEBUG] Request user:', req.user?.id, 'role:', req.user?.role);
   
   try {
-    const instructorId = req.params.instructorId;
+    // Object-level authz: a plain instructor may only read their OWN earnings.
+    // The route allows the 'instructor' role, but without this an instructor could
+    // swap the id in the URL and read another instructor's lesson-by-lesson
+    // earnings, commission rates, lesson amounts, student names and payout history
+    // (IDOR). Managers/admins keep arbitrary access. Params are strings; coerce.
+    const isPrivileged = ['admin', 'manager'].includes(req.user?.role);
+    const instructorId = isPrivileged ? req.params.instructorId : String(req.user.id);
     const { startDate, endDate } = req.query;
-    
+
   logger.debug('[DEBUG] Date filters:', { startDate, endDate });
-    
+
     const { earnings, totals } = await getInstructorEarningsData(instructorId, { startDate, endDate });
     const payrollHistory = await getInstructorPayrollHistory(instructorId);
 
@@ -2123,6 +2131,10 @@ router.post('/instructor-payments',
     const mapped = mapTransactionRow(transactionRecord);
     logger.debug('[DEBUG] Instructor wallet transaction created:', mapped);
 
+    // The instructor's own dashboard caches its finance block (pending/paidOut);
+    // bust it so a just-recorded payout/deduction shows up immediately.
+    await invalidateInstructorDashboardCache(instructor_id);
+
     res.json({
       success: true,
       transaction: mapped,
@@ -2131,6 +2143,75 @@ router.post('/instructor-payments',
   } catch (error) {
     logger.error('Error recording instructor payment:', error);
     res.status(500).json({ error: 'Failed to record instructor payment' });
+  }
+});
+
+/**
+ * PUT /api/finances/instructor-earnings/:instructorId/:bookingId/commission
+ * Manager/admin: override a single booking's instructor commission rate.
+ * Upserts booking_custom_commissions (percentage) and re-runs the booking
+ * financial cascade so instructor earnings, manager commission and the service
+ * revenue ledger are recomputed — then busts the instructor dashboard cache so
+ * the dashboard / payroll / balances all reconcile.
+ */
+router.put('/instructor-earnings/:instructorId/:bookingId/commission',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
+  async (req, res) => {
+  const { instructorId, bookingId } = req.params;
+  const rate = Number.parseFloat(req.body?.commissionRate);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+    return res.status(400).json({ error: 'commissionRate must be a percentage between 0 and 100' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Validate the booking exists and belongs to this instructor.
+    const { rows: [booking] } = await client.query(
+      `SELECT * FROM bookings WHERE id = $1 AND instructor_user_id = $2 AND deleted_at IS NULL FOR UPDATE`,
+      [bookingId, instructorId]
+    );
+    if (!booking) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Booking not found for this instructor' });
+    }
+
+    // Upsert the per-booking override. commission_value is a WHOLE percent
+    // (deriveTotalEarnings divides by 100); commission_type='percentage'.
+    await client.query(
+      `INSERT INTO booking_custom_commissions
+         (booking_id, instructor_id, service_id, commission_type, commission_value, created_at, updated_at)
+       VALUES ($1, $2, $3, 'percentage', $4, NOW(), NOW())
+       ON CONFLICT (booking_id) DO UPDATE
+         SET commission_type = 'percentage',
+             commission_value = EXCLUDED.commission_value,
+             updated_at = NOW()`,
+      [booking.id, instructorId, booking.service_id, rate]
+    );
+
+    // Recompute earnings + manager commission + ledger inside this txn (strict).
+    await BookingUpdateCascadeService.cascadeBookingUpdate(
+      booking,
+      { _custom_commission_changed: true },
+      { client, strict: true }
+    );
+
+    await client.query('COMMIT');
+
+    await invalidateInstructorDashboardCache(instructorId);
+
+    // Return the recomputed row so the client can reconcile.
+    const { earnings } = await getInstructorEarningsData(instructorId, {});
+    const updated = earnings.find((e) => String(e.booking_id) === String(bookingId)) || null;
+    return res.json({ success: true, booking: updated, message: 'Commission rate updated' });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* already settled */ }
+    logger.error('Error updating booking commission rate:', error);
+    return res.status(500).json({ error: 'Failed to update commission rate' });
+  } finally {
+    client.release();
   }
 });
 
@@ -2164,6 +2245,8 @@ router.put('/instructor-payments/:id',
       actorId: resolveActorId(req) || null,
     });
 
+    if (updatedTransaction?.user_id) await invalidateInstructorDashboardCache(updatedTransaction.user_id);
+
     res.json({
       success: true,
       transaction: mapTransactionRow(updatedTransaction),
@@ -2191,11 +2274,17 @@ router.delete('/instructor-payments/:id',
     const { id } = req.params;
     logger.debug('[DEBUG] Deleting instructor payment:', { id });
 
+    // Capture the affected instructor before the row is cancelled so we can bust
+    // their dashboard cache afterwards.
+    const existing = await getWalletTransactionById(id);
+
     await deleteStaffPayment({
       kind: STAFF_KIND.INSTRUCTOR,
       paymentId: id,
       actorId: resolveActorId(req) || null,
     });
+
+    if (existing?.user_id) await invalidateInstructorDashboardCache(existing.user_id);
 
     res.json({ success: true, message: 'Instructor payment deleted successfully' });
   } catch (error) {

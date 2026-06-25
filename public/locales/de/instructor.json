@@ -67,6 +67,7 @@
     "pending": "Ausstehend",
     "paidOut": "Ausgezahlt",
     "net": "Netto {{amount}}",
+    "grossPaid": "Brutto {{amount}}",
     "lastPayout": "Letzte Auszahlung",
     "paid": "Bezahlt {{datetime}}",
     "noPayoutsYet": "Noch keine Auszahlungen erfasst.",

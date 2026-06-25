@@ -67,6 +67,7 @@
     "pending": "En attente",
     "paidOut": "Versé",
     "net": "Net {{amount}}",
+    "grossPaid": "Brut {{amount}}",
     "lastPayout": "Dernier versement",
     "paid": "Payé le {{datetime}}",
     "noPayoutsYet": "Aucun versement enregistré.",

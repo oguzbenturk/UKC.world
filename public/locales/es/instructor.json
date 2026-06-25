@@ -67,6 +67,7 @@
     "pending": "Pendiente",
     "paidOut": "Pagado",
     "net": "Neto {{amount}}",
+    "grossPaid": "Bruto {{amount}}",
     "lastPayout": "Último pago",
     "paid": "Pagado el {{datetime}}",
     "noPayoutsYet": "No hay pagos registrados.",

@@ -67,6 +67,7 @@
     "pending": "В ожидании",
     "paidOut": "Выплачено",
     "net": "Чистый {{amount}}",
+    "grossPaid": "Валовая {{amount}}",
     "lastPayout": "Последняя выплата",
     "paid": "Оплачено {{datetime}}",
     "noPayoutsYet": "Выплаты ещё не зарегистрированы.",

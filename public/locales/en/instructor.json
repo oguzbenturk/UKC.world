@@ -67,6 +67,7 @@
     "pending": "Pending",
     "paidOut": "Paid Out",
     "net": "Net {{amount}}",
+    "grossPaid": "Gross {{amount}}",
     "lastPayout": "Last Payout",
     "paid": "Paid {{datetime}}",
     "noPayoutsYet": "No payouts recorded yet.",
