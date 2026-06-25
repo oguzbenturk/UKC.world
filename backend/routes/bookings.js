@@ -4918,15 +4918,34 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       }
     }
 
+    // Detect group / semi-private bookings (more than one participant, via either
+    // the booking_participants model OR a group_bookings master). These are priced
+    // by HEADCOUNT (price_per_person × N), not by the service hourly rate, so the
+    // cash pro-rate below would compute the wrong number for them and never fans
+    // the new price out to each participant's share / wallet. They get a dedicated
+    // proportional re-price block instead (see below).
+    let isMultiParticipant = false;
+    if (duration !== undefined && duration !== null) {
+      const { rows: pcRows } = await client.query(
+        'SELECT COUNT(*)::int AS n FROM booking_participants WHERE booking_id = $1', [req.params.id]
+      );
+      const { rows: gbRows } = await client.query(
+        'SELECT 1 FROM group_bookings WHERE booking_id = $1 LIMIT 1', [req.params.id]
+      );
+      isMultiParticipant = (pcRows[0]?.n || 0) > 1 || gbRows.length > 0;
+    }
+
     // Pro-rate the PRICE of a pure-CASH lesson when its duration changes — e.g. a
     // 2h lesson checked out at 1.5h should drop from €60 to €45. Package / partial
     // / spillover bookings are already repriced by the reconcile above (which also
     // restores their package hours); this covers plain cash bookings, which
     // otherwise kept the full-duration charge. Only when the caller didn't send an
     // explicit price (checkout sends just the duration) — an explicit price edit wins.
-    // The cascade below settles the wallet delta (refund/charge) for the new price.
+    // Group / semi-private bookings are excluded here and handled by the
+    // proportional block below. The cascade settles the wallet delta for the new price.
     if (duration !== undefined && duration !== null
         && amount === undefined && final_amount === undefined
+        && !isMultiParticipant
         && currentBooking.payment_status !== 'package'
         && currentBooking.payment_status !== 'partial'
         && !currentBooking.customer_package_id) {
@@ -4959,6 +4978,117 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         } catch (priceErr) {
           logger.warn('Failed to pro-rate cash lesson price on duration change', {
             bookingId: booking.id, error: priceErr.message,
+          });
+        }
+      }
+    }
+
+    // Pro-rate GROUP / SEMI-PRIVATE lessons when their duration changes at checkout.
+    // Their price is headcount-based (price_per_person × N), not service-derived, so
+    // the cash block above skips them — and without this they kept the full booked
+    // duration charge (a 2h booking checked out at 1h was still billed 2h). We scale
+    // the booking total AND every participant's share proportionally to the duration
+    // change (1h of a 2h lesson → 50% of the price), settling each cash-paying
+    // participant's wallet for the difference. Only when no explicit price was sent
+    // (checkout sends just the duration — a manual price edit wins).
+    if (isMultiParticipant
+        && duration !== undefined && duration !== null
+        && amount === undefined && final_amount === undefined) {
+      const oldDuration = parseFloat(currentBooking.duration) || 0;
+      const newDuration = parseFloat(duration) || 0;
+      if (oldDuration > 0 && newDuration > 0 && Math.abs(newDuration - oldDuration) > 0.0001) {
+        try {
+          const ratio = newDuration / oldDuration;
+          const oldAmount = parseFloat(currentBooking.amount) || 0;
+          const oldFinal = parseFloat(currentBooking.final_amount ?? currentBooking.amount) || 0;
+          const newAmount = parseFloat((oldAmount * ratio).toFixed(2));
+          const newFinal = Math.max(0, parseFloat((oldFinal * ratio).toFixed(2)));
+          await client.query(
+            'UPDATE bookings SET amount = $1, final_amount = $2, updated_at = NOW() WHERE id = $3',
+            [newAmount, newFinal, booking.id]
+          );
+          booking.amount = newAmount;
+          booking.final_amount = newFinal;
+
+          // ── Model A: booking_participants rows — scale each share, settle wallets ──
+          // Package / refunded participants owe no cash (0 × ratio = 0), so only
+          // 'paid' / 'partial' participants move money. The cascade below skips
+          // multi-participant bookings (count > 1), so there is no double-settlement.
+          const { rows: parts } = await client.query(
+            `SELECT id, user_id, payment_status, payment_amount
+               FROM booking_participants WHERE booking_id = $1`,
+            [booking.id]
+          );
+          for (const p of parts) {
+            if (p.payment_status !== 'paid' && p.payment_status !== 'partial') continue;
+            const oldShare = parseFloat(p.payment_amount) || 0;
+            const newShare = parseFloat((oldShare * ratio).toFixed(2));
+            const diff = newShare - oldShare;
+            if (diff !== 0 && p.user_id) {
+              try {
+                await recordWalletTransaction({
+                  userId: p.user_id,
+                  amount: -diff,
+                  availableDelta: -diff,
+                  transactionType: diff > 0 ? 'booking_charge' : 'booking_charge_adjustment',
+                  status: 'completed',
+                  direction: diff > 0 ? 'debit' : 'credit',
+                  description: diff > 0
+                    ? 'Checkout duration reprice (shared booking)'
+                    : 'Checkout duration refund (shared booking)',
+                  metadata: {
+                    bookingId: booking.id,
+                    reason: 'checkout_duration_reprice',
+                    oldShare, newShare, oldDuration, newDuration,
+                  },
+                  entityType: 'booking',
+                  relatedEntityType: 'booking',
+                  relatedEntityId: booking.id,
+                  bookingId: booking.id,
+                  createdBy: req.user?.id || null,
+                  allowNegative: true,
+                  client,
+                });
+              } catch (walletErr) {
+                logger.warn('Wallet reprice on checkout duration change failed (non-blocking)', {
+                  bookingId: booking.id, participantId: p.id, error: walletErr.message,
+                });
+              }
+            }
+            await client.query(
+              `UPDATE booking_participants SET payment_amount = $1, updated_at = NOW() WHERE id = $2`,
+              [newShare, p.id]
+            );
+          }
+
+          // ── Model B: group_bookings master + group_booking_participants ──────────
+          const { rows: gbRows } = await client.query(
+            `SELECT id FROM group_bookings WHERE booking_id = $1 LIMIT 1`, [booking.id]
+          );
+          if (gbRows.length > 0) {
+            const groupId = gbRows[0].id;
+            await client.query(
+              `UPDATE group_bookings
+                  SET total_amount = ROUND(COALESCE(total_amount, 0) * $1::numeric, 2),
+                      price_per_person = ROUND(COALESCE(price_per_person, 0) * $1::numeric, 2),
+                      updated_at = NOW()
+                WHERE id = $2`,
+              [ratio, groupId]
+            );
+            await client.query(
+              `UPDATE group_booking_participants
+                  SET amount_due = ROUND(COALESCE(amount_due, 0) * $1::numeric, 2), updated_at = NOW()
+                WHERE group_booking_id = $2 AND payment_status NOT IN ('paid', 'refunded')`,
+              [ratio, groupId]
+            );
+          }
+
+          logger.info('Pro-rated group/semi-private lesson price on checkout duration change', {
+            bookingId: booking.id, oldDuration, newDuration, ratio, oldAmount, newAmount,
+          });
+        } catch (groupPriceErr) {
+          logger.warn('Failed to pro-rate group/semi-private price on duration change', {
+            bookingId: booking.id, error: groupPriceErr.message,
           });
         }
       }
