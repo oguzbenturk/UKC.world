@@ -161,6 +161,8 @@
     "accommodation": "Konaklama",
     "shopManagement": "Mağaza Yönetimi",
     "memberships": "Üyelikler",
+    "allMemberships": "Tüm Üyelikler",
+    "activeMemberships": "Aktif Üyelikler",
     "categoryParameters": "Kategori Parametreleri",
     "eventManager": "Etkinlik Yöneticisi",
     "overall": "Genel",

@@ -2,6 +2,7 @@
 // Admin page to view all member purchases and assign memberships
 
 import { useState, useMemo, lazy, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Card, Table, Tag, Button, Space, Tooltip,
@@ -65,13 +66,24 @@ const deriveDuration = (purchase) => {
   return DURATION_ORDER.includes(per) ? per : 'other';
 };
 
-const AdminMembersPage = () => {
+// Sort by expiry soonest-first; never-expiring (null) memberships sort last.
+const expiryMs = (p) => (p?.expires_at ? new Date(p.expires_at).getTime() : Infinity);
+const byExpiryAsc = (a, b) => expiryMs(a) - expiryMs(b);
+
+// `defaultStatus` lets a route (e.g. the sidebar "Active Memberships" entry at
+// /memberships/active) open this page pre-filtered. A `?status=` query param does
+// the same for deep links. Either way the status dropdown stays editable.
+const AdminMembersPage = ({ defaultStatus = null } = {}) => {
   const { t } = useTranslation(['admin']);
   const { formatCurrency } = useCurrency();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+  const [searchParams] = useSearchParams();
+  const initialStatus = defaultStatus || searchParams.get('status') || 'all';
+  // "Active Memberships" view → focused title/icon so the page reads as its own destination.
+  const isActiveView = initialStatus === 'active';
   // Deleting a membership posts a wallet refund, so it's gated to managers+ — matching
   // the backend cancel endpoint (authorizeRoles(['admin','manager','developer','owner'])).
   const canManage = ['admin', 'manager', 'developer', 'owner'].includes((currentUser?.role || '').toLowerCase());
@@ -84,7 +96,7 @@ const AdminMembersPage = () => {
   };
   
   const [filters, setFilters] = useState({
-    status: 'all',
+    status: initialStatus,
     search: '',
     dateRange: null,
     category: 'all',
@@ -171,6 +183,13 @@ const AdminMembersPage = () => {
       p.current_offering_name?.toLowerCase().includes(search)
     );
   });
+
+  // Default ordering: soonest-to-expire first (mirrors the table's defaultSortOrder so
+  // the mobile card list and the desktop table agree out of the box).
+  const sortedPurchases = useMemo(
+    () => [...filteredPurchases].sort(byExpiryAsc),
+    [filteredPurchases]
+  );
 
   const handleViewDetails = (purchase) => {
     setSelectedPurchase(purchase);
@@ -337,6 +356,8 @@ const AdminMembersPage = () => {
       dataIndex: 'expires_at',
       key: 'expires_at',
       width: 120,
+      sorter: byExpiryAsc,
+      defaultSortOrder: 'ascend',
       render: (date) => {
         if (!date) return <span className="text-xs text-slate-400">{t('admin:members.table.never')}</span>;
         const expiry = dayjs(date);
@@ -457,8 +478,12 @@ const AdminMembersPage = () => {
       <div className="mb-3 md:mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h2 className="m-0 text-base md:text-lg font-semibold text-slate-800 flex items-center gap-2">
-            <CrownOutlined className="text-amber-500" />
-            {t('admin:members.title')}
+            {isActiveView ? (
+              <CheckCircleOutlined className="text-green-500" />
+            ) : (
+              <CrownOutlined className="text-amber-500" />
+            )}
+            {isActiveView ? t('admin:members.activeTitle', 'Active Memberships') : t('admin:members.title')}
           </h2>
           <Space size="small" wrap>
             <Button icon={<ReloadOutlined />} size="small" onClick={() => refetch()}>
@@ -570,7 +595,7 @@ const AdminMembersPage = () => {
               <div className="text-xs text-slate-500 mb-2 px-1">
                 {t('admin:members.count', { count: filteredPurchases.length })}
               </div>
-              {filteredPurchases.map(purchase => (
+              {sortedPurchases.map(purchase => (
                 <MemberCard key={purchase.id} record={purchase} />
               ))}
             </>
@@ -580,7 +605,7 @@ const AdminMembersPage = () => {
         <Card className="rounded-xl border border-slate-200 shadow-sm" styles={{ body: { padding: 0 } }}>
           <Table
             columns={columns}
-            dataSource={filteredPurchases}
+            dataSource={sortedPurchases}
             rowKey="id"
             loading={isLoading}
             size="small"

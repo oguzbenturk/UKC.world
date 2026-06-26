@@ -157,6 +157,8 @@
     "accommodation": "Accommodation",
     "shopManagement": "Shop Management",
     "memberships": "Memberships",
+    "allMemberships": "All Memberships",
+    "activeMemberships": "Active Memberships",
     "categoryParameters": "Category Parameters",
     "eventManager": "Event Manager",
     "overall": "Overall",

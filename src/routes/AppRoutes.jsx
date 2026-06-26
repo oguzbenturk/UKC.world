@@ -597,6 +597,8 @@ const AppRoutes = () => {
         <Route path="/calendars/lessons" element={<LessonsCalendar />} />
         <Route path="/calendars/rentals" element={<RentalsCalendar />} />
         <Route path="/calendars/members" element={<AdminMembersPage />} />
+        {/* Memberships dropdown → active-only view (sorted by expiry, soonest first) */}
+        <Route path="/memberships/active" element={<AdminMembersPage defaultStatus="active" />} />
         <Route path="/calendars/stay" element={<AccommodationAdminPage />} />
         <Route path="/calendars/shop-orders" element={<ShopOrdersPage />} />
         <Route path="/calendars/events" element={<EventsCalendar />} />

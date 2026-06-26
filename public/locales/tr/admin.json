@@ -1102,6 +1102,7 @@
   },
   "members": {
     "title": "Üyeler",
+    "activeTitle": "Aktif Üyelikler",
     "assignMembership": "Üyelik Ata",
     "assignFirst": "İlk Üyeyi Ata",
     "assign": "Ata",

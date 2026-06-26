@@ -1102,6 +1102,7 @@
   },
   "members": {
     "title": "Members",
+    "activeTitle": "Active Memberships",
     "assignMembership": "Assign Membership",
     "assignFirst": "Assign First Member",
     "assign": "Assign",

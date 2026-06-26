@@ -371,6 +371,14 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/services/events', label: 'Events', labelKey: 'common:nav.events', dotColor: '#0ea5e9' }
         ]
       }),
+      item('/calendars/members', 'Memberships', 'SparklesIcon', {
+        labelKey: 'common:nav.memberships',
+        customStyle: { textColor: '#93c47d' },
+        subItems: [
+          { to: '/calendars/members', label: 'All Memberships', labelKey: 'common:nav.allMemberships', dotColor: '#93c47d' },
+          { to: '/memberships/active', label: 'Active Memberships', labelKey: 'common:nav.activeMemberships', dotColor: '#22c55e' }
+        ]
+      }),
       item('/manager/finance', 'My Finances', 'CurrencyDollarIcon', {
         labelKey: 'common:nav.myFinances',
         customStyle: { textColor: '#10b981' },
@@ -455,6 +463,14 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/services/accommodation', label: 'Stay', labelKey: 'common:nav.stay', dotColor: '#3b82f6' },
           { to: '/services/packages', label: 'Experience', labelKey: 'common:nav.experience', dotColor: '#eab308' },
           { to: '/services/events', label: 'Events', labelKey: 'common:nav.events', dotColor: '#0ea5e9' }
+        ]
+      }),
+      item('/calendars/members', 'Memberships', 'SparklesIcon', {
+        labelKey: 'common:nav.memberships',
+        customStyle: { textColor: '#93c47d' },
+        subItems: [
+          { to: '/calendars/members', label: 'All Memberships', labelKey: 'common:nav.allMemberships', dotColor: '#93c47d' },
+          { to: '/memberships/active', label: 'Active Memberships', labelKey: 'common:nav.activeMemberships', dotColor: '#22c55e' }
         ]
       }),
       item('/finance', 'Finance', 'CurrencyDollarIcon', {
