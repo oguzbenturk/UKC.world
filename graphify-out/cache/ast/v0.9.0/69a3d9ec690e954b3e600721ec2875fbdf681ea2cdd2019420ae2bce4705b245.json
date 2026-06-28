@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_db_migrations_227_add_new_booking_alerts_to_notification_settings_sql", "label": "227_add_new_booking_alerts_to_notification_settings.sql", "file_type": "code", "source_file": "backend/db/migrations/227_add_new_booking_alerts_to_notification_settings.sql", "source_location": null}], "edges": []}

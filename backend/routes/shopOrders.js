@@ -17,6 +17,7 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 import { updateShopOrderItemPrice } from '../services/shopOrderPriceService.js';
+import { applyDiscount } from '../services/discountService.js';
 
 const router = express.Router();
 
@@ -208,8 +209,8 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
     for (const item of items) {
       // Get product with current price and stock
       const productResult = await client.query(`
-        SELECT id, name, price, stock_quantity, image_url, brand, status
-        FROM products 
+        SELECT id, name, price, stock_quantity, image_url, brand, status, variants
+        FROM products
         WHERE id = $1 AND status = 'active'
       `, [item.product_id]);
 
@@ -230,7 +231,13 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
         });
       }
 
-      const itemTotal = product.price * item.quantity;
+      // Charge the price of the SELECTED variant (size/colour), not the base
+      // product price. The base price is derived from the lowest variant price
+      // in ProductForm, so without this every size was billed the cheapest
+      // variant's price. Mirrors the quick-sale path; resolveVariantUnitPrice
+      // falls back to the base price when the variant has no price set.
+      const unitPrice = resolveVariantUnitPrice(product, item.selected_size, item.selected_color);
+      const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
 
       validatedItems.push({
@@ -239,7 +246,7 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
         product_image: product.image_url,
         brand: product.brand,
         quantity: item.quantity,
-        unit_price: product.price,
+        unit_price: unitPrice,
         total_price: itemTotal,
         selected_size: item.selected_size || null,
         selected_color: item.selected_color || null,
@@ -1670,6 +1677,17 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
       }
     }
 
+    // Clean up the order's manual line-item discounts. They live in the separate
+    // `discounts` table (not on shop_orders) with no FK cascade, so without this
+    // a deleted order leaves orphan discount rows behind (the source of the
+    // dangling shop_order discounts seen in the data). The matching
+    // discount_adjustment wallet credit keeps its own row; its discount_id FK is
+    // ON DELETE SET NULL so the ledger stays balanced.
+    await client.query(
+      "DELETE FROM discounts WHERE entity_type = 'shop_order' AND entity_id = $1",
+      [String(orderId)]
+    );
+
     await client.query('DELETE FROM shop_orders WHERE id = $1', [orderId]);
 
     await client.query('COMMIT');
@@ -1702,11 +1720,13 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
 
   try {
     const staffUserId = req.user.id;
-    const { 
+    const {
       user_id, // Customer's user_id (optional for walk-in)
-      items, 
+      items,
       payment_method = 'cash',
-      notes
+      notes,
+      discount_percent, // Optional staff discount, applied atomically below
+      discount_reason
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -1855,6 +1875,23 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
         createdBy: staffUserId,
         allowNegative,
         metadata: { orderId: order.id, orderNumber: order.order_number, staffId: staffUserId }
+      });
+    }
+
+    // Apply the staff discount INSIDE the same transaction (atomic). Previously
+    // the FAB applied it as a second POST /discounts after the sale, so a failed
+    // second call left the order at full price. The order row already exists and
+    // is payment_status='completed', so applyDiscount records the discounts-table
+    // row and (for a wallet sale) posts the matching wallet credit.
+    const discPct = Math.max(0, Math.min(100, Number(discount_percent) || 0));
+    if (discPct > 0 && user_id) {
+      await applyDiscount(client, {
+        customerId: user_id,
+        entityType: 'shop_order',
+        entityId: order.id,
+        percent: discPct,
+        reason: discount_reason || 'Quick sale discount',
+        createdBy: staffUserId,
       });
     }
 

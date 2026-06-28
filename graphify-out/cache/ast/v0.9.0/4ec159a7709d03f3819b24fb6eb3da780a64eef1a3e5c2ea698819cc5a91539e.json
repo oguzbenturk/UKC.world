@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_db_migrations_003_insert_sample_instructor_services_sql", "label": "003_insert_sample_instructor_services.sql", "file_type": "code", "source_file": "backend/db/migrations/003_insert_sample_instructor_services.sql", "source_location": null}], "edges": []}

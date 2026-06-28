@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_db_migrations_033_drop_service_revenue_ledger_sql", "label": "033_drop_service_revenue_ledger.sql", "file_type": "code", "source_file": "backend/db/migrations/033_drop_service_revenue_ledger.sql", "source_location": null}], "edges": []}

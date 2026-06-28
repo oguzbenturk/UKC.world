@@ -1254,10 +1254,41 @@ export async function getStudentOverview(studentId, options = {}) {
       transactionEntries.push(entry);
     }
 
-    const transactionSummary = computeTransactionAggregates(transactionEntries);
+    // Fold every booking_charge_adjustment into its parent booking_charge row
+    // (mirrors the canonical admin path walletService.fetchTransactions:1161-1200)
+    // so a lesson that was re-funded onto a package nets to a single 0 line
+    // instead of leaving BOTH the original "-X charge" AND a separate "+X refund"
+    // visible — and so the headline Total Charged / Total Spent stops counting
+    // the now-refunded lesson. A PARTIAL (overflow) switch nets to the remaining
+    // cash leg, exactly as the admin view shows it. Without this the student
+    // portal still counts a package-funded lesson as a negative charge.
+    const chargeBookingIds = new Set(
+      transactionEntries
+        .filter((e) => e.type === 'booking_charge' && e.bookingId)
+        .map((e) => e.bookingId)
+    );
+    const adjustmentByBooking = new Map();
+    for (const e of transactionEntries) {
+      if (e.type === 'booking_charge_adjustment' && e.bookingId && chargeBookingIds.has(e.bookingId)) {
+        adjustmentByBooking.set(e.bookingId, (adjustmentByBooking.get(e.bookingId) || 0) + coalesceNumber(e.amount));
+      }
+    }
+    const foldedTransactionEntries = transactionEntries
+      // Drop only the adjustment rows we actually folded into a parent charge,
+      // so an orphan adjustment (no sibling charge) never silently loses its credit.
+      .filter((e) => !(e.type === 'booking_charge_adjustment' && e.bookingId && chargeBookingIds.has(e.bookingId)))
+      .map((e) => {
+        if (e.type === 'booking_charge' && e.bookingId && adjustmentByBooking.has(e.bookingId)) {
+          const net = coalesceNumber(e.amount) + adjustmentByBooking.get(e.bookingId);
+          return { ...e, amount: roundCurrency(net) };
+        }
+        return e;
+      });
+
+    const transactionSummary = computeTransactionAggregates(foldedTransactionEntries);
     const latestSucceededPaymentIntent = findLatestSucceededPaymentIntent(paymentIntentEntries);
 
-    const payments = [...paymentIntentEntries, ...transactionEntries]
+    const payments = [...paymentIntentEntries, ...foldedTransactionEntries]
       .sort((a, b) => {
         const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;

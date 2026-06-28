@@ -30,6 +30,10 @@ class Transaction {
     this.direction = data.direction || null;
     this.balanceAvailableAfter = data.balanceAvailableAfter !== undefined ? data.balanceAvailableAfter : null;
     this.bookingId = data.bookingId || null;
+    // Discount applied to the underlying entity (shop order, booking, rental…),
+    // summed from the `discounts` table by the backend. Positive number or null.
+    this.discountAmount = data.discountAmount != null ? data.discountAmount : null;
+    this.discountPercent = data.discountPercent != null ? data.discountPercent : null;
   }
 
   /**

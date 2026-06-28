@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_db_scripts_check_private_lessons_sql", "label": "check_private_lessons.sql", "file_type": "code", "source_file": "backend/db/scripts/check_private_lessons.sql", "source_location": null}], "edges": []}

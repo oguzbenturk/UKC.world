@@ -14,6 +14,7 @@ import { useToast } from '@/shared/contexts/ToastContext';
 import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
+import eventBus from '@/shared/utils/eventBus';
 
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
 const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/components/EnhancedInstructorDetailModal'));
@@ -1952,6 +1953,17 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
           try {
             const label = result?.mode === 'cash' ? 'Lesson switched to cash' : 'Lesson assigned to package';
             showSuccess?.(label);
+          } catch { /* ignore */ }
+          // A funding switch consumes/restores package hours; broadcast so any
+          // mounted customer-package surface (the drawer Packages tab, the
+          // standalone CustomerPackageManager, useCustomerPackages hooks) refetches
+          // the new used/remaining hours instead of showing pre-switch values.
+          try {
+            const affectedCustomer = booking?.student_user_id || booking?.studentId || null;
+            eventBus.emit('packages:changed', {
+              reason: 'funding-switch',
+              customers: affectedCustomer ? [affectedCustomer] : [],
+            });
           } catch { /* ignore */ }
           refreshData?.();
           onClose?.();

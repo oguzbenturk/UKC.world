@@ -159,6 +159,13 @@ export async function forceDeleteRental({
         transactionType: 'rental_refund',
         status: 'completed',
         direction: 'credit',
+        // A refund is a CREDIT — it only raises the balance, so it must never be
+        // rejected by the "insufficient balance" guard. Without this, deleting a
+        // rental for a customer whose wallet is already negative (e.g. a -0.08
+        // rounding residual that the rental charge pushed to -78.08) threw
+        // "Insufficient wallet balance" because +78 still left the balance below
+        // zero, rolling back the whole delete → HTTP 500. (Yağız Çolak case.)
+        allowNegative: true,
         description: `Refund for deleted rental ${rentalId}`,
         currency: rentalRow.currency || 'EUR',
         metadata: {

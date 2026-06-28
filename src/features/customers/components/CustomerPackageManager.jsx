@@ -193,6 +193,22 @@ function CustomerPackageManager({ visible, onClose, customer, onPackageAssigned,
     }
   }, [visible, embedded, customer, restrictParticipants, loadCustomerPackages, loadAvailablePackages, loadAvailableUsers, loadCustomerFinancialData]);
 
+  // This component owns its own `packages` state (loadCustomerPackages), and its
+  // load effect only re-runs on customer.id — so a parent refreshAllData() does NOT
+  // reload it. Subscribe to the app-wide 'packages:changed' signal (emitted by
+  // assign/upgrade/delete here AND by the booking funding switch) so the used/
+  // remaining hours refresh in place after a lesson is assigned to / removed from a
+  // package, instead of showing stale figures until the drawer is reopened.
+  useEffect(() => {
+    if (!customer?.id) return undefined;
+    const unsub = eventBus.on('packages:changed', (payload) => {
+      if (payload && payload.customers && !payload.customers.includes(customer.id)) return;
+      loadCustomerPackages();
+      loadCustomerFinancialData();
+    });
+    return () => { unsub && unsub(); };
+  }, [customer?.id, loadCustomerPackages, loadCustomerFinancialData]);
+
   // Prepare assign flow opener before effects to avoid TDZ
   const onOpenAssign = useCallback(() => {
     form.resetFields();

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_db_migrations_245_extend_notification_enum_for_telegram_sql", "label": "245_extend_notification_enum_for_telegram.sql", "file_type": "code", "source_file": "backend/db/migrations/245_extend_notification_enum_for_telegram.sql", "source_location": null}], "edges": []}

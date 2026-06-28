@@ -1,7 +1,7 @@
 // src/features/members/pages/AdminMembersPage.jsx
 // Admin page to view all member purchases and assign memberships
 
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -102,6 +102,15 @@ const AdminMembersPage = ({ defaultStatus = null } = {}) => {
     category: 'all',
     duration: 'all'
   });
+
+  // /calendars/members and /memberships/active render the SAME AdminMembersPage instance
+  // at the same <Outlet>, so React preserves state across that switch (no remount) and the
+  // once-only useState initializer above goes stale. Re-sync the status filter whenever the
+  // route's effective status changes. The equality guard keeps manual Select changes intact
+  // (initialStatus only changes on route/query navigation, not on user edits).
+  useEffect(() => {
+    setFilters(f => (f.status === initialStatus ? f : { ...f, status: initialStatus }));
+  }, [initialStatus]);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [assignModalVisible, setAssignModalVisible] = useState(false);

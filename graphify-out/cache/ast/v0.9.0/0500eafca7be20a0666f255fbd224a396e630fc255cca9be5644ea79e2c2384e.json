@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_migrations_102_add_soft_delete_to_events_sql", "label": "102_add_soft_delete_to_events.sql", "file_type": "code", "source_file": "backend/migrations/102_add_soft_delete_to_events.sql", "source_location": null}], "edges": []}

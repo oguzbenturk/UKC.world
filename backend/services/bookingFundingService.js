@@ -60,7 +60,7 @@ const CHARGE_TX_TYPES = ['booking_charge', 'charge', 'booking_charge_adjustment'
  * construction: it reads the current charge and only posts the difference, so a
  * re-run that finds the target already met posts nothing.
  */
-async function settleStudentCashTo(client, { bookingId, userId, currency, targetCharge, actorId, reason }) {
+async function settleStudentCashTo(client, { bookingId, userId, currency, targetCharge, actorId, reason, externalPaidAmount = 0 }) {
   if (!userId) return null;
   const { rows } = await client.query(
     `SELECT COALESCE(SUM(available_delta), 0) AS net
@@ -70,7 +70,13 @@ async function settleStudentCashTo(client, { bookingId, userId, currency, target
     [bookingId, userId, CHARGE_TX_TYPES]
   );
   const net = Number(rows[0]?.net) || 0;       // negative = currently charged
-  const chargedNow = -net;                      // positive = amount currently charged
+  const walletChargedNow = -net;                // positive = amount charged TO THE WALLET
+  // A lesson paid by card / bank transfer never creates a booking_charge wallet row
+  // (the Iyzico callback only flips payment_status='paid'). When the wallet was never
+  // charged but the customer DID settle the lesson externally, treat what they paid as
+  // the current charge so moving the lesson onto a package refunds them (to the wallet)
+  // instead of silently leaving them billed twice (card payment + package hours).
+  const chargedNow = walletChargedNow > EPS ? walletChargedNow : (Number(externalPaidAmount) || 0);
   const target = Math.max(0, Number(targetCharge) || 0);
   const diff = new Decimal(target).sub(chargedNow).toDecimalPlaces(2).toNumber();
   if (Math.abs(diff) < EPS) return null;
@@ -157,6 +163,14 @@ async function switchToPackage(client, ctx) {
   const bookingId = booking.id;
   const ps = String(booking.payment_status || '').toLowerCase();
 
+  // What the customer paid for this lesson BEFORE the switch (captured before the
+  // UPDATE below overwrites final_amount with the package value). For a card/bank-
+  // transfer-paid lesson there is no booking_charge wallet row, so settleStudentCashTo
+  // uses this to refund what they paid to the wallet (instead of billing them twice).
+  // Only a settled lesson (paid/partial) can have been paid; unpaid/pending → 0.
+  const originalLessonCharge = parseFloat(booking.final_amount) || parseFloat(booking.amount) || 0;
+  const externalPaidAmount = (ps === 'paid' || ps === 'partial') ? originalLessonCharge : 0;
+
   if (ps === 'package') throw httpError(400, 'Booking is already fully funded by a package.');
   if (await hasLedgerRows(client, bookingId)) {
     throw httpError(400, 'Booking already draws from a package. Switch it to cash first.');
@@ -216,7 +230,8 @@ async function switchToPackage(client, ctx) {
   );
 
   const walletAdjustment = await settleStudentCashTo(client, {
-    bookingId, userId: customerId, currency, targetCharge, actorId, reason: 'switched to package',
+    bookingId, userId: customerId, currency, targetCharge, actorId,
+    reason: 'switched to package', externalPaidAmount,
   });
 
   const discountsRemoved = await recomputeAfterSwitch(client, bookingId, actorId);

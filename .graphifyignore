@@ -1,0 +1,30 @@
+# Code-only graph — skip binary/doc assets that need an LLM key for semantic extraction.
+# Code (JS/JSX/TS/SQL) is parsed locally via tree-sitter at no API cost.
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+*.ico
+*.bmp
+
+# Docs / PDFs (re-enable later by setting ANTHROPIC_API_KEY if you want them in the graph)
+*.pdf
+*.md
+*.mdx
+*.txt
+*.csv
+
+# Markup/data files classified as "docs" (need LLM key for semantic extraction)
+*.html
+*.xml
+*.yaml
+*.yml
+
+# Asset/upload dirs
+uploads/
+public/
+**/assets/

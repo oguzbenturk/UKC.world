@@ -1156,7 +1156,10 @@ export async function fetchTransactions(userId, {
     SELECT wallet_transactions.*,
            COALESCE(disc.total_discount, 0)::numeric(18,4) AS discount_amount,
            disc.max_percent AS discount_percent,
-           COALESCE(adj.total_adjustment, 0)::numeric(18,4) AS booking_adjustment_amount
+           COALESCE(adj.total_adjustment, 0)::numeric(18,4) AS booking_adjustment_amount,
+           parent.has_parent_charge AS has_parent_charge,
+           COALESCE(shopadj.total_adjustment, 0)::numeric(18,4) AS shop_adjustment_amount,
+           shopparent.has_parent_payment AS has_parent_shop_payment
       FROM wallet_transactions
       LEFT JOIN LATERAL (
         SELECT SUM(d.amount) AS total_discount,
@@ -1177,6 +1180,44 @@ export async function fetchTransactions(userId, {
            AND a.booking_id = wallet_transactions.booking_id
       ) adj ON wallet_transactions.transaction_type = 'booking_charge'
            AND wallet_transactions.booking_id IS NOT NULL
+      LEFT JOIN LATERAL (
+        -- Does a parent booking_charge exist for this adjustment's booking? A
+        -- card/bank-transfer-paid lesson refunded onto a package produces a
+        -- booking_charge_adjustment with NO sibling booking_charge — that orphan
+        -- refund must stay visible rather than being dropped as folded noise.
+        SELECT EXISTS (
+          SELECT 1 FROM wallet_transactions pc
+           WHERE pc.transaction_type = 'booking_charge'
+             AND pc.status = 'completed'
+             AND pc.booking_id = wallet_transactions.booking_id
+        ) AS has_parent_charge
+      ) parent ON wallet_transactions.transaction_type = 'booking_charge_adjustment'
+              AND wallet_transactions.booking_id IS NOT NULL
+      -- Shop item price edits (shopOrderPriceService) post one payment/refund row
+      -- per edit, tagged metadata.kind='item_price_adjustment'. Fold their net
+      -- delta into the original shop_order payment row so multiple edits collapse
+      -- into a single, correct order total — mirroring the booking fold above.
+      LEFT JOIN LATERAL (
+        SELECT SUM(sa.amount) AS total_adjustment
+          FROM wallet_transactions sa
+         WHERE sa.metadata->>'kind' = 'item_price_adjustment'
+           AND sa.status = 'completed'
+           AND sa.metadata->>'orderId' = wallet_transactions.metadata->>'orderId'
+      ) shopadj ON wallet_transactions.related_entity_type = 'shop_order'
+               AND COALESCE(wallet_transactions.metadata->>'kind', '') <> 'item_price_adjustment'
+               AND wallet_transactions.metadata->>'orderId' IS NOT NULL
+      LEFT JOIN LATERAL (
+        -- Keep an item_price_adjustment visible if its order's original payment
+        -- row doesn't exist (nothing to fold into) — same orphan rule as bookings.
+        SELECT EXISTS (
+          SELECT 1 FROM wallet_transactions sp
+           WHERE sp.related_entity_type = 'shop_order'
+             AND sp.status = 'completed'
+             AND COALESCE(sp.metadata->>'kind', '') <> 'item_price_adjustment'
+             AND sp.metadata->>'orderId' = wallet_transactions.metadata->>'orderId'
+        ) AS has_parent_payment
+      ) shopparent ON wallet_transactions.metadata->>'kind' = 'item_price_adjustment'
+                  AND wallet_transactions.metadata->>'orderId' IS NOT NULL
     ${whereClause}
     ORDER BY wallet_transactions.transaction_date DESC, wallet_transactions.created_at DESC
     LIMIT ${limitPlaceholder}
@@ -1191,13 +1232,26 @@ export async function fetchTransactions(userId, {
       row.amount = (Number.parseFloat(row.amount) + adjustment).toFixed(4);
     }
     delete row.booking_adjustment_amount;
+
+    const shopAdjustment = Number.parseFloat(row.shop_adjustment_amount);
+    if (shopAdjustment) {
+      row.amount = (Number.parseFloat(row.amount) + shopAdjustment).toFixed(4);
+    }
+    delete row.shop_adjustment_amount;
   }
 
-  // Drop standalone booking_charge_adjustment rows: their value was already
-  // folded into the parent booking_charge above, so keeping them as separate
-  // line items would double-count the adjustment in the visible total (and
-  // make every customer-facing list disagree with the wallet balance).
-  return rows.filter((row) => row.transaction_type !== 'booking_charge_adjustment');
+  // Drop standalone adjustment rows ONLY when they were folded into a parent above
+  // (keeping them too would double-count the adjustment in the visible total). An
+  // ORPHAN adjustment — a booking_charge_adjustment with no booking_charge sibling,
+  // or an item_price_adjustment whose order payment row isn't present — has nothing
+  // to fold into, so it must stay visible as its own line.
+  const isFoldedBookingAdj = (row) =>
+    row.transaction_type === 'booking_charge_adjustment' && row.has_parent_charge !== false;
+  const isFoldedShopAdj = (row) =>
+    row.metadata?.kind === 'item_price_adjustment' && row.has_parent_shop_payment !== false;
+  return rows
+    .filter((row) => !isFoldedBookingAdj(row) && !isFoldedShopAdj(row))
+    .map((row) => { delete row.has_parent_charge; delete row.has_parent_shop_payment; return row; });
 }
 
 // Read the recorded available_delta for a transaction, defaulting to the

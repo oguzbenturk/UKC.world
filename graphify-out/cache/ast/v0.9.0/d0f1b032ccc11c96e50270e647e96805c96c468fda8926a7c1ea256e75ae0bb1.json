@@ -1,0 +1,1 @@
+{"nodes": [{"id": "d_ukc_world_backend_db_migrations_261_rename_recepsion_to_receptionist_sql", "label": "261_rename_recepsion_to_receptionist.sql", "file_type": "code", "source_file": "backend/db/migrations/261_rename_recepsion_to_receptionist.sql", "source_location": null}], "edges": []}

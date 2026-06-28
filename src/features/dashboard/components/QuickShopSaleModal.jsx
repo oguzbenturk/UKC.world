@@ -196,7 +196,11 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
     try {
       setSubmitting(true);
 
-      // Create shop order via admin quick-sale endpoint
+      // Create shop order via admin quick-sale endpoint. The discount is applied
+      // atomically server-side (inside the order transaction), so a discounted
+      // sale can never end up at full price from a failed second call. Only
+      // meaningful for a registered customer.
+      const pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
       const orderData = {
         user_id: values.customer_id || null, // null for walk-in customers
         items: [
@@ -209,31 +213,12 @@ function QuickShopSaleModal({ open, onClose, onSuccess, prefilledCustomerId = nu
           }
         ],
         payment_method: values.payment_method || 'cash',
-        notes: values.notes || ''
+        notes: values.notes || '',
+        discount_percent: pct > 0 && values.customer_id ? pct : undefined,
+        discount_reason: pct > 0 ? 'Quick sale discount' : undefined,
       };
 
-      const saleRes = await apiClient.post('/shop/orders/admin/quick-sale', orderData);
-
-      // If discount was set, apply it to the freshly-created order.
-      const pct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
-      if (pct > 0 && values.customer_id) {
-        const orderId = saleRes?.data?.order?.id;
-        if (orderId) {
-          try {
-            await apiClient.post('/discounts', {
-              customer_id: values.customer_id,
-              entity_type: 'shop_order',
-              entity_id: orderId,
-              percent: pct,
-              reason: 'Quick sale discount',
-            });
-          } catch (discountErr) {
-            // Sale already completed; surface a non-fatal warning so the order isn't lost.
-            console.error('Failed to apply discount', discountErr);
-            message.warning('Sale completed but discount could not be applied — apply manually from the customer profile.');
-          }
-        }
-      }
+      await apiClient.post('/shop/orders/admin/quick-sale', orderData);
 
       form.resetFields();
       setSelectedProduct(null);

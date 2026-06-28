@@ -125,7 +125,13 @@ class FinancialService {
         currency: txnData.currency || null,
         direction: txnData.direction || null,
         balanceAvailableAfter: txnData.balance_available_after != null ? parseFloat(txnData.balance_available_after) : null,
-        bookingId: txnData.booking_id || null
+        bookingId: txnData.booking_id || null,
+        // Per-entity discount summed from the `discounts` table (LATERAL JOIN in
+        // fetchTransactions). Shop/booking/rental discounts are NOT a wallet row,
+        // so without carrying this through the UI shows the gross charge and the
+        // discount is invisible in financial history. Net = gross reduced by this.
+        discountAmount: txnData.discount_amount != null ? parseFloat(txnData.discount_amount) : null,
+        discountPercent: txnData.discount_percent != null ? parseFloat(txnData.discount_percent) : null
       }));
       
     } catch (error) {

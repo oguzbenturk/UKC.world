@@ -31,6 +31,7 @@ import {
   RentalMobileCard,
 } from '@/components/ui/MobileCardRenderers';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
+import eventBus from '@/shared/utils/eventBus';
 import { fetchCustomerDiscounts } from './customerBill/discountApi';
 import { indexDiscounts } from './customerBill/billAggregator';
 import { loadBillCohort } from './customerBill/billCustomerLoader';
@@ -344,6 +345,21 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       setAddFundsAmount(null);
     }
   }, [isOpen, customerId, fetchCustomerData]);
+
+  // Refetch when a package changes anywhere for this customer (e.g. a lesson is
+  // assigned to / removed from a package via the booking funding switch, which
+  // consumes/restores package hours AND nets the wallet charge). Covers the case
+  // where this drawer is mounted in the background while the change happens
+  // elsewhere — keeps the Financial tab (transactions) and the Packages-tab header
+  // totals (customerPackages) in sync without waiting for a reopen.
+  useEffect(() => {
+    if (!isOpen || !customerId) return undefined;
+    const unsub = eventBus.on('packages:changed', (payload) => {
+      if (payload && payload.customers && !payload.customers.includes(customerId)) return;
+      refreshAllData();
+    });
+    return () => { unsub && unsub(); };
+  }, [isOpen, customerId, refreshAllData]);
 
   // Sync the checkbox with whatever the customer record currently holds.
   useEffect(() => {
@@ -1059,7 +1075,27 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     { title: 'Date', dataIndex: 'createdAt', key: 'date', render: d => formatDate(d), sorter: (a, b) => new Date(b.createdAt) - new Date(a.createdAt) },
     { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (amount, r) => {
       const txCur = r.currency || walletCurrency;
-      if (isStaff && txCur !== storageCurrency) {
+      const needsConv = isStaff && txCur !== storageCurrency;
+      const shownCur = needsConv ? storageCurrency : txCur;
+      const toShown = (v) => needsConv ? convertCurrency(v || 0, txCur, storageCurrency) : (v || 0);
+      // A shop order's charge row carries the GROSS amount; its discount is a
+      // separate `discount_adjustment` credit row (hidden from this list below,
+      // see dataSource filter). Show the gross struck through + the net so the
+      // discount is visible inline and not double-counted. Scoped to shop_order
+      // to leave booking/rental/package history rendering untouched.
+      const disc = r.relatedEntityType === 'shop_order' ? (r.discountAmount || 0) : 0;
+      if (disc > 0) {
+        const gross = amount || 0;
+        const net = gross > 0 ? gross - disc : gross + disc;
+        const pct = r.discountPercent ? ` (${r.discountPercent}%)` : '';
+        return (
+          <Tooltip title={`${fmtCurrency(toShown(gross), shownCur)} − ${fmtCurrency(disc, 'EUR')} discount${pct}`}>
+            <span className="text-slate-400 line-through mr-1">{fmtCurrency(toShown(gross), shownCur)}</span>
+            <span className="font-medium">{fmtCurrency(toShown(net), shownCur)}</span>
+          </Tooltip>
+        );
+      }
+      if (needsConv) {
         return <Tooltip title={fmtCurrency(amount || 0, txCur)}>{fmtCurrency(convertCurrency(amount || 0, txCur, storageCurrency), storageCurrency)}</Tooltip>;
       }
       return fmtCurrency(amount || 0, txCur);
@@ -1074,6 +1110,19 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       </Space>
     )}
   ], [walletCurrency, isStaff, storageCurrency, fmtCurrency, convertCurrency, handleDeleteTransaction, readOnly]);
+
+  // The Financial History table shows each shop discount inline on its charge
+  // row (net + strikethrough, see transactionColumns). Its matching
+  // `discount_adjustment` CREDIT row is therefore redundant here and would read
+  // as a double credit, so hide shop discount-adjustment rows from THIS list
+  // only. The full `transactions` ledger is still passed untouched to the bill
+  // aggregator / analytics / statement so their totals are unaffected.
+  const visibleTransactions = useMemo(
+    () => (transactions || []).filter(
+      (t) => !(t.type === 'discount_adjustment' && t.relatedEntityType === 'shop_order')
+    ),
+    [transactions]
+  );
 
   // ─── Render helpers (info row) ────────────────────────────────
   const renderInfoCell = (icon, label, value) => {
@@ -1358,7 +1407,7 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const renderFinancial = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <Text type="secondary">{transactions?.length || 0} transaction(s)</Text>
+        <Text type="secondary">{visibleTransactions?.length || 0} transaction(s)</Text>
         {!readOnly && (
           <Space wrap size="small">
             <Button icon={<PlusCircleOutlined />} size="small" onClick={() => setShowAddFundsModal(true)}>Add Balance</Button>
@@ -1368,8 +1417,8 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
           </Space>
         )}
       </div>
-      {transactions?.length > 0 ? (
-        <UnifiedResponsiveTable title="Financial History" density="comfortable" columns={transactionColumns} dataSource={transactions} mobileCardRenderer={TransactionMobileCard} rowKey="id" pagination={{ pageSize: 10 }} onRowClick={handleViewTransaction} breakpoint={1100} />
+      {visibleTransactions?.length > 0 ? (
+        <UnifiedResponsiveTable title="Financial History" density="comfortable" columns={transactionColumns} dataSource={visibleTransactions} mobileCardRenderer={TransactionMobileCard} rowKey="id" pagination={{ pageSize: 10 }} onRowClick={handleViewTransaction} breakpoint={1100} />
       ) : <Empty description="No transactions found" />}
     </div>
   );
