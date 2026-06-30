@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Drawer, Modal, TimePicker } from 'antd';
 import dayjs from 'dayjs';
@@ -15,9 +15,28 @@ import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import eventBus from '@/shared/utils/eventBus';
+import { filterServicesByCapacity } from '@/shared/utils/serviceCapacityFilter';
 
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
 const EnhancedInstructorDetailModal = lazy(() => import('@/features/instructors/components/EnhancedInstructorDetailModal'));
+
+// Mirror of the canonical lesson filter used in the booking create flow
+// (BookingDrawer.jsx / ServiceSelectionStep.jsx). Keeps the service dropdown in
+// the edit panel restricted to lesson-style services (private/group/semi-private/
+// supervision/rescue_boat) and excludes rentals, shop, storage, accommodation, etc.
+const RENTAL_CATEGORIES = ['rental', 'shop', 'repair', 'storage', 'accommodation'];
+const isLessonService = (service) => {
+  const cat = (service?.category || '').toLowerCase();
+  const type = (service?.service_type || service?.serviceType || '').toLowerCase();
+  // Exclude rental/shop/storage/accommodation by category
+  if (RENTAL_CATEGORIES.some(k => cat.includes(k))) return false;
+  // Include if it has a lesson-oriented service_type
+  if (['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision', 'lesson'].includes(type)) return true;
+  // Include if it has a lessonCategoryTag set (covers rescue_boat)
+  if (service?.lesson_category_tag || service?.lessonCategoryTag) return true;
+  // Fallback: include if category is lesson-oriented
+  return ['lesson', 'kitesurfing', 'kite', 'wing', 'foil', 'efoil', 'surf', 'rescue'].some(k => cat.includes(k));
+};
 
 function EditField({ icon: Icon, label, hint, children }) {
   return (
@@ -239,6 +258,32 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const { instructors: cachedInstructors } = useData();
   const { services: cachedServices } = useCalendar();
 
+  // How many people this booking is for. A semi-private/group service requires the
+  // matching headcount, so the picker below is capped to this count — you can't turn
+  // a 1-person booking into a semi-private/group without first adding participants.
+  const participantCount = useMemo(
+    () => Math.max(booking?.participants?.length || 0, 1),
+    [booking]
+  );
+
+  // Only lesson services belong in the booking-edit service picker — rentals, shop,
+  // storage and accommodation must not appear — AND only those whose capacity fits the
+  // booking's participant count (private for 1, semi-private/group for more). Keep the
+  // booking's current service selectable even if it would otherwise be filtered out, so
+  // the dropdown always reflects the real current value instead of a wrong row.
+  const lessonServices = useMemo(() => {
+    const base = filterServicesByCapacity(
+      (services || []).filter(isLessonService),
+      participantCount
+    );
+    const currentId = editForm.service_id;
+    if (currentId != null && !base.some(s => String(s.id) === String(currentId))) {
+      const current = (services || []).find(s => String(s.id) === String(currentId));
+      if (current) return [current, ...base];
+    }
+    return base;
+  }, [services, editForm.service_id, participantCount]);
+
   // Fetch services and instructors when modal opens - use cached data when available
   useEffect(() => {
     const fetchServicesAndInstructors = async () => {
@@ -377,16 +422,33 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   // Handle form input change
   const handleEditFormChange = (field, value) => {
     let parsedValue = value;
-    if ((field === 'service_id' || field === 'instructor_id') && value) {
-      parsedValue = parseInt(value, 10);
-    } else if ((field === 'service_id' || field === 'instructor_id') && !value) {
-      parsedValue = null;
+    // service_id and instructor_id are UUIDs, never integers. The old parseInt here
+    // turned a UUID into NaN (ids starting a–f) or a truncated number (ids starting
+    // with a digit) — neither matches any <option>, so the controlled <select> fell
+    // back to showing the FIRST row (e.g. picking "Supervision Session" displayed
+    // "Advanced Kitesurfing Lesson"). Keep the raw UUID string; empty → null.
+    if (field === 'service_id' || field === 'instructor_id') {
+      parsedValue = value || null;
     }
 
-    setEditForm(prev => ({
-      ...prev,
-      [field]: parsedValue
-    }));
+    setEditForm(prev => {
+      const next = { ...prev, [field]: parsedValue };
+      // Re-derive the booking price from the selected service whenever the service or
+      // duration changes. service.price is the per-hour, per-person rate; the booking
+      // total = rate × hours × group size (same formula as the create flow). Without
+      // this a service swap stranded the previous service's amount — e.g. a €95/h
+      // Advanced Kite booking switched to €70/h Supervision kept the old €190 for 2h.
+      if (field === 'service_id' || field === 'duration') {
+        const svc = (services || []).find(s => String(s.id) === String(next.service_id));
+        const dur = parseFloat(next.duration);
+        if (svc && Number.isFinite(dur) && dur > 0) {
+          const unitPrice = parseFloat(svc.price) || 0;
+          const size = Math.max(Number(booking?.group_size) || 1, 1);
+          next.price = parseFloat((unitPrice * dur * size).toFixed(2));
+        }
+      }
+      return next;
+    });
   };
 
   // Handle checkout form input change
@@ -996,7 +1058,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
 
                           {/* Core fields — 2-column grid */}
                           <div className="grid grid-cols-2 gap-x-3 gap-y-4">
-                            <EditField icon={InformationCircleIcon} label={t('common:bookings.detail.service')}>
+                            <EditField
+                              icon={InformationCircleIcon}
+                              label={t('common:bookings.detail.service')}
+                              hint={participantCount === 1
+                                ? t('common:bookings.detail.serviceCapacityHintSingle', 'Single-participant booking — only private services can be selected.')
+                                : t('common:bookings.detail.serviceCapacityHintMulti', `Showing services that fit ${participantCount} participants.`)}
+                            >
                               <select
                                 className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
                                 value={editForm.service_id || ''}
@@ -1004,7 +1072,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                 disabled={isProcessing}
                               >
                                 <option value="" disabled>{t('common:bookings.detail.selectService')}</option>
-                                {services.map(service => (
+                                {lessonServices.map(service => (
                                   <option key={service.id} value={service.id}>{service.name}</option>
                                 ))}
                               </select>

@@ -3,6 +3,13 @@
 ## What is this project?
 Plannivo is a business management platform for watersports academies (kite surfing focus). It handles bookings, CRM, finances, instructors, inventory, rentals, and more.
 
+## Knowledge Graph / Wiki — QUERY FIRST
+`docs/wiki/` is a complete Obsidian knowledge graph (the project "brain") of the whole codebase: 32 cross-linked nodes covering every frontend feature, ~73 routes, ~90 services, plus off-app layers (Operations_Scripts, Testing_QA, Shared_Backend_Utilities, Landing_Site, Catalog_Sync). Rules live in `docs/wiki/wiki_schema.md`.
+
+- **Before planning or implementing a feature, or answering any architecture / "where is X" / data-flow question: FIRST read `docs/wiki/Index.md` and follow the relevant `[[links]]` (the QUERY operation). Do NOT cold-scan the codebase when the wiki already maps it.** Verify anything the wiki claims against the actual code before relying on it (the wiki reflects the last INGEST, not necessarily HEAD).
+- God (most-connected) nodes: `Finances_Wallet`, `Notifications_System`, `Authentication_Authorization`, `Database`, `Bookings_Calendar`.
+- After a substantive code/feature change, run an **INGEST** pass (per `wiki_schema.md`) to update the affected nodes + `Index.md` so the brain stays current.
+
 ## Database Setup
 
 **Local dev uses a local Docker PostgreSQL database — NOT production.**

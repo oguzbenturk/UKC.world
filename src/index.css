@@ -201,6 +201,42 @@
   .dark-form .ant-input-password-icon:hover {
     color: #00a8c4 !important;
   }
+
+  /* Date picker + number field — match the dark input treatment */
+  .dark-form .ant-picker,
+  .dark-form .ant-input-number,
+  .dark-form .ant-input-number-group-addon,
+  .dark-form .ant-input-group-addon {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+  }
+
+  .dark-form .ant-picker input,
+  .dark-form .ant-input-number-input {
+    color: white !important;
+  }
+
+  .dark-form .ant-picker input::placeholder,
+  .dark-form .ant-input-number-input::placeholder {
+    color: #4b4f54 !important;
+  }
+
+  .dark-form .ant-picker .ant-picker-suffix,
+  .dark-form .ant-input-number-handler-wrap {
+    color: #4b4f54 !important;
+  }
+
+  .dark-form .ant-input-group-addon,
+  .dark-form .ant-input-number-group-addon {
+    color: #9ca3af !important;
+  }
+
+  .dark-form .ant-picker-focused,
+  .dark-form .ant-input-number-focused {
+    border-color: #00a8c4 !important;
+    box-shadow: 0 0 0 2px rgba(0, 168, 196, 0.2) !important;
+  }
 }
 
 

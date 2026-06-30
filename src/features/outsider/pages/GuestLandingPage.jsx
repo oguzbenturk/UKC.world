@@ -37,9 +37,10 @@ const SERVICE_CONFIG = [
 const ServiceCard = ({ service, onNavigate }) => {
   const { t } = useTranslation(['outsider']);
   const Icon = service.icon;
-  const title = t(`outsider:landing.services.${service.key}.title`);
-  const tagline = t(`outsider:landing.services.${service.key}.tagline`);
-  const subItems = t(`outsider:landing.services.${service.key}.subItems`, { returnObjects: true });
+  const fb = service.fallback || {};
+  const title = t(`outsider:landing.services.${service.key}.title`, { defaultValue: fb.title });
+  const tagline = t(`outsider:landing.services.${service.key}.tagline`, { defaultValue: fb.tagline });
+  const subItems = t(`outsider:landing.services.${service.key}.subItems`, { returnObjects: true, defaultValue: fb.subItems });
   return (
       <div
         onClick={() => onNavigate(service.path)}

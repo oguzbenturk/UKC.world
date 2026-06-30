@@ -11,6 +11,11 @@
  * count from the matching `*_occupancy_pricing` list, falling back to the flat
  * rate when a given occupancy isn't specified. Keep this logic in sync with the
  * frontend mirror at src/shared/utils/accommodationPricing.js.
+ *
+ * Per-person pricing (added 2026-06): when `meta.pricing_per_person` is set, the
+ * resolved nightly rate is multiplied by the guest count (€70/night → €140 for 2
+ * guests). Composes with occupancy pricing — the per-occupancy rate becomes the
+ * per-person rate for that guest count ("2 guests → €70" = €70pp → €140 total).
  */
 
 export function extractUnitMeta(unitRow) {
@@ -48,6 +53,10 @@ export function calculateTotalPrice(checkInDate, checkOutDate, basePrice, meta, 
 
 	const base = parseFloat(basePrice) || 0;
 	const enabled = !!meta.occupancy_pricing_enabled;
+	// Per-person pricing multiplies the resolved nightly rate (flat or per-occupancy)
+	// by the guest count — the per-occupancy rate is read as the per-person price.
+	const perPerson = !!meta.pricing_per_person;
+	const guestMultiplier = perPerson ? Math.max(1, Number(guestsCount) || 1) : 1;
 	const stdOcc = enabled ? meta.occupancy_pricing : null;
 	const wkndOcc = enabled ? meta.weekend_occupancy_pricing : null;
 	// Treat a flat weekend rate as "set" only when > 0 (legacy truthiness: 0 / '' / null disable weekend pricing).
@@ -90,8 +99,9 @@ export function calculateTotalPrice(checkInDate, checkOutDate, basePrice, meta, 
 			reason = 'weekend';
 		}
 
-		subtotal += price;
-		breakdown.push({ date: dateStr, price, reason });
+		const nightTotal = price * guestMultiplier;
+		subtotal += nightTotal;
+		breakdown.push({ date: dateStr, price: nightTotal, perPersonRate: price, reason });
 	}
 
 	let appliedDiscount = null;
@@ -114,5 +124,5 @@ export function calculateTotalPrice(checkInDate, checkOutDate, basePrice, meta, 
 		total = Math.max(0, total);
 	}
 
-	return { total: Math.round(total * 100) / 100, nights, subtotal, appliedDiscount, breakdown };
+	return { total: Math.round(total * 100) / 100, nights, subtotal, appliedDiscount, breakdown, perPerson, guestMultiplier };
 }

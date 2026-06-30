@@ -1082,7 +1082,9 @@ function CalendarProvider({ children }) {
         checkoutStatus: 'pending',
         allowNegativeBalance: bookingData.allowNegativeBalance === true, // Allow wallet to go negative if explicitly enabled
         // Staff discount applied at booking time (backend applies via discounts table)
-        ...(bookingData.discount_percent > 0 ? { discount_percent: Number(bookingData.discount_percent) } : {})
+        ...(bookingData.discount_percent > 0 ? { discount_percent: Number(bookingData.discount_percent) } : {}),
+        // Rescue boat: number of passengers on the trip (NULL for normal lessons)
+        ...(bookingData.passengers != null && bookingData.passengers !== '' ? { passengers: Number(bookingData.passengers) } : {})
       };
 
       // Debug logging for package consumption

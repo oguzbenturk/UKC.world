@@ -146,6 +146,9 @@ function PricingSummary({ formData }) {
           {formData.occupancy_pricing_enabled && (
             <div>by guest count</div>
           )}
+          {formData.pricing_per_person && (
+            <div>per person</div>
+          )}
           {formData.weekend_price && (
             <div>€{parseFloat(formData.weekend_price).toFixed(0)} weekend</div>
           )}
@@ -904,6 +907,32 @@ function PricingSection({ formData, onChange }) {
 
         <Divider className="my-0" />
 
+        {/* Per-person pricing */}
+        <div>
+          <div className="flex items-center justify-between">
+            <div className="pr-3">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                <TeamOutlined className="text-orange-500" /> Charge per person
+              </label>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Multiply the nightly rate by the number of guests (e.g. €70/night → €140 for 2 guests).
+              </p>
+            </div>
+            <Switch
+              size="small"
+              checked={!!formData.pricing_per_person}
+              onChange={(checked) => onChange('pricing_per_person', checked)}
+            />
+          </div>
+          {occupancyEnabled && formData.pricing_per_person && (
+            <p className="text-xs text-orange-600 mt-1.5">
+              Each per-occupancy rate below is treated as the <strong>per-person</strong> price and multiplied by the guest count (e.g. “2 guests → €70” = €140 total).
+            </p>
+          )}
+        </div>
+
+        <Divider className="my-0" />
+
         {/* Occupancy-based pricing */}
         <div>
           <div className="flex items-center justify-between">
@@ -921,7 +950,9 @@ function PricingSection({ formData, onChange }) {
           </div>
           {occupancyEnabled && (
             <div className="mt-3">
-              <div className="text-xs font-medium text-slate-600 mb-1.5">Nightly rate per occupancy</div>
+              <div className="text-xs font-medium text-slate-600 mb-1.5">
+                Nightly rate per occupancy{formData.pricing_per_person ? ' (per person)' : ''}
+              </div>
               <OccupancyRateTable
                 value={formData.occupancy_pricing}
                 onChange={(v) => onChange('occupancy_pricing', v)}
@@ -1312,6 +1343,7 @@ const DEFAULT_FORM_DATA = {
   occupancy_pricing_enabled: false,
   occupancy_pricing: [],
   weekend_occupancy_pricing: [],
+  pricing_per_person: false,
   custom_discounts: [],
   holiday_pricing: [],
   check_in_time: '14:00',
@@ -1345,6 +1377,7 @@ const META_DEFAULTS = {
   occupancy_pricing_enabled: false,
   occupancy_pricing: [],
   weekend_occupancy_pricing: [],
+  pricing_per_person: false,
   custom_discounts: [],
   holiday_pricing: [],
   check_in_time: '14:00',
@@ -1388,6 +1421,7 @@ function buildSavePayload(formData) {
     weekend_price: formData.weekend_price,
     occupancy_pricing_enabled: !!formData.occupancy_pricing_enabled,
     occupancy_pricing: formData.occupancy_pricing || [],
+    pricing_per_person: !!formData.pricing_per_person,
     // Drop weekend per-occupancy overrides unless there's a positive flat weekend
     // rate, so a stale array can't silently re-enable weekend surcharges (the
     // resolver treats a non-empty list as "weekend pricing active").

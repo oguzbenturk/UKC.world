@@ -172,6 +172,9 @@ const ProposalsListPage = lazyWithRetry(() => import('../features/proposals/page
 const ProposalBuilderPage = lazyWithRetry(() => import('../features/proposals/pages/ProposalBuilderPage'));
 const PublicProposalView = lazyWithRetry(() => import('../features/proposals/pages/PublicProposalView'));
 
+// Public QR customer self-registration (Customer Mode QR target)
+const QuickRegisterPage = lazyWithRetry(() => import('../features/customers/pages/QuickRegisterPage'));
+
 // Form Builder
 const FormsListPage = lazyWithRetry(() => import('../features/forms/pages/FormsListPage'));
 const FormBuilderPage = lazyWithRetry(() => import('../features/forms/pages/FormBuilderPage'));
@@ -359,6 +362,9 @@ const AppRoutes = () => {
 
   {/* Public route for proposal (teklif) viewing */}
   <Route path="/teklif/:code" element={<PublicProposalView />} />
+
+  {/* Public route for QR-based customer self-registration (Customer Mode QR) */}
+  <Route path="/join" element={<QuickRegisterPage />} />
 
   {/* Public route for custom forms (short URL: /f/CODE) */}
   <Route path="/f/success/:linkCode" element={<FormSuccessPage />} />

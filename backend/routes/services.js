@@ -108,6 +108,7 @@ router.get('/', cacheMiddleware(300, cacheKeyGenerators.services), async (req, r
         levelTag: row.level_tag || null,
         rentalSegment: row.rental_segment || null,
         insuranceRate: row.insurance_rate != null ? parseFloat(row.insurance_rate) : null,
+        memberDiscountPercent: row.member_discount_percent != null ? parseFloat(row.member_discount_percent) : null,
         isPackage: isPackageResult,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -428,7 +429,7 @@ router.post('/packages', authorize(['admin', 'manager']), cacheInvalidationMiddl
       const value = String(tag || '').trim().toLowerCase();
       if (!value) return null;
       if (value === 'foil') return 'kite_foil';
-      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory'];
+      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory', 'rescue_boat'];
       return ALLOWED.includes(value) ? value : null;
     };
     
@@ -441,7 +442,7 @@ router.post('/packages', authorize(['admin', 'manager']), cacheInvalidationMiddl
     // Start transaction
     await client.query('BEGIN');
 
-    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision', 'semi-private-supervision'];
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision', 'semi-private-supervision', 'rescue_boat'];
     let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
     let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
     let resolvedLevelTag = levelTag || null;
@@ -2062,7 +2063,7 @@ router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMi
       const value = String(tag || '').trim().toLowerCase();
       if (!value) return null;
       if (value === 'foil') return 'kite_foil';
-      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory'];
+      const ALLOWED = ['kite', 'wing', 'kite_foil', 'efoil', 'premium', 'accessory', 'rescue_boat'];
       return ALLOWED.includes(value) ? value : null;
     };
     
@@ -2074,7 +2075,7 @@ router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMi
     
     await client.query('BEGIN');
 
-    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision', 'semi-private-supervision'];
+    const ALLOWED_LESSON_CATEGORIES = ['private', 'semi-private', 'semi private', 'group', 'supervision', 'semi-private-supervision', 'rescue_boat'];
     let resolvedDisciplineTag = normalizeDisciplineTag(disciplineTag);
     let resolvedLessonCategoryTag = (lessonCategoryTag && ALLOWED_LESSON_CATEGORIES.includes(lessonCategoryTag)) ? lessonCategoryTag : null;
     let resolvedLevelTag = levelTag || null;
@@ -2647,6 +2648,7 @@ router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(ca
       lessonCategoryTag,
       levelTag,
       rentalSegment,
+      memberDiscountPercent,
     } = req.body || {};
 
     // Resolve and validate critical fields
@@ -2757,11 +2759,15 @@ router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(ca
       'lesson_category_tag',
       'level_tag',
       'rental_segment',
+      'member_discount_percent',
       'insurance_rate',
       'created_at',
       'updated_at'
     ];
     const resolvedInsuranceRate = req.body?.insuranceRate != null ? parseFloat(req.body.insuranceRate) : null;
+    const resolvedMemberDiscountPercent = (memberDiscountPercent != null && memberDiscountPercent !== '')
+      ? parseFloat(memberDiscountPercent)
+      : null;
     const serviceValues = [
       serviceId,
       resolvedName,
@@ -2782,6 +2788,7 @@ router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(ca
       lessonCategoryTag || null,
       levelTag || null,
       rentalSegment || null,
+      resolvedMemberDiscountPercent,
       resolvedInsuranceRate,
       now,
       now
@@ -2997,8 +3004,9 @@ router.put('/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(
       discipline_tag = $15, lesson_category_tag = $16, level_tag = $17,
       rental_segment = $18,
       insurance_rate = $19,
+      member_discount_percent = $20,
       updated_at = NOW()
-    WHERE id = $20
+    WHERE id = $21
     `;
 
     await client.query(updateServiceQuery, [
@@ -3021,6 +3029,9 @@ router.put('/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(
       req.body?.levelTag || null,
       req.body?.rentalSegment || null,
       req.body?.insuranceRate != null ? parseFloat(req.body.insuranceRate) : null,
+      (req.body?.memberDiscountPercent != null && req.body.memberDiscountPercent !== '')
+        ? parseFloat(req.body.memberDiscountPercent)
+        : null,
       id
     ]);
     

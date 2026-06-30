@@ -1201,7 +1201,9 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             isGroupBooking: false,
             participants: formData.participants || [],
             // Staff discount applied at booking time (backend → discounts table, same as drawer)
-            ...(formData.discountPercent > 0 ? { discount_percent: Number(formData.discountPercent) } : {})
+            ...(formData.discountPercent > 0 ? { discount_percent: Number(formData.discountPercent) } : {}),
+            // Rescue boat: passengers on the trip (only set for rescue services)
+            ...(formData.passengers != null && formData.passengers !== '' ? { passengers: Number(formData.passengers) } : {})
           };
           resp = await createBooking(singleData);
         }
@@ -2143,6 +2145,26 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 )}
               </div>
             </div>
+
+            {/* Rescue boat: passengers on the trip (only for rescue services) */}
+            {(() => {
+              const selSvc = (services || []).find(s => s.id === formData.serviceId);
+              const isRescueSvc = (selSvc?.discipline_tag || selSvc?.disciplineTag) === 'rescue_boat';
+              if (!isRescueSvc) return null;
+              return (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Passengers</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formData.passengers || ''}
+                    onChange={e => updateFormData({ passengers: e.target.value })}
+                    placeholder="Number of people on the rescue trip"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400"
+                  />
+                </div>
+              );
+            })()}
 
             {/* Notes */}
             <div>

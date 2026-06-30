@@ -13,7 +13,15 @@ const DISCIPLINE_OPTIONS = [
   { value: 'kite_foil', label: '🏄 Kite Foiling' },
   { value: 'efoil', label: '⚡ E-Foil' },
   { value: 'premium', label: '💎 Premium' },
+  // Rescue is a DISCIPLINE (like kite/wing), not a lesson style — it works with
+  // ALL lesson categories (private/semi/group/supervision). Internal tag stays
+  // 'rescue_boat' (already in the discipline_tag CHECK constraint).
+  { value: 'rescue_boat', label: '🚤 Rescue' },
 ];
+
+// Discipline tag that marks a service as a rescue service. Drives the active-
+// membership discount, the rescue card and the rescue-specific booking fields.
+const RESCUE_DISCIPLINE = 'rescue_boat';
 
 const LESSON_CATEGORY_OPTIONS = [
   { value: 'private', label: 'Private' },
@@ -23,6 +31,10 @@ const LESSON_CATEGORY_OPTIONS = [
   { value: 'semi-private-supervision', label: 'Semi-Private Supervision' },
 ];
 
+// Default % discount applied to a rescue service for customers with an active
+// membership (owner rule). Adjustable per-service via the form field.
+const RESCUE_DEFAULT_MEMBER_DISCOUNT = 50;
+
 // Drawer form for creating AND editing Lesson services (single page)
 export default function StepLessonServiceModal({ open, onClose, onCreated, service, onUpdated }) {
   const isEditMode = Boolean(service?.id);
@@ -30,6 +42,10 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
   const [submitting, setSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const coverImageUrl = Form.useWatch('imageUrl', form);
+  // Rescue is sold per trip, not per hour, and has no lesson category — so the
+  // form adapts when it is the selected discipline (see conditional fields).
+  const selectedDiscipline = Form.useWatch('disciplineTag', form);
+  const isRescueSelected = selectedDiscipline === RESCUE_DISCIPLINE;
   const { message } = App.useApp();
   const { businessCurrency, getSupportedCurrencies, getCurrencySymbol } = useCurrency();
 
@@ -48,6 +64,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
         price: service.price ?? undefined,
         description: service.description || '',
         imageUrl: service.imageUrl || service.image_url || null,
+        memberDiscountPercent: service.memberDiscountPercent ?? service.member_discount_percent ?? undefined,
       });
     } else {
       form.resetFields();
@@ -55,16 +72,25 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
   }, [open, service?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildPayload = (values) => {
-    const duration = values.duration != null ? parseFloat(values.duration) : undefined;
+    // Rescue is a DISCIPLINE sold PER TRIP (not per hour) and has NO lesson
+    // category. So: duration is forced to 1 (1 trip = 1 consumable unit),
+    // lesson_category is null, and the price entered is the flat per-trip price.
+    const isRescue = values.disciplineTag === RESCUE_DISCIPLINE;
+    const duration = isRescue ? 1 : (values.duration != null ? parseFloat(values.duration) : undefined);
     const price = values.price != null ? parseFloat(values.price) : undefined;
     const maxParticipants = values.maxParticipants != null ? parseInt(values.maxParticipants, 10) : undefined;
     const autoCategory = maxParticipants === 1 ? 'private' : maxParticipants <= 3 ? 'semi-private' : 'group';
-    let lessonCategoryTag = values.lessonCategoryTag || autoCategory;
+    // Rescue stores lesson_category='rescue_boat' (not NULL) so the captain's
+    // optional per-instructor rescue rate (instructor_category_rates) can match.
+    // The UI category picker is still disabled — this value is internal.
+    let lessonCategoryTag = isRescue ? RESCUE_DISCIPLINE : (values.lessonCategoryTag || autoCategory);
     // Auto-promote supervision → semi-private-supervision when capacity > 1
-    if (lessonCategoryTag === 'supervision' && maxParticipants > 1) {
+    if (!isRescue && lessonCategoryTag === 'supervision' && maxParticipants > 1) {
       lessonCategoryTag = 'semi-private-supervision';
     }
-    const serviceType = (lessonCategoryTag === 'supervision' || lessonCategoryTag === 'semi-private-supervision') ? 'supervision' : autoCategory;
+    const serviceType = isRescue
+      ? autoCategory
+      : (lessonCategoryTag === 'supervision' || lessonCategoryTag === 'semi-private-supervision') ? 'supervision' : autoCategory;
 
     return {
       name: (values.name || '').trim(),
@@ -81,6 +107,14 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
       disciplineTag: values.disciplineTag || null,
       lessonCategoryTag,
       imageUrl: values.imageUrl || null,
+      // Members with an active membership get an automatic discount on rescue
+      // services (default 50%); NULL for every other discipline so existing
+      // behaviour is untouched.
+      memberDiscountPercent: isRescue
+        ? (values.memberDiscountPercent != null && values.memberDiscountPercent !== ''
+            ? parseFloat(values.memberDiscountPercent)
+            : RESCUE_DEFAULT_MEMBER_DISCOUNT)
+        : null,
     };
   };
 
@@ -174,7 +208,18 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
               label="Discipline"
               rules={[{ required: true, message: 'Please select a discipline' }]}
             >
-              <Select placeholder="Select discipline">
+              <Select
+                placeholder="Select discipline"
+                onChange={(val) => {
+                  if (val === RESCUE_DISCIPLINE) {
+                    // Rescue has no lesson category and is sold per trip.
+                    form.setFieldsValue({ lessonCategoryTag: undefined, duration: 1 });
+                    if (form.getFieldValue('memberDiscountPercent') == null) {
+                      form.setFieldValue('memberDiscountPercent', RESCUE_DEFAULT_MEMBER_DISCOUNT);
+                    }
+                  }
+                }}
+              >
                 {DISCIPLINE_OPTIONS.map((d) => (
                   <Option key={d.value} value={d.value}>
                     {d.label}
@@ -187,9 +232,12 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
             <Form.Item
               name="lessonCategoryTag"
               label="Lesson Category"
-              rules={[{ required: true, message: 'Please select a category' }]}
+              rules={isRescueSelected ? [] : [{ required: true, message: 'Please select a category' }]}
             >
-              <Select placeholder="Select category">
+              <Select
+                placeholder={isRescueSelected ? 'Not applicable for rescue' : 'Select category'}
+                disabled={isRescueSelected}
+              >
                 {LESSON_CATEGORY_OPTIONS.map((c) => (
                   <Option key={c.value} value={c.value}>
                     {c.label}
@@ -203,24 +251,38 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
         <Divider className="my-3" />
 
         <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item
-              name="duration"
-              label="Duration (Hours)"
-              rules={[{ required: true }]}
-            >
-              <InputNumber min={0.5} max={24} step={0.5} style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
+          {!isRescueSelected && (
+            <Col span={8}>
+              <Form.Item
+                name="duration"
+                label="Duration (Hours)"
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={0.5} max={24} step={0.5} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          )}
           <Col span={8}>
             <Form.Item
               name="maxParticipants"
-              label="Max Participants"
+              label={isRescueSelected ? 'Max Passengers' : 'Max Participants'}
               rules={[{ required: true, type: 'number', min: 1, max: 50 }]}
             >
               <InputNumber min={1} max={50} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
+          {isRescueSelected && (
+            <Col span={8}>
+              <Form.Item
+                name="memberDiscountPercent"
+                label="Member discount (%)"
+                tooltip="Customers with an active membership get this % off the trip price."
+                rules={[{ type: 'number', min: 0, max: 100 }]}
+              >
+                <InputNumber min={0} max={100} step={5} style={{ width: '100%' }} addonAfter="%" />
+              </Form.Item>
+            </Col>
+          )}
         </Row>
 
         <Divider className="my-3" />
@@ -253,7 +315,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
             </Form.Item>
           </Col>
           <Col span={16}>
-            <Form.Item name="price" label="Hourly Price Per Person" rules={[{ required: true }]}>
+            <Form.Item name="price" label={isRescueSelected ? 'Price Per Rescue (per trip)' : 'Hourly Price Per Person'} rules={[{ required: true }]}>
               <InputNumber
                 min={0}
                 style={{ width: '100%' }}

@@ -10,6 +10,12 @@
  * is set, the standard / weekend / holiday nightly rate is resolved per guest
  * count from the matching `*_occupancy_pricing` list, falling back to the flat
  * rate when a given occupancy isn't specified.
+ *
+ * Per-person pricing (added 2026-06): when `meta.pricing_per_person` is set, the
+ * resolved nightly rate is treated as a PER-GUEST price and multiplied by the
+ * guest count (e.g. €70/night → €140 for 2 guests). This composes with occupancy
+ * pricing: the per-occupancy rate becomes the per-person rate for that guest
+ * count (e.g. "2 guests → €70" means €70 per person → €140 for 2).
  */
 import dayjs from 'dayjs';
 
@@ -53,6 +59,19 @@ export function resolveNightlyRate(meta, basePrice, guests = 1) {
 }
 
 /**
+ * Whether per-person pricing is active for a unit. When on, the resolved nightly
+ * rate (flat or per-occupancy) is multiplied by the guest count.
+ */
+export function isPerPersonPricing(meta) {
+  return !!meta?.pricing_per_person;
+}
+
+/** Multiply the nightly rate by this when summing a stay (1 unless per-person). */
+export function guestPriceMultiplier(meta, guests = 1) {
+  return isPerPersonPricing(meta) ? Math.max(1, Number(guests) || 1) : 1;
+}
+
+/**
  * Compute the full stay total with weekend / holiday / length-of-stay discount
  * and occupancy-aware nightly rates.
  *
@@ -69,10 +88,14 @@ export function computeAccommodationPrice({ checkIn, checkOut, basePrice, meta =
   const base = parseFloat(basePrice) || 0;
   const nights = ci && co ? co.diff(ci, 'day') : 0;
 
+  const perPerson = isPerPersonPricing(meta);
+  const guestMultiplier = perPerson ? Math.max(1, Number(guests) || 1) : 1;
+
   const empty = {
     total: 0, subtotal: 0, nights: 0,
     weekendNights: 0, holidayNights: 0, standardNights: 0,
     discount: null, standardRate: base, weekendRate: null, breakdown: [],
+    perPerson, guestMultiplier, guests: Number(guests) || 1,
   };
   if (!ci || !co || nights <= 0) return empty;
 
@@ -121,8 +144,9 @@ export function computeAccommodationPrice({ checkIn, checkOut, basePrice, meta =
       price = standardRate;
       standardNights++;
     }
-    subtotal += price;
-    breakdown.push({ date: dateStr, price, reason: holidayMatch ? 'holiday' : (price === weekendRate && hasWeekend && (dow === 0 || dow === 5 || dow === 6) ? 'weekend' : 'standard') });
+    const nightTotal = price * guestMultiplier;
+    subtotal += nightTotal;
+    breakdown.push({ date: dateStr, price: nightTotal, perPersonRate: price, reason: holidayMatch ? 'holiday' : (price === weekendRate && hasWeekend && (dow === 0 || dow === 5 || dow === 6) ? 'weekend' : 'standard') });
   }
 
   let discount = null;
@@ -152,5 +176,8 @@ export function computeAccommodationPrice({ checkIn, checkOut, basePrice, meta =
     standardRate,
     weekendRate,
     breakdown,
+    perPerson,
+    guestMultiplier,
+    guests: Number(guests) || 1,
   };
 }

@@ -19,7 +19,7 @@ const QuickLinks = () => {
     <section>
       <h3 className="mb-3 font-duotone-bold text-sm uppercase tracking-[0.12em] text-antrasit">{t('student:dashboard.quickLinks.sectionHeading')}</h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {links.map(({ to, labelKey, icon: Icon, color }) => (
+        {links.map(({ to, labelKey, defaultLabel, icon: Icon, color }) => (
           <button
             key={to}
             type="button"
@@ -29,7 +29,7 @@ const QuickLinks = () => {
             <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
               <Icon className="h-5 w-5" />
             </span>
-            <span className="font-gotham-medium text-[11px] text-slate-600">{t(labelKey)}</span>
+            <span className="font-gotham-medium text-[11px] text-slate-600">{t(labelKey, defaultLabel ? { defaultValue: defaultLabel } : undefined)}</span>
           </button>
         ))}
       </div>

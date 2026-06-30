@@ -19,7 +19,7 @@ import {
 import BrandPackageModalShell from './BrandPackageModalShell';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { imageRevisionFromRecord, resolvePublicUploadUrl, thumbUrl } from '@/shared/utils/mediaUrl';
-import { extractUnitMeta, pickOccupancyRate } from '@/shared/utils/accommodationPricing';
+import { extractUnitMeta, pickOccupancyRate, isPerPersonPricing } from '@/shared/utils/accommodationPricing';
 
 const ACCENT = '#00a8c4'; // duotone teal — single sharp accent, used sparingly on purpose
 
@@ -103,6 +103,14 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
   const occList = occEnabled && Array.isArray(meta.occupancy_pricing) ? meta.occupancy_pricing : null;
   const discounts = Array.isArray(meta.custom_discounts) ? meta.custom_discounts : [];
 
+  // Per-person pricing: the resolved nightly rate (flat OR the per-occupancy rate)
+  // is charged per guest, so a "2 guests → €70" occupancy row means €140 for 2.
+  const perPerson = isPerPersonPricing(meta);
+  const guestMultiplier = perPerson ? Math.max(1, guests) : 1;
+
+  const checkInTime = meta.check_in_time || '14:00';
+  const checkOutTime = meta.check_out_time || '11:00';
+
   const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
   /** Per-guest nightly rate rows shown in the rate ladder. */
@@ -132,21 +140,23 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
   };
 
   const nightlyForSelected = pickOccupancyRate(occList, guests, pricePerNight);
-  const subtotal = nightlyForSelected * nights;
+  const subtotal = nightlyForSelected * nights * guestMultiplier;
   const stayDiscount = discountForNights(nights);
   const total = applyDiscount(subtotal, nights, stayDiscount);
+  // Per-person share of the stay total (so the discount is reflected per head too).
+  const perPersonTotal = perPerson && guests > 0 ? total / guests : total;
 
   // Weekly price — shown ONLY when a length-of-stay discount applies at 7 nights ("if configured").
   const weeklyDiscount = discountForNights(7);
   const weeklyRow = useMemo(() => {
     if (!weeklyDiscount || pricePerNight <= 0) return null;
-    const sub = pickOccupancyRate(occList, guests, pricePerNight) * 7;
+    const sub = pickOccupancyRate(occList, guests, pricePerNight) * 7 * guestMultiplier;
     const tot = applyDiscount(sub, 7, weeklyDiscount);
     const pct = weeklyDiscount.discount_type === 'percentage'
       ? Math.round(Number(weeklyDiscount.discount_value))
       : Math.round((1 - tot / sub) * 100);
     return { total: tot, savePct: pct > 0 ? pct : null };
-  }, [weeklyDiscount, occList, guests, pricePerNight]);
+  }, [weeklyDiscount, occList, guests, pricePerNight, guestMultiplier]);
 
   const discountLabel = stayDiscount
     ? (stayDiscount.discount_type === 'percentage'
@@ -154,7 +164,10 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
         : `${formatPrice(Number(stayDiscount.discount_value))}/night off`)
     : null;
 
-  const heroFrom = rateRows[0]?.price ?? pricePerNight; // cheapest rate → the "from" anchor chip
+  // Cheapest rate across the ladder → the "from" anchor. rateRows is sorted by
+  // guest count, not price, so the lowest occupancy isn't necessarily the lowest
+  // rate (per-person rates get cheaper as guests share) — take the actual min.
+  const heroFrom = rateRows.length ? Math.min(...rateRows.map((r) => r.price)) : pricePerNight;
 
   // formatDualCurrency returns "€X / ₺Y" for non-EUR users; split it so the figure and its
   // converted equivalent can stack instead of overflowing the photo chip / rate rows / total.
@@ -164,6 +177,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
     return i === -1 ? { main: str, sub: null } : { main: str.slice(0, i), sub: str.slice(i + 3) };
   };
   const totalParts = priceParts(total);
+  const perPersonParts = priceParts(perPersonTotal);
   const weeklyParts = weeklyRow ? priceParts(weeklyRow.total) : null;
 
   // The occupancy tier pickOccupancyRate actually charges for the chosen guest count, so the
@@ -344,9 +358,12 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
               )}
               {heroFrom > 0 && (
                 <StatChip icon={<CalendarOutlined style={{ color: ACCENT }} />}>
-                  From <strong className="text-slate-900">{priceParts(heroFrom).main}</strong> / night
+                  From <strong className="text-slate-900">{priceParts(heroFrom).main}</strong> / night{perPerson ? ' · per person' : ''}
                 </StatChip>
               )}
+              <StatChip icon={<ClockCircleOutlined style={{ color: ACCENT }} />}>
+                Check-in <strong className="text-slate-900">{checkInTime}</strong> · Check-out <strong className="text-slate-900">{checkOutTime}</strong>
+              </StatChip>
             </div>
 
             {/* Description */}
@@ -399,7 +416,9 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
           {/* The rate ladder — the memorable detail */}
           {rateRows.length > 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-5">
-              <p className="text-[11px] uppercase tracking-wider font-duotone-bold text-slate-500 mb-3">Per-night rate</p>
+              <p className="text-[11px] uppercase tracking-wider font-duotone-bold text-slate-500 mb-3">
+                Per-night rate{perPerson ? ' · per person' : ''}
+              </p>
               <div className="space-y-1.5 max-h-[17rem] overflow-y-auto pkg-modal-scroll">
                 {rateRows.map((r) => {
                   const isSel = r.guests != null && r.guests === effectiveGuests;
@@ -417,7 +436,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                         style={{ color: isSel ? '#007a8f' : '#64748b' }}
                       >
                         <TeamOutlined className={isSel ? '' : 'text-slate-400'} style={isSel ? { color: ACCENT } : undefined} />
-                        <span className="truncate">{r.guests != null ? `${r.guests} guest${r.guests > 1 ? 's' : ''}` : 'Per night'}</span>
+                        <span className="truncate">{r.guests != null ? `${r.guests} guest${r.guests > 1 ? 's' : ''}` : (perPerson ? 'Per person' : 'Per night')}</span>
                         {isSel && (
                           <span
                             className="ml-0.5 inline-flex items-center gap-0.5 text-[9px] font-duotone-bold px-1.5 py-0.5 rounded-full normal-case tracking-normal shrink-0"
@@ -485,10 +504,18 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                 <p className="text-slate-400 text-xs font-duotone-regular">
                   {guests} guest{guests > 1 ? 's' : ''} · {nights} night{nights > 1 ? 's' : ''}
                 </p>
+                {perPerson && guests > 1 && (
+                  <p className="text-xs font-duotone-bold mt-0.5" style={{ color: '#007a8f' }}>
+                    {perPersonParts.main} per person
+                  </p>
+                )}
               </div>
               <span className="text-right shrink-0">
                 <span className="block text-[28px] leading-none sm:text-[32px] font-duotone-bold-extended text-slate-900 tracking-tight">{totalParts.main}</span>
                 {totalParts.sub && <span className="block text-xs font-duotone-regular text-slate-400 mt-0.5">≈ {totalParts.sub}</span>}
+                {perPerson && guests > 1 && (
+                  <span className="block text-[10px] uppercase tracking-wider font-duotone-bold text-slate-400 mt-0.5">in total</span>
+                )}
               </span>
             </div>
             {stayDiscount && discountLabel && (

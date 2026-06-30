@@ -86,6 +86,23 @@ const ENTITY_CONFIG = {
 const DISCOUNT_TX_TYPE = 'discount_adjustment';
 const DISCOUNT_REVERSAL_TX_TYPE = 'discount_adjustment_reversal';
 
+// getEntityNetCharges() (walletService) correlates wallet rows for SERIAL-int
+// entities — member_purchase / shop_order — by a METADATA key, because their
+// related_entity_id is UUID-typed and left null for these tables. A discount-
+// adjustment credit (and its reversal) must carry that same key or the
+// refund-on-delete netting can't see it: deleting a discounted membership then
+// refunds the GROSS charge, handing the customer the discount back as cash
+// (e.g. a €12 membership at 50% off is charged €6 net but refunded €12). Mirror
+// the exact keys the charge rows use (recordTransaction stamps member_purchase
+// → memberPurchaseId, shop_order → orderId). UUID entities net via
+// related_entity_id, so they need nothing here.
+const discountCorrelationMeta = (entityType, entityId) => {
+  if (entityId == null) return {};
+  if (entityType === 'member_purchase') return { memberPurchaseId: Number(entityId) };
+  if (entityType === 'shop_order') return { orderId: String(entityId) };
+  return {};
+};
+
 export const SUPPORTED_ENTITY_TYPES = Object.keys(ENTITY_CONFIG);
 
 const isSupported = (entityType) => Object.hasOwn(ENTITY_CONFIG, entityType);
@@ -194,6 +211,15 @@ async function reverseDiscountAdjustment(client, openCredit, { reason, createdBy
   if (!openCredit) return null;
   const amount = Math.abs(Number(openCredit.amount) || 0);
   if (amount <= 0) return null;
+  // Carry the same SERIAL-int correlation key the credit (post-fix) holds, so
+  // the reversal nets against the charge alongside it — otherwise a removed
+  // discount on a member_purchase / shop_order would leave the credit netted
+  // but its reversal invisible, under-refunding on a later delete.
+  const ocMeta = openCredit.metadata && typeof openCredit.metadata === 'object'
+    ? openCredit.metadata
+    : (() => { try { return JSON.parse(openCredit.metadata || '{}'); } catch { return {}; } })();
+  const ocEntityId = ocMeta.entity_id ?? ocMeta.memberPurchaseId ?? ocMeta.orderId
+    ?? openCredit.related_entity_id ?? null;
   return recordTransaction({
     client,
     userId: openCredit.user_id,
@@ -210,6 +236,7 @@ async function reverseDiscountAdjustment(client, openCredit, { reason, createdBy
     metadata: {
       reversal_of: openCredit.id,
       discount_id: openCredit.discount_id,
+      ...discountCorrelationMeta(openCredit.related_entity_type, ocEntityId),
     },
     createdBy: createdBy || null,
     allowNegative: true,
@@ -248,7 +275,12 @@ async function postDiscountAdjustment(client, {
     description: reason ? `Discount adjustment: ${reason}` : 'Discount adjustment',
     relatedEntityType: entityType,
     ...(idIsUuid ? { relatedEntityId: String(entityId) } : {}),
-    metadata: { discount_id: discountId, entity_type: entityType, entity_id: String(entityId) },
+    metadata: {
+      discount_id: discountId,
+      entity_type: entityType,
+      entity_id: String(entityId),
+      ...discountCorrelationMeta(entityType, entityId),
+    },
     createdBy: createdBy || null,
     // A refund-style credit must never be blocked because the customer's
     // wallet was already in the red — we'd just be reducing the negative.

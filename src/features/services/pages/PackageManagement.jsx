@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import {
   Button,
@@ -90,6 +91,7 @@ function PackageManagementInner() {
     description: 'Manage experience bundle packages - lessons with rentals, accommodation, and all-inclusive packages'
   });
 
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const screens = useBreakpoint();
   const { apiClient } = useData();
@@ -221,6 +223,14 @@ function PackageManagementInner() {
     return PACKAGE_TYPES.find(pt => pt.value === type) || PACKAGE_TYPES[0];
   };
 
+  // A saved package is a rescue package when its (or its linked service's) discipline is rescue_boat.
+  const isRescueRecord = (pkg) => {
+    const explicit = String(pkg?.disciplineTag || pkg?.discipline_tag || '').toLowerCase();
+    if (explicit) return explicit === 'rescue_boat';
+    const linked = lessonServices.find(s => s.id === pkg?.lessonServiceId || s.name === pkg?.lessonServiceName);
+    return String(linked?.disciplineTag || '').toLowerCase() === 'rescue_boat';
+  };
+
   // Filter packages by type (multi-select)
   const getFilteredPackages = () => {
     if (selectedTypes.length === 0) return packages;  // No filter = show all
@@ -276,7 +286,10 @@ function PackageManagementInner() {
       packageNightlyRate: values.packageNightlyRate || null,
       prices,
       imageUrl: values.imageUrl ?? null,
-      disciplineTag: null,
+      // Inherit the discipline from the linked lesson service so the FIFO pool can
+      // match (e.g. rescue packages get discipline_tag='rescue_boat'). Rescue keeps
+      // lessonCategoryTag NULL, mirroring the rescue service shape.
+      disciplineTag: entities.lessonService?.disciplineTag ?? null,
       lessonCategoryTag: null,
       levelTag: null
     };
@@ -491,6 +504,18 @@ function PackageManagementInner() {
   // Standard prices from selected services
   const selectedLesson = lessonServices.find(s => s.id === watchLessonServiceId);
   const standardLessonPrice = selectedLesson?.price ? parseFloat(selectedLesson.price) : null;
+  // Rescue packages count "trips" (sefer) instead of "hours" — only the label changes.
+  const isRescuePackage = String(selectedLesson?.disciplineTag || '').toLowerCase() === 'rescue_boat';
+  // Entitlement unit label: "trips" for rescue, "hours" otherwise (underlying field stays totalHours).
+  const entitlementUnit = isRescuePackage
+    ? t('packages.rescue.tripsUnit', { defaultValue: 'trips' })
+    : t('packages.hoursUnit', { defaultValue: 'hours' });
+  const entitlementUnitShort = isRescuePackage
+    ? t('packages.rescue.tripsUnitShort', { defaultValue: 'trips' })
+    : 'h';
+  const lessonHoursLabel = isRescuePackage
+    ? t('packages.rescue.totalTrips', { defaultValue: 'Total Rescue Trips' })
+    : t('packages.totalLessonHours', { defaultValue: 'Total Lesson Hours' });
   const selectedRental = rentalServices.find(s => s.id === watchRentalServiceId);
   const standardRentalPrice = selectedRental?.price ? parseFloat(selectedRental.price) : null;
   const selectedUnit = accommodationUnits.find(u => u.id === watchAccommodationUnitId);
@@ -577,7 +602,7 @@ function PackageManagementInner() {
       render: (_, record) => (
         <Space wrap size={[4, 4]}>
           {record.includesLessons && record.totalHours > 0 && (
-            <Tag color="blue">{record.totalHours}h {record.lessonServiceName || 'Lessons'}</Tag>
+            <Tag color="blue">{record.totalHours}{isRescueRecord(record) ? ' ' + t('packages.rescue.tripsUnitShort', { defaultValue: 'trips' }) : 'h'} {record.lessonServiceName || (isRescueRecord(record) ? t('packages.rescue.label', { defaultValue: 'Rescue' }) : 'Lessons')}</Tag>
           )}
           {record.includesRental && record.rentalDays > 0 && (
             <Tag color="green">{record.rentalDays}d {record.equipmentName || record.rentalServiceName || 'Rental'}</Tag>
@@ -681,9 +706,9 @@ function PackageManagementInner() {
                        <BookOutlined className="text-xs" />
                     </div>
                     <span>
-                      <span className="font-semibold">{pkg.totalHours} Hours</span> 
+                      <span className="font-semibold">{pkg.totalHours} {isRescueRecord(pkg) ? t('packages.rescue.tripsUnitTitle', { defaultValue: 'Trips' }) : 'Hours'}</span>
                       {pkg.lessonServiceName && ` - ${pkg.lessonServiceName}`}
-                      {!pkg.lessonServiceName && ' Lessons'}
+                      {!pkg.lessonServiceName && (isRescueRecord(pkg) ? ` ${t('packages.rescue.label', { defaultValue: 'Rescue' })}` : ' Lessons')}
                     </span>
                  </div>
               )}
@@ -1083,7 +1108,7 @@ function PackageManagementInner() {
                       <div className="flex flex-wrap gap-2">
                         {packageFields.showLessons && (
                           <div className="flex items-center gap-2 bg-blue-50 text-blue-700 rounded-lg px-3 py-2 text-sm font-medium">
-                            <BookOutlined /> Lessons {watchTotalHours ? `· ${watchTotalHours}h` : ''}
+                            <BookOutlined /> {isRescuePackage ? t('packages.rescue.label', { defaultValue: 'Rescue' }) : 'Lessons'} {watchTotalHours ? `· ${watchTotalHours}${entitlementUnitShort === 'h' ? 'h' : ' ' + entitlementUnitShort}` : ''}
                           </div>
                         )}
                         {packageFields.showRental && (
@@ -1164,11 +1189,13 @@ function PackageManagementInner() {
                             <Col xs={24} md={12}>
                               <Form.Item
                                 name="totalHours"
-                                label="Total Lesson Hours"
+                                label={lessonHoursLabel}
                                 rules={[{ required: false }]}
-                                tooltip="Number of lesson hours included in this package (optional)"
+                                tooltip={isRescuePackage
+                                  ? t('packages.rescue.totalTripsTooltip', { defaultValue: 'Number of rescue trips (sefer) included in this package — 1 trip = 1 unit (optional)' })
+                                  : t('packages.totalLessonHoursTooltip', { defaultValue: 'Number of lesson hours included in this package (optional)' })}
                               >
-                                <InputNumber min={1} style={{ width: '100%' }} placeholder="e.g., 10" addonAfter="hours" />
+                                <InputNumber min={1} style={{ width: '100%' }} placeholder={isRescuePackage ? 'e.g., 2' : 'e.g., 10'} addonAfter={entitlementUnit} />
                               </Form.Item>
                             </Col>
                           </Row>
@@ -1697,7 +1724,7 @@ function PackageManagementInner() {
                                   {selectedLesson ? selectedLesson.name : 'Lessons'}
                                 </div>
                                 <div className="text-[10px] text-gray-400">
-                                  {watchTotalHours + 'h'}{pricePerHour ? (' x ' + formatCurrency(pricePerHour, totalCurrency) + '/h') : ''}
+                                  {watchTotalHours + (isRescuePackage ? ' ' + entitlementUnitShort : 'h')}{pricePerHour ? (' x ' + formatCurrency(pricePerHour, totalCurrency) + (isRescuePackage ? '/' + t('packages.rescue.tripUnitSingular', { defaultValue: 'trip' }) : '/h')) : ''}
                                 </div>
                               </div>
                             </div>

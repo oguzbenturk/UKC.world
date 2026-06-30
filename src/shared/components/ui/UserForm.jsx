@@ -1,7 +1,7 @@
 // src/components/UserForm.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber, DatePicker, Modal, Space } from 'antd';
+import { Form, Input, Button, Select, Row, Col, Avatar, Upload, InputNumber, Modal, Space } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { UserOutlined, UploadOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { parsePhoneNumber } from 'libphonenumber-js';
@@ -10,11 +10,13 @@ import DataService from '../../services/dataService';
 import apiClient from '../../services/apiClient';
 import { useAuth } from '@/shared/hooks/useAuth';
 import dayjs from 'dayjs';
+import FlexibleDatePicker from '@/shared/components/ui/FlexibleDatePicker';
 
 const { Option } = Select;
 
-// Countries data with calling codes
-const countries = [
+// Countries data with calling codes — exported so lightweight forms (e.g. the customer
+// self-registration form) can reuse the same list + phone-country detection.
+export const countries = [
   { code: 'AD', name: 'Andorra', callingCode: '+376' },
   { code: 'AE', name: 'United Arab Emirates', callingCode: '+971' },
   { code: 'AF', name: 'Afghanistan', callingCode: '+93' },
@@ -267,7 +269,7 @@ const countries = [
 ];
 
 // Languages data
-const languages = [
+export const languages = [
   { code: 'en', name: 'English' },
   { code: 'es', name: 'Spanish' },
   { code: 'fr', name: 'French' },
@@ -353,7 +355,7 @@ const languages = [
 ];
 
 // Function to detect country from phone number
-const detectCountryFromPhone = (phone) => {
+export const detectCountryFromPhone = (phone) => {
   if (!phone || phone.length < 2) return null;
   
   try {
@@ -776,10 +778,9 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
       <Row gutter={24}>
         <Col xs={24} sm={12}>
           <Form.Item name="date_of_birth" label={t('common:userForm.dateOfBirth')}>
-            <DatePicker
+            <FlexibleDatePicker
               style={{ width: '100%' }}
               placeholder={t('common:userForm.selectDateOfBirth')}
-              format="DD/MM/YYYY"
               disabledDate={(current) => current && current > dayjs().endOf('day')}
               onChange={(date) => {
                 if (date) {

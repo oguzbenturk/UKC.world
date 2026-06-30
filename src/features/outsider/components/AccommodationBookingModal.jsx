@@ -204,6 +204,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
   const totalPrice = priceBreakdown.total;
   // Standard nightly rate resolved for the current occupancy (for headline / per-night display).
   const nightlyRate = resolveNightlyRate(unitMeta, pricePerNight, guestsCount);
+  // Per-person pricing: nightlyRate is the per-guest rate; the per-night party total is ×guests.
+  const isPerPerson = !!priceBreakdown.perPerson;
+  const guestMultiplier = priceBreakdown.guestMultiplier || 1;
 
   const formatPrice = (eurPrice) => {
     const eurFormatted = formatCurrency(eurPrice, 'EUR');
@@ -422,7 +425,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
           {nightlyRate > 0 && (
             <div className="text-right shrink-0">
               <span className="text-blue-400 text-lg font-bold">{formatPrice(nightlyRate)}</span>
-              <span className="text-white/30 text-xs block">{t('outsider:accommodationBooking.header.perNight')}</span>
+              <span className="text-white/30 text-xs block">
+                {t('outsider:accommodationBooking.header.perNight')}{isPerPerson ? ' · per person' : ''}
+              </span>
             </div>
           )}
         </div>
@@ -718,7 +723,9 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                       {nights > 0
                         ? (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0)
                           ? `${nights} night${nights !== 1 ? 's' : ''} (${t('outsider:accommodationBooking.summary.mixedRates')})`
-                          : `${formatPrice(nightlyRate)} × ${nights} night${nights !== 1 ? 's' : ''}`
+                          : isPerPerson && guestsCount > 1
+                            ? `${formatPrice(nightlyRate)} × ${guestsCount} guests × ${nights} night${nights !== 1 ? 's' : ''}`
+                            : `${formatPrice(nightlyRate)} × ${nights} night${nights !== 1 ? 's' : ''}`
                         : t('outsider:accommodationBooking.summary.selectDates')}
                     </p>
                   </div>
@@ -726,6 +733,11 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     <span className="text-2xl font-bold text-white tracking-tight">
                       {nights > 0 ? formatPrice(effectiveTotalPrice) : '—'}
                     </span>
+                    {nights > 0 && isPerPerson && guestsCount > 1 && (
+                      <span className="block text-[11px] text-white/40 mt-0.5">
+                        {formatPrice(effectiveTotalPrice / guestsCount)} per person
+                      </span>
+                    )}
                   </div>
                 </div>
                 {nights > 0 && (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0 || priceBreakdown.discount) && (
@@ -733,7 +745,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     {priceBreakdown.weekendNights > 0 && (
                       <div className="flex justify-between">
                         <span>{priceBreakdown.weekendNights} weekend night{priceBreakdown.weekendNights !== 1 ? 's' : ''}</span>
-                        <span>{formatPrice(priceBreakdown.weekendRate ?? unitMeta.weekend_price)}/night</span>
+                        <span>{formatPrice((priceBreakdown.weekendRate ?? unitMeta.weekend_price) * guestMultiplier)}/night</span>
                       </div>
                     )}
                     {priceBreakdown.holidayNights > 0 && (
@@ -745,7 +757,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     {(nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights) > 0 && (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0) && (
                       <div className="flex justify-between">
                         <span>{nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights} standard night{(nights - priceBreakdown.weekendNights - priceBreakdown.holidayNights) !== 1 ? 's' : ''}</span>
-                        <span>{formatPrice(priceBreakdown.standardRate ?? pricePerNight)}/night</span>
+                        <span>{formatPrice((priceBreakdown.standardRate ?? pricePerNight) * guestMultiplier)}/night</span>
                       </div>
                     )}
                     {priceBreakdown.discount && (

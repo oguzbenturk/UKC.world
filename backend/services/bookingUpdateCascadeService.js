@@ -701,16 +701,28 @@ class BookingUpdateCascadeService {
         }
 
         if (!foundCategoryRate) {
-          // 4. Fallback to default commission
-          const defaultCommission = await client.query(
-            'SELECT commission_type, commission_value FROM instructor_default_commissions WHERE instructor_id = $1',
-            [booking.instructor_user_id]
+          // Rescue is captain-rate-only: with no explicit rescue rate the captain
+          // earns €0 — do NOT fall back to the default commission. Regular lessons
+          // are unaffected and keep the default-commission fallback below.
+          const svcTagRes = await client.query(
+            'SELECT lesson_category_tag FROM services WHERE id = $1',
+            [booking.service_id]
           );
+          const isRescueBooking = svcTagRes.rows[0]?.lesson_category_tag === 'rescue_boat';
 
-          if (defaultCommission.rows.length > 0) {
-            commissionType = defaultCommission.rows[0].commission_type;
-            commissionValue = new Decimal(defaultCommission.rows[0].commission_value).toNumber();
+          if (!isRescueBooking) {
+            // 4. Fallback to default commission
+            const defaultCommission = await client.query(
+              'SELECT commission_type, commission_value FROM instructor_default_commissions WHERE instructor_id = $1',
+              [booking.instructor_user_id]
+            );
+
+            if (defaultCommission.rows.length > 0) {
+              commissionType = defaultCommission.rows[0].commission_type;
+              commissionValue = new Decimal(defaultCommission.rows[0].commission_value).toNumber();
+            }
           }
+          // Rescue with no rate: commissionValue stays at its initial 0 ⇒ €0 earning.
         }
       }
     }

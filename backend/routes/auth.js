@@ -19,6 +19,7 @@ import {
   verifyEmailToken,
   resendVerification
 } from '../services/emailVerificationService.js';
+import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { ERROR_CODES } from '../shared/errorCodes.js';
@@ -1009,6 +1010,140 @@ router.post('/register', authRateLimit, async (req, res) => {
     }
     
     res.status(500).json({ error: 'Registration failed. Please try again.' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * Public, PASSWORDLESS customer self-registration — the target of the "Customer Mode" QR code.
+ * A customer (typically scanning the QR on their own phone) submits basic details; we create a
+ * STUDENT account with a random server-side password nobody knows, then email a one-time
+ * "set your password" link that also activates the account. Until they complete it, email_verified
+ * stays false and login is blocked (auth.js email-verification gate). No client-supplied password
+ * or role is honoured — role is forced to student here. Rate-limited + CSRF-exempt (public).
+ */
+router.post('/self-register', authRateLimit, async (req, res) => {
+  if (isAuthCreationDisabled()) {
+    logger.warn('Self-register blocked: DISABLE_LOGIN is enabled');
+    return res.status(503).json({
+      error: 'New account registration is temporarily disabled.',
+      code: 'LOGIN_DISABLED',
+    });
+  }
+
+  const { first_name, last_name, email, phone, date_of_birth, weight, city, country, preferred_currency } = req.body;
+
+  if (!first_name || !last_name || !email || !phone) {
+    return res.status(400).json({ error: 'First name, last name, email, and phone are required' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+  if (weight && (weight < 30 || weight > 200)) {
+    return res.status(400).json({ error: 'Weight must be between 30 and 200 kg' });
+  }
+
+  // Derive age from date_of_birth when present.
+  let age = null;
+  if (date_of_birth) {
+    const dob = new Date(date_of_birth);
+    if (!isNaN(dob.getTime())) {
+      const today = new Date();
+      age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) age--;
+    }
+  }
+
+  const currency = preferred_currency || 'EUR';
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const existingUser = await client.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL',
+      [email]
+    );
+    if (existingUser.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+
+    const roleResult = await client.query("SELECT id FROM roles WHERE name = 'student'");
+    if (roleResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      logger.error('Self-register failed: student role missing');
+      return res.status(500).json({ error: 'Registration is unavailable right now. Please try again later.' });
+    }
+    const studentRoleId = roleResult.rows[0].id;
+
+    // Passwordless: mint a strong random throwaway (never shown to anyone). The customer sets
+    // their real password via the emailed link, which also flips email_verified → true.
+    const placeholderPassword = `${crypto.randomBytes(24).toString('base64url')}Aa1!`;
+    const hashedPassword = await bcrypt.hash(placeholderPassword, 10);
+
+    const userResult = await client.query(`
+      INSERT INTO users (
+        email, password_hash, name, first_name, last_name, phone, age, date_of_birth, weight,
+        preferred_currency, city, country, role_id, email_verified, email_verified_at,
+        created_at, updated_at
+      )
+      VALUES (LOWER($1), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, FALSE, NULL, NOW(), NOW())
+      RETURNING id, email, first_name, name
+    `, [
+      email.trim(),
+      hashedPassword,
+      `${first_name} ${last_name}`,
+      first_name,
+      last_name,
+      phone || null,
+      age,
+      date_of_birth || null,
+      weight || null,
+      currency,
+      city || null,
+      country || null,
+      studentRoleId
+    ]);
+
+    const newUser = userResult.rows[0];
+
+    await client.query(
+      `INSERT INTO wallet_balances (user_id, currency, available_amount, pending_amount, non_withdrawable_amount)
+       VALUES ($1, $2, 0, 0, 0) ON CONFLICT (user_id, currency) DO NOTHING`,
+      [newUser.id, currency]
+    );
+
+    await client.query('COMMIT');
+
+    try {
+      await Promise.all([
+        cacheService.del('api:users:students:*'),
+        cacheService.del('api:users:for-booking:*'),
+      ]);
+    } catch (cacheErr) {
+      logger.warn('Failed to invalidate user list cache after self-registration', { error: cacheErr.message });
+    }
+
+    await logSecurityEvent(newUser.id, 'self_registration', req, { email: newUser.email, channel: 'qr' });
+
+    // Email the one-time, expiring "set your password" activation link.
+    sendWelcomeEmailWithResetLink({ user: newUser, req, context: 'customer QR self-registration email' });
+
+    return res.status(201).json({
+      message: 'Registration successful. Check your email to set your password and activate your account.',
+      requiresEmailVerification: true,
+      user: { id: newUser.id, email: newUser.email }
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    logger.error('Self-registration failed:', { error: err.message });
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+    return res.status(500).json({ error: 'Registration failed. Please try again.' });
   } finally {
     client.release();
   }

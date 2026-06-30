@@ -37,6 +37,7 @@ const DISCIPLINE_MAP = {
   kite_foil: { label: '🏄 Kite Foil', color: 'cyan' },
   efoil: { label: '⚡ E-Foil', color: 'green' },
   premium: { label: '💎 Premium', color: 'gold' },
+  rescue_boat: { label: '🚤 Rescue', color: 'cyan' },
 };
 
 const CATEGORY_MAP = {

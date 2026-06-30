@@ -41,7 +41,7 @@ const AcademyLandingPage = () => {
 
   const academyNavItems = ACADEMY_NAV_KEYS.map((n) => ({
     id: n.id,
-    label: t(`outsider:academy.nav.${n.key}`),
+    label: t(`outsider:academy.nav.${n.key}`, { defaultValue: n.key }),
     ...(n.shortKey ? { shortLabel: t(`outsider:academy.nav.${n.shortKey}`) } : {}),
   }));
 

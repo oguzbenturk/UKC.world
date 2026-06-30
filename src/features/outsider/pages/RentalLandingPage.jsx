@@ -26,8 +26,8 @@ const RentalLandingPage = () => {
 
   const rentalNavItems = RENTAL_NAV_KEYS.map((n) => ({
     id: n.id,
-    label: t(`outsider:rental.nav.${n.key}`),
-    shortLabel: t(`outsider:rental.nav.${n.shortKey}`),
+    label: t(`outsider:rental.nav.${n.key}`, { defaultValue: n.key }),
+    shortLabel: t(`outsider:rental.nav.${n.shortKey}`, { defaultValue: n.shortKey }),
   }));
 
   usePageSEO({

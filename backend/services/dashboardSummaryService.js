@@ -323,7 +323,9 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
       COALESCE(accom_unit.price_per_night, 0) as pkg_accom_nightly_rate,
       srv.duration as fallback_session_duration,
       srv.price as service_price,
-      COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0) as commission_rate,
+      COALESCE(bcc.commission_value, isc.commission_value, icr.rate_value,
+        -- Rescue is captain-rate-only: no rescue rate ⇒ €0 (no default fallback).
+        (CASE WHEN srv.lesson_category_tag = 'rescue_boat' THEN NULL ELSE idc.commission_value END), 0) as commission_rate,
       COALESCE(bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') as commission_type
     FROM bookings b
     LEFT JOIN services srv ON srv.id = b.service_id

@@ -388,6 +388,7 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/finances/callback/',
   '/api/webhooks/',
   '/api/auth/register',           // Public unauthenticated — no session cookie to steal
+  '/api/auth/self-register',      // Public unauthenticated QR/customer self-registration — no session cookie to steal
   '/api/auth/login',              // Public unauthenticated — no session cookie to steal
   '/api/auth/verify-email',       // Public — token in URL is the auth; clicker isn't logged in
   '/api/auth/resend-verification', // Public — same flow as forgot-password

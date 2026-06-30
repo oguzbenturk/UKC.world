@@ -1857,15 +1857,22 @@ export async function getEntityNetCharges({
     conditions.push(`(related_entity_type = $${a} AND related_entity_id = $${b})`);
   }
   if (shopOrderId !== null && shopOrderId !== undefined) {
+    // Charge/refund rows tag the SERIAL id under metadata.orderId, but discount-
+    // adjustment credits tag it under metadata.entity_id. COALESCE both so the
+    // net includes the discount — otherwise a refund returns the GROSS charge
+    // and hands the discount back as cash.
     params.push(String(shopOrderId));
-    conditions.push(`(related_entity_type IN ('shop_order', 'shop_order_refund') AND metadata->>'orderId' = $${params.length})`);
+    conditions.push(`(related_entity_type IN ('shop_order', 'shop_order_refund') AND COALESCE(metadata->>'orderId', metadata->>'entity_id') = $${params.length})`);
   }
   if (memberPurchaseId !== null && memberPurchaseId !== undefined) {
     // member_purchases.id is SERIAL int while related_entity_id is UUID, so the
     // membership charge/refund rows carry the id in metadata.memberPurchaseId
-    // (mirrors the shop_order/metadata.orderId pattern above).
+    // (mirrors the shop_order/metadata.orderId pattern above). Discount-adjustment
+    // credits instead carry it as metadata.entity_id, so COALESCE both keys —
+    // without the fallback the discount is invisible here and the refund-on-delete
+    // pays back the full GROSS charge (e.g. €12 on a €6-net 50%-off membership).
     params.push(String(memberPurchaseId));
-    conditions.push(`(related_entity_type IN ('member_purchase', 'member_purchase_refund') AND metadata->>'memberPurchaseId' = $${params.length})`);
+    conditions.push(`(related_entity_type IN ('member_purchase', 'member_purchase_refund') AND COALESCE(metadata->>'memberPurchaseId', metadata->>'entity_id') = $${params.length})`);
   }
   if (!conditions.length) {
     return [];

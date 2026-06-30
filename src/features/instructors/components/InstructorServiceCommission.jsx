@@ -18,8 +18,12 @@ import { formatCurrency } from '@/shared/utils/formatters';
 const { Text } = Typography;
 const { Option } = Select;
 
-const LESSON_CATEGORIES = ['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision'];
-const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple', 'semi-private-supervision': 'gold' };
+const LESSON_CATEGORIES = ['private', 'semi-private', 'group', 'supervision', 'semi-private-supervision', 'rescue_boat'];
+const CATEGORY_COLORS = { private: 'blue', group: 'green', supervision: 'orange', 'semi-private': 'purple', 'semi-private-supervision': 'gold', rescue_boat: 'cyan' };
+// Display labels (raw value shown capitalized otherwise). Rescue is the boat
+// captain's optional per-trip rate — leaving it unset means the captain earns
+// nothing for rescue trips.
+const CATEGORY_LABELS = { rescue_boat: '🚤 Rescue' };
 
 const InstructorServiceCommission = forwardRef(({
   instructorId,
@@ -338,7 +342,7 @@ const InstructorServiceCommission = forwardRef(({
                 return (
                   <div key={cat} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50/50 transition-colors">
                     <div className="flex items-center gap-3 min-w-0">
-                      <Tag color={CATEGORY_COLORS[cat]} bordered={false} className="rounded-full capitalize m-0">{cat}</Tag>
+                      <Tag color={CATEGORY_COLORS[cat]} bordered={false} className="rounded-full capitalize m-0">{CATEGORY_LABELS[cat] || cat}</Tag>
                     </div>
 
                     {isEditing ? (

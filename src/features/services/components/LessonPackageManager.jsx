@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Button,
   Modal,
@@ -46,6 +47,7 @@ function LessonPackageManager({ visible, onClose, lessonServices }) {
 }
 
 function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
+  const { t } = useTranslation();
   const { message } = App.useApp();
   const screens = useBreakpoint();
   const { apiClient } = useData();
@@ -185,6 +187,10 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
   levelTag: service.levelTag || null,
   })) || [];
 
+  // Rescue lesson services count "trips" (sefer) instead of "hours" — label only.
+  const isRescueLessonType = (lessonTypeId) =>
+    String(effectiveLessonServices?.find(s => s.id === lessonTypeId)?.disciplineTag || '').toLowerCase() === 'rescue_boat';
+
   const getPackageType = (pkg) => (pkg.packageType || pkg.package_type || 'lesson');
 
   const hasLesson = (pkg) => {
@@ -264,6 +270,7 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
     if (linkedTag) return linkedTag;
 
     const text = `${pkg.name || ''} ${pkg.description || ''} ${pkg.lessonServiceName || ''}`.toLowerCase();
+    if (text.includes('rescue') || text.includes('sefer') || text.includes('🚤')) return 'rescue_boat';
     if (text.includes('e-foil') || text.includes('efoil')) return 'efoil';
     if (text.includes('wing')) return 'wing';
     if (text.includes('kite foil') || text.includes('foil')) return 'kite_foil';
@@ -660,12 +667,15 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
       title: 'Total Hours',
       dataIndex: 'totalHours',
       key: 'totalHours',
-      render: (hours, record) => (
-        <div className="text-center leading-tight">
-          <div className="font-semibold tracking-wide text-slate-800">{hours}h</div>
-          <div className="text-xs tracking-wide text-slate-500">{record.sessionsCount} sessions</div>
-        </div>
-      ),
+      render: (hours, record) => {
+        const rescue = resolvePackageDiscipline(record) === 'rescue_boat';
+        return (
+          <div className="text-center leading-tight">
+            <div className="font-semibold tracking-wide text-slate-800">{hours}{rescue ? ' ' + t('packages.rescue.tripsUnitShort', { defaultValue: 'trips' }) : 'h'}</div>
+            <div className="text-xs tracking-wide text-slate-500">{rescue ? `${hours || 0} ${t('packages.rescue.tripsUnit', { defaultValue: 'trips' })}` : `${record.sessionsCount} sessions`}</div>
+          </div>
+        );
+      },
     },
     {
       title: 'Price',
@@ -757,6 +767,7 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
               { key: 'kite_foil', label: `Kite Foil (${getPackageTabCount('kite_foil')})` },
               { key: 'efoil', label: `E-Foil (${getPackageTabCount('efoil')})` },
               { key: 'premium', label: `Premium (${getPackageTabCount('premium')})` },
+              { key: 'rescue_boat', label: `🚤 Rescue (${getPackageTabCount('rescue_boat')})` },
               { key: 'untagged', label: `Untagged (${getPackageTabCount('untagged')})` },
             ]}
           />
@@ -826,14 +837,17 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
                 <Row gutter={[18, 18]}>
                   {filteredPackages.map((pkg) => {
                     const perHour = pkg.totalHours ? (pkg.price || 0) / pkg.totalHours : null;
+                    const isRescuePkg = resolvePackageDiscipline(pkg) === 'rescue_boat';
                     const services = getPackageServiceTags(pkg);
                     const rentalDays = pkg.rentalDays || pkg.rental_days || 0;
                     const accommodationNights = pkg.accommodationNights || pkg.accommodation_nights || 0;
                     const packageBreakdown = [
                       {
                         key: 'lessons',
-                        label: 'Lessons',
-                        value: `${pkg.totalHours || 0}h`,
+                        label: isRescuePkg ? t('packages.rescue.label', { defaultValue: 'Rescue' }) : 'Lessons',
+                        value: isRescuePkg
+                          ? `${pkg.totalHours || 0} ${t('packages.rescue.tripsUnit', { defaultValue: 'trips' })}`
+                          : `${pkg.totalHours || 0}h`,
                         show: Number(pkg.totalHours || 0) > 0,
                       },
                       {
@@ -885,9 +899,9 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
                         >
                           <div className="grid grid-cols-2 gap-3 pt-1">
                             <div>
-                              <div className="text-[11px] tracking-wide text-slate-500">Total Hours</div>
-                              <div className="font-semibold tracking-wide text-slate-800">{pkg.totalHours}h</div>
-                              <div className="text-[11px] tracking-wide text-slate-500">{pkg.sessionsCount} sessions</div>
+                              <div className="text-[11px] tracking-wide text-slate-500">{isRescuePkg ? t('packages.rescue.totalTrips', { defaultValue: 'Total Trips' }) : 'Total Hours'}</div>
+                              <div className="font-semibold tracking-wide text-slate-800">{pkg.totalHours}{isRescuePkg ? ' ' + t('packages.rescue.tripsUnitShort', { defaultValue: 'trips' }) : 'h'}</div>
+                              <div className="text-[11px] tracking-wide text-slate-500">{isRescuePkg ? `${pkg.totalHours || 0} ${t('packages.rescue.tripsUnit', { defaultValue: 'trips' })}` : `${pkg.sessionsCount} sessions`}</div>
                             </div>
                             <div className="text-right">
                               <div className="text-[11px] tracking-wide text-slate-500">Prices</div>
@@ -1072,7 +1086,9 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
                       <Col xs={24} md={8}>
                         <Form.Item
                           name="totalHours"
-                          label="Total Lesson Hours"
+                          label={isRescueLessonType(form.getFieldValue('lessonType'))
+                            ? t('packages.rescue.totalTrips', { defaultValue: 'Total Rescue Trips' })
+                            : t('packages.totalLessonHours', { defaultValue: 'Total Lesson Hours' })}
                           rules={[{ required: true, message: 'Required' }]}
                         >
                           <InputNumber
@@ -1080,7 +1096,9 @@ function LessonPackageManagerInner({ visible, onClose, lessonServices }) {
                             max={60}
                             placeholder="0"
                             style={{ width: '100%' }}
-                            addonAfter="h"
+                            addonAfter={isRescueLessonType(form.getFieldValue('lessonType'))
+                              ? t('packages.rescue.tripsUnitShort', { defaultValue: 'trips' })
+                              : 'h'}
                             onChange={handleTotalHoursChange}
                             className="!rounded-lg !border-slate-200 !bg-slate-50/50 shadow-sm"
                           />

@@ -122,6 +122,37 @@ describe('getEntityNetCharges', () => {
     });
     expect(await getEntityNetCharges({ shopOrderId: orderId })).toEqual([]);
   });
+
+  test('discounted membership nets to the DISCOUNTED charge, not the gross (no refund windfall)', async () => {
+    const userId = await createTestUser();
+    await recordTransaction({ userId, amount: 100, transactionType: 'deposit', currency: 'EUR' });
+    const memberPurchaseId = 778899; // SERIAL int id
+
+    // €12 membership at 50% off: gross charge -12 (tagged metadata.memberPurchaseId)
+    // plus a discount-adjustment credit +6. discountService tags the credit's id
+    // under metadata.entity_id (NOT memberPurchaseId), so getEntityNetCharges must
+    // COALESCE both keys — otherwise it returns the €12 gross and deleting the
+    // membership refunds the discount back to the customer as cash.
+    await recordTransaction({
+      userId, amount: -12, currency: 'EUR', transactionType: 'payment', direction: 'debit',
+      availableDelta: -12, relatedEntityType: 'member_purchase', metadata: { memberPurchaseId },
+    });
+    await recordTransaction({
+      userId, amount: 6, currency: 'EUR', transactionType: 'discount_adjustment', direction: 'credit',
+      availableDelta: 6, relatedEntityType: 'member_purchase',
+      metadata: { entity_id: String(memberPurchaseId), entity_type: 'member_purchase', discount_id: 1 },
+    });
+
+    // Outstanding net is the €6 actually charged, not the €12 gross.
+    expect(await getEntityNetCharges({ memberPurchaseId })).toEqual([{ currency: 'EUR', amount: 6 }]);
+
+    // The delete refunds exactly €6 → nothing outstanding, and no positive windfall.
+    await recordTransaction({
+      userId, amount: 6, currency: 'EUR', transactionType: 'refund', direction: 'credit',
+      availableDelta: 6, relatedEntityType: 'member_purchase_refund', metadata: { memberPurchaseId },
+    });
+    expect(await getEntityNetCharges({ memberPurchaseId })).toEqual([]);
+  });
 });
 
 describe('refund idempotency (retried cancel cannot double-refund)', () => {

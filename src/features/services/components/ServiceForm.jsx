@@ -26,9 +26,14 @@ const DISCIPLINE_OPTIONS = [
   { value: 'wing', label: '🦅 Wing Foiling' },
   { value: 'kite_foil', label: '🏄 Kite Foiling' },
   { value: 'efoil', label: '⚡ E-Foil' },
+  // Rescue is a lesson-category discipline sold per trip; it has no lesson
+  // category and gets the active-member discount (mirrors StepLessonServiceModal).
+  { value: 'rescue_boat', label: '🚤 Rescue' },
   { value: 'accessory', label: '🎒 Accessories' },
   { value: 'premium', label: '💎 Premium' },
 ];
+
+const RESCUE_DISCIPLINE = 'rescue_boat';
 
 const RENTAL_SEGMENT_OPTIONS = [
   { value: 'standard', label: 'Standard' },
@@ -76,6 +81,10 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
   const { businessCurrency } = useCurrency();
   const [selectedCurrency, setSelectedCurrency] = useState(initialValues.currency || businessCurrency || 'EUR');
   const participantsValue = Form.useWatch('max_participants', form);
+  // Rescue is a per-trip discipline with no lesson category — mirror the
+  // StepLessonServiceModal behaviour: disable + clear the lesson type when chosen.
+  const selectedDiscipline = Form.useWatch('disciplineTag', form);
+  const isRescueSelected = selectedDiscipline === RESCUE_DISCIPLINE;
   const baseCategory = initialValues.category || defaultCategory || 'rental';
   const resolvedCategory = typeof baseCategory === 'string' ? baseCategory.toLowerCase() : 'rental';
   const resolvedCategoryLabel = resolvedCategory
@@ -148,7 +157,11 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
         price: primaryPrice,
         prices: prices.filter(p => p.price != null && p.price > 0), // Only send valid prices
         disciplineTag: values.disciplineTag || null,
-        lessonCategoryTag: values.lessonCategoryTag || derivedServiceType,
+        // Rescue stores lesson_category='rescue_boat' (internal) so the captain's
+        // optional per-instructor rescue rate can match; an active-member discount
+        // (default 50%) also applies — mirror StepLessonServiceModal.
+        lessonCategoryTag: values.disciplineTag === 'rescue_boat' ? 'rescue_boat' : (values.lessonCategoryTag || derivedServiceType),
+        memberDiscountPercent: values.disciplineTag === 'rescue_boat' ? (values.memberDiscountPercent ?? 50) : null,
         rentalSegment: values.rentalSegment || null,
         insuranceRate: values.insuranceRate != null ? parseFloat(values.insuranceRate) : null,
         max_participants: derivedMaxParticipants,
@@ -287,7 +300,16 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
               rules={[{ required: true, message: 'Please select a discipline' }]}
               extra="Determines which academy page shows this service"
             >
-              <Select placeholder="Select discipline" allowClear>
+              <Select
+                placeholder="Select discipline"
+                allowClear
+                onChange={(val) => {
+                  if (val === RESCUE_DISCIPLINE) {
+                    // Rescue has no lesson category — clear it when chosen.
+                    form.setFieldsValue({ lessonCategoryTag: undefined });
+                  }
+                }}
+              >
                 {DISCIPLINE_OPTIONS.map((d) => (
                   <Option key={d.value} value={d.value}>
                     {d.label}
@@ -304,7 +326,7 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
                 extra="Which sport is this equipment for?"
               >
                 <Select placeholder="Select sport (optional)" allowClear>
-                  {DISCIPLINE_OPTIONS.filter(d => d.value !== 'premium').map((d) => (
+                  {DISCIPLINE_OPTIONS.filter(d => d.value !== 'premium' && d.value !== RESCUE_DISCIPLINE).map((d) => (
                     <Option key={d.value} value={d.value}>
                       {d.label}
                     </Option>
@@ -346,9 +368,13 @@ const ServiceForm = ({ onSubmit, initialValues = {}, isEditing = false, defaultC
             <Form.Item
               name="lessonCategoryTag"
               label="Lesson type"
-              extra="Private = 1 person, group = 2+ people in the same booking"
+              extra={isRescueSelected ? 'Not applicable for rescue' : 'Private = 1 person, group = 2+ people in the same booking'}
             >
-              <Select placeholder="Derived from max participants if left blank" allowClear>
+              <Select
+                placeholder={isRescueSelected ? 'Not applicable for rescue' : 'Derived from max participants if left blank'}
+                allowClear
+                disabled={isRescueSelected}
+              >
                 <Option value="private">🧑 Private</Option>
                 <Option value="semi-private">👥 Semi-private</Option>
                 <Option value="group">👨‍👩‍👧 Group</Option>

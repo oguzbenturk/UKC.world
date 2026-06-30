@@ -21,6 +21,7 @@ import { resolveActorId, appendCreatedBy } from '../utils/auditUtils.js';
 import { recordTransaction as recordWalletTransaction, recordLegacyTransaction, getEntityNetCharges } from '../services/walletService.js';
 import { checkAndUpgradeAfterBooking } from '../services/roleUpgradeService.js';
 import { getServicePriceInCurrency } from '../services/multiCurrencyPriceService.js';
+import { hasActiveMembership, computeRescueMemberDiscount, RESCUE_DISCIPLINE } from '../services/membershipPricingService.js';
 import voucherService from '../services/voucherService.js';
 import { sendEmail } from '../services/emailService.js';
 import { buildBrandedEmail } from '../services/emailTemplates/brandedLayout.js';
@@ -2245,9 +2246,11 @@ router.post('/',
         : servicePrice;
     }
 
-    // Validate instructor is qualified for this service's discipline
+    // Validate instructor is qualified for this service's discipline.
+    // Rescue boat is a boat-captain assignment, not a skill-gated lesson, so the
+    // instructor-qualification gate does not apply to it.
     const forceSkipSkillCheck = req.query.force === 'true';
-    if (instructor_user_id && serviceDisciplineTag && !forceSkipSkillCheck) {
+    if (instructor_user_id && serviceDisciplineTag && serviceDisciplineTag !== 'rescue_boat' && !forceSkipSkillCheck) {
       const skillResult = await client.query(
         `SELECT lesson_categories, max_level FROM instructor_skills
          WHERE instructor_id = $1 AND discipline_tag = $2`,
@@ -4377,7 +4380,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       }
         // Get service information to determine duration if available
       const serviceQuery = await client.query(
-        `SELECT duration, price, name, currency, discipline_tag, lesson_category_tag FROM services WHERE id = $1`,
+        `SELECT duration, price, name, currency, discipline_tag, lesson_category_tag, member_discount_percent FROM services WHERE id = $1`,
         [serviceId]
       );
       // Use the pre-scheduled block duration if it exists, otherwise use service duration or default
@@ -4432,6 +4435,24 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       ? parseFloat(((servicePrice / serviceDurationHours) * dur).toFixed(2))
       : servicePrice;
     finalFinalAmount = serverCalculatedAmount;
+  }
+
+  // Rescue boat: customers with an active membership get an automatic discount
+  // on the per-trip price (owner rule, default 50%). The booking records
+  // amount=gross, discount_amount/percent, final_amount=net so the wallet is
+  // charged the net price and the discount shows everywhere bookings show one.
+  let rescueGrossAmount = finalFinalAmount;
+  let rescueDiscountPercent = 0;
+  let rescueDiscountAmount = 0;
+  if (use_package !== true && svcDisciplineTag === RESCUE_DISCIPLINE && finalFinalAmount > 0) {
+    const isMember = await hasActiveMembership(client, userId);
+    const d = computeRescueMemberDiscount(serviceQuery.rows[0] || {}, finalFinalAmount, isMember);
+    if (d.applies) {
+      rescueGrossAmount = finalFinalAmount;
+      rescueDiscountPercent = d.percent;
+      rescueDiscountAmount = d.discountAmount;
+      finalFinalAmount = d.netAmount;
+    }
   }
       
   let chosenPackageId = customerPackageId || null;
@@ -4574,6 +4595,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         'customer_package_id',
         'package_hours_used',
         'cash_hours_used',
+        'passengers',
         'created_at',
         'updated_at'
       ];
@@ -4588,9 +4610,9 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         calendarBookingStatus,
         user.notes || '',
         finalPaymentStatus,
-        parseFloat(finalFinalAmount) || 0.0,
-        0.0,
-        0.0,
+        parseFloat(rescueDiscountAmount > 0 ? rescueGrossAmount : finalFinalAmount) || 0.0,
+        rescueDiscountPercent || 0.0,
+        rescueDiscountAmount || 0.0,
         parseFloat(finalFinalAmount) || 0.0,
         checkinStatus || 'pending',
         checkoutStatus || 'pending',
@@ -4602,6 +4624,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
         chosenPackageId,
         packageHoursUsedForBooking,
         cashHoursUsedForBooking,
+        (req.body?.passengers != null && req.body.passengers !== '') ? parseInt(req.body.passengers, 10) : null,
         new Date(),
         new Date()
       ];
@@ -4812,10 +4835,57 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     const {
       date, start_hour, duration, student_user_id, instructor_user_id,
       status, payment_status, amount, final_amount, notes, location, equipment_ids,
+      service_id,
       instructor_commission, instructor_commission_type,
       checkout_status, checkout_time, checkout_notes,
       checkin_status, checkin_time, checkin_notes
     } = req.body;
+
+    // ── Service change (service_id) ───────────────────────────────────────────
+    // Previously this field was dropped entirely: the edit panel sent a new
+    // service_id but the UPDATE below never wrote it, so the API returned 200 and
+    // the UI reported "Booking updated" while the booking's service never changed.
+    // Persist it now — but only when capacity-compatible. A semi-private/group
+    // service needs the matching headcount, so reject (honest 400, not a silent
+    // no-op) any attempt to move a single-participant booking onto one. The edit
+    // picker already hides incompatible services; this guards the API directly.
+    let serviceIdToWrite = null;
+    if (service_id !== undefined && service_id !== null
+        && String(service_id) !== String(currentBooking.service_id)) {
+      const { rows: svcRows } = await client.query(
+        'SELECT id, name, service_type, lesson_category_tag, max_participants FROM services WHERE id = $1',
+        [service_id]
+      );
+      if (svcRows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Selected service does not exist' });
+      }
+      const svc = svcRows[0];
+      const { rows: pcRows } = await client.query(
+        'SELECT COUNT(*)::int AS n FROM booking_participants WHERE booking_id = $1',
+        [req.params.id]
+      );
+      const participantCount = Math.max(pcRows[0]?.n || 0, 1);
+      const sType = String(svc.service_type || '').toLowerCase();
+      const sTag = String(svc.lesson_category_tag || '').toLowerCase();
+      const sName = String(svc.name || '').toLowerCase();
+      const isGroup = sType === 'group' || sTag === 'group' || (sName.includes('group') && !sName.includes('semi'));
+      const isSemiPrivate = sType === 'semi-private' || sTag === 'semi-private' || sTag === 'semi private' || sName.includes('semi');
+      const maxCap = svc.max_participants || null;
+      if (participantCount === 1 && (isGroup || isSemiPrivate)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `Cannot switch to a ${isGroup ? 'group' : 'semi-private'} service: this booking has a single participant. Add participants first.`
+        });
+      }
+      if (maxCap && maxCap >= 1 && maxCap < participantCount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `Selected service allows up to ${maxCap} participant(s), but this booking has ${participantCount}.`
+        });
+      }
+      serviceIdToWrite = service_id;
+    }
 
     // Capture the PRE-edit custom commission value NOW, before the delete/insert
     // below rewrites it. Reading it afterwards (as the old code did) returns the
@@ -4860,8 +4930,9 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         checkin_status = COALESCE($15, checkin_status),
         checkin_time = COALESCE($16, checkin_time),
         checkin_notes = COALESCE($17, checkin_notes),
+        service_id = COALESCE($18, service_id),
         updated_at = NOW()
-      WHERE id = $18
+      WHERE id = $19
       RETURNING *
     `;
 
@@ -4870,6 +4941,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       status, payment_status, amount, finalAmountToWrite, notes, location,
       checkout_status, checkout_time, checkout_notes,
       checkin_status, checkin_time, checkin_notes,
+      serviceIdToWrite,
       req.params.id
     ]);
 

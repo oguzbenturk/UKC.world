@@ -1,0 +1,15 @@
+-- Migration 283: diacritic-insensitive customer search.
+-- The /users/customers/list search must match the SAME name shown in the UI.
+-- Two problems it fixes (see backend/routes/users.js search clause):
+--   1) The clause only searched first_name || last_name, so customers whose name
+--      lives solely in users.name (blank first/last — e.g. imported "Barbora
+--      Amélie Krejčí") were unfindable by name. The query now searches the full
+--      display name expression, which includes users.name.
+--   2) Plain ILIKE is accent-sensitive: typing "amelie" would not match "Amélie",
+--      nor "krejci" match "Krejčí". unaccent() folds accents so ASCII typing finds
+--      accented names — important for this academy's Czech/Turkish/German clientele.
+-- unaccent is a PG-trusted extension (same privilege class as pg_trgm, which is
+-- already installed), so this CREATE succeeds with the existing DB user. It is only
+-- used in the WHERE clause over the already role-filtered customer set (~1k rows),
+-- so no functional index is required at this scale.
+CREATE EXTENSION IF NOT EXISTS unaccent;

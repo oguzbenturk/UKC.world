@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { pool } from '../db.js';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
@@ -58,9 +59,22 @@ function getAllowedFieldsByRole(roleName) {
 
 const MIN_PASSWORD_LENGTH = 8;
 
+// Customer self-registration never sends a password — the customer sets their own through a
+// one-time link in the activation email. We still need a password_hash on the row, so we mint a
+// strong random throwaway server-side (never shown to anyone) that the set-password flow replaces.
+function generateSecurePlaceholderPassword() {
+  return `${crypto.randomBytes(24).toString('base64url')}Aa1!`;
+}
+
 // === CREATE USER ===
 router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist'], 'users:write'), cacheInvalidationMiddleware(USER_LIST_CACHE_PATTERNS), async (req, res) => {
-  const { password, role_id } = req.body;
+  const { role_id } = req.body;
+
+  // Customer self-registration (Customer Mode): IGNORE any client-supplied password and mint a
+  // secure random one server-side. The customer activates + chooses their real password via the
+  // emailed set-password link, so no shared/known password ever exists or is displayed.
+  const isSelfService = req.body.self_service === true;
+  const password = isSelfService ? generateSecurePlaceholderPassword() : req.body.password;
 
   if (!password || !role_id) {
     return res.status(400).json({ error: 'Password and role_id are required' });
@@ -95,7 +109,9 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'reception
     //      pre-verified, welcome email with password-reset link goes out.
     //   2. send_verification=true — account stays unverified, a verification email is sent so
     //      the new member confirms ownership of the address themselves before logging in.
-    const sendVerification = req.body.send_verification === true;
+    // Self-service accounts are always created unverified — login stays blocked until the customer
+    // completes the emailed set-password link (which also verifies their email).
+    const sendVerification = req.body.send_verification === true || isSelfService;
 
     const insertData = {
       password_hash: hashedPassword,
@@ -153,7 +169,13 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'reception
     const { rows } = await pool.query(query, values);
     const createdUser = rows[0];
 
-    if (sendVerification) {
+    if (isSelfService) {
+      // Customer self-registration: email a one-time, expiring "set your password" link. Completing
+      // it sets the customer's chosen password AND verifies the email (passwordResetService),
+      // which activates login. Until then login stays blocked. Failure is non-fatal — the account
+      // exists and staff can re-trigger via the password-reset / resend flows.
+      sendWelcomeEmailWithResetLink({ user: createdUser, req, context: 'customer self-registration email' });
+    } else if (sendVerification) {
       // Send a verification email — the user must confirm ownership of the address before
       // logging in. Failure is non-fatal: the user exists, staff can use /resend-verification.
       sendVerificationEmail(createdUser.id, createdUser.email, createdUser.first_name || createdUser.name || null)
@@ -384,14 +406,21 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       )`);
     }
 
-    // Text search: trigram ILIKE on name/email/phone (uses gin_trgm_ops indexes)
+    // Text search across the SAME name the UI shows (nameExpr → falls back to
+    // u.name), email and phone. Searching nameExpr (not just first_name||last_name)
+    // is essential: customers whose name lives solely in users.name with blank
+    // first/last — e.g. imported "Barbora Amélie Krejčí" — were previously
+    // unfindable by name. unaccent() makes it diacritic-insensitive ("amelie"
+    // matches "Amélie", "krejci" matches "Krejčí") and lower() on both sides makes
+    // it case-insensitive. At this customer count the WHERE runs over the already
+    // role-filtered set, so dropping the first||last trigram index path is fine.
     if (q) {
-      const pattern = `%${q}%`;
-      params.push(pattern, pattern, pattern);
+      params.push(`%${q}%`);
+      const p = `$${params.length}`;
       whereClauses.push(`(
-        (u.first_name || ' ' || u.last_name) ILIKE $${params.length - 2}
-        OR u.email ILIKE $${params.length - 1}
-        OR u.phone ILIKE $${params.length}
+        unaccent(lower(${nameExpr})) LIKE unaccent(lower(${p}))
+        OR unaccent(lower(COALESCE(u.email, ''))) LIKE unaccent(lower(${p}))
+        OR lower(COALESCE(u.phone, '')) LIKE lower(${p})
       )`);
     }
 
