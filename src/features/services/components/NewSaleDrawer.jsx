@@ -33,7 +33,6 @@ import {
   sizeOptionsFor,
   resolveCombo,
 } from '@/features/products/utils/variantSelection';
-import { applyDiscount } from '@/features/customers/components/customerBill/discountApi';
 
 // Thin order-item wrappers over the shared point-of-sale variant helpers.
 const getSizeOptions = (item) =>
@@ -373,6 +372,7 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
       setSubmitting(true);
       const client = apiClient || apiClientDefault;
 
+      const pct = Math.min(Math.max(Number(discountPercent) || 0, 0), 100);
       const payload = {
         user_id: values.customer_id,
         items: orderItems.map(item => ({
@@ -388,26 +388,13 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
         shipping_address: values.shipping_address || undefined,
         // Send custom date if admin picked one (backend will use it for created_at)
         created_at: values.order_date ? values.order_date.toISOString() : undefined,
+        // Staff discount applied atomically by the backend (discounts table +
+        // reversible wallet credit) — the wallet check runs against the NET price.
+        discount_percent: pct > 0 ? pct : undefined,
+        discount_reason: pct > 0 ? 'Discount applied at sale creation' : undefined,
       };
 
-      const resp = await client.post('/shop-orders', payload);
-      // Staff discount applied at creation — same mechanism as the customer drawer
-      // (POST /api/discounts → discounts table + wallet credit on the paid order).
-      const pct = Number(discountPercent);
-      const orderId = resp?.data?.order?.id;
-      if (pct > 0 && orderId) {
-        try {
-          await applyDiscount({
-            customerId: values.customer_id,
-            entityType: 'shop_order',
-            entityId: orderId,
-            percent: pct,
-            reason: 'Discount applied at sale creation',
-          });
-        } catch (e) {
-          messageApi.warning(`Sale created, but discount failed: ${e.message}`);
-        }
-      }
+      await client.post('/shop-orders', payload);
       messageApi.success('Sale created successfully');
       onSuccess?.();
       onClose();

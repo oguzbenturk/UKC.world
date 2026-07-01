@@ -4,6 +4,7 @@ import { fetchWindguruForecast } from './windguruScraper.js';
 export { SPOTS, SPOT_LIST, getSpot };
 export { getUkcLive } from './ukcStation.js';
 export { getPwsLive } from './wundergroundStation.js';
+export { recordPwsReading, getPwsHistory, HISTORY_RANGES } from './history.js';
 export const listSpots = () => SPOT_LIST;
 
 export const getSpotReport = async (spotId, opts = {}) => {

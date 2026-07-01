@@ -235,17 +235,25 @@ const CustomerSelfRegisterForm = ({ roles, onSuccess, onCancel, publicMode = fal
           rules={[{ required: true, message: t('common:userForm.phoneRequired') }]}
         >
           <Input
-            prefix={<PhoneOutlined />}
+            prefix={
+              publicMode && selectedCountry ? (
+                <ReactCountryFlag countryCode={selectedCountry.code} svg style={{ width: '18px', height: '13px' }} />
+              ) : (
+                <PhoneOutlined />
+              )
+            }
             placeholder={t('common:userForm.enterPhone')}
             autoComplete="tel"
             onChange={handlePhoneChange}
-            addonBefore={selectedCountry ? (
+            // On the public branded page the flag rides in the prefix so the field stays one clean
+            // rounded pill; the staff drawer keeps the addon-flag treatment.
+            addonBefore={publicMode ? undefined : (selectedCountry ? (
               <ReactCountryFlag countryCode={selectedCountry.code} svg style={{ width: '16px', height: '12px' }} />
             ) : (
               <span style={{ width: '16px', height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#999' }}>
                 🌍
               </span>
-            )}
+            ))}
           />
         </Form.Item>
 
@@ -268,7 +276,9 @@ const CustomerSelfRegisterForm = ({ roles, onSuccess, onCancel, publicMode = fal
                 precision={1}
                 style={{ width: '100%' }}
                 placeholder={t('common:userForm.enterWeightKg')}
-                addonAfter="kg"
+                // Staff drawer shows the "kg" addon; the public field omits it (the label reads
+                // "Weight (kg)") to keep every field a single clean rounded pill.
+                addonAfter={publicMode ? undefined : 'kg'}
               />
             </Form.Item>
           </Col>

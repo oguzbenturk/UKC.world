@@ -92,9 +92,10 @@ const AppLayoutWithAuth = () => {
   const location = useLocation();
   
   // Check if current route is a public form route (no sidebar/navbar needed)
-  const isPublicFormRoute = location.pathname.startsWith('/f/') || 
+  const isPublicFormRoute = location.pathname.startsWith('/f/') ||
                             location.pathname.startsWith('/quick/') ||
                             location.pathname.startsWith('/group-invitation/') ||
+                            location.pathname === '/join' || // QR customer self-registration — clean, branded, no app chrome
                             location.pathname === '/'; // Add root path to public form routes for layout
 
   // Initialize sidebar state based on screen size (start closed everywhere)

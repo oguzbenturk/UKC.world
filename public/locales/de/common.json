@@ -790,7 +790,11 @@
     "dateLabel": "Vorhersagedatum",
     "loading": "Vorhersage wird geladen…",
     "error": "Winddaten konnten nicht geladen werden. Bitte erneut versuchen.",
-    "unit": { "knots": "kn", "kmh": "km/h", "ms": "m/s" },
+    "unit": {
+      "knots": "kn",
+      "kmh": "km/h",
+      "ms": "m/s"
+    },
     "spots": {
       "alacati": "Alaçatı",
       "pirlanta": "Pırlanta Kitesurf-Strand",
@@ -814,6 +818,17 @@
       "peakAt": "Spitze um",
       "avg": "Durchschnitt",
       "hourly": "Stündliche Vorhersage"
+    },
+    "history": {
+      "title": "Windverlauf",
+      "last24h": "Letzte 24 Std.",
+      "empty": "Wird aufgezeichnet — der Verlauf füllt sich, sobald die Station meldet.",
+      "error": "Verlauf derzeit nicht verfügbar.",
+      "range": {
+        "6h": "6h",
+        "24h": "24h",
+        "7d": "7d"
+      }
     },
     "sources": {
       "a": "ECMWF",
@@ -869,22 +884,46 @@
       "scaleTitle": "Windskala · fahrbar?",
       "decoderTitle": "Wie man diese Tabelle liest",
       "bands": {
-        "flat":     "Flaute",
-        "light":    "Zu wenig",
+        "flat": "Flaute",
+        "light": "Zu wenig",
         "beginner": "Anfänger",
-        "ideal":    "Ideal",
-        "strong":   "Stark",
-        "expert":   "Nur Profis"
+        "ideal": "Ideal",
+        "strong": "Stark",
+        "expert": "Nur Profis"
       },
       "columns": {
-        "date":  { "abbr": "Datum", "label": "Tag & Stunde (lokal)" },
-        "wspd":  { "abbr": "WSPD",  "label": "Durchschnittliche Windgeschwindigkeit" },
-        "gust":  { "abbr": "GUST",  "label": "Böenstärke — höher = schwieriger" },
-        "wdirn": { "abbr": "WDIRN", "label": "Woher der Wind kommt (N, S, O, W…)" },
-        "wdeg":  { "abbr": "WDEG",  "label": "Richtung in Grad (0–360°)" },
-        "tmp":   { "abbr": "TMP",   "label": "Lufttemperatur (°C)" },
-        "slp":   { "abbr": "SLP",   "label": "Luftdruck auf Meereshöhe (hPa)" },
-        "hcld":  { "abbr": "HCLD",  "label": "Hohe Bewölkung (%)" }
+        "date": {
+          "abbr": "Datum",
+          "label": "Tag & Stunde (lokal)"
+        },
+        "wspd": {
+          "abbr": "WSPD",
+          "label": "Durchschnittliche Windgeschwindigkeit"
+        },
+        "gust": {
+          "abbr": "GUST",
+          "label": "Böenstärke — höher = schwieriger"
+        },
+        "wdirn": {
+          "abbr": "WDIRN",
+          "label": "Woher der Wind kommt (N, S, O, W…)"
+        },
+        "wdeg": {
+          "abbr": "WDEG",
+          "label": "Richtung in Grad (0–360°)"
+        },
+        "tmp": {
+          "abbr": "TMP",
+          "label": "Lufttemperatur (°C)"
+        },
+        "slp": {
+          "abbr": "SLP",
+          "label": "Luftdruck auf Meereshöhe (hPa)"
+        },
+        "hcld": {
+          "abbr": "HCLD",
+          "label": "Hohe Bewölkung (%)"
+        }
       }
     },
     "summary": {
@@ -895,6 +934,43 @@
       "rising": "Wind nimmt von {{start}} auf {{peak}} kn zu — Fenster öffnet gegen {{peakTime}}.",
       "falling": "Wind schwächt nach {{peakTime}} ab — Sessions früher planen.",
       "tooLight": "Heute zu schwach (Spitze {{peak}} kn). Foil oder Wing, falls überhaupt."
+    },
+    "live": {
+      "more": "Mehr Werte",
+      "gusty": "Böig (Bö {{gust}})",
+      "rigNow": "{{size}} m²",
+      "verdict": {
+        "calm": "Kein Wind — nicht fahrbar.",
+        "light": "Leicht — Foil oder großer Kite.",
+        "good": "Es geht — ab aufs Wasser.",
+        "strong": "Stark — kleiner kiten.",
+        "extreme": "Zu stark — bleib sicher."
+      }
+    },
+    "bestToday": {
+      "label": "Heute am besten",
+      "peaks": "Spitze {{peak}} kn um {{time}}",
+      "none": "Heute an keinem Spot fahrbar."
+    },
+    "featured": {
+      "yourBeach": "Dein Strand"
+    },
+    "region": {
+      "away": "weit"
+    },
+    "card": {
+      "bestWindow": "Beste {{start}}–{{end}}",
+      "peak": "Spitze {{peak}} kn",
+      "noWindow": "Heute kein klares Fenster",
+      "hide": "Ausblenden",
+      "forecast": "3-Tage-Vorhersage"
+    },
+    "colors": {
+      "title": "Was die Farben bedeuten"
+    },
+    "a11y": {
+      "hourCell": "{{time}}, {{wind}} Knoten, Böen {{gust}}, {{dir}}, {{band}}",
+      "liveWind": "{{kts}} Knoten, {{state}}, aktualisiert {{updated}}"
     }
   }
 }

@@ -17,7 +17,7 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 import { updateShopOrderItemPrice } from '../services/shopOrderPriceService.js';
-import { applyDiscount } from '../services/discountService.js';
+import { applyDiscount, computeDiscountAmount } from '../services/discountService.js';
 
 const router = express.Router();
 
@@ -163,7 +163,9 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       deposit_percent,
       deposit_amount,
       bank_account_id,
-      receipt_url
+      receipt_url,
+      discount_percent, // Optional staff % discount (FAB "New Sale"), applied atomically below
+      discount_reason
     } = req.body;
 
     // Front-desk staff (admin/manager/owner/super_admin + front_desk/receptionist)
@@ -237,6 +239,21 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       // variant's price. Mirrors the quick-sale path; resolveVariantUnitPrice
       // falls back to the base price when the variant has no price set.
       const unitPrice = resolveVariantUnitPrice(product, item.selected_size, item.selected_color);
+
+      // Never sell a line at EUR0. When a product (or the chosen variant) has no
+      // price set, resolveVariantUnitPrice falls back to base price 0 — that
+      // used to silently create a 0-priced order line that under-charged the
+      // customer and corrupted their financial history (see the Ocean
+      // Sunglasses incident). Reject the sale so staff must price the product
+      // first instead of shipping a phantom-free item.
+      if (!(Number(unitPrice) > 0)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `${product.name}${item.selected_size ? ` (${item.selected_size})` : ''} has no price set. Set a product/variant price before selling it.`,
+          code: 'ZERO_PRICE_ITEM',
+        });
+      }
+
       const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
 
@@ -308,6 +325,24 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
 
     const finalAmount = subtotal - voucherDiscount;
 
+    // Staff percentage discount (separate `discounts` table + reversible wallet
+    // credit), mirroring POST /admin/quick-sale. Unlike the voucher discount
+    // (which is baked into total_amount), this keeps the order at gross and is
+    // applied atomically AFTER payment below. We factor it into the wallet check
+    // so the customer only needs to cover the NET (post-discount) amount — the
+    // FAB "New Sale" drawer previously applied it as a second request AFTER order
+    // creation, so the balance guard here rejected affordable discounted sales.
+    // Only staff sellers may apply a discount — this is the public customer
+    // checkout endpoint too, so a customer must never be able to discount their
+    // own order by sending discount_percent.
+    const staffDiscPct = isStaffSeller ? Math.max(0, Math.min(100, Number(discount_percent) || 0)) : 0;
+    const staffDiscountAmount = staffDiscPct > 0 ? computeDiscountAmount(finalAmount, staffDiscPct) : 0;
+    const netPayable = Math.round((finalAmount - staffDiscountAmount) * 100) / 100;
+    // The gross debit is followed immediately by the discount credit in the same
+    // transaction, so it may dip up to the discount amount below the available
+    // balance without ever committing a negative — treat that as allowed.
+    const effectiveAllowNegative = canGoNegative || staffDiscountAmount > 0;
+
     // Check wallet balance if paying by wallet
     // Aggregate all wallet currency balances into EUR equivalent
     let hybridWalletDeducted = 0;
@@ -357,16 +392,18 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
     if (payment_method === 'wallet' && use_wallet) {
       const { totalDeductedEUR, plan } = await calculateWalletDeduction(finalAmount);
 
-      if (totalDeductedEUR < finalAmount - 0.01 && !canGoNegative) {
+      // Guard against the NET (post-discount) amount — that's the customer's real cost.
+      if (totalDeductedEUR < netPayable - 0.01 && !canGoNegative) {
         await client.query('ROLLBACK');
         return res.status(400).json({
-          error: `Insufficient wallet balance. Required: €${finalAmount.toFixed(2)}, Available: €${totalDeductedEUR.toFixed(2)}`
+          error: `Insufficient wallet balance. Required: €${netPayable.toFixed(2)}, Available: €${totalDeductedEUR.toFixed(2)}`
         });
       }
 
-      if (canGoNegative && totalDeductedEUR < finalAmount - 0.01) {
-        // Admin override: create deduction plan for full amount from primary currency (EUR)
-        // The wallet will go negative
+      if (effectiveAllowNegative && totalDeductedEUR < finalAmount - 0.01) {
+        // Charge the full gross now; for a staff-discount sale the shortfall
+        // (<= the discount) is credited straight back below. For a negative-balance
+        // override with no discount, the wallet genuinely goes negative.
         const shortfall = Math.round((finalAmount - totalDeductedEUR) * 100) / 100;
         // Add remaining as EUR deduction (will create negative balance)
         const existingEUR = plan.find(p => p.currency === 'EUR');
@@ -582,8 +619,8 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
           transactionType: 'payment',
           direction: 'debit',
           availableDelta: -wd.amount,
-          allowNegative: canGoNegative,
-          description: `${itemSummary} - Order #${order.order_number}${voucherDiscount > 0 ? ` (discount: €${voucherDiscount.toFixed(2)})` : ''}`,
+          allowNegative: effectiveAllowNegative,
+          description: `${itemSummary} - Order #${order.order_number}${voucherDiscount > 0 ? ` (voucher: €${voucherDiscount.toFixed(2)})` : ''}${staffDiscountAmount > 0 ? ` (discount: €${staffDiscountAmount.toFixed(2)})` : ''}`,
           relatedEntityType: 'shop_order',
           metadata: { orderId: order.id, orderNumber: order.order_number, deductedCurrency: wd.currency, deductedAmount: wd.amount }
         });
@@ -738,6 +775,24 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
           type: 'shop_order', orderId: order.id
         });
       } catch (_) { /* non-critical */ }
+    }
+
+    // Apply the staff % discount INSIDE the same transaction (atomic). The order
+    // row now exists; for a wallet sale it's already payment_status='completed',
+    // so applyDiscount records the discounts-table row AND posts the matching
+    // reversible wallet credit (net = gross − discount). For cash/bank_transfer
+    // (still unpaid) it just records the row and staff collect the net later.
+    // Replaces the FAB's fragile post-creation second request, so a failure can
+    // no longer leave the order stuck at full price.
+    if (staffDiscPct > 0) {
+      await applyDiscount(client, {
+        customerId: userId,
+        entityType: 'shop_order',
+        entityId: order.id,
+        percent: staffDiscPct,
+        reason: discount_reason || 'Discount applied at sale creation',
+        createdBy: req.user.id,
+      });
     }
 
     await client.query('COMMIT');
@@ -1769,6 +1824,18 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
       // Resolve the per-variant price for the chosen colour×size combo, server-side
       // (don't trust a client-sent price). Falls back to the base product price.
       const unitPrice = resolveVariantUnitPrice(product, item.selected_size, item.selected_color);
+
+      // Reject 0-priced lines (unpriced product/variant) — same guard as the
+      // main order path, so a quick-sale can't silently under-charge and
+      // corrupt the customer's balance/history.
+      if (!(Number(unitPrice) > 0)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `${product.name}${item.selected_size ? ` (${item.selected_size})` : ''} has no price set. Set a product/variant price before selling it.`,
+          code: 'ZERO_PRICE_ITEM',
+        });
+      }
+
       const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
 

@@ -15,7 +15,7 @@ const PHONE_NUMBER = '+905071389196';
 
 // Auth-flow / utility routes where the contact buttons should not appear even
 // for logged-out visitors. Everything else a guest can reach is a public page.
-const HIDDEN_EXACT_PATHS = ['/login', '/register', '/reset-password', '/verify-email'];
+const HIDDEN_EXACT_PATHS = ['/login', '/register', '/reset-password', '/verify-email', '/join'];
 const HIDDEN_PATH_PREFIXES = ['/payment/', '/spotify/'];
 
 const FloatingContactButtons = () => {

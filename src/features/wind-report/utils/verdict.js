@@ -8,8 +8,49 @@ export const DAY_END = 20;
 export const SESSION_START = 10;
 export const SESSION_END = 19;
 
+// A session is "rideable" at or above this many knots — drives the best-window shade.
+export const RIDEABLE_KN = 12;
+
+// Gust/avg ratio above which a session reads as "gusty" — single source of truth
+// shared by the daily verdict and the live station.
+export const GUST_FACTOR_THRESHOLD = 1.4;
+
+// "HH:00" from an hour number — the shared time formatter for the wind-report UI.
+export const hhmm = (h) => `${String(h).padStart(2, '0')}:00`;
+
 export const isInSession = (hour) => hour >= SESSION_START && hour <= SESSION_END;
 export const isInDayWindow = (hour) => hour >= DAY_START && hour <= DAY_END;
+
+// Longest contiguous run of rideable (>= RIDEABLE_KN) daylight hours. Returns
+// { startHour, endHour } (inclusive) or null when nothing is rideable that day.
+export const bestWindow = (hoursForDay) => {
+  const rows = (hoursForDay || [])
+    .filter((h) => isInDayWindow(h.hour))
+    .sort((a, b) => a.hour - b.hour);
+  let best = null;
+  let run = null;
+  for (const r of rows) {
+    if (r.wspdKn != null && r.wspdKn >= RIDEABLE_KN) {
+      if (!run) run = { startHour: r.hour, endHour: r.hour };
+      else run.endHour = r.hour;
+      const len = run.endHour - run.startHour;
+      const bestLen = best ? best.endHour - best.startHour : -1;
+      if (len > bestLen) best = { ...run };
+    } else {
+      run = null;
+    }
+  }
+  return best;
+};
+
+// Single comparable number for ranking spots "best today". Higher = go here.
+export const rideabilityScore = (summary) => {
+  if (!summary) return -Infinity;
+  let s = summary.peakKn || 0;
+  if (summary.key === 'tooLight') s -= 40;
+  if (summary.gustFactor > GUST_FACTOR_THRESHOLD) s -= 6;
+  return s;
+};
 
 export const dailySummary = (hoursForDay) => {
   if (!hoursForDay?.length) return null;
@@ -47,7 +88,7 @@ export const dailySummary = (hoursForDay) => {
   if (peakKn < 10) key = 'tooLight';
   else if (slope > 0.6) key = 'rising';
   else if (slope < -0.6) key = 'falling';
-  else if (gustFactor > 1.4) key = 'gusty';
+  else if (gustFactor > GUST_FACTOR_THRESHOLD) key = 'gusty';
   else key = 'steady';
 
   // Skill band based on peak
@@ -56,6 +97,9 @@ export const dailySummary = (hoursForDay) => {
   // Dominant direction as 16-point cardinal
   const dirs16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
   const dirText = dirs16[Math.round(meanDeg / 22.5) % 16];
+
+  // Best rideable window across the whole daylight span (not just the session band).
+  const win = bestWindow(hoursForDay);
 
   return {
     key,
@@ -71,6 +115,8 @@ export const dailySummary = (hoursForDay) => {
     dirText,
     avgCloudPct: avgCloud,
     isoDate: hoursForDay[0].dateLocal,
+    bestStartHour: win ? win.startHour : null,
+    bestEndHour: win ? win.endHour : null,
   };
 };
 

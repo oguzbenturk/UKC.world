@@ -104,6 +104,7 @@ import agentRouter from './routes/agent.js';
 import { authenticateAgentRequest } from './middlewares/authenticateAgent.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import { startLessonReminderJob } from './jobs/lessonReminderJob.js';
+import { startWindHistoryRecorderJob } from './jobs/windHistoryRecorderJob.js';
 import './services/alerts/notificationAlertService.js';
 import telegramRouter from './routes/telegram.js';
 import spotifyRouter from './routes/spotify.js';
@@ -1736,6 +1737,14 @@ if (shouldStartServer) {
       logger.info('✅ Lesson reminder cron started');
     } catch (error) {
       logger.error('❌ Failed to start lesson reminder cron:', error);
+    }
+
+    // Start live-wind history recorder cron (every 5 min) — feeds the wind-report history graph
+    try {
+      startWindHistoryRecorderJob();
+      logger.info('✅ Wind history recorder cron started');
+    } catch (error) {
+      logger.error('❌ Failed to start wind history recorder cron:', error);
     }
 
     // Initialize Telegram bot (registers webhook + attaches command handlers).

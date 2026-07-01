@@ -801,7 +801,15 @@
     "dateLabel": "Forecast date",
     "loading": "Loading forecast…",
     "error": "Could not load wind data. Please try again.",
-    "unit": { "knots": "kt", "kmh": "km/h", "ms": "m/s", "pct": "%", "hpa": "hPa", "mm": "mm", "mmH": "mm/h" },
+    "unit": {
+      "knots": "kt",
+      "kmh": "km/h",
+      "ms": "m/s",
+      "pct": "%",
+      "hpa": "hPa",
+      "mm": "mm",
+      "mmH": "mm/h"
+    },
     "live": {
       "label": "Live now",
       "station": "Urla Kite Center · Gülbahçe",
@@ -831,6 +839,16 @@
         "good": "Good wind",
         "strong": "Strong",
         "extreme": "Extreme"
+      },
+      "more": "More conditions",
+      "gusty": "Gusty (gust {{gust}})",
+      "rigNow": "{{size}} m²",
+      "verdict": {
+        "calm": "No wind — not rideable.",
+        "light": "Light — foil or big kite.",
+        "good": "It's ON — go ride.",
+        "strong": "Strong — size down.",
+        "extreme": "Too strong — stay safe."
       }
     },
     "spots": {
@@ -856,6 +874,17 @@
       "peakAt": "Peak at",
       "avg": "Avg",
       "hourly": "Hourly forecast"
+    },
+    "history": {
+      "title": "Wind history",
+      "last24h": "Last 24 h",
+      "empty": "Recording — the history fills in as the station reports.",
+      "error": "History unavailable right now.",
+      "range": {
+        "6h": "6h",
+        "24h": "24h",
+        "7d": "7d"
+      }
     },
     "sources": {
       "a": "ECMWF",
@@ -912,22 +941,46 @@
       "scaleTitle": "Wind scale · what's rideable",
       "decoderTitle": "How to read this table",
       "bands": {
-        "flat":     "Flat",
-        "light":    "Too light",
+        "flat": "Flat",
+        "light": "Too light",
         "beginner": "Beginner",
-        "ideal":    "Ideal",
-        "strong":   "Strong",
-        "expert":   "Expert only"
+        "ideal": "Ideal",
+        "strong": "Strong",
+        "expert": "Expert only"
       },
       "columns": {
-        "date":  { "abbr": "Date",  "label": "Day & hour (local time)" },
-        "wspd":  { "abbr": "WSPD",  "label": "Average wind speed" },
-        "gust":  { "abbr": "GUST",  "label": "Gust strength — higher = trickier" },
-        "wdirn": { "abbr": "WDIRN", "label": "Where wind blows FROM (N, S, E, W…)" },
-        "wdeg":  { "abbr": "WDEG",  "label": "Direction in degrees (0–360°)" },
-        "tmp":   { "abbr": "TMP",   "label": "Air temperature (°C)" },
-        "slp":   { "abbr": "SLP",   "label": "Sea-level pressure (hPa)" },
-        "hcld":  { "abbr": "HCLD",  "label": "High cloud cover (%)" }
+        "date": {
+          "abbr": "Date",
+          "label": "Day & hour (local time)"
+        },
+        "wspd": {
+          "abbr": "WSPD",
+          "label": "Average wind speed"
+        },
+        "gust": {
+          "abbr": "GUST",
+          "label": "Gust strength — higher = trickier"
+        },
+        "wdirn": {
+          "abbr": "WDIRN",
+          "label": "Where wind blows FROM (N, S, E, W…)"
+        },
+        "wdeg": {
+          "abbr": "WDEG",
+          "label": "Direction in degrees (0–360°)"
+        },
+        "tmp": {
+          "abbr": "TMP",
+          "label": "Air temperature (°C)"
+        },
+        "slp": {
+          "abbr": "SLP",
+          "label": "Sea-level pressure (hPa)"
+        },
+        "hcld": {
+          "abbr": "HCLD",
+          "label": "High cloud cover (%)"
+        }
       }
     },
     "summary": {
@@ -938,6 +991,31 @@
       "rising": "Wind building from {{start}} to {{peak}} kt — window opens around {{peakTime}}.",
       "falling": "Wind dropping off after {{peakTime}} — plan sessions earlier.",
       "tooLight": "Sub-kiteable today (peak {{peak}} kt). Foil or wing if at all."
+    },
+    "bestToday": {
+      "label": "Best today",
+      "peaks": "peaks {{peak}} kn @ {{time}}",
+      "none": "Nothing rideable today across the spots."
+    },
+    "featured": {
+      "yourBeach": "Your beach"
+    },
+    "region": {
+      "away": "away"
+    },
+    "card": {
+      "bestWindow": "Best {{start}}–{{end}}",
+      "peak": "peak {{peak}} kn",
+      "noWindow": "No clear window today",
+      "hide": "Hide",
+      "forecast": "3-day forecast"
+    },
+    "colors": {
+      "title": "What the colors mean"
+    },
+    "a11y": {
+      "hourCell": "{{time}}, {{wind}} knots, gusts {{gust}}, {{dir}}, {{band}}",
+      "liveWind": "{{kts}} knots, {{state}}, updated {{updated}}"
     }
   }
 }

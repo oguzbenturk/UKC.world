@@ -797,7 +797,15 @@
     "dateLabel": "Tahmin tarihi",
     "loading": "Tahmin yükleniyor…",
     "error": "Rüzgar verisi alınamadı. Lütfen tekrar deneyin.",
-    "unit": { "knots": "kn", "kmh": "km/s", "ms": "m/s", "pct": "%", "hpa": "hPa", "mm": "mm", "mmH": "mm/s" },
+    "unit": {
+      "knots": "kn",
+      "kmh": "km/s",
+      "ms": "m/s",
+      "pct": "%",
+      "hpa": "hPa",
+      "mm": "mm",
+      "mmH": "mm/s"
+    },
     "live": {
       "label": "Şu an canlı",
       "station": "Urla Kite Center · Gülbahçe",
@@ -827,6 +835,16 @@
         "good": "İyi rüzgar",
         "strong": "Kuvvetli",
         "extreme": "Aşırı"
+      },
+      "more": "Diğer veriler",
+      "gusty": "Patlamalı (gust {{gust}})",
+      "rigNow": "{{size}} m²",
+      "verdict": {
+        "calm": "Rüzgar yok — sürülmez.",
+        "light": "Hafif — foil ya da büyük kanat.",
+        "good": "Rüzgar VAR — suya gir.",
+        "strong": "Sert — küçük kanat seç.",
+        "extreme": "Çok sert — güvende kal."
       }
     },
     "spots": {
@@ -852,6 +870,17 @@
       "peakAt": "Zirve saati",
       "avg": "Ortalama",
       "hourly": "Saatlik tahmin"
+    },
+    "history": {
+      "title": "Rüzgar geçmişi",
+      "last24h": "Son 24 sa",
+      "empty": "Kaydediliyor — istasyon veri gönderdikçe geçmiş dolacak.",
+      "error": "Geçmiş şu anda kullanılamıyor.",
+      "range": {
+        "6h": "6h",
+        "24h": "24h",
+        "7d": "7d"
+      }
     },
     "sources": {
       "a": "ECMWF",
@@ -908,22 +937,46 @@
       "scaleTitle": "Rüzgar ölçeği · sürülebilir mi",
       "decoderTitle": "Bu tabloyu nasıl okumalı",
       "bands": {
-        "flat":     "Durgun",
-        "light":    "Çok hafif",
+        "flat": "Durgun",
+        "light": "Çok hafif",
         "beginner": "Yeni başlayan",
-        "ideal":    "İdeal",
-        "strong":   "Kuvvetli",
-        "expert":   "Sadece usta"
+        "ideal": "İdeal",
+        "strong": "Kuvvetli",
+        "expert": "Sadece usta"
       },
       "columns": {
-        "date":  { "abbr": "Tarih", "label": "Gün ve saat (yerel)" },
-        "wspd":  { "abbr": "WSPD",  "label": "Ortalama rüzgar hızı" },
-        "gust":  { "abbr": "GUST",  "label": "Hamle şiddeti — yüksek = zor" },
-        "wdirn": { "abbr": "WDIRN", "label": "Rüzgarın geldiği yön (K, G, D, B…)" },
-        "wdeg":  { "abbr": "WDEG",  "label": "Derece cinsinden yön (0–360°)" },
-        "tmp":   { "abbr": "TMP",   "label": "Hava sıcaklığı (°C)" },
-        "slp":   { "abbr": "SLP",   "label": "Deniz seviyesi basıncı (hPa)" },
-        "hcld":  { "abbr": "HCLD",  "label": "Yüksek bulut örtüsü (%)" }
+        "date": {
+          "abbr": "Tarih",
+          "label": "Gün ve saat (yerel)"
+        },
+        "wspd": {
+          "abbr": "WSPD",
+          "label": "Ortalama rüzgar hızı"
+        },
+        "gust": {
+          "abbr": "GUST",
+          "label": "Hamle şiddeti — yüksek = zor"
+        },
+        "wdirn": {
+          "abbr": "WDIRN",
+          "label": "Rüzgarın geldiği yön (K, G, D, B…)"
+        },
+        "wdeg": {
+          "abbr": "WDEG",
+          "label": "Derece cinsinden yön (0–360°)"
+        },
+        "tmp": {
+          "abbr": "TMP",
+          "label": "Hava sıcaklığı (°C)"
+        },
+        "slp": {
+          "abbr": "SLP",
+          "label": "Deniz seviyesi basıncı (hPa)"
+        },
+        "hcld": {
+          "abbr": "HCLD",
+          "label": "Yüksek bulut örtüsü (%)"
+        }
       }
     },
     "summary": {
@@ -934,6 +987,31 @@
       "rising": "Rüzgar {{start}} knottan {{peak}} knota yükseliyor — pencere yaklaşık {{peakTime}} açılıyor.",
       "falling": "{{peakTime}} sonrası rüzgar düşüyor — seansları erkene alın.",
       "tooLight": "Bugün uçurtma için yetersiz (zirve {{peak}} knot). Olursa foil ya da wing."
+    },
+    "bestToday": {
+      "label": "Bugün en iyi",
+      "peaks": "{{time}} civarı {{peak}} kn",
+      "none": "Bugün hiçbir spotta sürülecek rüzgar yok."
+    },
+    "featured": {
+      "yourBeach": "Senin plajın"
+    },
+    "region": {
+      "away": "uzak"
+    },
+    "card": {
+      "bestWindow": "En iyi {{start}}–{{end}}",
+      "peak": "tepe {{peak}} kn",
+      "noWindow": "Bugün net pencere yok",
+      "hide": "Gizle",
+      "forecast": "3 günlük tahmin"
+    },
+    "colors": {
+      "title": "Renkler ne anlama geliyor"
+    },
+    "a11y": {
+      "hourCell": "{{time}}, {{wind}} knot, patlama {{gust}}, {{dir}}, {{band}}",
+      "liveWind": "{{kts}} knot, {{state}}, {{updated}} güncellendi"
     }
   }
 }

@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { listSpots, getSpotReport, getAllSpotReports, getUkcLive, getPwsLive } from '../services/weather/index.js';
+import { listSpots, getSpotReport, getAllSpotReports, getUkcLive, getPwsLive, getPwsHistory } from '../services/weather/index.js';
 
 const router = express.Router();
 
@@ -93,6 +93,18 @@ router.get('/pws', async (_req, res) => {
     res.json(live);
   } catch (err) {
     res.status(502).json({ error: err?.message || 'Failed to fetch live station data' });
+  }
+});
+
+// GET /api/weather/pws/history?range=6h|24h|7d — recorded live-station history.
+// Rows are ordered oldest→newest; the client draws the offline gaps. Never deleted.
+router.get('/pws/history', async (req, res) => {
+  try {
+    const data = await getPwsHistory({ range: req.query.range, stationId: req.query.stationId });
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'Failed to fetch wind history' });
   }
 });
 

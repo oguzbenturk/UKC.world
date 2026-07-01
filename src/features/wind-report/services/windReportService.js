@@ -30,3 +30,9 @@ export const fetchPwsLive = async () => {
   const { data } = await apiClient.get('/weather/pws');
   return data;
 };
+
+/** Recorded live-station history (Windguru-style). range = '6h' | '24h' | '7d'. */
+export const fetchPwsHistory = async (range = '24h') => {
+  const { data } = await apiClient.get('/weather/pws/history', { params: { range } });
+  return data;
+};

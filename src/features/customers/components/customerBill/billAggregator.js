@@ -616,11 +616,20 @@ export const computeTotals = (items, transactions, period, baseCurrency, convert
     if (type.includes('reversal')) continue;
 
     if (type.includes('refund')) {
-      // Refund-typed credit = money going back to the customer's wallet
-      // (still reduces what they paid us net). Refund-typed debit = money
-      // out to the customer's bank/cash. Either way, it's an outflow from
-      // our books.
-      refundsOut += converted;
+      // A refund only reduces "payments received" when real money LEAVES us —
+      // i.e. a refund-typed DEBIT (cash/bank payout back to the customer).
+      //
+      // A refund-typed CREDIT returns money to the customer's WALLET, where it
+      // sits as spendable credit. The charge it reverses is a cancelled/
+      // refunded (or price-reduced) line that is ALREADY excluded from — or
+      // already netted down in — the subtotal above. Subtracting the refund
+      // credit here as well would remove that charge a second time, clamping
+      // paymentsReceived toward zero and massively over-stating the balance
+      // due (e.g. a wallet-funded membership that was cancelled and refunded
+      // to the wallet would otherwise re-add its full price to what the
+      // customer "owes"). So refund credits are internal motion — skip them,
+      // exactly like adjustments/reversals.
+      if (dir === 'debit') refundsOut += converted;
       continue;
     }
 
