@@ -1,10 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePwsHistory } from '../hooks/usePwsHistory';
+import { HISTORY_RANGES } from '../utils/historyConfig';
 import WindHistoryChart from './WindHistoryChart';
 import { Eyebrow } from './Typo';
-
-const RANGES = ['6h', '24h', '7d'];
 
 // The full live-station history: a band-coloured wind curve over time with a range
 // toggle. Recorded server-side every 5 min and never deleted; offline periods show as
@@ -37,7 +36,7 @@ const WindHistoryCard = () => {
           </span>
         </div>
         <div className="flex items-center gap-0.5 rounded-full bg-slate-100 p-0.5">
-          {RANGES.map((r) => (
+          {HISTORY_RANGES.map((r) => (
             <button
               key={r}
               type="button"

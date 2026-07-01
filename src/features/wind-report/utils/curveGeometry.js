@@ -4,6 +4,10 @@ import { getWindBand } from './windBands';
 // the components so WindCurve and WindHistoryChart draw identical, gap-aware, band-
 // coloured lines from the same primitives.
 
+// Shared y-axis ceiling (knots): the forecast curve and the history chart use the same
+// vertical scale so they read as one visual language ("colour + height = how windy").
+export const MAX_KN = 35;
+
 // Polyline "d" from a run of points.
 export const lineD = (pts) =>
   pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');

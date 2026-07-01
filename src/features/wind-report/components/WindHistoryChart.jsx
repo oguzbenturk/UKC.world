@@ -1,28 +1,18 @@
 import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 import { getWindBand } from '../utils/windBands';
 import { RIDEABLE_KN } from '../utils/verdict';
 import { WR_HEX, BRAND_CYAN } from '../utils/bandTheme';
 import { useMeasuredWidth } from '../hooks/useMeasuredWidth';
-import { segmentsByBand, lineD, areaD, bandPoint, splitLines } from '../utils/curveGeometry';
+import { segmentsByBand, bandPoint, splitLines, MAX_KN } from '../utils/curveGeometry';
+import { RANGE_MS, TICK_MS, GAP_MS } from '../utils/historyConfig';
+import WindBandPaths from './WindBandPaths';
 import { DataLabel } from './Typo';
 
 // Recorded live-station history drawn the same way as the forecast curve: a pure-SVG,
 // band-coloured wind line (+ soft filled bands) with the gust line on top. Time is the
 // x-axis; wind is fixed 0–MAX_KN so it reads the same as the forecast. Offline periods
 // are real GAPS in the line (Windguru-style) — no interpolation across them.
-
-const MAX_KN = 35;
-
-const RANGE_MS = {
-  '6h': 6 * 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
-  '7d': 7 * 24 * 60 * 60 * 1000,
-};
-// A break longer than this between consecutive readings = the station was offline.
-const GAP_MS = 20 * 60 * 1000;
-// Axis tick spacing per range.
-const TICK_MS = { '6h': 60 * 60 * 1000, '24h': 4 * 60 * 60 * 1000, '7d': 24 * 60 * 60 * 1000 };
 
 // Full card vs. compact hero sparkline.
 const DIMS = {
@@ -47,10 +37,10 @@ const WindHistoryChart = ({
   const W = width || 480;
 
   // Fixed window [now - range, now] so "now" sits at the right edge and the axis reads.
-  // Anchor "now" to the server fetch time (passed in, stable across renders) so the memo
-  // caches and the curve doesn't creep every frame; fall back to a mount-time clock read.
+  // "now" is the server fetch time (passed in, stable across renders); it only falls back
+  // to a live clock read in the empty/loading state, where nothing is plotted anyway.
   const spanMs = RANGE_MS[range] || RANGE_MS['24h'];
-  const t1 = React.useMemo(() => nowMs || Date.now(), [nowMs]);
+  const t1 = nowMs ?? Date.now();
   const t0 = t1 - spanMs;
 
   const geom = React.useMemo(() => {
@@ -106,23 +96,7 @@ const WindHistoryChart = ({
         )}
 
         {/* wind — filled bands + band-coloured line */}
-        {windRuns.map((run, i) => (
-          <path key={`wa${i}`} d={areaD(run.pts, BASE_Y)} fill={WR_HEX[run.band] || BRAND_CYAN} fillOpacity="0.20" />
-        ))}
-        {windRuns.map((run, i) => (
-          <motion.path
-            key={`wl${i}`}
-            d={lineD(run.pts)}
-            fill="none"
-            stroke={WR_HEX[run.band] || BRAND_CYAN}
-            strokeWidth={d.stroke}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            initial={reduce ? false : { pathLength: 0, opacity: 0.4 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: reduce ? 0 : 0.6, ease: [0.22, 1, 0.36, 1], delay: reduce ? 0 : i * 0.04 }}
-          />
-        ))}
+        <WindBandPaths runs={windRuns} baseY={BASE_Y} strokeWidth={d.stroke} stagger={0.04} reduce={reduce} />
 
         {/* gust line (full only) */}
         {gustLines.map((path, i) => (

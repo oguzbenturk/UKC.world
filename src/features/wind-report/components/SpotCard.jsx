@@ -22,6 +22,10 @@ const SpotCard = ({ report, weight, index = 0, featured = false, defaultOpen = f
 
   // All hooks run unconditionally (before any early return) — rules-of-hooks safe,
   // and crash-safe if a report ever flips between error and ok.
+  // First `maxDays` real forecast days. NB: the Windguru m=all scrape emits phantom
+  // far-future dates (its month-rollover heuristic mislabels each extra model table),
+  // but the genuine contiguous block is the FIRST ~17 days, so slicing from the front is
+  // safe for any maxDays we use (≤10). See windguruScraper.js if you ever need more.
   const days = React.useMemo(() => groupByDay(forecast?.hours || []).slice(0, maxDays), [forecast, maxDays]);
   const todaySummary = React.useMemo(() => (days[0] ? dailySummary(days[0].rows) : null), [days]);
 

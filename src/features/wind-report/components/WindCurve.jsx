@@ -1,10 +1,11 @@
 import React from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 import { getWindBand } from '../utils/windBands';
 import { DAY_START, DAY_END, RIDEABLE_KN } from '../utils/verdict';
 import { WR_HEX, BRAND_CYAN } from '../utils/bandTheme';
 import { useMeasuredWidth } from '../hooks/useMeasuredWidth';
-import { segmentsByBand, lineD, areaD, bandPoint, splitLines } from '../utils/curveGeometry';
+import { segmentsByBand, bandPoint, splitLines, MAX_KN } from '../utils/curveGeometry';
+import WindBandPaths from './WindBandPaths';
 
 // One day of forecast drawn as a wind+gust curve instead of a row of number cells.
 // Pure SVG, no charting dep. The SVG is rendered at the container's MEASURED pixel
@@ -13,7 +14,6 @@ import { segmentsByBand, lineD, areaD, bandPoint, splitLines } from '../utils/cu
 // every spot's curve is visually comparable. Tap/keyboard targets live in an HTML
 // overlay above the SVG.
 
-const MAX_KN = 35;
 const PLOT_TOP = 8;
 const PLOT_H = 64;
 const BASE_Y = PLOT_TOP + PLOT_H;
@@ -84,23 +84,7 @@ const WindCurve = ({
         <line x1="0" y1={refY} x2={W} y2={refY} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 4" />
 
         {/* wind — area + line coloured by wind band ("colour = how windy") */}
-        {windRuns.map((run, i) => (
-          <path key={`wa${i}`} d={areaD(run.pts, BASE_Y)} fill={WR_HEX[run.band] || BRAND_CYAN} fillOpacity="0.20" />
-        ))}
-        {windRuns.map((run, i) => (
-          <motion.path
-            key={`wl${i}`}
-            d={lineD(run.pts)}
-            fill="none"
-            stroke={WR_HEX[run.band] || BRAND_CYAN}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            initial={reduce ? false : { pathLength: 0, opacity: 0.4 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: reduce ? 0 : 0.6, ease: [0.22, 1, 0.36, 1], delay: reduce ? 0 : i * 0.06 }}
-          />
-        ))}
+        <WindBandPaths runs={windRuns} baseY={BASE_Y} reduce={reduce} />
 
         {/* gust line */}
         {gustLines.map((d, i) => (

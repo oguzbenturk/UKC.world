@@ -63,6 +63,8 @@ export const recordPwsReading = async () => {
 };
 
 // Ranges the history graph can request → lookback window in milliseconds.
+// Mirror of the frontend's src/features/wind-report/utils/historyConfig.js — separate
+// bundles can't share a module, so keep these two in sync.
 const RANGE_MS = {
   '6h': 6 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
