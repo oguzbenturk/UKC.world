@@ -564,6 +564,7 @@
       "combinedOwed": "Gesamt ausstehend: {{amount}}",
       "earned": "verdient",
       "paid": "bezahlt",
+      "deducted": "abgezogen",
       "owed": "ausstehend"
     },
     "balancePaid": "✓ Bezahlt",

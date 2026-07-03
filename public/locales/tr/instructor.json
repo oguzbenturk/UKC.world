@@ -564,6 +564,7 @@
       "combinedOwed": "Toplam borç: {{amount}}",
       "earned": "kazandı",
       "paid": "ödendi",
+      "deducted": "kesinti",
       "owed": "borç"
     },
     "balancePaid": "✓ Ödendi",

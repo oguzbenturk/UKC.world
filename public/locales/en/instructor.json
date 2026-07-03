@@ -564,6 +564,7 @@
       "combinedOwed": "Combined owed: {{amount}}",
       "earned": "earned",
       "paid": "paid",
+      "deducted": "deducted",
       "owed": "owed"
     },
     "balancePaid": "✓ Paid",

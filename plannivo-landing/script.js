@@ -61,16 +61,28 @@
   document.querySelectorAll('[data-count]').forEach((el) => tickerObserver.observe(el));
 
   /* ── Demo form ────────────────────────────────────────────────────────── */
+  /* No backend yet — open the visitor's mail client with a pre-filled
+     request so the lead actually reaches hello@plannivo.com. Swap for a
+     real fetch() when a lead endpoint exists. */
   const form = document.getElementById('demo-form');
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       const btn = form.querySelector('button[type="submit"]');
-      btn.disabled = true;
-      btn.textContent = 'Sending…';
+      const email = form.querySelector('input[type="email"]').value.trim();
+      const academy = form.querySelector('input[type="text"]').value.trim();
 
-      /* Fake async — swap for real fetch() when backend is wired */
-      await new Promise((r) => setTimeout(r, 900));
+      btn.disabled = true;
+      btn.textContent = 'Opening…';
+
+      const subject = encodeURIComponent('Demo request — ' + academy);
+      const body = encodeURIComponent(
+        'Academy: ' + academy + '\n' +
+        'Contact: ' + email + '\n\n' +
+        "We'd like a 20-minute demo of Plannivo."
+      );
+      window.location.href =
+        'mailto:hello@plannivo.com?subject=' + subject + '&body=' + body;
 
       form.closest('.closer-form').classList.add('is-sent');
     });

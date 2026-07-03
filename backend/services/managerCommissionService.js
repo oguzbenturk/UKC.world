@@ -1864,13 +1864,21 @@ export async function getAllManagersWithCommissionSettings() {
             AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
         ) as total_commission,
         (
-          SELECT COALESCE(SUM(ABS(amount)), 0)
+          SELECT COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0)
           FROM wallet_transactions
           WHERE user_id = u.id
             AND entity_type = 'manager_payment'
             AND transaction_type IN ('payment', 'deduction')
             AND status != 'cancelled'
-        ) as total_paid
+        ) as total_paid,
+        (
+          SELECT COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0)
+          FROM wallet_transactions
+          WHERE user_id = u.id
+            AND entity_type = 'manager_payment'
+            AND transaction_type IN ('payment', 'deduction')
+            AND status != 'cancelled'
+        ) as total_deducted
        FROM users u
        JOIN roles r ON r.id = u.role_id
        LEFT JOIN manager_commission_settings mcs ON mcs.manager_user_id = u.id AND mcs.is_active = true
@@ -1881,7 +1889,12 @@ export async function getAllManagersWithCommissionSettings() {
     return result.rows.map(row => {
       const totalCommission = parseFloat(row.total_commission) || 0;
       const totalPaid = parseFloat(row.total_paid) || 0;
-      const pending = Math.max(totalCommission - totalPaid, 0);
+      const totalDeducted = parseFloat(row.total_deducted) || 0;
+      // Same math as getManagerCommissionSummary: payments AND deductions both
+      // reduce what is still owed, but only actual payments count as "paid".
+      // The old ABS-sum lumped deductions into paid, so the list page showed a
+      // larger "paid" than the manager detail panel for the same manager.
+      const pending = Math.max(totalCommission - totalPaid - totalDeducted, 0);
 
       return {
         id: row.id,
@@ -1905,8 +1918,10 @@ export async function getAllManagersWithCommissionSettings() {
           effectiveFrom: row.effective_from,
           effectiveUntil: row.effective_until
         } : null,
+        totalEarnedCommission: totalCommission,
         pendingCommission: pending,
-        paidCommission: totalPaid
+        paidCommission: totalPaid,
+        deductedCommission: totalDeducted
       };
     });
   } catch (error) {
@@ -1954,18 +1969,23 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
       [managerUserId, `${year}-%`]
     );
 
-    // Get actual payments from wallet_transactions for this year
+    // Get actual payments + deductions from wallet_transactions for this year.
+    // Deductions (negative rows) reduce what is still owed without counting as
+    // paid-out money — same math as getManagerCommissionSummary.
     const paymentsResult = await pool.query(
-      `SELECT COALESCE(SUM(amount), 0) as total_paid
+      `SELECT
+         COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as total_paid,
+         COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) as total_deducted
        FROM wallet_transactions
        WHERE user_id = $1
          AND entity_type = 'manager_payment'
-         AND transaction_type = 'payment'
+         AND transaction_type IN ('payment', 'deduction')
          AND status != 'cancelled'
          AND EXTRACT(YEAR FROM created_at) = $2`,
       [managerUserId, year]
     );
     const yearTotalPaid = parseFloat(paymentsResult.rows[0]?.total_paid) || 0;
+    const yearTotalDeducted = parseFloat(paymentsResult.rows[0]?.total_deducted) || 0;
 
     // Build months array (Jan-Dec)
     const months = [];
@@ -2029,7 +2049,8 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
       totals: {
         gross: yearTotal,
         paid: yearTotalPaid,
-        pending: Math.max(yearTotal - yearTotalPaid, 0)
+        deducted: yearTotalDeducted,
+        pending: Math.max(yearTotal - yearTotalPaid - yearTotalDeducted, 0)
       },
       currency: 'EUR'
     };

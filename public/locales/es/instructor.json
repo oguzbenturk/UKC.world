@@ -564,6 +564,7 @@
       "combinedOwed": "Total adeudado: {{amount}}",
       "earned": "ganado",
       "paid": "pagado",
+      "deducted": "deducido",
       "owed": "adeudado"
     },
     "balancePaid": "✓ Pagado",

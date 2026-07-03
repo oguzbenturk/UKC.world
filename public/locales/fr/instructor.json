@@ -564,6 +564,7 @@
       "combinedOwed": "Total dû : {{amount}}",
       "earned": "gagné",
       "paid": "payé",
+      "deducted": "déduit",
       "owed": "dû"
     },
     "balancePaid": "✓ Payé",

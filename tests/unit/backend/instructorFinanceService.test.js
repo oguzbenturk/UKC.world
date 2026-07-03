@@ -15,9 +15,15 @@ beforeAll(async () => {
     pool: { query: jest.fn() },
   }));
 
+  // Mock must mirror ALL real exports — other modules in the service's import
+  // graph pull deriveEffectivePackageHours/partialLessonValue, and a missing
+  // named export is a link-time SyntaxError under ESM.
   await jest.unstable_mockModule('../../../backend/utils/instructorEarnings.js', () => ({
+    deriveEffectivePackageHours: jest.fn(() => 0),
     deriveLessonAmount: jest.fn(),
     deriveTotalEarnings: jest.fn(),
+    partialLessonValue: jest.fn(({ packageValueFullDuration = 0, cashAmount = 0 } = {}) =>
+      Number(packageValueFullDuration) + Number(cashAmount)),
     toNumber: jest.fn(),
   }));
 
@@ -230,13 +236,16 @@ describe('InstructorFinanceService', () => {
       expect(callArgs[0]).toContain('b.deleted_at IS NULL');
     });
 
-    test('only includes completed bookings', async () => {
+    test('only includes completed-family bookings', async () => {
       pool.query.mockResolvedValue({ rows: [] });
 
       await getInstructorEarningsData(1);
 
+      // Statuses are parameterized (COMPLETED_BOOKING_STATUSES includes
+      // completed/done/checked_out), not hardcoded to 'completed'.
       const callArgs = pool.query.mock.calls[0];
-      expect(callArgs[0]).toContain("b.status = 'completed'");
+      expect(callArgs[0]).toContain('b.status = ANY($2::text[])');
+      expect(callArgs[1][1]).toEqual(expect.arrayContaining(['completed']));
     });
 
     test('rounds totals to 2 decimal places', async () => {
@@ -345,13 +354,15 @@ describe('InstructorFinanceService', () => {
       expect(callArgs[0]).toContain("'payment', 'deduction'");
     });
 
-    test('orders by date descending', async () => {
+    test('orders by manager-entered payment date descending', async () => {
       pool.query.mockResolvedValue({ rows: [] });
 
       await getInstructorPayrollHistory(1);
 
+      // Ordering uses metadata.paymentDate (falling back to created_at) so an
+      // edited row keeps its chosen date instead of re-dating to today.
       const callArgs = pool.query.mock.calls[0];
-      expect(callArgs[0]).toContain('ORDER BY created_at DESC');
+      expect(callArgs[0]).toContain("ORDER BY COALESCE((metadata->>'paymentDate')::timestamptz, created_at) DESC");
     });
   });
 
@@ -671,6 +682,75 @@ describe('InstructorFinanceService', () => {
 
       expect(result[1].totalEarned).toBe(21.00);
       expect(result[1].totalPaid).toBe(500.56);
+    });
+
+    test('manager deductions reduce owed but do not count as paid', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ manager_user_id: 1, total_earned: 3071.4 }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: 1, total_paid: 2481, total_deducted: 1084 }] });
+
+      toNumber.mockImplementation(val => Number(val) || 0);
+
+      const result = await getAllInstructorBalances();
+
+      expect(result[1].manager.totalEarned).toBe(3071.4);
+      expect(result[1].manager.totalPaid).toBe(2481);
+      expect(result[1].manager.totalDeducted).toBe(1084);
+      // 3071.40 - 2481 - 1084 = -493.60 → clamped at 0 (overpaid manager owes nothing)
+      expect(result[1].manager.balance).toBe(0);
+      expect(result[1].totalPaid).toBe(2481);
+      expect(result[1].balance).toBe(0);
+    });
+
+    test('overpaid manager side does not eat into instructor owed', async () => {
+      const mockBookings = [
+        {
+          instructor_user_id: 1,
+          booking_id: 'b1',
+          lesson_duration: 2,
+          base_amount: 100,
+          payment_status: 'cash',
+          group_size: 1,
+          commission_rate: 20,
+          commission_type: 'percentage',
+        },
+      ];
+
+      pool.query
+        .mockResolvedValueOnce({ rows: mockBookings })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ manager_user_id: 1, total_earned: 100 }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: 1, total_paid: 400, total_deducted: 0 }] });
+
+      toNumber.mockImplementation(val => Number(val) || 0);
+      deriveLessonAmount.mockReturnValue(100);
+      deriveTotalEarnings.mockReturnValue(200);
+
+      const result = await getAllInstructorBalances();
+
+      // Manager side is overpaid (100 - 400 = -300 → clamped 0); instructor is
+      // still owed the full 200 — combined owed must not net the surplus.
+      expect(result[1].instructor.balance).toBe(200);
+      expect(result[1].manager.balance).toBe(0);
+      expect(result[1].balance).toBe(200);
+    });
+
+    test('manager deductions still leave a positive owed when under-settled', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ manager_user_id: 1, total_earned: 1000 }] })
+        .mockResolvedValueOnce({ rows: [{ user_id: 1, total_paid: 300, total_deducted: 200 }] });
+
+      toNumber.mockImplementation(val => Number(val) || 0);
+
+      const result = await getAllInstructorBalances();
+
+      // 1000 - 300 - 200 = 500 still owed
+      expect(result[1].manager.balance).toBe(500);
+      expect(result[1].balance).toBe(500);
     });
   });
 });

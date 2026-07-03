@@ -131,7 +131,9 @@ function ManagerCommissionSettings() {
       title: t('manager:commissionSettings.columns.totalEarnings'),
       key: 'totalEarnings',
       render: (_, record) => {
-        const total = (record.pendingCommission || 0) + (record.paidCommission || 0);
+        // Actual commission earned — pending + paid understates it when
+        // deductions exist or the manager is overpaid (pending clamps at 0).
+        const total = record.totalEarnedCommission ?? ((record.pendingCommission || 0) + (record.paidCommission || 0));
         return (
           <span className="font-semibold text-gray-800">
             {formatCurrency(total, 'EUR')}
@@ -189,10 +191,6 @@ function ManagerCommissionSettings() {
       )
     }
   ];
-
-  // Summary calculations
-  const totalPending = managers.reduce((sum, m) => sum + (m.pendingCommission || 0), 0);
-  const totalPaid = managers.reduce((sum, m) => sum + (m.paidCommission || 0), 0);
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">

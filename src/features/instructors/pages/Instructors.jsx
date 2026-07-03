@@ -76,7 +76,7 @@ const BalanceCell = ({ bal, fmt }) => {
       <div>
         <span className="font-semibold text-slate-200">{t('instructor:instructorsList.balanceTooltip.managerCommission')}</span>
         <div className="text-slate-300">
-          {fmt(bal.manager.totalEarned)} {t('instructor:instructorsList.balanceTooltip.earned')} · {fmt(bal.manager.totalPaid)} {t('instructor:instructorsList.balanceTooltip.paid')} · <span className="text-white">{fmt(bal.manager.balance)} {t('instructor:instructorsList.balanceTooltip.owed')}</span>
+          {fmt(bal.manager.totalEarned)} {t('instructor:instructorsList.balanceTooltip.earned')} · {fmt(bal.manager.totalPaid)} {t('instructor:instructorsList.balanceTooltip.paid')}{bal.manager.totalDeducted > 0 && <> · {fmt(bal.manager.totalDeducted)} {t('instructor:instructorsList.balanceTooltip.deducted')}</>} · <span className="text-white">{fmt(bal.manager.balance)} {t('instructor:instructorsList.balanceTooltip.owed')}</span>
         </div>
       </div>
       <div className="border-t border-white/10 pt-1.5 text-slate-100 font-medium">

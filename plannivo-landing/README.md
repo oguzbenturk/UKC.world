@@ -35,16 +35,26 @@ server {
 
 ## Demo form
 
-The form currently simulates a 900 ms async delay and shows a success message. To wire a real backend, replace the `await new Promise(...)` block in `script.js` with a `fetch()` to your endpoint.
+There is no backend yet. On submit, the form opens the visitor's mail client with a pre-filled message to `hello@plannivo.com` (subject + academy + contact), then shows a success note. To wire a real backend, replace the `mailto:` block in `script.js` with a `fetch()` to your endpoint.
 
 ## Design tokens (key)
 
+"Gale warning" theme — daylight sport poster: white/sky/sea-slate with one loud accent.
+
 | Token | Value | Use |
 |---|---|---|
-| `--bone` | `#F0EADD` | Page background |
-| `--ink` | `#141E28` | Primary text |
-| `--seafoam` | `#557872` | Brand accent, CTAs |
-| `--clay` | `#B9876D` | Warm highlight |
-| `--line` | `#D8CEB6` | Borders, dividers |
+| `--white` | `#FFFFFF` | Page background |
+| `--foam` | `#F1F7FC` | Tinted sections, cards |
+| `--sky` | `#CFE9FB` | Light sky fills, washes |
+| `--ink` | `#0A2337` | Primary text, marquee band |
+| `--signal` | `#FF4D12` | Kite-canopy orange — CTAs & killer words only |
+| `--surf` | `#0C7BD6` | Links, wind streamlines |
+| `--line` | `#D9E5EE` | Borders, dividers |
 
-Fonts loaded from Google Fonts: Fraunces (variable), Instrument Sans, JetBrains Mono.
+Signature devices: `--punch` (hard 6px poster shadow), `--cut` (speed-cut clip-path on buttons/tags), animated wind-streamline SVG in hero/closer, ink marquee band.
+
+Fonts loaded from Google Fonts: Archivo (variable, width axis 62–125), JetBrains Mono.
+
+## Honesty rule (do not break)
+
+Copy is deliberately truthful: founded 2025, ONE live customer (Duotone Pro Center Urla → ukc.plannivo.com), Iyzico is the only live payment provider. The page turns this into the pitch ("One customer. On purpose." / "Be the second.") — never add fake logos, customer counts, or revenue stats.

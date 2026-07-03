@@ -723,12 +723,17 @@ export async function getAllInstructorBalances() {
     WHERE ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
     GROUP BY mc.manager_user_id
   `;
+  // Payments and deductions both reduce what the manager is still owed, but only
+  // actual payments count as "paid" — mirroring getManagerCommissionSummary. The
+  // old payment-only query silently ignored deduction rows (e.g. clawed-back
+  // advances), overstating the manager's owed balance on the instructors page.
   const mgrPaidSql = `
     SELECT user_id,
-      COALESCE(SUM(amount), 0)::numeric AS total_paid
+      COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0)::numeric AS total_paid,
+      COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0)::numeric AS total_deducted
     FROM wallet_transactions
     WHERE entity_type = 'manager_payment'
-      AND transaction_type = 'payment'
+      AND transaction_type IN ('payment', 'deduction')
       AND status != 'cancelled'
     GROUP BY user_id
   `;
@@ -744,7 +749,10 @@ export async function getAllInstructorBalances() {
   }
   const mgrPaidMap = {};
   for (const row of mgrPaidRes.rows) {
-    mgrPaidMap[row.user_id] = toNumber(row.total_paid);
+    mgrPaidMap[row.user_id] = {
+      paid: toNumber(row.total_paid),
+      deducted: toNumber(row.total_deducted),
+    };
   }
 
   const mergedIds = new Set([
@@ -757,21 +765,26 @@ export async function getAllInstructorBalances() {
   for (const id of mergedIds) {
     const inst = instructorOnly[id] || { totalEarned: 0, totalPaid: 0, balance: 0 };
     const mEarn = mgrEarnedMap[id] || 0;
-    const mPaid = mgrPaidMap[id] || 0;
-    const mBal = Number((mEarn - mPaid).toFixed(2));
-    const hasManager = mEarn > 0 || mPaid > 0;
+    const mPaid = mgrPaidMap[id]?.paid || 0;
+    const mDeducted = mgrPaidMap[id]?.deducted || 0;
+    // Clamped at 0 like getManagerCommissionSummary's pending: an overpaid
+    // manager owes nothing, but the surplus doesn't eat into instructor payroll.
+    const mBal = Math.max(Number((mEarn - mPaid - mDeducted).toFixed(2)), 0);
+    const hasManager = mEarn > 0 || mPaid > 0 || mDeducted > 0;
 
     merged[id] = {
       totalEarned: Number((inst.totalEarned + mEarn).toFixed(2)),
       totalPaid: Number((inst.totalPaid + mPaid).toFixed(2)),
-      balance: Number((inst.totalEarned + mEarn - inst.totalPaid - mPaid).toFixed(2)),
+      // NOT totalEarned - totalPaid: the manager side subtracts deductions and
+      // clamps at 0, so the combined owed is the sum of the two owed figures.
+      balance: Number((inst.balance + mBal).toFixed(2)),
       instructor: {
         totalEarned: inst.totalEarned,
         totalPaid: inst.totalPaid,
         balance: inst.balance,
       },
       manager: hasManager
-        ? { totalEarned: mEarn, totalPaid: mPaid, balance: mBal }
+        ? { totalEarned: mEarn, totalPaid: mPaid, totalDeducted: mDeducted, balance: mBal }
         : null,
     };
   }
