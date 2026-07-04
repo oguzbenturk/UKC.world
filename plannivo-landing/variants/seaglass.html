@@ -1,0 +1,1994 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#FFFFFF">
+<title>Plannivo — The kite school platform that runs a real kite school</title>
+<meta name="description" content="Bookings, students, payroll, rentals, repairs — one surface for kite, wing and foil schools. Built inside a Duotone pro center and proven live, every day, at ukc.plannivo.com.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Plannivo — Spreadsheets don't survive saltwater.">
+<meta property="og:description" content="One platform runs the whole watersports academy. We know it works — we run our own school on it, live, every day.">
+<meta property="og:url" content="https://plannivo.com/">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%230BB5A6'/><stop offset='1' stop-color='%231E90E8'/></linearGradient></defs><path d='M16 2 L30 16 L16 30 L2 16 Z' fill='url(%23g)'/></svg>">
+
+<style>
+/* ==========================================================================
+   Plannivo — landing · variant "seaglass"
+   Water-clear premium SaaS. White + barely-there aqua, petrol ink,
+   one turquoise→azure gradient spent on killer words, buttons, thin rules.
+   Bricolage Grotesque display · Hanken Grotesk body · JetBrains Mono data.
+   Signature: underwater caustic light veil (feTurbulence), drifting wind.
+   ========================================================================== */
+
+:root {
+  --white:    #FFFFFF;
+  --aqua:     #F7FCFC;                       /* barely-there aqua tint */
+  --aqua-2:   #EFF9FA;
+  --ink:      #073036;                       /* petrol / teal-black */
+  --ink-80:   rgba(7, 48, 54, 0.80);
+  --ink-62:   rgba(7, 48, 54, 0.62);
+  --ink-48:   rgba(7, 48, 54, 0.48);
+  --ink-35:   rgba(7, 48, 54, 0.35);
+  --line:     rgba(7, 48, 54, 0.10);
+  --hairline: rgba(7, 48, 54, 0.08);
+
+  --turq:     #0BB5A6;
+  --azure:    #1E90E8;
+  --grad:     linear-gradient(96deg, var(--turq) 8%, var(--azure) 92%);
+
+  --glass:    rgba(255, 255, 255, 0.72);
+  --glass-brd:rgba(7, 48, 54, 0.09);
+  --shadow-1: 0 1px 2px rgba(7,48,54,.05), 0 14px 34px -18px rgba(7,48,54,.20);
+  --shadow-2: 0 2px 4px rgba(7,48,54,.05), 0 34px 70px -34px rgba(7,48,54,.30), 0 60px 130px -50px rgba(30,144,232,.16);
+
+  --display: "Bricolage Grotesque", "Hanken Grotesk", -apple-system, sans-serif;
+  --sans:    "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --page-pad:    clamp(1.25rem, 4vw, 4rem);
+  --chapter-gap: clamp(5rem, 12vh, 9rem);
+  --max:         1200px;
+  --r-card:      22px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+html, body { overflow-x: clip; }
+
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
+  font-weight: 420;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+.wrap { max-width: var(--max); margin-inline: auto; }
+
+/* ───────────────────────────── TYPOGRAPHY ─────────────────────────────── */
+
+.mega {
+  font-family: var(--display);
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-size: clamp(2.7rem, 7.4vw, 5.9rem);
+  line-height: 1.02;
+  letter-spacing: -0.032em;
+  margin: 0;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.mega .line { display: block; }
+
+.h2 {
+  font-family: var(--display);
+  font-optical-sizing: auto;
+  font-weight: 680;
+  font-size: clamp(2.05rem, 4.4vw, 3.45rem);
+  line-height: 1.06;
+  letter-spacing: -0.028em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* Two-tone headline device: the pivot phrase recedes */
+.is-signal { color: var(--ink-48); }
+
+/* The gradient — spent on killer words only */
+.grad {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-62);
+  margin: 0 0 1.7rem;
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  flex-wrap: wrap;
+}
+.kicker .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9em;
+}
+.kicker .tag::before {
+  content: "";
+  width: 30px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--grad);
+  flex: none;
+}
+.kicker-note { color: var(--ink-48); font-weight: 400; }
+
+.lede {
+  font-size: clamp(1.06rem, 1.45vw, 1.28rem);
+  line-height: 1.65;
+  font-weight: 430;
+  color: var(--ink-80);
+  max-width: 56ch;
+  margin: 1.9rem 0 0;
+}
+.lede strong { color: var(--ink); font-weight: 700; }
+
+.body-copy {
+  font-size: 1.04rem;
+  line-height: 1.75;
+  color: var(--ink-80);
+  max-width: 60ch;
+  margin: 1.5rem 0 0;
+}
+.body-copy strong { color: var(--ink); font-weight: 700; }
+
+/* ───────────────────────────── HEADER ─────────────────────────────────── */
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.85rem var(--page-pad);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  text-decoration: none;
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.12rem;
+}
+.mark-kite { display: block; }
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.9rem;
+  font-size: 0.9rem;
+  font-weight: 550;
+}
+.nav a:not(.cta) {
+  text-decoration: none;
+  color: var(--ink-62);
+  padding: 0.3em 0;
+  position: relative;
+  transition: color 0.2s ease;
+}
+.nav a:not(.cta)::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 100%;
+  bottom: 0.05em;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--grad);
+  transition: right 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav a:not(.cta):hover { color: var(--ink); }
+.nav a:not(.cta):hover::after { right: 0; }
+
+.nav a.cta {
+  text-decoration: none;
+  color: var(--white);
+  background: var(--grad);
+  padding: 0.62em 1.35em;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 0.86rem;
+  letter-spacing: 0.005em;
+  box-shadow: 0 1px 2px rgba(7,48,54,.14), 0 10px 22px -10px rgba(30,144,232,.55);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.nav a.cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(7,48,54,.14), 0 14px 28px -10px rgba(30,144,232,.6);
+}
+
+@media (max-width: 760px) {
+  .nav { gap: 1.1rem; }
+  .nav a:not(.cta) { display: none; }
+}
+
+/* ───────────────────────────── HERO ───────────────────────────────────── */
+
+.hero {
+  position: relative;
+  padding: clamp(5rem, 13vh, 8.5rem) var(--page-pad) clamp(4.5rem, 10vh, 7rem);
+  overflow: clip;
+  background: linear-gradient(180deg, var(--white) 0%, var(--aqua) 100%);
+}
+
+/* Signature: underwater caustic light veil */
+.caustics {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.30;
+  -webkit-mask-image: radial-gradient(110% 85% at 82% -5%, #000 25%, transparent 75%);
+  mask-image: radial-gradient(110% 85% at 82% -5%, #000 25%, transparent 75%);
+}
+
+/* white shield keeps the text column crisp above the light-play */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.7) 34%, rgba(255,255,255,0) 62%),
+    linear-gradient(180deg, rgba(255,255,255,0) 55%, rgba(247,252,252,0.85) 100%);
+}
+
+/* Fine drifting wind lines */
+.windfield {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.wind {
+  fill: none;
+  stroke: var(--azure);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  opacity: 0.16;
+  stroke-dasharray: 42 300;
+  animation: windflow 12s linear infinite;
+}
+.wind.w1 { animation-duration: 11s;   animation-delay: -3s;   opacity: 0.14; }
+.wind.w2 { animation-duration: 14s;   animation-delay: -7s;   opacity: 0.10; stroke: var(--turq); }
+.wind.w3 { animation-duration: 12.5s; animation-delay: -1.5s; opacity: 0.15; }
+.wind.w4 { animation-duration: 16s;   animation-delay: -9s;   opacity: 0.09; stroke: var(--turq); }
+.wind.w5 { animation-duration: 13.5s; animation-delay: -5s;   opacity: 0.13; }
+.wind.w6 { animation-duration: 17s;   animation-delay: -8s;   opacity: 0.08; }
+@keyframes windflow {
+  from { stroke-dashoffset: 684; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max);
+  margin: 0 auto;
+}
+
+.hero-title { max-width: 13ch; }
+
+.hero-cta {
+  display: flex;
+  align-items: center;
+  gap: 1.9rem;
+  margin-top: 2.6rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  text-decoration: none;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  padding: 0.95em 1.75em;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.25s ease;
+}
+.btn-signal {
+  background: var(--grad);
+  color: var(--white);
+  box-shadow: 0 1px 2px rgba(7,48,54,.15), 0 14px 30px -12px rgba(30,144,232,.55);
+}
+.btn-signal::after {                       /* shine sweep */
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -70%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
+  transform: skewX(-18deg);
+  transition: left 0.55s ease;
+}
+.btn-signal:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(7,48,54,.15), 0 20px 40px -14px rgba(30,144,232,.62); }
+.btn-signal:hover::after { left: 130%; }
+.btn-signal svg { transition: transform 0.2s ease; }
+.btn-signal:hover svg { transform: translateX(4px); }
+.btn-small { font-size: 0.88rem; padding: 0.82em 1.5em; }
+
+.btn-ghost {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.9em 1.5em;
+  border-radius: 999px;
+  border: 1px solid var(--glass-brd);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), var(--shadow-1);
+  transition: border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+.btn-ghost:hover { border-color: rgba(30,144,232,0.45); transform: translateY(-1px); color: var(--azure); }
+
+.hero-proof {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85em;
+  margin-top: 2.5rem;
+  padding: 0.78em 1.25em;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), var(--shadow-1);
+  text-decoration: none;
+  color: var(--ink-80);
+  font-size: 0.88rem;
+  font-weight: 480;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.hero-proof strong { color: var(--ink); font-weight: 700; }
+.hero-proof:hover { border-color: rgba(11,181,166,0.5); transform: translateY(-1px); }
+
+.live-dot {
+  flex: none;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--turq);
+  box-shadow: 0 0 0 4px rgba(11, 181, 166, 0.16);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Floating instrument chips — beach ambience, no product claims */
+.instruments {
+  position: absolute;
+  z-index: 1;
+  right: clamp(2rem, 6vw, 7rem);
+  top: 24%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1.1rem;
+  pointer-events: none;
+}
+.instrument {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8em;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-62);
+  padding: 0.72em 1.15em;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), var(--shadow-1);
+  animation: bob 8s ease-in-out infinite;
+}
+.instrument strong { color: var(--ink); font-weight: 600; }
+.instrument svg { flex: none; display: block; }
+.instrument:nth-child(1) { animation-duration: 7.5s; }
+.instrument:nth-child(2) { animation-duration: 9s;   animation-delay: -3s; margin-right: 2.6rem; }
+.instrument:nth-child(3) { animation-duration: 8.2s; animation-delay: -5.5s; margin-right: 0.9rem; }
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+@media (max-width: 1180px) { .instruments { display: none; } }
+
+.hero-coords {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.6rem;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  color: var(--ink-35);
+  writing-mode: vertical-rl;
+}
+@media (max-width: 900px) { .hero-coords { display: none; } }
+
+/* ───────────────────────────── MARQUEE ────────────────────────────────── */
+
+.marquee {
+  position: relative;
+  background: var(--white);
+  overflow: hidden;
+  padding: 1.1rem 0;
+}
+.marquee::before, .marquee::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(96deg, rgba(11,181,166,.45), rgba(30,144,232,.45), rgba(11,181,166,.12));
+}
+.marquee::before { top: 0; }
+.marquee::after { bottom: 0; }
+
+.marquee-inner {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+.marquee-group { display: flex; align-items: center; flex: none; }
+.marquee-group span {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-62);
+  white-space: nowrap;
+  padding: 0 1.4em;
+}
+.marquee-group i {
+  font-style: normal;
+  font-size: 0.5em;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee:hover .marquee-inner { animation-play-state: paused; }
+
+/* ───────────────────────────── CHAPTER ────────────────────────────────── */
+
+.chapter { padding: var(--chapter-gap) var(--page-pad); }
+.chapter-tint {
+  background: var(--aqua);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+.chapter-head { max-width: var(--max); margin: 0 auto; }
+
+/* ───────────────────────────── PROBLEM ────────────────────────────────── */
+
+.problem-grid {
+  max-width: var(--max);
+  margin: 3.4rem auto 0;
+  display: grid;
+  grid-template-columns: 1.12fr 1fr;
+  gap: clamp(1.8rem, 4.5vw, 4.5rem);
+  align-items: start;
+}
+
+.junk-title {
+  font-weight: 650;
+  font-size: 1.08rem;
+  margin: 0 0 1.4rem;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.junk-list { list-style: none; padding: 0; margin: 0; }
+.junk-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9em;
+  padding: 0.95em 0;
+  border-top: 1px solid var(--line);
+  font-size: 1.02rem;
+}
+.junk-list li:last-child { border-bottom: 1px solid var(--line); }
+.junk-list i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.82em;
+  color: var(--ink-48);
+  flex: none;
+}
+.junk-list s {
+  color: var(--ink-62);
+  text-decoration-color: rgba(7, 48, 54, 0.28);
+  text-decoration-thickness: 1.5px;
+}
+
+/* Deep-water answer panel — the one dark object on a light page */
+.surface-panel {
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 85% -10%, rgba(11,181,166,0.22), transparent 55%),
+    radial-gradient(100% 80% at -10% 110%, rgba(30,144,232,0.16), transparent 55%),
+    linear-gradient(158deg, #0A424C 0%, #072F35 58%, #093A44 100%);
+  color: #EAF7F7;
+  padding: clamp(1.9rem, 3.2vw, 2.9rem);
+  border-radius: var(--r-card);
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), var(--shadow-2);
+  overflow: hidden;
+}
+.surface-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 0;
+  color: var(--white);
+}
+.surface-copy {
+  margin: 1.15rem 0 0;
+  line-height: 1.7;
+  color: rgba(234, 247, 247, 0.82);
+  font-size: 0.98rem;
+}
+.surface-list { list-style: none; padding: 0; margin: 1.5rem 0 1.9rem; }
+.surface-list li {
+  padding: 0.6em 0;
+  font-weight: 600;
+  font-size: 0.98rem;
+  border-top: 1px solid rgba(234, 247, 247, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+.surface-list li::before {
+  content: "✓";
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: linear-gradient(96deg, #35D6C8, #5FB4F5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (max-width: 880px) {
+  .problem-grid { grid-template-columns: 1fr; }
+}
+
+/* ───────────────────────────── PRODUCT ────────────────────────────────── */
+
+.product-float {
+  max-width: var(--max);
+  margin: 3.6rem auto 0;
+  perspective: 1500px;
+  position: relative;
+}
+.product-float::after {                    /* water shadow beneath the frame */
+  content: "";
+  position: absolute;
+  left: 8%; right: 8%;
+  bottom: -34px;
+  height: 60px;
+  background: radial-gradient(50% 100% at 50% 0%, rgba(30,144,232,0.16), transparent 70%);
+  filter: blur(10px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.product-frame {
+  border-radius: 18px;
+  background: var(--white);
+  border: 1px solid var(--glass-brd);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), var(--shadow-2);
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.product-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.7rem 1.1rem;
+  background: rgba(247, 252, 252, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--hairline);
+}
+.product-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(7,48,54,0.12); }
+.product-dot:nth-child(2) { background: rgba(11,181,166,0.35); }
+.product-dot:nth-child(3) { background: rgba(30,144,232,0.35); }
+.product-url {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-48);
+  letter-spacing: 0.02em;
+}
+
+.product-body {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  min-height: 540px;
+}
+.prod-side {
+  padding: 1.5rem 1.2rem;
+  border-right: 1px solid var(--hairline);
+  background: var(--aqua);
+  display: flex;
+  flex-direction: column;
+}
+.prod-brand {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 2rem;
+  color: var(--ink);
+}
+.prod-brand-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--grad);
+  display: inline-block;
+}
+.prod-side ul {
+  list-style: none;
+  padding: 0; margin: 0;
+  font-size: 0.87rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+.prod-side li {
+  padding: 0.52em 0.75em;
+  color: var(--ink-62);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  cursor: default;
+  font-weight: 480;
+}
+.prod-side li.is-active {
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 650;
+  box-shadow: 0 1px 2px rgba(7,48,54,.06), 0 4px 12px -6px rgba(7,48,54,.12);
+}
+.prod-tick { width: 5px; height: 5px; border-radius: 50%; background: var(--grad); }
+.prod-side-foot {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--ink-35);
+  letter-spacing: 0.1em;
+  padding-top: 1.5rem;
+}
+
+.prod-main {
+  padding: 1.7rem 1.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  background:
+    radial-gradient(90% 60% at 100% 0%, rgba(11,181,166,0.05), transparent 60%),
+    var(--white);
+}
+.prod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.prod-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-35);
+  margin: 0;
+}
+.prod-header h4 {
+  font-family: var(--display);
+  font-weight: 650;
+  font-size: 1.45rem;
+  margin: 0.25em 0 0;
+  letter-spacing: -0.02em;
+}
+.prod-stats { display: flex; gap: 2.1rem; }
+.prod-stats > div { text-align: right; }
+.prod-stats span {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.42rem;
+  display: block;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.prod-stats label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--ink-35);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 0.5em;
+  display: block;
+}
+
+/* Calendar */
+.prod-calendar {
+  background: var(--aqua);
+  border-radius: 14px;
+  padding: 1.2rem 1rem;
+  border: 1px solid var(--hairline);
+}
+.prod-cal-hours {
+  display: grid;
+  grid-template-columns: 96px repeat(9, 1fr);
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--ink-35);
+  letter-spacing: 0.08em;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px dashed var(--line);
+}
+.prod-cal-hours span { padding-left: 0.3em; }
+.prod-cal-rows { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
+.prod-cal-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  height: 34px;
+}
+.prod-cal-name { font-size: 0.8rem; color: var(--ink-62); font-weight: 550; }
+.prod-cal-track { position: relative; height: 100%; }
+.prod-lesson {
+  position: absolute;
+  top: 3px; bottom: 3px;
+  border-radius: 8px;
+  padding: 0 0.8em;
+  display: flex; align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.prod-lesson:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -8px rgba(7,48,54,.3); }
+.prod-lesson span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prod-lesson.a { background: #D5F3EF; color: #06655C; }
+.prod-lesson.b { background: #DBEDFC; color: #0E5CA0; }
+.prod-lesson.c { background: #F2ECDC; color: #6E5B27; }
+
+/* Revenue row */
+.prod-revenue {
+  border-top: 1px solid var(--hairline);
+  padding-top: 1.4rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+.prod-revenue h5 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 2.15rem;
+  letter-spacing: -0.025em;
+  margin: 0.2em 0 0;
+}
+.prod-delta {
+  margin: 0.35em 0 0;
+  font-size: 0.75rem;
+  color: var(--turq);
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+.prod-spark { width: 100%; height: 78px; }
+.prod-spark .spark-line { fill: none; stroke: url(#sparkStroke); stroke-width: 2.2; stroke-linecap: round; }
+.prod-spark .spark-area { fill: url(#sparkFill); }
+.prod-spark .spark-dot  { fill: var(--azure); }
+
+@media (max-width: 820px) {
+  .product-body { grid-template-columns: 1fr; min-height: 0; }
+  .prod-side { display: none; }
+  .prod-header { align-items: flex-start; flex-direction: column; gap: 1.4rem; }
+  .prod-stats { width: 100%; justify-content: space-between; gap: 1rem; }
+  .prod-stats > div { text-align: left; }
+}
+
+.product-caption {
+  max-width: var(--max);
+  margin: 2.6rem auto 0;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-35);
+  text-align: center;
+}
+
+/* ───────────────────────────── BENTO ──────────────────────────────────── */
+
+.bento {
+  list-style: none;
+  padding: 0;
+  max-width: var(--max);
+  margin: 3.4rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+}
+.tile {
+  grid-column: span 2;
+  position: relative;
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-brd);
+  border-radius: var(--r-card);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), var(--shadow-1);
+  padding: 1.7rem 1.7rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.tile::before {                            /* gradient hairline, revealed on hover */
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--grad);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tile:hover {
+  transform: translateY(-3px);
+  border-color: rgba(30,144,232,0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 4px rgba(7,48,54,.05), 0 24px 48px -24px rgba(7,48,54,.25);
+}
+.tile:hover::before { transform: scaleX(1); }
+
+.tile-lg { grid-column: span 3; }
+
+.feat-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-48);
+  margin-bottom: 1.05rem;
+}
+.tile h3 {
+  font-family: var(--display);
+  font-weight: 650;
+  font-size: 1.24rem;
+  line-height: 1.15;
+  margin: 0 0 0.45em;
+  letter-spacing: -0.018em;
+}
+.tile p {
+  margin: 0;
+  color: var(--ink-62);
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+
+/* Bookings tile — mini schedule art */
+.mini-cal {
+  margin-top: auto;
+  padding-top: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mc-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; }
+.mc-name {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-35);
+  text-transform: uppercase;
+}
+.mc-track { position: relative; height: 14px; border-radius: 7px; background: rgba(7,48,54,0.045); }
+.mc-track i {
+  position: absolute;
+  top: 2px; bottom: 2px;
+  border-radius: 5px;
+}
+.mc-track i.a { background: rgba(11,181,166,0.5); }
+.mc-track i.b { background: rgba(30,144,232,0.42); }
+.mc-track i.c { background: rgba(7,48,54,0.16); }
+
+/* Money tile — sparkline art */
+.tile-spark { width: 100%; height: 74px; margin-top: auto; padding-top: 1rem; }
+.tile-spark-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-35);
+  margin: 0.55rem 0 0 !important;
+}
+
+/* Brand tile — subdomain pill art */
+.brand-pill {
+  margin-top: auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-62);
+  padding: 0.65em 1.1em;
+  border-radius: 999px;
+  border: 1px solid var(--glass-brd);
+  background: var(--white);
+  box-shadow: var(--shadow-1);
+}
+.brand-pill::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--grad);
+}
+.brand-pill em { font-style: normal; color: var(--ink); font-weight: 600; }
+
+/* Live proof tile — the only bento tile that links out */
+.tile-live {
+  text-decoration: none;
+  color: inherit;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(11,181,166,0.10), transparent 55%),
+    var(--glass);
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--turq);
+  margin-bottom: 1.05rem;
+}
+.tile-link {
+  margin-top: auto;
+  padding-top: 1.2rem;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--azure);
+}
+
+@media (max-width: 980px) {
+  .tile { grid-column: span 3; }
+  .tile-lg { grid-column: span 6; }
+}
+@media (max-width: 640px) {
+  .tile, .tile-lg { grid-column: span 6; }
+}
+
+/* ── Creed strip ── */
+.creed {
+  max-width: var(--max);
+  margin: 4.2rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.6rem, 3vw, 3rem);
+}
+.creed-item h3 {
+  font-family: var(--display);
+  font-weight: 680;
+  font-size: 1.28rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.55em;
+  padding-top: 1rem;
+  position: relative;
+}
+.creed-item h3::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 42px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--grad);
+}
+.creed-item p { margin: 0; color: var(--ink-62); font-size: 0.95rem; line-height: 1.68; }
+@media (max-width: 860px) { .creed { grid-template-columns: 1fr; gap: 2rem; } }
+
+/* ───────────────────────────── PROOF ──────────────────────────────────── */
+
+.cust-strip {
+  max-width: var(--max);
+  margin: 3.4rem auto 0;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: clamp(1.2rem, 2.5vw, 2rem);
+  align-items: stretch;
+}
+.cust {
+  position: relative;
+  padding: clamp(1.9rem, 3vw, 2.7rem);
+  border-radius: var(--r-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.cust.is-live {
+  background: linear-gradient(var(--white), var(--white)) padding-box,
+              var(--grad) border-box;
+  border: 1.5px solid transparent;
+  box-shadow: var(--shadow-2);
+}
+.cust.is-live:hover { transform: translateY(-4px); }
+
+.cust-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--turq);
+  margin-bottom: 0.6rem;
+}
+.cust-live-badge.is-open { color: var(--ink-35); }
+
+.cust-mark {
+  font-family: var(--display);
+  font-weight: 750;
+  font-size: clamp(2.1rem, 4vw, 3.3rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.cust-mark .cust-dot {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cust-mark.mono {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+  letter-spacing: 0;
+  color: var(--ink-62);
+}
+.cust-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-62);
+  text-transform: uppercase;
+  line-height: 1.8;
+}
+.cust-link {
+  margin-top: auto;
+  padding-top: 1.3em;
+  font-weight: 650;
+  font-size: 0.92rem;
+  color: var(--azure);
+}
+
+/* Invitation card — visibly an open slot, never mistakable for a customer */
+.cust.cust-invite {
+  border: 1.5px dashed rgba(7, 48, 54, 0.28);
+  background: transparent;
+}
+.cust.cust-invite:hover {
+  border-color: rgba(30, 144, 232, 0.55);
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateY(-4px);
+}
+.cust.cust-invite .cust-link { color: var(--ink-62); }
+.cust.cust-invite:hover .cust-link { color: var(--azure); }
+
+@media (max-width: 720px) { .cust-strip { grid-template-columns: 1fr; } }
+
+/* ───────────────────────────── PROMISE ────────────────────────────────── */
+
+.promise-band {
+  position: relative;
+  overflow: clip;
+  padding: clamp(5.5rem, 14vh, 10rem) var(--page-pad);
+  background: linear-gradient(180deg, #F3FBFB 0%, #EBF6FA 100%);
+  text-align: center;
+}
+.promise-band::before, .promise-band::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(96deg, rgba(11,181,166,.5), rgba(30,144,232,.5), rgba(11,181,166,.15));
+  z-index: 2;
+}
+.promise-band::before { top: 0; }
+.promise-band::after { bottom: 0; }
+
+.promise-band .caustics {
+  opacity: 0.45;
+  -webkit-mask-image: radial-gradient(95% 95% at 50% 45%, #000 30%, transparent 80%);
+  mask-image: radial-gradient(95% 95% at 50% 45%, #000 30%, transparent 80%);
+}
+
+/* the guarantee, served on glass */
+.promise-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: clamp(2.6rem, 6vw, 4.5rem) clamp(1.4rem, 5vw, 4.5rem);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 2px 4px rgba(7,48,54,.04), 0 40px 80px -40px rgba(7,48,54,.25);
+}
+.promise-inner .kicker { justify-content: center; }
+.promise-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 5.8vw, 4.6rem);
+  line-height: 1.04;
+  letter-spacing: -0.032em;
+  margin: 0;
+  text-wrap: balance;
+}
+.promise-inner .body-copy {
+  margin-inline: auto;
+  font-size: 1.1rem;
+}
+
+.promise-chips {
+  list-style: none;
+  padding: 0;
+  margin: 2.4rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  justify-content: center;
+}
+.promise-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.75em 1.4em;
+  border-radius: 999px;
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), var(--shadow-1);
+}
+.promise-chips li::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--grad);
+  flex: none;
+}
+
+/* ───────────────────────────── CLOSER / DEMO ──────────────────────────── */
+
+.closer {
+  position: relative;
+  overflow: clip;
+  padding: var(--chapter-gap) var(--page-pad) clamp(5rem, 11vh, 8rem);
+  background: linear-gradient(180deg, var(--white) 0%, var(--aqua) 100%);
+}
+.closer .caustics {
+  opacity: 0.24;
+  -webkit-mask-image: radial-gradient(110% 90% at 85% 100%, #000 20%, transparent 72%);
+  mask-image: radial-gradient(110% 90% at 85% 100%, #000 20%, transparent 72%);
+}
+
+.closer-inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max);
+  margin: 0 auto;
+}
+.closer-title { max-width: 12ch; }
+.closer .lede { max-width: 52ch; }
+
+.closer-form {
+  margin-top: 2.9rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.9rem;
+  align-items: end;
+  max-width: 860px;
+  padding: 1.4rem;
+  border-radius: var(--r-card);
+  background: var(--glass);
+  border: 1px solid var(--glass-brd);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), var(--shadow-1);
+}
+.closer-form label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-62);
+  text-transform: uppercase;
+}
+.closer-form input {
+  width: 100%;
+  margin-top: 0.55em;
+  padding: 0.92em 1.15em;
+  border: 1px solid var(--glass-brd);
+  border-radius: 13px;
+  background: var(--white);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 480;
+  color: var(--ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.closer-form input::placeholder { color: var(--ink-35); font-weight: 400; }
+.closer-form input:focus {
+  outline: none;
+  border-color: rgba(30, 144, 232, 0.65);
+  box-shadow: 0 0 0 3px rgba(30, 144, 232, 0.16);
+}
+.closer-form button { height: fit-content; }
+
+.closer-sent {
+  display: none;
+  margin: 0.4rem 0 0;
+  padding: 0.95rem 1.2rem;
+  border-radius: 13px;
+  background: rgba(11, 181, 166, 0.1);
+  border: 1px solid rgba(11, 181, 166, 0.3);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 550;
+  grid-column: 1 / -1;
+}
+.closer-form.is-sent .closer-sent { display: block; }
+.closer-form.is-sent label,
+.closer-form.is-sent button { opacity: 0.35; pointer-events: none; }
+
+.closer-note { margin-top: 1.5rem; font-size: 0.92rem; color: var(--ink-62); }
+.closer-note a {
+  color: var(--azure);
+  font-weight: 650;
+  text-decoration: none;
+  border-bottom: 1.5px solid rgba(30, 144, 232, 0.3);
+  transition: border-color 0.2s ease;
+}
+.closer-note a:hover { border-color: var(--azure); }
+
+@media (max-width: 680px) {
+  .closer-form { grid-template-columns: 1fr; }
+}
+
+/* ───────────────────────────── FOOTER ─────────────────────────────────── */
+
+footer {
+  border-top: 1px solid var(--hairline);
+  padding: 2.6rem var(--page-pad) 3rem;
+  background: var(--aqua);
+}
+.foot {
+  max-width: var(--max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-62);
+}
+.foot-left { display: inline-flex; align-items: center; gap: 0.7em; }
+.foot-nav { display: flex; gap: 1.6em; flex-wrap: wrap; justify-content: center; }
+.foot-nav a { color: var(--ink-62); text-decoration: none; transition: color 0.2s ease; }
+.foot-nav a:hover { color: var(--azure); }
+.foot-mono {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-align: right;
+  margin: 0;
+  color: var(--ink-35);
+}
+@media (max-width: 820px) {
+  .foot { grid-template-columns: 1fr; text-align: left; gap: 1.25rem; }
+  .foot-nav { justify-content: flex-start; }
+  .foot-mono { text-align: left; }
+}
+
+/* ───────────────────────────── REVEAL ─────────────────────────────────── */
+
+.js-ready .reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms);
+  will-change: opacity, transform;
+}
+.js-ready .reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .wind { animation: none !important; stroke-dasharray: none; opacity: 0.06; }
+  .marquee-inner { animation: none !important; }
+  .live-dot { animation: none !important; }
+  .instrument { animation: none !important; }
+  .caustics { opacity: 0.18; }
+  .btn-signal::after { display: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* ───────────────────────────── FOCUS ──────────────────────────────────── */
+
+:focus-visible {
+  outline: 3px solid var(--azure);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection { background: rgba(11, 181, 166, 0.22); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- Shared SVG defs: caustic light filter + sparkline gradients -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="fCaustics" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.016" numOctaves="2" seed="11" result="n">
+        <animate attributeName="baseFrequency" dur="30s"
+                 values="0.010 0.016;0.012 0.018;0.010 0.016" repeatCount="indefinite"/>
+      </feTurbulence>
+      <!-- thin bright webbing along turbulence ridges -->
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 -26 0 3.0" result="web"/>
+      <feFlood flood-color="#79D2DE" result="c1"/>
+      <feComposite in="c1" in2="web" operator="in" result="webc"/>
+      <feGaussianBlur in="webc" stdDeviation="0.6" result="webb"/>
+      <!-- soft light pools -->
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -16 0 0 0 2.0" result="pool"/>
+      <feFlood flood-color="#C6EAF3" result="c2"/>
+      <feComposite in="c2" in2="pool" operator="in" result="poolc"/>
+      <feGaussianBlur in="poolc" stdDeviation="12" result="poolb"/>
+      <feMerge>
+        <feMergeNode in="poolb"/>
+        <feMergeNode in="webb"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="sparkStroke" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0BB5A6"/>
+      <stop offset="1" stop-color="#1E90E8"/>
+    </linearGradient>
+    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E90E8" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#1E90E8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0BB5A6"/>
+      <stop offset="1" stop-color="#1E90E8"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<header class="masthead">
+  <a href="#" class="mark" aria-label="Plannivo home">
+    <svg class="mark-kite" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z" fill="url(#markGrad)"/></svg>
+    <span class="mark-word">Plannivo</span>
+  </a>
+  <nav class="nav" aria-label="Primary">
+    <a href="#problem">The problem</a>
+    <a href="#product">Product</a>
+    <a href="#proof">Proof</a>
+    <a href="#promise">The promise</a>
+    <a href="#demo" class="cta">Book a demo</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ────────────────────────────────  HERO  ────────────────────────────── -->
+  <section class="hero">
+    <svg class="caustics" aria-hidden="true" preserveAspectRatio="none">
+      <rect width="100%" height="100%" filter="url(#fCaustics)"/>
+    </svg>
+    <svg class="windfield" viewBox="0 0 1440 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path class="wind w1" d="M -60 90 C 260 40, 520 140, 800 95 S 1300 40, 1520 100"/>
+      <path class="wind w2" d="M -60 190 C 300 150, 560 230, 860 185 S 1320 140, 1520 200"/>
+      <path class="wind w3" d="M -60 300 C 240 260, 540 340, 820 295 S 1280 250, 1520 310"/>
+      <path class="wind w4" d="M -60 410 C 320 360, 580 450, 880 400 S 1340 360, 1520 420"/>
+      <path class="wind w5" d="M -60 510 C 260 470, 520 555, 800 505 S 1300 460, 1520 520"/>
+      <path class="wind w6" d="M -60 600 C 300 560, 560 640, 860 595 S 1320 555, 1520 610"/>
+    </svg>
+
+    <div class="hero-inner">
+      <p class="kicker reveal">
+        <span class="tag">Kite · Wing · Foil schools</span>
+        <span class="kicker-note">Built on a beach — Urla, TR</span>
+      </p>
+
+      <h1 class="mega hero-title">
+        <span class="line reveal">Spreadsheets</span>
+        <span class="line reveal" style="--d:90ms">don't survive</span>
+        <span class="line reveal" style="--d:180ms"><span class="grad">saltwater.</span></span>
+      </h1>
+
+      <p class="lede reveal" style="--d:300ms">
+        Plannivo runs an entire watersports academy — bookings, students,
+        payroll, rentals, repairs, the till — on one screen. Built inside a
+        Duotone pro center, not adapted from a yoga-studio tool. And we can
+        prove it: <strong>we run our own school on it, live, every day.</strong>
+      </p>
+
+      <div class="hero-cta reveal" style="--d:400ms">
+        <a href="#demo" class="btn btn-signal">
+          Book a 20-min demo
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="https://ukc.plannivo.com" target="_blank" rel="noopener" class="btn-ghost">Watch a real school run on it →</a>
+      </div>
+
+      <a class="hero-proof reveal" style="--d:500ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span><strong>ukc.plannivo.com</strong> is a real academy, live right now. Not a sandbox. Tap it.</span>
+      </a>
+    </div>
+
+    <div class="instruments" aria-hidden="true">
+      <span class="instrument">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 11 L11 2 M11 2 h-5 M11 2 v5" stroke="url(#markGrad)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        wind <strong>18 kn</strong> · NNW
+      </span>
+      <span class="instrument">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 5 C3 3.5, 5 3.5, 6.5 5 S10 6.5, 11.5 5 M1.5 9 C3 7.5, 5 7.5, 6.5 9 S10 10.5, 11.5 9" stroke="url(#markGrad)" stroke-width="1.5" stroke-linecap="round"/></svg>
+        gusts <strong>24 kn</strong>
+      </span>
+      <span class="instrument">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.6 C6.5 1.6 2.9 5.9 2.9 8.3 a3.6 3.6 0 0 0 7.2 0 C10.1 5.9 6.5 1.6 6.5 1.6 Z" stroke="url(#markGrad)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        water <strong>21°C</strong>
+      </span>
+    </div>
+
+    <p class="hero-coords" aria-hidden="true">N 38°22′ · URLA · WIND PERMITTING</p>
+  </section>
+
+
+  <!-- ────────────────────────────────  MARQUEE  ─────────────────────────── -->
+  <div class="marquee" aria-label="Everything Plannivo handles">
+    <div class="marquee-inner">
+      <div class="marquee-group">
+        <span>Bookings</span><i>◆</i><span>Calendar</span><i>◆</i><span>Students</span><i>◆</i><span>CRM</span><i>◆</i><span>Payroll</span><i>◆</i><span>Commissions</span><i>◆</i><span>Rentals</span><i>◆</i><span>Repairs</span><i>◆</i><span>Shop</span><i>◆</i><span>Memberships</span><i>◆</i><span>Packages</span><i>◆</i><span>Iyzico payments</span><i>◆</i><span>Waivers</span><i>◆</i><span>Multi-role access</span><i>◆</i><span>Unlimited updates</span><i>◆</i>
+      </div>
+      <div class="marquee-group" aria-hidden="true">
+        <span>Bookings</span><i>◆</i><span>Calendar</span><i>◆</i><span>Students</span><i>◆</i><span>CRM</span><i>◆</i><span>Payroll</span><i>◆</i><span>Commissions</span><i>◆</i><span>Rentals</span><i>◆</i><span>Repairs</span><i>◆</i><span>Shop</span><i>◆</i><span>Memberships</span><i>◆</i><span>Packages</span><i>◆</i><span>Iyzico payments</span><i>◆</i><span>Waivers</span><i>◆</i><span>Multi-role access</span><i>◆</i><span>Unlimited updates</span><i>◆</i>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────  THE PROBLEM  ─────────────────────────── -->
+  <section class="chapter" id="problem">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="tag">The stack you run today</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Your school is not<br>a <span class="is-signal">spreadsheet.</span></h2>
+    </div>
+
+    <div class="problem-grid">
+      <div class="junk reveal" style="--d:120ms">
+        <p class="junk-title">Be honest about what's holding your season together:</p>
+        <ul class="junk-list">
+          <li><i>✕</i><s>Six spreadsheets, one of them named FINAL_v2_REALLY</s></li>
+          <li><i>✕</i><s>A WhatsApp group doing the job of a booking system</s></li>
+          <li><i>✕</i><s>Two payment tools that don't talk to each other</s></li>
+          <li><i>✕</i><s>A ring binder of paper waivers</s></li>
+          <li><i>✕</i><s>A calendar app nobody actually trusts</s></li>
+          <li><i>✕</i><s>Payroll, reconstructed from memory, at midnight in October</s></li>
+        </ul>
+      </div>
+
+      <div class="surface-panel reveal" style="--d:220ms">
+        <p class="surface-title">One surface.</p>
+        <p class="surface-copy">
+          Every booking, every student, every euro — in one place that reads
+          the same for the founder, the instructors, and the student walking
+          up the beach.
+        </p>
+        <ul class="surface-list">
+          <li>One login</li>
+          <li>One URL</li>
+          <li>One line in your P&amp;L for software</li>
+        </ul>
+        <a href="#demo" class="btn btn-signal btn-small">Replace the stack</a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PRODUCT  ────────────────────────────── -->
+  <section class="chapter chapter-tint" id="product">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="tag">The product</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">This is the<br>whole <span class="is-signal">office.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        No dopamine hooks, no forty tabs. A calm screen you glance at between
+        lessons — and everything is already handled.
+      </p>
+    </div>
+
+    <div class="product-float reveal" style="--d:220ms">
+      <div class="product-frame" data-tilt>
+        <div class="product-top">
+          <span class="product-dot" aria-hidden="true"></span>
+          <span class="product-dot" aria-hidden="true"></span>
+          <span class="product-dot" aria-hidden="true"></span>
+          <span class="product-url">ukc.plannivo.com&nbsp;/&nbsp;dashboard</span>
+        </div>
+        <div class="product-body">
+
+          <nav class="prod-side" aria-hidden="true">
+            <div class="prod-brand"><span class="prod-brand-dot"></span>UKC.</div>
+            <ul>
+              <li class="is-active"><span class="prod-tick"></span>Dashboard</li>
+              <li>Calendar</li>
+              <li>Students</li>
+              <li>Instructors</li>
+              <li>Shop</li>
+              <li>Finance</li>
+              <li>Care</li>
+              <li>Marketing</li>
+            </ul>
+            <div class="prod-side-foot">v0.1.333 · live</div>
+          </nav>
+
+          <div class="prod-main">
+            <div class="prod-header">
+              <div>
+                <p class="prod-eyebrow">MONDAY · 14 APR</p>
+                <h4>Good morning, Oguz.</h4>
+              </div>
+              <div class="prod-stats">
+                <div><span>12</span><label>lessons today</label></div>
+                <div><span>€840</span><label>expected revenue</label></div>
+                <div><span>5</span><label>check-ins pending</label></div>
+              </div>
+            </div>
+
+            <div class="prod-calendar">
+              <div class="prod-cal-hours" aria-hidden="true">
+                <span></span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
+              </div>
+              <div class="prod-cal-rows">
+                <div class="prod-cal-row">
+                  <span class="prod-cal-name">Siyabend</span>
+                  <div class="prod-cal-track">
+                    <div class="prod-lesson a" style="left:12%; width:22%"><span>Kite L2 · Ayşe</span></div>
+                    <div class="prod-lesson b" style="left:46%; width:18%"><span>Wing L1 · Mert</span></div>
+                  </div>
+                </div>
+                <div class="prod-cal-row">
+                  <span class="prod-cal-name">Arda</span>
+                  <div class="prod-cal-track">
+                    <div class="prod-lesson c" style="left:2%; width:30%"><span>Supervision · group</span></div>
+                    <div class="prod-lesson a" style="left:58%; width:20%"><span>Kite L3 · Ali</span></div>
+                  </div>
+                </div>
+                <div class="prod-cal-row">
+                  <span class="prod-cal-name">Elif</span>
+                  <div class="prod-cal-track">
+                    <div class="prod-lesson b" style="left:22%; width:28%"><span>Foil L1 · Kemal</span></div>
+                  </div>
+                </div>
+                <div class="prod-cal-row">
+                  <span class="prod-cal-name">Malek</span>
+                  <div class="prod-cal-track">
+                    <div class="prod-lesson c" style="left:34%; width:36%"><span>Kite Camp · 4 riders</span></div>
+                  </div>
+                </div>
+                <div class="prod-cal-row">
+                  <span class="prod-cal-name">Ufuk</span>
+                  <div class="prod-cal-track">
+                    <div class="prod-lesson a" style="left:14%; width:18%"><span>Kite L2</span></div>
+                    <div class="prod-lesson b" style="left:40%; width:24%"><span>Downwinder</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="prod-revenue">
+              <div>
+                <p class="prod-eyebrow">APRIL REVENUE</p>
+                <h5>€&nbsp;42,180</h5>
+                <p class="prod-delta">↗ 14% month on month</p>
+              </div>
+              <svg class="prod-spark" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden="true">
+                <path class="spark-area" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12 L400,80 L0,80 Z"/>
+                <path class="spark-line" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12"/>
+                <circle class="spark-dot" cx="400" cy="12" r="3.5"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="product-caption reveal" style="--d:280ms">Illustrative dashboard — a representative view, not live customer data.</p>
+  </section>
+
+
+  <!-- ─────────────────────────────  FEATURES · BENTO  ───────────────────── -->
+  <section class="chapter" id="platform">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="tag">What you get</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Everything a season<br><span class="is-signal">throws at you.</span></h2>
+    </div>
+
+    <ul class="bento">
+      <li class="tile tile-lg reveal">
+        <span class="feat-tag">Bookings</span>
+        <h3>The calendar that fights back</h3>
+        <p>Lessons, rentals, group matching, conflict detection, no-show windows — one canvas.</p>
+        <div class="mini-cal" aria-hidden="true">
+          <div class="mc-row"><span class="mc-name">Siyabend</span><div class="mc-track"><i class="a" style="left:8%;width:30%"></i><i class="b" style="left:52%;width:24%"></i></div></div>
+          <div class="mc-row"><span class="mc-name">Arda</span><div class="mc-track"><i class="c" style="left:2%;width:26%"></i><i class="a" style="left:56%;width:22%"></i></div></div>
+          <div class="mc-row"><span class="mc-name">Elif</span><div class="mc-track"><i class="b" style="left:24%;width:32%"></i></div></div>
+        </div>
+      </li>
+
+      <li class="tile tile-lg reveal" style="--d:60ms">
+        <span class="feat-tag">Money</span>
+        <h3>Payroll that computes itself</h3>
+        <p>Iyzico card payments, cash-at-centre, wallets, packages — and commissions done for you.</p>
+        <svg class="tile-spark" viewBox="0 0 320 74" preserveAspectRatio="none" aria-hidden="true">
+          <path fill="url(#sparkFill)" d="M0,58 L32,54 L64,46 L96,50 L128,38 L160,33 L192,24 L224,28 L256,17 L288,21 L320,11 L320,74 L0,74 Z"/>
+          <path fill="none" stroke="url(#sparkStroke)" stroke-width="2.2" stroke-linecap="round" d="M0,58 L32,54 L64,46 L96,50 L128,38 L160,33 L192,24 L224,28 L256,17 L288,21 L320,11"/>
+          <circle fill="#1E90E8" cx="320" cy="11" r="3.4"/>
+        </svg>
+        <p class="tile-spark-label">commission run · nightly · automatic</p>
+      </li>
+
+      <li class="tile reveal" style="--d:120ms">
+        <span class="feat-tag">Students</span>
+        <h3>A real CRM, not a contact list</h3>
+        <p>Progress logs, waivers, family groups, gear preferences — every rider, remembered.</p>
+      </li>
+
+      <li class="tile reveal" style="--d:180ms">
+        <span class="feat-tag">Instructors</span>
+        <h3>Trust, kept intact</h3>
+        <p>Availability, commissions, gear life, repair workflows. They see their cut — never your gross.</p>
+      </li>
+
+      <li class="tile reveal" style="--d:240ms">
+        <span class="feat-tag">Shop &amp; rentals</span>
+        <h3>Open in July, smart in January</h3>
+        <p>Products, memberships, walk-ins — with a direct-link mode for the closed season.</p>
+      </li>
+
+      <li class="tile tile-lg reveal" style="--d:300ms">
+        <span class="feat-tag">Your brand</span>
+        <h3>Your school, front and centre</h3>
+        <p>Your subdomain, your palette, your voice. Students see your academy — not our logo.</p>
+        <span class="brand-pill" aria-hidden="true"><em>yourschool</em>.plannivo.com</span>
+      </li>
+
+      <li style="display:contents">
+        <a class="tile tile-lg tile-live reveal" style="--d:360ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+          <span class="live-badge"><span class="live-dot" aria-hidden="true"></span>Live now</span>
+          <h3>Proven on a real beach</h3>
+          <p>Duotone Pro Center Urla runs on Plannivo since 2025 — every booking, every payslip, every day.</p>
+          <span class="tile-link">ukc.plannivo.com →</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="creed">
+      <div class="creed-item reveal">
+        <h3>It speaks kite.</h3>
+        <p>L1–L5, supervision, downwinders, e-foil. You will never explain your sport to your software again.</p>
+      </div>
+      <div class="creed-item reveal" style="--d:100ms">
+        <h3>It protects trust.</h3>
+        <p>Automatic payroll. Instructors see their schedule, their students, their commission — never the lesson gross.</p>
+      </div>
+      <div class="creed-item reveal" style="--d:200ms">
+        <h3>It follows the season.</h3>
+        <p>Direct-link mode for winter. Multi-instructor conflict detection for July. Same tool, different posture.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PROOF  ──────────────────────────────── -->
+  <section class="chapter chapter-tint" id="proof">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="tag">The proof</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">One customer.<br><span class="is-signal">On purpose.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        Every other tool greets you with a logo wall. We greet you with a
+        login. Duotone Pro Center Urla has run on Plannivo since 2025 —
+        every booking, every payslip, every repair, every day. It's not a
+        case study. It's live right now, and you can click it.
+      </p>
+    </div>
+
+    <div class="cust-strip">
+      <a class="cust is-live reveal" style="--d:220ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+        <span class="cust-live-badge"><span class="live-dot" aria-hidden="true"></span>Live now</span>
+        <span class="cust-mark">UKC<span class="cust-dot">.</span></span>
+        <span class="cust-label">Duotone Pro Center Urla · TR — kite · wing · foil · since 2025</span>
+        <span class="cust-link">ukc.plannivo.com →</span>
+      </a>
+      <a class="cust cust-invite reveal" style="--d:320ms" href="#demo">
+        <span class="cust-live-badge is-open">Open slot</span>
+        <span class="cust-mark mono">/your.center</span>
+        <span class="cust-label">An invitation, not a logo wall</span>
+        <span class="cust-link">become the second →</span>
+      </a>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PROMISE  ────────────────────────────── -->
+  <section class="promise-band" id="promise">
+    <svg class="caustics" aria-hidden="true" preserveAspectRatio="none">
+      <rect width="100%" height="100%" filter="url(#fCaustics)"/>
+    </svg>
+    <div class="promise-inner">
+      <p class="kicker reveal"><span class="tag">The promise</span></p>
+      <h2 class="promise-title reveal" style="--d:80ms">Don't like something?<br><span class="grad">We change it.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        Every Plannivo customer gets <strong>unlimited updates</strong> — no
+        tiers, no change-request fees, no "it's on the roadmap". If any part
+        of the platform doesn't fit the way your school runs, tell us and we
+        make it right for you. We crafted Plannivo around our own academy.
+        We'll craft it around yours.
+      </p>
+      <ul class="promise-chips reveal" style="--d:240ms">
+        <li>Unlimited updates</li>
+        <li>Standard for every customer</li>
+        <li>Built around your school</li>
+      </ul>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  DEMO  ───────────────────────────────── -->
+  <section class="closer" id="demo">
+    <svg class="caustics" aria-hidden="true" preserveAspectRatio="none">
+      <rect width="100%" height="100%" filter="url(#fCaustics)"/>
+    </svg>
+    <svg class="windfield" viewBox="0 0 1440 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path class="wind w2" d="M -60 190 C 300 150, 560 230, 860 185 S 1320 140, 1520 200"/>
+      <path class="wind w4" d="M -60 410 C 320 360, 580 450, 880 400 S 1340 360, 1520 420"/>
+      <path class="wind w6" d="M -60 600 C 300 560, 560 640, 860 595 S 1320 555, 1520 610"/>
+    </svg>
+
+    <div class="closer-inner">
+      <p class="kicker reveal"><span class="tag">Your move</span></p>
+      <h2 class="mega closer-title reveal" style="--d:60ms">
+        Be the<br><span class="grad">second.</span>
+      </h2>
+      <p class="lede reveal" style="--d:160ms">
+        UKC was first — the academy Plannivo was built inside. The next
+        subdomain is yours. We'll set it up by hand: your calendar, your
+        prices, your season. Twenty minutes, no credit card, no sales cadence.
+      </p>
+
+      <form id="demo-form" class="closer-form reveal" style="--d:260ms">
+        <label>
+          <span>Email</span>
+          <input type="email" placeholder="you@yourschool.com" required>
+        </label>
+        <label>
+          <span>Academy</span>
+          <input type="text" placeholder="Your center's name" required>
+        </label>
+        <button type="submit" class="btn btn-signal">
+          Request demo
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <p class="closer-sent">Your email app just opened with the request — hit send and we'll reply personally.</p>
+      </form>
+
+      <p class="closer-note reveal" style="--d:360ms">
+        Prefer email? <a href="mailto:hello@plannivo.com">hello@plannivo.com</a> — the founder answers.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <div class="foot-left">
+      <svg class="mark-kite" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z" fill="url(#markGrad)"/></svg>
+      <span>Plannivo · Urla, TR</span>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="#problem">The problem</a>
+      <a href="#product">Product</a>
+      <a href="#proof">Proof</a>
+      <a href="#promise">The promise</a>
+      <a href="mailto:hello@plannivo.com">hello@plannivo.com</a>
+    </nav>
+    <p class="foot-mono">© 2026 PLANNIVO · EST. 2025 · WIND PERMITTING</p>
+  </div>
+</footer>
+
+<script>
+/* Plannivo landing · seaglass — progressive enhancement only */
+(function () {
+  'use strict';
+
+  /* Gate animations — content visible without JS */
+  document.documentElement.classList.add('js-ready');
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Respect reduced motion for the SMIL caustic shimmer */
+  if (reduceMotion) {
+    document.querySelectorAll('svg animate').forEach(function (a) { a.remove(); });
+  }
+
+  /* ── Reveal on scroll ─────────────────────────────────────────────────── */
+  var revealObserver = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+  );
+  document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+
+  /* ── Product frame: gentle 3D tilt ────────────────────────────────────── */
+  var tiltWrap = document.querySelector('.product-float');
+  var tiltFrame = document.querySelector('[data-tilt]');
+  if (tiltWrap && tiltFrame && !reduceMotion && window.matchMedia('(pointer: fine)').matches) {
+    tiltWrap.addEventListener('pointermove', function (e) {
+      var r = tiltWrap.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - 0.5;
+      var y = (e.clientY - r.top) / r.height - 0.5;
+      tiltFrame.style.transform =
+        'rotateX(' + (-y * 3.4).toFixed(2) + 'deg) rotateY(' + (x * 4.2).toFixed(2) + 'deg)';
+    });
+    tiltWrap.addEventListener('pointerleave', function () {
+      tiltFrame.style.transform = '';
+    });
+  }
+
+  /* ── Demo form ────────────────────────────────────────────────────────── */
+  /* No backend yet — open the visitor's mail client with a pre-filled
+     request so the lead actually reaches hello@plannivo.com. Swap for a
+     real fetch() when a lead endpoint exists. */
+  var form = document.getElementById('demo-form');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"]');
+      var email = form.querySelector('input[type="email"]').value.trim();
+      var academy = form.querySelector('input[type="text"]').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = 'Opening…';
+
+      var subject = encodeURIComponent('Demo request — ' + academy);
+      var body = encodeURIComponent(
+        'Academy: ' + academy + '\n' +
+        'Contact: ' + email + '\n\n' +
+        "We'd like a 20-minute demo of Plannivo."
+      );
+      window.location.href =
+        'mailto:hello@plannivo.com?subject=' + subject + '&body=' + body;
+
+      form.closest('.closer-form').classList.add('is-sent');
+    });
+  }
+
+  /* ── Smooth scroll for anchor links ──────────────────────────────────── */
+  document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      var target = document.querySelector(link.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+})();
+</script>
+</body>
+</html>

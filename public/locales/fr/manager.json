@@ -177,7 +177,8 @@
     "totals": {
       "gross": "Revenus Bruts",
       "paid": "Payé",
-      "pending": "En Attente"
+      "pending": "En Attente",
+      "deducted": "déduit"
     },
     "status": {
       "paid": "Payé",

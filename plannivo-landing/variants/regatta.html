@@ -1,0 +1,1884 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#FFFFFF">
+<title>Plannivo — The kite school platform that runs a real kite school</title>
+<meta name="description" content="Bookings, students, payroll, rentals, repairs — one surface for kite, wing and foil schools. Built inside a Duotone pro center and proven live, every day, at ukc.plannivo.com.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Plannivo — Spreadsheets don't survive saltwater.">
+<meta property="og:description" content="One platform runs the whole watersports academy. We know it works — we run our own school on it, live, every day.">
+<meta property="og:url" content="https://plannivo.com/">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230B2C55'/%3E%3Cpolygon points='16,4 12,16 20,16' fill='%2300A8A8'/%3E%3Cpolygon points='16,28 12,16 20,16' fill='%23FFFFFF'/%3E%3C/svg%3E">
+
+<style>
+/* ==========================================================================
+   Plannivo — landing · variant "regatta"
+   Marine-instrument precision. White chart paper, deep navy, one teal.
+   Chivo (display/body) + JetBrains Mono (readouts, labels, everything numeric).
+   ========================================================================== */
+
+:root {
+  --paper:    #FFFFFF;
+  --chart:    #F3F8FA;                    /* chart-paper tint            */
+  --navy:     #0B2C55;                    /* hull navy — text, bands     */
+  --navy-80:  rgba(11, 44, 85, 0.80);
+  --navy-60:  rgba(11, 44, 85, 0.60);
+  --navy-40:  rgba(11, 44, 85, 0.40);
+  --navy-15:  rgba(11, 44, 85, 0.15);
+  --grid:     rgba(11, 44, 85, 0.055);    /* plotter grid hairlines      */
+  --line:     #D8E3EB;                    /* hairline borders            */
+  --teal:     #00A8A8;                    /* instrument teal — fills     */
+  --teal-ink: #007D7D;                    /* teal for text on white (AA) */
+  --teal-hi:  #2FBDBD;                    /* teal on navy                */
+  --teal-dim: rgba(0, 168, 168, 0.14);
+
+  --sans: "Chivo", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --page-pad:    clamp(1.25rem, 4vw, 4rem);
+  --chapter-gap: clamp(4.5rem, 11vh, 8.5rem);
+  --max:         1280px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--paper);
+  color: var(--navy);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Plotter grid — minor + major rules, like real chart paper */
+.gridbg {
+  background-image:
+    linear-gradient(rgba(11, 44, 85, 0.085) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 44, 85, 0.085) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 220px 220px, 220px 220px, 44px 44px, 44px 44px;
+}
+
+section[id] { scroll-margin-top: 70px; }
+
+/* ─────────────────────────────  TYPOGRAPHY  ───────────────────────────── */
+
+.mega {
+  font-weight: 800;
+  font-size: clamp(2.55rem, 7vw, 5.6rem);
+  line-height: 1.0;
+  letter-spacing: -0.028em;
+  margin: 0;
+  color: var(--navy);
+}
+.mega .line { display: block; }
+.is-signal { color: var(--teal-ink); }
+
+.h2 {
+  font-weight: 800;
+  font-size: clamp(1.95rem, 4.6vw, 3.6rem);
+  line-height: 1.04;
+  letter-spacing: -0.022em;
+  margin: 0;
+}
+
+/* Eyebrows read like waypoint labels on a plotter */
+.kicker {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--navy-60);
+  margin: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  flex-wrap: wrap;
+}
+.wpt {
+  color: var(--teal-ink);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9em;
+}
+.wpt::before {
+  content: "";
+  width: 26px;
+  height: 2px;
+  background: var(--teal);
+}
+.kicker-tag { color: var(--navy-80); font-weight: 700; }
+.kicker-note { color: var(--navy-40); }
+
+.lede {
+  font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+  line-height: 1.62;
+  font-weight: 400;
+  color: var(--navy-80);
+  max-width: 56ch;
+  margin: 2rem 0 0;
+}
+.lede strong { color: var(--navy); font-weight: 700; }
+
+.body-copy {
+  font-size: 1.03rem;
+  line-height: 1.75;
+  color: var(--navy-80);
+  max-width: 62ch;
+  margin: 1.5rem 0 0;
+}
+.body-copy strong { color: var(--navy); font-weight: 700; }
+
+/* Corner registration marks — plotter frame corners */
+.cornered { position: relative; }
+.cornered::before,
+.cornered::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.cornered::before {
+  top: -2px; left: -2px;
+  border-top: 2px solid var(--teal);
+  border-left: 2px solid var(--teal);
+}
+.cornered::after {
+  bottom: -2px; right: -2px;
+  border-bottom: 2px solid var(--teal);
+  border-right: 2px solid var(--teal);
+}
+
+/* ─────────────────────────────  HEADER  ───────────────────────────────── */
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.85rem var(--page-pad);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  text-decoration: none;
+  color: var(--navy);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-size: 1.12rem;
+}
+.mark svg { display: block; }
+
+.mast-readout {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  color: var(--navy-40);
+  margin: 0 auto 0 0.6rem;
+  padding-left: 1.4rem;
+  border-left: 1px solid var(--line);
+}
+@media (max-width: 900px) { .mast-readout { display: none; } }
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.7rem;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.nav a {
+  text-decoration: none;
+  color: var(--navy-60);
+  transition: color 0.2s ease;
+  padding: 0.3em 0;
+}
+.nav a:not(.cta):hover { color: var(--teal-ink); }
+.nav a.cta {
+  color: #fff;
+  background: var(--navy);
+  border: 2px solid var(--navy);
+  padding: 0.62em 1.25em;
+  font-weight: 700;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.nav a.cta:hover { background: var(--teal); color: var(--navy); border-color: var(--navy); }
+
+@media (max-width: 760px) {
+  .nav { gap: 1rem; }
+  .nav a:not(.cta) { display: none; }
+}
+
+/* ─────────────────────────────  HERO  ─────────────────────────────────── */
+
+.hero {
+  position: relative;
+  padding: clamp(3.5rem, 9vh, 6.5rem) var(--page-pad) 0;
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse 900px 480px at 88% -8%, rgba(0, 168, 168, 0.08), transparent 62%),
+    linear-gradient(rgba(11, 44, 85, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 44, 85, 0.07) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: auto, 220px 220px, 220px 220px, 44px 44px, 44px 44px;
+  overflow: hidden;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  padding-bottom: clamp(3rem, 7vh, 5rem);
+}
+
+.hero-title { max-width: 13ch; }
+
+.hero-cta {
+  display: flex;
+  align-items: center;
+  gap: 1.8rem;
+  margin-top: 2.6rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1.05em 1.7em;
+  cursor: pointer;
+  border: 2px solid var(--navy);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.btn-signal {
+  background: var(--teal);
+  color: var(--navy);
+}
+.btn-signal:hover {
+  background: var(--navy);
+  color: #fff;
+  transform: translateY(-2px);
+}
+.btn-signal svg { transition: transform 0.18s ease; }
+.btn-signal:hover svg { transform: translateX(4px); }
+.btn-small { font-size: 0.72rem; padding: 0.9em 1.4em; }
+
+.btn-ghost {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--navy);
+  border-bottom: 2px solid var(--navy-15);
+  padding-bottom: 0.25em;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.btn-ghost:hover { color: var(--teal-ink); border-color: var(--teal); }
+
+.hero-proof {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85em;
+  margin-top: 2.4rem;
+  padding: 0.85em 1.2em;
+  background: var(--chart);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--teal);
+  text-decoration: none;
+  color: var(--navy-80);
+  font-size: 0.88rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.hero-proof strong { color: var(--navy); font-weight: 700; }
+.hero-proof:hover { border-color: var(--teal); background: var(--paper); }
+
+/* Square LED, pulsing — instrument style, not a soft dot */
+.live-led {
+  flex: none;
+  width: 9px; height: 9px;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-dim);
+  animation: led 2.2s ease-in-out infinite;
+}
+@keyframes led {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* ── Signature: the wind-rose instrument cluster ── */
+
+.instrument {
+  justify-self: end;
+  width: min(100%, 420px);
+  border: 2px solid var(--navy);
+  background: rgba(255, 255, 255, 0.86);
+  padding: clamp(1.1rem, 2vw, 1.6rem);
+}
+.instrument-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--navy-60);
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--line);
+  gap: 1em;
+}
+.instrument-head .live-led { width: 7px; height: 7px; }
+.instrument-head b { color: var(--teal-ink); font-weight: 700; display: inline-flex; align-items: center; gap: 0.7em; }
+
+.rose-wrap { padding: 1.1rem 1.4rem 0.4rem; }
+.rose { display: block; width: 100%; height: auto; }
+
+.ring-outer { fill: none; stroke: var(--navy); stroke-width: 1; opacity: 0.3; }
+.ring-inner { fill: none; stroke: var(--navy); stroke-width: 1; opacity: 0.18; }
+.ring-ticks {
+  fill: none; stroke: var(--navy); opacity: 0.3;
+  stroke-width: 12; stroke-dasharray: 1.5 13.335; stroke-dashoffset: 0.75;
+}
+.ring-ticks-major {
+  fill: none; stroke: var(--navy); opacity: 0.55;
+  stroke-width: 20; stroke-dasharray: 2.6 86.4; stroke-dashoffset: 1.3;
+}
+.rose-card { transform-origin: 200px 200px; transform-box: view-box; }
+.js-ready .rose-card { animation: cardDrift 200s linear infinite; }
+@keyframes cardDrift { to { transform: rotate(360deg); } }
+
+.rose-star  { fill: var(--navy); opacity: 0.07; }
+.rose-star.minor { opacity: 0.045; }
+
+.cardinal {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--navy);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.cardinal.n { fill: var(--teal); }
+
+.lubber { fill: var(--teal); }
+
+.needle-settle {
+  transform-origin: 200px 200px; transform-box: view-box;
+  transform: rotate(-56deg);
+}
+.needle-wander { transform-origin: 200px 200px; transform-box: view-box; }
+.js-ready .needle-settle { animation: settle 2.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.js-ready .needle-wander { animation: wander 9s ease-in-out 2.6s infinite; }
+@keyframes settle {
+  0%   { transform: rotate(140deg); }
+  58%  { transform: rotate(-74deg); }
+  78%  { transform: rotate(-47deg); }
+  92%  { transform: rotate(-59deg); }
+  100% { transform: rotate(-56deg); }
+}
+@keyframes wander {
+  0%, 100% { transform: rotate(0deg); }
+  30%      { transform: rotate(-2.4deg); }
+  70%      { transform: rotate(2.2deg); }
+}
+.needle-n { fill: var(--teal); }
+.needle-s { fill: #C6D5E2; }
+.hub     { fill: var(--paper); stroke: var(--navy); stroke-width: 2; }
+.hub-dot { fill: var(--navy); }
+
+.readouts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid var(--line);
+  margin-top: 0.6rem;
+}
+.readouts > div {
+  padding: 0.95rem 0.4rem 0.2rem;
+  text-align: center;
+}
+.readouts > div + div { border-left: 1px solid var(--line); }
+.readouts label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--navy-40);
+  text-transform: uppercase;
+}
+.readouts b {
+  display: block;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.3rem, 2vw, 1.6rem);
+  font-weight: 700;
+  color: var(--teal-ink);
+  margin-top: 0.3em;
+  line-height: 1;
+}
+.readouts em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--navy-40);
+  letter-spacing: 0.1em;
+}
+.instrument-note {
+  margin: 1.1rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--navy-40);
+  text-align: center;
+}
+
+/* Hero baseline — a ruler with coordinates */
+.hero-ruler {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max);
+  margin: 0 auto;
+  border-top: 2px solid var(--navy);
+  background-image: repeating-linear-gradient(90deg, var(--navy-40) 0 1px, transparent 1px 22px);
+  background-size: 100% 9px;
+  background-repeat: no-repeat;
+  padding: 16px 0 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  color: var(--navy-40);
+  text-transform: uppercase;
+}
+
+@media (max-width: 980px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .instrument { justify-self: start; width: min(100%, 400px); }
+}
+
+/* ─────────────────────────────  MARQUEE  ──────────────────────────────── */
+
+.marquee {
+  background: var(--navy);
+  color: #E9F2F7;
+  overflow: hidden;
+  padding: 0.9rem 0;
+  border-top: 2px solid var(--teal);
+  border-bottom: 2px solid var(--teal);
+}
+.marquee-inner {
+  display: flex;
+  width: max-content;
+  animation: marquee 32s linear infinite;
+}
+.marquee-group { display: flex; align-items: center; flex: none; }
+.marquee-group span {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  padding: 0 1.3em;
+}
+.marquee-group i {
+  font-style: normal;
+  font-family: var(--mono);
+  color: var(--teal-hi);
+  font-size: 0.78em;
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee:hover .marquee-inner { animation-play-state: paused; }
+
+/* ─────────────────────────────  CHAPTER  ──────────────────────────────── */
+
+.chapter { padding: var(--chapter-gap) var(--page-pad); }
+.chapter-tint {
+  background-color: var(--chart);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.chapter-head { max-width: var(--max); margin: 0 auto; }
+
+/* ─────────────────────────────  PROBLEM  ──────────────────────────────── */
+
+.problem-grid {
+  max-width: var(--max);
+  margin: 3.2rem auto 0;
+  display: grid;
+  grid-template-columns: 1.12fr 1fr;
+  gap: clamp(1.5rem, 4vw, 4.5rem);
+  align-items: start;
+}
+
+.junk-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 0 0 1.4rem;
+  color: var(--navy);
+}
+.junk-list { list-style: none; padding: 0; margin: 0; }
+.junk-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 1em;
+  padding: 0.95em 0;
+  border-top: 1px solid var(--line);
+  font-size: 1.02rem;
+}
+.junk-list li:last-child { border-bottom: 1px solid var(--line); }
+.junk-list i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85em;
+  color: var(--navy-40);
+  flex: none;
+}
+.junk-list s {
+  color: var(--navy-60);
+  text-decoration-color: rgba(0, 168, 168, 0.65);
+  text-decoration-thickness: 2px;
+}
+
+.surface-panel {
+  background: var(--navy);
+  color: #E9F2F7;
+  border: 2px solid var(--navy);
+  padding: clamp(1.8rem, 3vw, 2.6rem);
+}
+.surface-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--teal-hi);
+  margin: 0 0 1rem;
+}
+.surface-title {
+  font-weight: 800;
+  font-size: clamp(1.7rem, 3vw, 2.3rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: #fff;
+}
+.surface-copy {
+  margin: 1.2rem 0 0;
+  line-height: 1.7;
+  color: rgba(233, 242, 247, 0.85);
+  font-size: 0.98rem;
+}
+.surface-list { list-style: none; padding: 0; margin: 1.6rem 0 2rem; }
+.surface-list li {
+  padding: 0.6em 0;
+  font-weight: 600;
+  border-top: 1px solid rgba(233, 242, 247, 0.16);
+  display: flex;
+  align-items: baseline;
+  gap: 0.9em;
+}
+.surface-list li::before {
+  content: "✓";
+  font-family: var(--mono);
+  color: var(--teal-hi);
+  font-weight: 700;
+  flex: none;
+}
+.surface-panel .btn-signal { border-color: var(--teal); }
+.surface-panel .btn-signal:hover { background: #fff; color: var(--navy); border-color: #fff; transform: translateY(-2px); }
+.surface-panel.cornered::before { border-color: var(--teal); top: 6px; left: 6px; }
+.surface-panel.cornered::after  { border-color: var(--teal); bottom: 6px; right: 6px; }
+
+@media (max-width: 880px) {
+  .problem-grid { grid-template-columns: 1fr; }
+}
+
+/* ─────────────────────────────  PRODUCT  ──────────────────────────────── */
+
+.product-frame {
+  max-width: var(--max);
+  margin: 3.2rem auto 0;
+  border: 2px solid var(--navy);
+  background: var(--paper);
+  overflow: hidden;
+}
+.product-top {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.7rem 1.1rem;
+  background: var(--navy);
+}
+.product-dot { width: 8px; height: 8px; background: rgba(233, 242, 247, 0.25); }
+.product-dot:nth-child(2) { background: rgba(233, 242, 247, 0.45); }
+.product-dot:nth-child(3) { background: var(--teal); }
+.product-url {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: rgba(233, 242, 247, 0.75);
+  letter-spacing: 0.04em;
+}
+
+.product-body {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  min-height: 540px;
+}
+.prod-side {
+  padding: 1.4rem 1.1rem;
+  border-right: 1px solid var(--line);
+  background: var(--chart);
+  display: flex;
+  flex-direction: column;
+}
+.prod-brand {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1.8rem;
+  color: var(--navy);
+}
+.prod-brand-dot { width: 8px; height: 8px; background: var(--teal); display: inline-block; }
+.prod-side ul {
+  list-style: none;
+  padding: 0; margin: 0;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+.prod-side li {
+  padding: 0.62em 0.8em;
+  color: var(--navy-60);
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  cursor: default;
+  border-left: 2px solid transparent;
+}
+.prod-side li.is-active {
+  background: var(--paper);
+  color: var(--navy);
+  font-weight: 700;
+  border-left: 2px solid var(--teal);
+}
+.prod-side-foot {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--navy-40);
+  letter-spacing: 0.12em;
+  padding-top: 1.5rem;
+  text-transform: uppercase;
+}
+
+.prod-main {
+  padding: 1.7rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.7rem;
+}
+.prod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.prod-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--navy-40);
+  margin: 0;
+  text-transform: uppercase;
+}
+.prod-header h4 {
+  font-weight: 700;
+  font-size: 1.4rem;
+  margin: 0.3em 0 0;
+  letter-spacing: -0.015em;
+}
+.prod-stats { display: flex; gap: 0; border: 1px solid var(--line); }
+.prod-stats > div { text-align: left; padding: 0.7em 1.1em; }
+.prod-stats > div + div { border-left: 1px solid var(--line); }
+.prod-stats b {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.25rem;
+  display: block;
+  line-height: 1;
+  color: var(--navy);
+}
+.prod-stats label {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  color: var(--navy-40);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-top: 0.55em;
+  display: block;
+}
+
+/* Calendar — tracks over an hour grid */
+.prod-calendar {
+  background: var(--chart);
+  padding: 1.2rem 1rem;
+  border: 1px solid var(--line);
+}
+.prod-cal-hours {
+  display: grid;
+  grid-template-columns: 96px repeat(9, 1fr);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--navy-40);
+  letter-spacing: 0.08em;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--line);
+}
+.prod-cal-hours span { padding-left: 0.3em; }
+.prod-cal-rows { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
+.prod-cal-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  height: 34px;
+}
+.prod-cal-name { font-size: 0.8rem; color: var(--navy-60); font-weight: 600; }
+.prod-cal-track {
+  position: relative;
+  height: 100%;
+  background-image: linear-gradient(90deg, rgba(11, 44, 85, 0.09) 0 1px, transparent 1px);
+  background-size: 11.111% 100%;
+}
+.prod-lesson {
+  position: absolute;
+  top: 3px; bottom: 3px;
+  padding: 0 0.75em;
+  display: flex; align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--navy);
+  overflow: hidden;
+  border-left: 3px solid;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.prod-lesson:hover { transform: translateY(-1px); box-shadow: 0 5px 12px -7px rgba(11, 44, 85, 0.4); }
+.prod-lesson span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prod-lesson.a { background: #D9F1F1; border-color: var(--teal); }
+.prod-lesson.b { background: #E1EAF5; border-color: #4A6FA0; }
+.prod-lesson.c { background: #EDF2F6; border-color: #94A9BF; }
+
+/* Revenue row */
+.prod-revenue {
+  border-top: 1px solid var(--line);
+  padding-top: 1.4rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+.prod-revenue h5 {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+  margin: 0.25em 0 0;
+}
+.prod-delta {
+  margin: 0.4em 0 0;
+  font-size: 0.72rem;
+  color: var(--teal-ink);
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.prod-spark { width: 100%; height: 80px; }
+.prod-spark .spark-line { fill: none; stroke: var(--teal); stroke-width: 2; }
+.prod-spark .spark-area { fill: var(--teal); opacity: 0.09; }
+.prod-spark .spark-dot  { fill: var(--navy); }
+
+@media (max-width: 820px) {
+  .product-body { grid-template-columns: 1fr; min-height: 0; }
+  .prod-side { display: none; }
+  .prod-header { align-items: flex-start; flex-direction: column; gap: 1.4rem; }
+  .prod-stats { width: 100%; }
+  .prod-stats > div { flex: 1; }
+}
+
+.product-caption {
+  max-width: var(--max);
+  margin: 1.1rem auto 0;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--navy-40);
+  text-align: center;
+}
+
+/* ─────────────────────────────  FEATURES  ─────────────────────────────── */
+
+.feature-grid {
+  list-style: none;
+  padding: 0;
+  max-width: var(--max);
+  margin: 3.2rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.feature-grid li {
+  background: var(--paper);
+  padding: 1.9rem 1.7rem 2.1rem;
+  position: relative;
+  transition: background 0.25s ease;
+}
+.feature-grid li:hover { background: var(--chart); }
+.feature-grid li::after {
+  content: "+";
+  position: absolute;
+  top: 0.9rem; right: 1.1rem;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--teal-ink);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.feature-grid li:hover::after { opacity: 1; transform: translateY(0); }
+.feat-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--teal-ink);
+  border: 1px solid rgba(0, 168, 168, 0.45);
+  padding: 4px 9px;
+  margin-bottom: 1.2rem;
+}
+.feature-grid h3 {
+  font-weight: 800;
+  font-size: 1.2rem;
+  line-height: 1.18;
+  margin: 0 0 0.5em;
+  letter-spacing: -0.015em;
+}
+.feature-grid p {
+  margin: 0;
+  color: var(--navy-60);
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+@media (max-width: 980px) { .feature-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .feature-grid { grid-template-columns: 1fr; } }
+
+/* ── Creed strip ── */
+.creed {
+  max-width: var(--max);
+  margin: 3.5rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.5rem, 3vw, 3rem);
+}
+.creed-item h3 {
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.6em;
+  padding-top: 0.9em;
+  border-top: 2px solid var(--teal);
+}
+.creed-item p {
+  margin: 0;
+  color: var(--navy-60);
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+@media (max-width: 860px) { .creed { grid-template-columns: 1fr; gap: 1.8rem; } }
+
+/* ─────────────────────────────  PROOF  ────────────────────────────────── */
+
+.cust-strip {
+  max-width: var(--max);
+  margin: 3.2rem auto 0;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: clamp(1.2rem, 2.5vw, 2rem);
+  align-items: stretch;
+}
+.cust {
+  padding: clamp(1.8rem, 3vw, 2.5rem);
+  background: var(--paper);
+  border: 2px solid var(--navy);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.cust.is-live:hover { transform: translateY(-3px); border-color: var(--teal); }
+
+.cust-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--teal-ink);
+  margin-bottom: 0.6rem;
+}
+.cust-live-badge.is-open { color: var(--navy-40); }
+
+.cust-mark {
+  font-weight: 800;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--navy);
+}
+.cust-mark.mono {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+  color: var(--navy-60);
+}
+.cust-dot { color: var(--teal-ink); }
+.cust-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--navy-60);
+  text-transform: uppercase;
+  line-height: 1.8;
+}
+.cust-link {
+  margin-top: auto;
+  padding-top: 1.2em;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--teal-ink);
+}
+
+/* Invitation card — visibly an open slot, never mistakable for a customer */
+.cust.cust-invite {
+  border: 2px dashed var(--navy-40);
+  background: transparent;
+}
+.cust.cust-invite:hover { border-color: var(--teal); background: var(--paper); }
+
+@media (max-width: 720px) { .cust-strip { grid-template-columns: 1fr; } }
+
+/* ─────────────────────────────  PROMISE  ──────────────────────────────── */
+/* The one deep band on the page — the promise reads like the main display. */
+
+.promise {
+  background:
+    linear-gradient(rgba(233, 242, 247, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(233, 242, 247, 0.05) 1px, transparent 1px),
+    var(--navy);
+  background-size: 44px 44px, 44px 44px, auto;
+  color: #E9F2F7;
+  padding: var(--chapter-gap) var(--page-pad);
+  border-top: 2px solid var(--teal);
+  border-bottom: 2px solid var(--teal);
+}
+.promise .kicker { color: rgba(233, 242, 247, 0.55); }
+.promise .wpt { color: var(--teal-hi); }
+.promise .wpt::before { background: var(--teal-hi); }
+.promise .h2 { color: #fff; }
+.promise .h2 .is-signal { color: var(--teal-hi); }
+.promise .body-copy { color: rgba(233, 242, 247, 0.82); }
+.promise .body-copy strong { color: #fff; }
+
+.promise-readouts {
+  max-width: var(--max);
+  margin: 3rem auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: rgba(233, 242, 247, 0.2);
+  border: 1px solid rgba(233, 242, 247, 0.2);
+}
+.promise-readouts > div {
+  background: var(--navy);
+  padding: 1.7rem 1.6rem 1.8rem;
+}
+.promise-readouts label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(233, 242, 247, 0.5);
+}
+.promise-readouts b {
+  display: block;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: clamp(2rem, 3.4vw, 2.8rem);
+  line-height: 1;
+  color: var(--teal-hi);
+  margin-top: 0.55em;
+}
+.promise-readouts p {
+  margin: 0.8em 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(233, 242, 247, 0.72);
+}
+@media (max-width: 860px) { .promise-readouts { grid-template-columns: 1fr; } }
+
+/* ─────────────────────────────  CLOSER / DEMO  ────────────────────────── */
+
+.closer {
+  position: relative;
+  overflow: hidden;
+  padding: var(--chapter-gap) var(--page-pad) clamp(4.5rem, 10vh, 7rem);
+  background-color: var(--paper);
+}
+
+/* Course plotted from WPT 01 to WPT 02 — draws in on scroll */
+.course {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.course-line {
+  fill: none;
+  stroke: var(--teal);
+  stroke-width: 2;
+  stroke-dasharray: 0.014 0.007;
+  opacity: 0.55;
+}
+.js-ready .reveal .course-line { stroke-dashoffset: 1.021; transition: stroke-dashoffset 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.4s; }
+.js-ready .reveal.is-visible .course-line { stroke-dashoffset: 0; }
+.course-wpt  { fill: var(--teal); }
+.course-wpt.open { fill: none; stroke: var(--navy-40); stroke-width: 2; stroke-dasharray: 3 3; }
+.course-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  fill: var(--navy-40);
+}
+@media (max-width: 900px) { .course { display: none; } }
+
+.closer-inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max);
+  margin: 0 auto;
+}
+.closer-title { max-width: 12ch; }
+.closer-title .outline { color: var(--teal-ink); }
+@supports (-webkit-text-stroke: 2px black) {
+  .closer-title .outline {
+    color: transparent;
+    -webkit-text-stroke: 2.5px var(--teal-ink);
+  }
+}
+.closer .lede { max-width: 52ch; }
+
+.closer-form {
+  margin-top: 3rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.9rem;
+  align-items: end;
+  max-width: 860px;
+}
+.closer-form label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--navy-60);
+  text-transform: uppercase;
+}
+.closer-form input {
+  width: 100%;
+  margin-top: 0.55em;
+  padding: 0.95em 1.1em;
+  border: 2px solid var(--navy);
+  border-radius: 0;
+  background: var(--paper);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--navy);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.closer-form input::placeholder { color: var(--navy-40); font-weight: 400; }
+.closer-form input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-dim);
+}
+.closer-form button { height: fit-content; }
+
+.closer-sent {
+  display: none;
+  margin: 1rem 0 0;
+  padding: 1rem 1.25rem;
+  background: var(--navy);
+  color: #E9F2F7;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-left: 3px solid var(--teal);
+  grid-column: 1 / -1;
+}
+.closer-form.is-sent .closer-sent { display: block; }
+.closer-form.is-sent label,
+.closer-form.is-sent button { opacity: 0.35; pointer-events: none; }
+
+.closer-note {
+  margin-top: 1.4rem;
+  font-size: 0.9rem;
+  color: var(--navy-60);
+}
+.closer-note a {
+  color: var(--teal-ink);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 2px solid rgba(0, 168, 168, 0.35);
+}
+.closer-note a:hover { border-color: var(--teal); }
+
+@media (max-width: 680px) {
+  .closer-form { grid-template-columns: 1fr; }
+}
+
+/* ─────────────────────────────  FOOTER  ───────────────────────────────── */
+
+footer {
+  border-top: 2px solid var(--navy);
+  padding: 2.4rem var(--page-pad) 2.8rem;
+  background: var(--chart);
+}
+.foot {
+  max-width: var(--max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--navy-60);
+}
+.foot-left { display: inline-flex; align-items: center; gap: 0.7em; }
+.foot-nav {
+  display: flex;
+  gap: 1.6em;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.foot-nav a { color: var(--navy-60); text-decoration: none; transition: color 0.2s ease; }
+.foot-nav a:hover { color: var(--teal-ink); }
+.foot-mono {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-align: right;
+  margin: 0;
+  color: var(--navy-40);
+}
+@media (max-width: 820px) {
+  .foot { grid-template-columns: 1fr; text-align: left; gap: 1.25rem; }
+  .foot-nav { justify-content: flex-start; }
+  .foot-mono { text-align: left; }
+}
+
+/* ─────────────────────────────  REVEAL  ───────────────────────────────── */
+
+.js-ready .reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms),
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms);
+  will-change: opacity, transform;
+}
+.js-ready .reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+/* Sparkline draws when its reveal parent becomes visible */
+.js-ready .reveal .drawline { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s; }
+.js-ready .reveal.is-visible .drawline { stroke-dashoffset: 0; }
+.js-ready .reveal .spark-dot { opacity: 0; transition: opacity 0.4s ease 1.9s; }
+.js-ready .reveal.is-visible .spark-dot { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .js-ready .needle-settle, .js-ready .needle-wander, .js-ready .rose-card { animation: none !important; }
+  .js-ready .reveal .drawline { stroke-dasharray: none; stroke-dashoffset: 0; transition: none; }
+  .js-ready .reveal .spark-dot { opacity: 1; transition: none; }
+  .js-ready .reveal .course-line { stroke-dashoffset: 0 !important; transition: none !important; }
+  .marquee-inner { animation: none !important; }
+  .live-led { animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ─────────────────────────────  FOCUS  ────────────────────────────────── */
+
+:focus-visible {
+  outline: 3px solid var(--teal-ink);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(0, 168, 168, 0.25);
+  color: var(--navy);
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <a href="#top" class="mark" aria-label="Plannivo home">
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10.5" fill="none" stroke="#0B2C55" stroke-width="2"/>
+      <polygon points="12,3.5 9.4,12 14.6,12" fill="#00A8A8"/>
+      <polygon points="12,20.5 9.4,12 14.6,12" fill="#C6D5E2"/>
+    </svg>
+    <span class="mark-word">Plannivo</span>
+  </a>
+  <p class="mast-readout" aria-hidden="true">N 38°22′ E 26°46′ · URLA</p>
+  <nav class="nav" aria-label="Primary">
+    <a href="#problem">The problem</a>
+    <a href="#product">Product</a>
+    <a href="#proof">Proof</a>
+    <a href="#demo" class="cta">Book a demo</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <!-- ────────────────────────────────  HERO  ────────────────────────────── -->
+  <section class="hero gridbg">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <p class="kicker reveal">
+          <span class="wpt">WPT 01</span>
+          <span class="kicker-tag">Kite · Wing · Foil schools</span>
+          <span class="kicker-note">Built on a beach — Urla, TR</span>
+        </p>
+
+        <h1 class="mega hero-title">
+          <span class="line reveal">Spreadsheets</span>
+          <span class="line reveal" style="--d:90ms">don't survive</span>
+          <span class="line is-signal reveal" style="--d:180ms">saltwater.</span>
+        </h1>
+
+        <p class="lede reveal" style="--d:300ms">
+          Plannivo runs an entire watersports academy — bookings, students,
+          payroll, rentals, repairs, the till — on one screen. Built inside a
+          Duotone pro center, not adapted from a yoga-studio tool. And we can
+          prove it: <strong>we run our own school on it, live, every day.</strong>
+        </p>
+
+        <div class="hero-cta reveal" style="--d:400ms">
+          <a href="#demo" class="btn btn-signal">
+            Book a 20-min demo
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+          </a>
+          <a href="https://ukc.plannivo.com" target="_blank" rel="noopener" class="btn-ghost">Watch a real school run on it →</a>
+        </div>
+
+        <a class="hero-proof reveal" style="--d:500ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+          <span class="live-led" aria-hidden="true"></span>
+          <span><strong>ukc.plannivo.com</strong> is a real academy, live right now. Not a sandbox. Tap it.</span>
+        </a>
+      </div>
+
+      <!-- Signature: the wind-rose instrument -->
+      <div class="instrument cornered reveal" style="--d:250ms" aria-hidden="true">
+        <div class="instrument-head">
+          <b><span class="live-led"></span>WIND INSTRUMENT</b>
+          <span>STN · URLA</span>
+        </div>
+        <div class="rose-wrap">
+          <svg class="rose" viewBox="0 0 400 400">
+            <circle class="ring-outer" cx="200" cy="200" r="192"/>
+            <circle class="ring-inner" cx="200" cy="200" r="118"/>
+            <circle class="ring-inner" cx="200" cy="200" r="58"/>
+            <g class="rose-card">
+              <circle class="ring-ticks" cx="200" cy="200" r="170"/>
+              <circle class="ring-ticks-major" cx="200" cy="200" r="170"/>
+            </g>
+            <polygon class="rose-star" points="200,90 214,186 310,200 214,214 200,310 186,214 90,200 186,186"/>
+            <polygon class="rose-star minor" transform="rotate(45 200 200)" points="200,130 210,190 270,200 210,210 200,270 190,210 130,200 190,190"/>
+            <text class="cardinal n" x="200" y="140">N</text>
+            <text class="cardinal" x="262" y="202">E</text>
+            <text class="cardinal" x="200" y="264">S</text>
+            <text class="cardinal" x="138" y="202">W</text>
+            <polygon class="lubber" points="200,2 193,12 207,12"/>
+            <g class="needle-settle">
+              <g class="needle-wander">
+                <polygon class="needle-n" points="200,54 189.5,200 210.5,200"/>
+                <polygon class="needle-s" points="200,346 189.5,200 210.5,200"/>
+                <circle class="hub" cx="200" cy="200" r="10"/>
+                <circle class="hub-dot" cx="200" cy="200" r="3.4"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div class="readouts">
+          <div>
+            <label>Wind</label>
+            <b data-count="18.4">18.4</b>
+            <em>kt</em>
+          </div>
+          <div>
+            <label>Gust</label>
+            <b data-count="24.1">24.1</b>
+            <em>kt</em>
+          </div>
+          <div>
+            <label>Dir</label>
+            <b>304°</b>
+            <em>NW</em>
+          </div>
+        </div>
+        <p class="instrument-note">Representative readout — your beach here</p>
+      </div>
+    </div>
+
+    <div class="hero-ruler" aria-hidden="true">
+      <span>N 38°22′ E 26°46′ · URLA</span>
+      <span>WIND PERMITTING</span>
+    </div>
+  </section>
+
+
+  <!-- ────────────────────────────────  MARQUEE  ─────────────────────────── -->
+  <div class="marquee" aria-label="Everything Plannivo handles">
+    <div class="marquee-inner">
+      <div class="marquee-group">
+        <span>Bookings</span><i>//</i><span>Calendar</span><i>//</i><span>Students</span><i>//</i><span>CRM</span><i>//</i><span>Payroll</span><i>//</i><span>Commissions</span><i>//</i><span>Rentals</span><i>//</i><span>Repairs</span><i>//</i><span>Shop</span><i>//</i><span>Memberships</span><i>//</i><span>Packages</span><i>//</i><span>Iyzico payments</span><i>//</i><span>Waivers</span><i>//</i><span>Multi-role access</span><i>//</i><span>Unlimited updates</span><i>//</i>
+      </div>
+      <div class="marquee-group" aria-hidden="true">
+        <span>Bookings</span><i>//</i><span>Calendar</span><i>//</i><span>Students</span><i>//</i><span>CRM</span><i>//</i><span>Payroll</span><i>//</i><span>Commissions</span><i>//</i><span>Rentals</span><i>//</i><span>Repairs</span><i>//</i><span>Shop</span><i>//</i><span>Memberships</span><i>//</i><span>Packages</span><i>//</i><span>Iyzico payments</span><i>//</i><span>Waivers</span><i>//</i><span>Multi-role access</span><i>//</i><span>Unlimited updates</span><i>//</i>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────  THE PROBLEM  ─────────────────────────── -->
+  <section class="chapter" id="problem">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="wpt">WPT 02</span><span>The stack you run today</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Your school is not<br>a <span class="is-signal">spreadsheet.</span></h2>
+    </div>
+
+    <div class="problem-grid">
+      <div class="junk reveal" style="--d:120ms">
+        <p class="junk-title">Be honest about what's holding your season together:</p>
+        <ul class="junk-list">
+          <li><i>✕</i><s>Six spreadsheets, one of them named FINAL_v2_REALLY</s></li>
+          <li><i>✕</i><s>A WhatsApp group doing the job of a booking system</s></li>
+          <li><i>✕</i><s>Two payment tools that don't talk to each other</s></li>
+          <li><i>✕</i><s>A ring binder of paper waivers</s></li>
+          <li><i>✕</i><s>A calendar app nobody actually trusts</s></li>
+          <li><i>✕</i><s>Payroll, reconstructed from memory, at midnight in October</s></li>
+        </ul>
+      </div>
+
+      <div class="surface-panel cornered reveal" style="--d:220ms">
+        <p class="surface-eyebrow">The replacement</p>
+        <p class="surface-title">One surface.</p>
+        <p class="surface-copy">
+          Every booking, every student, every euro — in one place that reads
+          the same for the founder, the instructors, and the student walking
+          up the beach.
+        </p>
+        <ul class="surface-list">
+          <li>One login</li>
+          <li>One URL</li>
+          <li>One line in your P&amp;L for software</li>
+        </ul>
+        <a href="#demo" class="btn btn-signal btn-small">Replace the stack</a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PRODUCT  ────────────────────────────── -->
+  <section class="chapter chapter-tint gridbg" id="product">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="wpt">WPT 03</span><span>The product</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">This is the<br>whole <span class="is-signal">office.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        No dopamine hooks, no forty tabs. A calm screen you glance at between
+        lessons — and everything is already handled.
+      </p>
+    </div>
+
+    <div class="product-frame reveal" style="--d:220ms">
+      <div class="product-top">
+        <span class="product-dot" aria-hidden="true"></span>
+        <span class="product-dot" aria-hidden="true"></span>
+        <span class="product-dot" aria-hidden="true"></span>
+        <span class="product-url">ukc.plannivo.com&nbsp;/&nbsp;dashboard</span>
+      </div>
+      <div class="product-body">
+
+        <nav class="prod-side" aria-hidden="true">
+          <div class="prod-brand"><span class="prod-brand-dot"></span>UKC.</div>
+          <ul>
+            <li class="is-active">Dashboard</li>
+            <li>Calendar</li>
+            <li>Students</li>
+            <li>Instructors</li>
+            <li>Shop</li>
+            <li>Finance</li>
+            <li>Care</li>
+            <li>Marketing</li>
+          </ul>
+          <div class="prod-side-foot">v0.1.333 · live</div>
+        </nav>
+
+        <div class="prod-main">
+          <div class="prod-header">
+            <div>
+              <p class="prod-eyebrow">MONDAY · 14 APR</p>
+              <h4>Good morning, Oguz.</h4>
+            </div>
+            <div class="prod-stats">
+              <div><b data-count="12">12</b><label>lessons today</label></div>
+              <div><b>€840</b><label>expected revenue</label></div>
+              <div><b data-count="5">5</b><label>check-ins pending</label></div>
+            </div>
+          </div>
+
+          <div class="prod-calendar">
+            <div class="prod-cal-hours" aria-hidden="true">
+              <span></span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
+            </div>
+            <div class="prod-cal-rows">
+              <div class="prod-cal-row">
+                <span class="prod-cal-name">Siyabend</span>
+                <div class="prod-cal-track">
+                  <div class="prod-lesson a" style="left:12%; width:22%"><span>Kite L2 · Ayşe</span></div>
+                  <div class="prod-lesson b" style="left:46%; width:18%"><span>Wing L1 · Mert</span></div>
+                </div>
+              </div>
+              <div class="prod-cal-row">
+                <span class="prod-cal-name">Arda</span>
+                <div class="prod-cal-track">
+                  <div class="prod-lesson c" style="left:2%; width:30%"><span>Supervision · group</span></div>
+                  <div class="prod-lesson a" style="left:58%; width:20%"><span>Kite L3 · Ali</span></div>
+                </div>
+              </div>
+              <div class="prod-cal-row">
+                <span class="prod-cal-name">Elif</span>
+                <div class="prod-cal-track">
+                  <div class="prod-lesson b" style="left:22%; width:28%"><span>Foil L1 · Kemal</span></div>
+                </div>
+              </div>
+              <div class="prod-cal-row">
+                <span class="prod-cal-name">Malek</span>
+                <div class="prod-cal-track">
+                  <div class="prod-lesson c" style="left:34%; width:36%"><span>Kite Camp · 4 riders</span></div>
+                </div>
+              </div>
+              <div class="prod-cal-row">
+                <span class="prod-cal-name">Ufuk</span>
+                <div class="prod-cal-track">
+                  <div class="prod-lesson a" style="left:14%; width:18%"><span>Kite L2</span></div>
+                  <div class="prod-lesson b" style="left:40%; width:24%"><span>Downwinder</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="prod-revenue">
+            <div>
+              <p class="prod-eyebrow">APRIL REVENUE</p>
+              <h5>€&nbsp;42,180</h5>
+              <p class="prod-delta">↗ 14% MONTH ON MONTH</p>
+            </div>
+            <svg class="prod-spark" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden="true">
+              <path class="spark-area" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12 L400,80 L0,80 Z"/>
+              <path class="spark-line drawline" pathLength="1" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12"/>
+              <circle class="spark-dot" cx="400" cy="12" r="3.5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="product-caption reveal" style="--d:280ms">Illustrative dashboard — a representative view, not live customer data.</p>
+  </section>
+
+
+  <!-- ─────────────────────────────  FEATURES  ───────────────────────────── -->
+  <section class="chapter" id="platform">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="wpt">WPT 04</span><span>What you get</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Everything a season<br><span class="is-signal">throws at you.</span></h2>
+    </div>
+
+    <ul class="feature-grid">
+      <li class="reveal">
+        <span class="feat-tag">Bookings</span>
+        <h3>The calendar that fights back</h3>
+        <p>Lessons, rentals, group matching, conflict detection, no-show windows — one canvas.</p>
+      </li>
+      <li class="reveal" style="--d:60ms">
+        <span class="feat-tag">Students</span>
+        <h3>A real CRM, not a contact list</h3>
+        <p>Progress logs, waivers, family groups, gear preferences — every rider, remembered.</p>
+      </li>
+      <li class="reveal" style="--d:120ms">
+        <span class="feat-tag">Money</span>
+        <h3>Payroll that computes itself</h3>
+        <p>Iyzico card payments, cash-at-centre, wallets, packages — and commissions done for you.</p>
+      </li>
+      <li class="reveal" style="--d:180ms">
+        <span class="feat-tag">Instructors</span>
+        <h3>Trust, kept intact</h3>
+        <p>Availability, commissions, gear life, repair workflows. They see their cut — never your gross.</p>
+      </li>
+      <li class="reveal" style="--d:240ms">
+        <span class="feat-tag">Shop &amp; rentals</span>
+        <h3>Open in July, smart in January</h3>
+        <p>Products, memberships, walk-ins — with a direct-link mode for the closed season.</p>
+      </li>
+      <li class="reveal" style="--d:300ms">
+        <span class="feat-tag">Your brand</span>
+        <h3>Your school, front and centre</h3>
+        <p>Your subdomain, your palette, your voice. Students see your academy — not our logo.</p>
+      </li>
+    </ul>
+
+    <div class="creed">
+      <div class="creed-item reveal">
+        <h3>It speaks kite.</h3>
+        <p>L1–L5, supervision, downwinders, e-foil. You will never explain your sport to your software again.</p>
+      </div>
+      <div class="creed-item reveal" style="--d:100ms">
+        <h3>It protects trust.</h3>
+        <p>Automatic payroll. Instructors see their schedule, their students, their commission — never the lesson gross.</p>
+      </div>
+      <div class="creed-item reveal" style="--d:200ms">
+        <h3>It follows the season.</h3>
+        <p>Direct-link mode for winter. Multi-instructor conflict detection for July. Same tool, different posture.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PROOF  ──────────────────────────────── -->
+  <section class="chapter chapter-tint gridbg" id="proof">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="wpt">WPT 05</span><span>The proof</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">One customer.<br><span class="is-signal">On purpose.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        Every other tool greets you with a logo wall. We greet you with a
+        login. Duotone Pro Center Urla has run on Plannivo since 2025 —
+        every booking, every payslip, every repair, every day. It's not a
+        case study. It's live right now, and you can click it.
+      </p>
+    </div>
+
+    <div class="cust-strip">
+      <a class="cust is-live cornered reveal" style="--d:220ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+        <span class="cust-live-badge"><span class="live-led" aria-hidden="true"></span>Live now</span>
+        <span class="cust-mark">UKC<span class="cust-dot">.</span></span>
+        <span class="cust-label">Duotone Pro Center Urla · TR — kite · wing · foil · since 2025</span>
+        <span class="cust-link">ukc.plannivo.com →</span>
+      </a>
+      <a class="cust cust-invite reveal" style="--d:320ms" href="#demo">
+        <span class="cust-live-badge is-open">Open slot</span>
+        <span class="cust-mark mono">/your.center</span>
+        <span class="cust-label">An invitation, not a logo wall</span>
+        <span class="cust-link">become the second →</span>
+      </a>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PROMISE  ────────────────────────────── -->
+  <section class="promise" id="promise">
+    <div class="chapter-head">
+      <p class="kicker reveal"><span class="wpt">WPT 06</span><span>The promise</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Don't like something?<br><span class="is-signal">We change it.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        Every Plannivo customer gets <strong>unlimited updates</strong> — no
+        tiers, no change-request fees, no "it's on the roadmap". If any part
+        of the platform doesn't fit the way your school runs, tell us and we
+        make it right for you. We crafted Plannivo around our own academy.
+        We'll craft it around yours.
+      </p>
+    </div>
+
+    <div class="promise-readouts">
+      <div class="reveal" style="--d:220ms">
+        <label>Update limit</label>
+        <b>∞</b>
+        <p>Unlimited updates — standard for every customer, not a tier.</p>
+      </div>
+      <div class="reveal" style="--d:300ms">
+        <label>Change-request fees</label>
+        <b>€0.00</b>
+        <p>You ask, we build. No invoices for making it fit your school.</p>
+      </div>
+      <div class="reveal" style="--d:380ms">
+        <label>Roadmap excuses</label>
+        <b>0</b>
+        <p>Built around our own academy. We'll build it around yours.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  DEMO  ───────────────────────────────── -->
+  <section class="closer gridbg" id="demo">
+    <svg class="course reveal" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path class="course-line" pathLength="1" d="M 880 560 C 1030 500, 1090 340, 1290 130"/>
+      <rect class="course-wpt" x="874" y="554" width="12" height="12"/>
+      <rect class="course-wpt open" x="1284" y="124" width="12" height="12"/>
+      <text class="course-label" x="904" y="566">WPT 01 — UKC.PLANNIVO.COM</text>
+      <text class="course-label" x="1096" y="118">WPT 02 — YOUR.CENTER</text>
+    </svg>
+
+    <div class="closer-inner">
+      <p class="kicker reveal"><span class="wpt">FINAL WPT</span><span>Your move</span></p>
+      <h2 class="mega closer-title reveal" style="--d:60ms">
+        Be the<br><span class="outline">second.</span>
+      </h2>
+      <p class="lede reveal" style="--d:160ms">
+        UKC was first — the academy Plannivo was built inside. The next
+        subdomain is yours. We'll set it up by hand: your calendar, your
+        prices, your season. Twenty minutes, no credit card, no sales cadence.
+      </p>
+
+      <form id="demo-form" class="closer-form reveal" style="--d:260ms">
+        <label>
+          <span>Email</span>
+          <input type="email" placeholder="you@yourschool.com" required>
+        </label>
+        <label>
+          <span>Academy</span>
+          <input type="text" placeholder="Your center's name" required>
+        </label>
+        <button type="submit" class="btn btn-signal">
+          Request demo
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>
+        </button>
+        <p class="closer-sent">Your email app just opened with the request — hit send and we'll reply personally.</p>
+      </form>
+
+      <p class="closer-note reveal" style="--d:360ms">
+        Prefer email? <a href="mailto:hello@plannivo.com">hello@plannivo.com</a> — the founder answers.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <div class="foot-left">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10.5" fill="none" stroke="#0B2C55" stroke-width="2"/>
+        <polygon points="12,3.5 9.4,12 14.6,12" fill="#00A8A8"/>
+        <polygon points="12,20.5 9.4,12 14.6,12" fill="#C6D5E2"/>
+      </svg>
+      <span>Plannivo · Urla, TR</span>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="#problem">The problem</a>
+      <a href="#product">Product</a>
+      <a href="#proof">Proof</a>
+      <a href="mailto:hello@plannivo.com">hello@plannivo.com</a>
+    </nav>
+    <p class="foot-mono">© 2026 PLANNIVO · EST. 2025 · WIND PERMITTING</p>
+  </div>
+</footer>
+
+<script>
+/* Plannivo landing — progressive enhancement only */
+(function () {
+  'use strict';
+
+  /* Gate animations — content visible without JS */
+  document.documentElement.classList.add('js-ready');
+
+  /* ── Reveal on scroll ─────────────────────────────────────────────────── */
+  const revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+  );
+
+  document.querySelectorAll('.reveal').forEach((el) => revealObserver.observe(el));
+
+  /* ── Count-up for readout numbers ─────────────────────────────────────── */
+  function animateCount(el) {
+    const target = parseFloat(el.dataset.count);
+    const isFloat = String(target).includes('.');
+    const decimals = isFloat ? (String(target).split('.')[1] || '').length : 0;
+    const suffix = el.dataset.suffix || '';
+    const duration = 1600;
+    const start = performance.now();
+
+    function tick(now) {
+      const elapsed = Math.min(now - start, duration);
+      const progress = easeOutExpo(elapsed / duration);
+      const value = target * progress;
+      el.textContent = (isFloat ? value.toFixed(decimals) : Math.round(value)) + suffix;
+      if (elapsed < duration) requestAnimationFrame(tick);
+      else el.textContent = (isFloat ? target.toFixed(decimals) : target) + suffix;
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  function easeOutExpo(t) {
+    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  }
+
+  const tickerObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          animateCount(entry.target);
+          tickerObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.5 }
+  );
+
+  document.querySelectorAll('[data-count]').forEach((el) => tickerObserver.observe(el));
+
+  /* ── Demo form ────────────────────────────────────────────────────────── */
+  /* No backend yet — open the visitor's mail client with a pre-filled
+     request so the lead actually reaches hello@plannivo.com. Swap for a
+     real fetch() when a lead endpoint exists. */
+  const form = document.getElementById('demo-form');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button[type="submit"]');
+      const email = form.querySelector('input[type="email"]').value.trim();
+      const academy = form.querySelector('input[type="text"]').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = 'Opening…';
+
+      const subject = encodeURIComponent('Demo request — ' + academy);
+      const body = encodeURIComponent(
+        'Academy: ' + academy + '\n' +
+        'Contact: ' + email + '\n\n' +
+        "We'd like a 20-minute demo of Plannivo."
+      );
+      window.location.href =
+        'mailto:hello@plannivo.com?subject=' + subject + '&body=' + body;
+
+      form.closest('.closer-form').classList.add('is-sent');
+    });
+  }
+
+  /* ── Smooth scroll for anchor links ──────────────────────────────────── */
+  document.querySelectorAll('a[href^="#"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const href = link.getAttribute('href');
+      if (!href || href.length < 2) return;
+      const target = document.querySelector(href);
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+})();
+</script>
+</body>
+</html>

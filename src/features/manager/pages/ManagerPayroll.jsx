@@ -280,13 +280,20 @@ function ManagerPayroll() {
               prefix="€"
               valueStyle={{ color: '#faad14' }}
             />
+            {payroll.totals.deducted > 0 && (
+              <div className="text-xs text-gray-400 mt-1">
+                −€{payroll.totals.deducted.toFixed(2)} {t('manager:payroll.totals.deducted')}
+              </div>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={6}>
           <Card className="shadow-sm border-t-4 border-t-purple-400">
             <div className="text-gray-500 text-sm mb-2">{t('manager:payroll.paymentProgress')}</div>
+            {/* Settlement progress, not paid/gross: deductions also settle earnings,
+                so the bar reaches 100% exactly when Pending shows €0. */}
             <Progress
-              percent={payroll.totals.gross > 0 ? Math.round((payroll.totals.paid / payroll.totals.gross) * 100) : 0}
+              percent={payroll.totals.gross > 0 ? Math.round(((payroll.totals.gross - payroll.totals.pending) / payroll.totals.gross) * 100) : 0}
               strokeColor={{ '0%': '#52c41a', '100%': '#87d068' }}
               size="small"
             />

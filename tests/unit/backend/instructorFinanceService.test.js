@@ -695,6 +695,15 @@ describe('InstructorFinanceService', () => {
 
       const result = await getAllInstructorBalances();
 
+      // Pin the SQL shape too: the JS maps a missing total_deducted column to 0,
+      // so a payment-only regression of mgrPaidSql would pass the number
+      // assertions below undetected. Call order: bookings=0, instructor
+      // payments=1, mgrEarned=2, mgrPaid=3.
+      const mgrPaidSqlText = pool.query.mock.calls[3][0];
+      expect(mgrPaidSqlText).toContain('CASE WHEN amount > 0 THEN amount ELSE 0 END');
+      expect(mgrPaidSqlText).toContain('CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END');
+      expect(mgrPaidSqlText).toContain("transaction_type IN ('payment', 'deduction')");
+
       expect(result[1].manager.totalEarned).toBe(3071.4);
       expect(result[1].manager.totalPaid).toBe(2481);
       expect(result[1].manager.totalDeducted).toBe(1084);

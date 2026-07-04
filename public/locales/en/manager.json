@@ -177,7 +177,8 @@
     "totals": {
       "gross": "Gross Earnings",
       "paid": "Paid",
-      "pending": "Pending"
+      "pending": "Pending",
+      "deducted": "deducted"
     },
     "status": {
       "paid": "Paid",

@@ -13,22 +13,69 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%230E9488'/><stop offset='1' stop-color='%231E6FD6'/></linearGradient></defs><path d='M16 2 L30 16 L16 30 L2 16 Z' fill='url(%23g)'/></svg>">
 
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2 L30 16 L16 30 L2 16 Z' fill='%23FF4D12'/></svg>">
 </head>
 <body>
 
+<!-- Shared SVG defs: caustic light filter + sparkline gradients -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="fCaustics" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feTurbulence type="turbulence" baseFrequency="0.010 0.016" numOctaves="2" seed="11" result="n">
+        <animate attributeName="baseFrequency" dur="30s"
+                 values="0.010 0.016;0.012 0.018;0.010 0.016" repeatCount="indefinite"/>
+      </feTurbulence>
+      <!-- thin bright webbing along turbulence ridges -->
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 -26 0 3.0" result="web"/>
+      <feFlood flood-color="#6FC4D2" result="c1"/>
+      <feComposite in="c1" in2="web" operator="in" result="webc"/>
+      <feGaussianBlur in="webc" stdDeviation="0.6" result="webb"/>
+      <!-- soft light pools -->
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -16 0 0 0 2.0" result="pool"/>
+      <feFlood flood-color="#C2E4EE" result="c2"/>
+      <feComposite in="c2" in2="pool" operator="in" result="poolc"/>
+      <feGaussianBlur in="poolc" stdDeviation="12" result="poolb"/>
+      <feMerge>
+        <feMergeNode in="poolb"/>
+        <feMergeNode in="webb"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="sparkStroke" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0E9488"/>
+      <stop offset="1" stop-color="#1E6FD6"/>
+    </linearGradient>
+    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E6FD6" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#1E6FD6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E9488"/>
+      <stop offset="1" stop-color="#1E6FD6"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- Page-wide water-light veil — fixed behind all content, never above it -->
+<div class="caustics-veil" aria-hidden="true">
+  <svg class="caustics" preserveAspectRatio="none"><rect width="100%" height="100%" filter="url(#fCaustics)"/></svg>
+</div>
+
 <header class="masthead">
   <a href="#" class="mark" aria-label="Plannivo home">
-    <svg class="mark-kite" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z"/></svg>
+    <svg class="mark-kite" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z" fill="url(#markGrad)"/></svg>
     <span class="mark-word">Plannivo</span>
   </a>
   <nav class="nav" aria-label="Primary">
     <a href="#problem">The problem</a>
     <a href="#product">Product</a>
     <a href="#proof">Proof</a>
+    <a href="#promise">The promise</a>
     <a href="#demo" class="cta">Book a demo</a>
   </nav>
 </header>
@@ -37,6 +84,9 @@
 
   <!-- ────────────────────────────────  HERO  ────────────────────────────── -->
   <section class="hero">
+    <svg class="caustics" aria-hidden="true" preserveAspectRatio="none">
+      <rect width="100%" height="100%" filter="url(#fCaustics)"/>
+    </svg>
     <svg class="windfield" viewBox="0 0 1440 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <path class="wind w1" d="M -60 90 C 260 40, 520 140, 800 95 S 1300 40, 1520 100"/>
       <path class="wind w2" d="M -60 190 C 300 150, 560 230, 860 185 S 1320 140, 1520 200"/>
@@ -53,9 +103,9 @@
       </p>
 
       <h1 class="mega hero-title">
-        <span class="line reveal">Spreadsheets</span>
-        <span class="line reveal" style="--d:90ms">don't survive</span>
-        <span class="line is-signal reveal" style="--d:180ms">saltwater.</span>
+        <span class="line reveal reveal-develop">Spreadsheets</span>
+        <span class="line reveal reveal-develop" style="--d:110ms">don't survive</span>
+        <span class="line reveal reveal-develop" style="--d:220ms"><span class="grad">saltwater.</span></span>
       </h1>
 
       <p class="lede reveal" style="--d:300ms">
@@ -79,6 +129,28 @@
       </a>
     </div>
 
+    <div class="instruments" aria-hidden="true">
+      <span class="drift" data-rate="0.14">
+        <span class="instrument">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 11 L11 2 M11 2 h-5 M11 2 v5" stroke="url(#markGrad)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          wind <strong>18 kn</strong> · NNW
+        </span>
+      </span>
+      <span class="drift" data-rate="0.24">
+        <span class="instrument">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 5 C3 3.5, 5 3.5, 6.5 5 S10 6.5, 11.5 5 M1.5 9 C3 7.5, 5 7.5, 6.5 9 S10 10.5, 11.5 9" stroke="url(#markGrad)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          gusts <strong>24 kn</strong>
+        </span>
+      </span>
+      <span class="drift" data-rate="0.34">
+        <span class="instrument">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.6 C6.5 1.6 2.9 5.9 2.9 8.3 a3.6 3.6 0 0 0 7.2 0 C10.1 5.9 6.5 1.6 6.5 1.6 Z" stroke="url(#markGrad)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          water <strong>21°C</strong>
+        </span>
+      </span>
+      <span class="drift instrument-note" data-rate="0.42">a good Urla afternoon — not a live feed</span>
+    </div>
+
     <p class="hero-coords" aria-hidden="true">N 38°22′ · URLA · WIND PERMITTING</p>
   </section>
 
@@ -87,10 +159,10 @@
   <div class="marquee" aria-label="Everything Plannivo handles">
     <div class="marquee-inner">
       <div class="marquee-group">
-        <span>Bookings</span><i>▸</i><span>Calendar</span><i>▸</i><span>Students</span><i>▸</i><span>CRM</span><i>▸</i><span>Payroll</span><i>▸</i><span>Commissions</span><i>▸</i><span>Rentals</span><i>▸</i><span>Repairs</span><i>▸</i><span>Shop</span><i>▸</i><span>Memberships</span><i>▸</i><span>Packages</span><i>▸</i><span>Iyzico payments</span><i>▸</i><span>Waivers</span><i>▸</i><span>Multi-role access</span><i>▸</i><span>Unlimited updates</span><i>▸</i>
+        <span>Bookings</span><i>◆</i><span>Calendar</span><i>◆</i><span>Students</span><i>◆</i><span>CRM</span><i>◆</i><span>Payroll</span><i>◆</i><span>Commissions</span><i>◆</i><span>Rentals</span><i>◆</i><span>Repairs</span><i>◆</i><span>Shop</span><i>◆</i><span>Memberships</span><i>◆</i><span>Packages</span><i>◆</i><span>Iyzico payments</span><i>◆</i><span>Waivers</span><i>◆</i><span>Multi-role access</span><i>◆</i><span>Unlimited updates</span><i>◆</i>
       </div>
       <div class="marquee-group" aria-hidden="true">
-        <span>Bookings</span><i>▸</i><span>Calendar</span><i>▸</i><span>Students</span><i>▸</i><span>CRM</span><i>▸</i><span>Payroll</span><i>▸</i><span>Commissions</span><i>▸</i><span>Rentals</span><i>▸</i><span>Repairs</span><i>▸</i><span>Shop</span><i>▸</i><span>Memberships</span><i>▸</i><span>Packages</span><i>▸</i><span>Iyzico payments</span><i>▸</i><span>Waivers</span><i>▸</i><span>Multi-role access</span><i>▸</i><span>Unlimited updates</span><i>▸</i>
+        <span>Bookings</span><i>◆</i><span>Calendar</span><i>◆</i><span>Students</span><i>◆</i><span>CRM</span><i>◆</i><span>Payroll</span><i>◆</i><span>Commissions</span><i>◆</i><span>Rentals</span><i>◆</i><span>Repairs</span><i>◆</i><span>Shop</span><i>◆</i><span>Memberships</span><i>◆</i><span>Packages</span><i>◆</i><span>Iyzico payments</span><i>◆</i><span>Waivers</span><i>◆</i><span>Multi-role access</span><i>◆</i><span>Unlimited updates</span><i>◆</i>
       </div>
     </div>
   </div>
@@ -100,7 +172,7 @@
   <section class="chapter" id="problem">
     <div class="chapter-head">
       <p class="kicker reveal"><span class="tag">The stack you run today</span></p>
-      <h2 class="h2 reveal" style="--d:80ms">Your school is not<br>a <span class="is-signal">spreadsheet.</span></h2>
+      <h2 class="h2 reveal" style="--d:80ms">Your school is not<br>a <span class="grad">spreadsheet.</span></h2>
     </div>
 
     <div class="problem-grid">
@@ -138,102 +210,58 @@
   <section class="chapter chapter-tint" id="product">
     <div class="chapter-head">
       <p class="kicker reveal"><span class="tag">The product</span></p>
-      <h2 class="h2 reveal" style="--d:80ms">This is the<br>whole <span class="is-signal">office.</span></h2>
+      <h2 class="h2 reveal" style="--d:80ms">This is the<br>whole <span class="grad">office.</span></h2>
       <p class="body-copy reveal" style="--d:160ms">
         No dopamine hooks, no forty tabs. A calm screen you glance at between
         lessons — and everything is already handled.
       </p>
     </div>
 
-    <div class="product-frame reveal" style="--d:220ms">
-      <div class="product-top">
-        <span class="product-dot" aria-hidden="true"></span>
-        <span class="product-dot" aria-hidden="true"></span>
-        <span class="product-dot" aria-hidden="true"></span>
-        <span class="product-url">ukc.plannivo.com&nbsp;/&nbsp;dashboard</span>
-      </div>
-      <div class="product-body">
+    <div class="product-float reveal" style="--d:220ms">
+      <div class="product-frame" data-tilt>
+        <div class="product-top">
+          <span class="product-dot" aria-hidden="true"></span>
+          <span class="product-dot" aria-hidden="true"></span>
+          <span class="product-dot" aria-hidden="true"></span>
+          <span class="product-url">ukc.plannivo.com&nbsp;/&nbsp;dashboard</span>
+        </div>
+        <div class="product-body">
 
-        <nav class="prod-side" aria-hidden="true">
-          <div class="prod-brand"><span class="prod-brand-dot"></span>&nbsp;UKC.</div>
-          <ul>
-            <li class="is-active"><span class="prod-tick"></span>Dashboard</li>
-            <li>Calendar</li>
-            <li>Students</li>
-            <li>Instructors</li>
-            <li>Shop</li>
-            <li>Finance</li>
-            <li>Care</li>
-            <li>Marketing</li>
-          </ul>
-          <div class="prod-side-foot">v0.1.333 · live</div>
-        </nav>
+          <nav class="prod-side" aria-hidden="true">
+            <div class="prod-brand"><span class="prod-brand-dot"></span>UKC.</div>
+            <ul>
+              <li class="is-active"><span class="prod-tick"></span>Dashboard</li>
+              <li>Calendar</li>
+              <li>Students</li>
+              <li>Instructors</li>
+              <li>Shop</li>
+              <li>Finance</li>
+              <li>Care</li>
+              <li>Marketing</li>
+            </ul>
+            <div class="prod-side-foot">v0.1.333 · live</div>
+          </nav>
 
-        <div class="prod-main">
-          <div class="prod-header">
-            <div>
-              <p class="prod-eyebrow">MONDAY · 14 APR</p>
-              <h4>Good morning, Oguz.</h4>
+          <div class="prod-main">
+            <div class="prod-header">
+              <div>
+                <p class="prod-eyebrow" id="prod-date">MONDAY · 14 APR</p>
+                <h4>Good morning, Oguz.</h4>
+              </div>
             </div>
-            <div class="prod-stats">
-              <div><span>12</span><label>lessons today</label></div>
-              <div><span>€840</span><label>expected revenue</label></div>
-              <div><span>5</span><label>check-ins pending</label></div>
-            </div>
-          </div>
 
-          <div class="prod-calendar">
-            <div class="prod-cal-hours" aria-hidden="true">
-              <span></span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
-            </div>
-            <div class="prod-cal-rows">
-              <div class="prod-cal-row">
-                <span class="prod-cal-name">Siyabend</span>
-                <div class="prod-cal-track">
-                  <div class="prod-lesson a" style="left:12%; width:22%"><span>Kite L2 · Ayşe</span></div>
-                  <div class="prod-lesson b" style="left:46%; width:18%"><span>Wing L1 · Mert</span></div>
-                </div>
-              </div>
-              <div class="prod-cal-row">
-                <span class="prod-cal-name">Arda</span>
-                <div class="prod-cal-track">
-                  <div class="prod-lesson c" style="left:2%; width:30%"><span>Supervision · group</span></div>
-                  <div class="prod-lesson a" style="left:58%; width:20%"><span>Kite L3 · Ali</span></div>
-                </div>
-              </div>
-              <div class="prod-cal-row">
-                <span class="prod-cal-name">Elif</span>
-                <div class="prod-cal-track">
-                  <div class="prod-lesson b" style="left:22%; width:28%"><span>Foil L1 · Kemal</span></div>
-                </div>
-              </div>
-              <div class="prod-cal-row">
-                <span class="prod-cal-name">Malek</span>
-                <div class="prod-cal-track">
-                  <div class="prod-lesson c" style="left:34%; width:36%"><span>Kite Camp · 4 riders</span></div>
-                </div>
-              </div>
-              <div class="prod-cal-row">
-                <span class="prod-cal-name">Ufuk</span>
-                <div class="prod-cal-track">
-                  <div class="prod-lesson a" style="left:14%; width:18%"><span>Kite L2</span></div>
-                  <div class="prod-lesson b" style="left:40%; width:24%"><span>Downwinder</span></div>
-                </div>
+            <!-- Video slot — when the film is ready, drop tour.mp4 next to
+                 index.html and replace .tour-placeholder with:
+                 <video class="tour-video" src="tour.mp4" muted loop playsinline autoplay preload="metadata"></video> -->
+            <div class="prod-video">
+              <div class="tour-placeholder" aria-hidden="true">
+                <span class="tour-glyph">
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M7 4.5 L17 11 L7 17.5 Z" fill="url(#markGrad)"/></svg>
+                </span>
+                <span class="tour-line">Product film — shot at the real center</span>
               </div>
             </div>
-          </div>
 
-          <div class="prod-revenue">
-            <div>
-              <p class="prod-eyebrow">APRIL REVENUE</p>
-              <h5>€&nbsp;42,180</h5>
-              <p class="prod-delta">↗ 14% month on month</p>
-            </div>
-            <svg class="prod-spark" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden="true">
-              <path class="spark-area" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12 L400,80 L0,80 Z"/>
-              <path class="spark-line" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12"/>
-              <circle class="spark-dot" cx="400" cy="12" r="3.5"/>
-            </svg>
           </div>
         </div>
       </div>
@@ -243,43 +271,69 @@
   </section>
 
 
-  <!-- ─────────────────────────────  FEATURES  ───────────────────────────── -->
+  <!-- ─────────────────────────────  FEATURES · BENTO  ───────────────────── -->
   <section class="chapter" id="platform">
     <div class="chapter-head">
       <p class="kicker reveal"><span class="tag">What you get</span></p>
-      <h2 class="h2 reveal" style="--d:80ms">Everything a season<br><span class="is-signal">throws at you.</span></h2>
+      <h2 class="h2 reveal" style="--d:80ms">Everything a season<br><span class="grad">throws at you.</span></h2>
     </div>
 
-    <ul class="feature-grid">
-      <li class="reveal">
+    <ul class="bento">
+      <li class="tile tile-lg reveal">
         <span class="feat-tag">Bookings</span>
         <h3>The calendar that fights back</h3>
         <p>Lessons, rentals, group matching, conflict detection, no-show windows — one canvas.</p>
+        <div class="mini-cal" aria-hidden="true">
+          <div class="mc-row"><span class="mc-name">Siyabend</span><div class="mc-track"><i class="a" style="left:8%;width:30%"></i><i class="b" style="left:52%;width:24%"></i></div></div>
+          <div class="mc-row"><span class="mc-name">Arda</span><div class="mc-track"><i class="c" style="left:2%;width:26%"></i><i class="a" style="left:56%;width:22%"></i></div></div>
+          <div class="mc-row"><span class="mc-name">Elif</span><div class="mc-track"><i class="b" style="left:24%;width:32%"></i></div></div>
+        </div>
       </li>
-      <li class="reveal" style="--d:60ms">
+
+      <li class="tile tile-lg reveal" style="--d:60ms">
+        <span class="feat-tag">Money</span>
+        <h3>Payroll that computes itself</h3>
+        <p>Iyzico card payments, cash-at-centre, wallets, packages — and commissions done for you.</p>
+        <svg class="tile-spark" viewBox="0 0 320 74" preserveAspectRatio="none" aria-hidden="true">
+          <path class="spark-area" fill="url(#sparkFill)" d="M0,58 L32,54 L64,46 L96,50 L128,38 L160,33 L192,24 L224,28 L256,17 L288,21 L320,11 L320,74 L0,74 Z"/>
+          <path class="spark-line" pathLength="1" fill="none" stroke="url(#sparkStroke)" stroke-width="2.2" stroke-linecap="round" d="M0,58 L32,54 L64,46 L96,50 L128,38 L160,33 L192,24 L224,28 L256,17 L288,21 L320,11"/>
+          <circle class="spark-dot" fill="#1E6FD6" cx="320" cy="11" r="3.4"/>
+        </svg>
+        <p class="tile-spark-label">commission run · nightly · automatic</p>
+      </li>
+
+      <li class="tile reveal" style="--d:120ms">
         <span class="feat-tag">Students</span>
         <h3>A real CRM, not a contact list</h3>
         <p>Progress logs, waivers, family groups, gear preferences — every rider, remembered.</p>
       </li>
-      <li class="reveal" style="--d:120ms">
-        <span class="feat-tag">Money</span>
-        <h3>Payroll that computes itself</h3>
-        <p>Iyzico card payments, cash-at-centre, wallets, packages — and commissions done for you.</p>
-      </li>
-      <li class="reveal" style="--d:180ms">
+
+      <li class="tile reveal" style="--d:180ms">
         <span class="feat-tag">Instructors</span>
         <h3>Trust, kept intact</h3>
         <p>Availability, commissions, gear life, repair workflows. They see their cut — never your gross.</p>
       </li>
-      <li class="reveal" style="--d:240ms">
+
+      <li class="tile reveal" style="--d:240ms">
         <span class="feat-tag">Shop &amp; rentals</span>
         <h3>Open in July, smart in January</h3>
         <p>Products, memberships, walk-ins — with a direct-link mode for the closed season.</p>
       </li>
-      <li class="reveal" style="--d:300ms">
+
+      <li class="tile tile-lg reveal" style="--d:300ms">
         <span class="feat-tag">Your brand</span>
         <h3>Your school, front and centre</h3>
         <p>Your subdomain, your palette, your voice. Students see your academy — not our logo.</p>
+        <span class="brand-pill" aria-hidden="true"><em>yourschool</em>.plannivo.com</span>
+      </li>
+
+      <li style="display:contents">
+        <a class="tile tile-lg tile-live reveal" style="--d:360ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+          <span class="live-badge"><span class="live-dot" aria-hidden="true"></span>Live now</span>
+          <h3>Proven on a real beach</h3>
+          <p>The academy this platform was built inside.</p>
+          <span class="tile-link">ukc.plannivo.com →</span>
+        </a>
       </li>
     </ul>
 
@@ -304,7 +358,7 @@
   <section class="chapter chapter-tint" id="proof">
     <div class="chapter-head">
       <p class="kicker reveal"><span class="tag">The proof</span></p>
-      <h2 class="h2 reveal" style="--d:80ms">One customer.<br><span class="is-signal">On purpose.</span></h2>
+      <h2 class="h2 reveal" style="--d:80ms">One customer.<br><span class="grad">On purpose.</span></h2>
       <p class="body-copy reveal" style="--d:160ms">
         Every other tool greets you with a logo wall. We greet you with a
         login. Duotone Pro Center Urla has run on Plannivo since 2025 —
@@ -331,10 +385,13 @@
 
 
   <!-- ─────────────────────────────  PROMISE  ────────────────────────────── -->
-  <section class="chapter" id="promise">
-    <div class="chapter-head">
+  <section class="promise-band" id="promise">
+    <svg class="caustics" aria-hidden="true" preserveAspectRatio="none">
+      <rect width="100%" height="100%" filter="url(#fCaustics)"/>
+    </svg>
+    <div class="promise-inner">
       <p class="kicker reveal"><span class="tag">The promise</span></p>
-      <h2 class="h2 reveal" style="--d:80ms">Don't like something?<br><span class="is-signal">We change it.</span></h2>
+      <h2 class="promise-title reveal reveal-develop" style="--d:80ms">Don't like something?<br><span class="grad">We change it.</span></h2>
       <p class="body-copy reveal" style="--d:160ms">
         Every Plannivo customer gets <strong>unlimited updates</strong> — no
         tiers, no change-request fees, no "it's on the roadmap". If any part
@@ -353,7 +410,10 @@
 
   <!-- ─────────────────────────────  DEMO  ───────────────────────────────── -->
   <section class="closer" id="demo">
-    <svg class="windfield windfield-closer" viewBox="0 0 1440 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <svg class="caustics" aria-hidden="true" preserveAspectRatio="none">
+      <rect width="100%" height="100%" filter="url(#fCaustics)"/>
+    </svg>
+    <svg class="windfield" viewBox="0 0 1440 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <path class="wind w2" d="M -60 190 C 300 150, 560 230, 860 185 S 1320 140, 1520 200"/>
       <path class="wind w4" d="M -60 410 C 320 360, 580 450, 880 400 S 1340 360, 1520 420"/>
       <path class="wind w6" d="M -60 600 C 300 560, 560 640, 860 595 S 1320 555, 1520 610"/>
@@ -361,8 +421,8 @@
 
     <div class="closer-inner">
       <p class="kicker reveal"><span class="tag">Your move</span></p>
-      <h2 class="mega closer-title reveal" style="--d:60ms">
-        Be the<br><span class="outline">second.</span>
+      <h2 class="mega closer-title reveal reveal-develop" style="--d:60ms">
+        Be the<br><span class="grad">second.</span>
       </h2>
       <p class="lede reveal" style="--d:160ms">
         UKC was first — the academy Plannivo was built inside. The next
@@ -397,13 +457,14 @@
 <footer>
   <div class="foot">
     <div class="foot-left">
-      <svg class="mark-kite" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z"/></svg>
+      <svg class="mark-kite" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z" fill="url(#markGrad)"/></svg>
       <span>Plannivo · Urla, TR</span>
     </div>
     <nav class="foot-nav" aria-label="Footer">
       <a href="#problem">The problem</a>
       <a href="#product">Product</a>
       <a href="#proof">Proof</a>
+      <a href="#promise">The promise</a>
       <a href="mailto:hello@plannivo.com">hello@plannivo.com</a>
     </nav>
     <p class="foot-mono">© 2026 PLANNIVO · EST. 2025 · WIND PERMITTING</p>

@@ -33,27 +33,39 @@ server {
 }
 ```
 
+## Product video
+
+The dashboard mock's calendar was removed — a film of the real app goes in its place. When the video is ready: drop `tour.mp4` next to `index.html`, then in `index.html` replace the `.tour-placeholder` div inside `.prod-video` with:
+
+```html
+<video class="tour-video" src="tour.mp4" muted loop playsinline autoplay preload="metadata"></video>
+```
+
+(The `.tour-video` CSS — absolute fill, object-fit cover — is already in place. Keep the video muted+playsinline or mobile browsers will refuse to autoplay.)
+
 ## Demo form
 
 There is no backend yet. On submit, the form opens the visitor's mail client with a pre-filled message to `hello@plannivo.com` (subject + academy + contact), then shows a success note. To wire a real backend, replace the `mailto:` block in `script.js` with a `fetch()` to your endpoint.
 
 ## Design tokens (key)
 
-"Gale warning" theme — daylight sport poster: white/sky/sea-slate with one loud accent.
+"Sea-glass" theme — water-clear premium SaaS: white + barely-there aqua, petrol ink, one turquoise→azure gradient spent only on killer words, buttons and thin rules.
 
 | Token | Value | Use |
 |---|---|---|
 | `--white` | `#FFFFFF` | Page background |
-| `--foam` | `#F1F7FC` | Tinted sections, cards |
-| `--sky` | `#CFE9FB` | Light sky fills, washes |
-| `--ink` | `#0A2337` | Primary text, marquee band |
-| `--signal` | `#FF4D12` | Kite-canopy orange — CTAs & killer words only |
-| `--surf` | `#0C7BD6` | Links, wind streamlines |
-| `--line` | `#D9E5EE` | Borders, dividers |
+| `--aqua` / `--aqua-2` | `#F7FCFC` / `#EFF9FA` | Barely-there aqua tints |
+| `--ink` | `#0B2437` | Deep marine navy text; also solid CTA background |
+| `--turq` → `--azure` | `#0E9488` → `#1E6FD6` | The gradient (`--grad`) — killer words and thin rules ONLY (buttons are solid ink) |
+| `--glass` | `rgba(255,255,255,0.72)` | Frosted glass cards (backdrop blur) |
 
-Signature devices: `--punch` (hard 6px poster shadow), `--cut` (speed-cut clip-path on buttons/tags), animated wind-streamline SVG in hero/closer, ink marquee band.
+Signature devices: underwater caustic light veil (`#fCaustics` feTurbulence SVG filter, SMIL shimmer) behind hero/promise/closer; floating glass instrument chips (wind/gusts/water) in the hero; bento feature grid; product frame with pointer-tracked 3D tilt.
 
-Fonts loaded from Google Fonts: Archivo (variable, width axis 62–125), JetBrains Mono.
+Fonts loaded from Google Fonts: Bricolage Grotesque (display), Hanken Grotesk (body), JetBrains Mono (data labels).
+
+## Variants
+
+`variants/` holds the four candidate art directions from the 2026-07-04 redesign round (seaglass = promoted to main, horizon, regatta, goldenhour). **Do not upload `variants/` to production** — deploy only `index.html`, `styles.css`, `script.js` (plus `.well-known/`).
 
 ## Honesty rule (do not break)
 

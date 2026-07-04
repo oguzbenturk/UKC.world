@@ -404,7 +404,7 @@ async function main() {
             console.log('🌐 Uploading plannivo.com landing page (tarball)...');
             const remoteLandingDir = `${remotePath}/plannivo-landing`;
             await uploadDirAsTarball(ssh, localLandingDir, remoteLandingDir, remotePath, {
-              exclude: ['README.md'],
+              exclude: ['README.md', 'variants'],
               fallback: async () => {
                 await ssh.execCommand(`rm -rf ${remoteLandingDir} && mkdir -p ${remoteLandingDir}`);
                 await ssh.putDirectory(localLandingDir, remoteLandingDir, { recursive: false, concurrency: 5, validate: (p) => !p.endsWith('README.md') });

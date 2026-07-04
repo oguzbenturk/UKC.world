@@ -177,7 +177,8 @@
     "totals": {
       "gross": "Brüt Kazanç",
       "paid": "Ödenen",
-      "pending": "Bekleyen"
+      "pending": "Bekleyen",
+      "deducted": "kesinti"
     },
     "status": {
       "paid": "Ödendi",

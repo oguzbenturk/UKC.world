@@ -177,7 +177,8 @@
     "totals": {
       "gross": "Ingresos Brutos",
       "paid": "Pagado",
-      "pending": "Pendiente"
+      "pending": "Pendiente",
+      "deducted": "deducido"
     },
     "status": {
       "paid": "Pagado",

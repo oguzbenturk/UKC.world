@@ -1,0 +1,1666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#FFFFFF">
+<title>Plannivo — The kite school platform that runs a real kite school</title>
+<meta name="description" content="Bookings, students, payroll, rentals, repairs — one surface for kite, wing and foil schools. Built inside a Duotone pro center and proven live, every day, at ukc.plannivo.com.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Plannivo — Spreadsheets don't survive saltwater.">
+<meta property="og:description" content="One platform runs the whole watersports academy. We know it works — we run our own school on it, live, every day.">
+<meta property="og:url" content="https://plannivo.com/">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Onest:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M3 20 Q9 12 16 20 T29 20' fill='none' stroke='%230C7FD0' stroke-width='4' stroke-linecap='round'/></svg>">
+
+<style>
+/* ==========================================================================
+   Plannivo — landing · variant "horizon"
+   Horizon editorial: vast white, Sora sentence-case display,
+   deep-blue→turquoise gradient ink, layered drifting wave bands.
+   Sora + Onest + IBM Plex Mono.
+   ========================================================================== */
+
+:root {
+  --paper:      #FFFFFF;
+  --morning:    #F3FAFD;   /* light aqua wash */
+  --ink:        #0B2237;   /* deep sea-slate */
+  --ink-80:     rgba(11, 34, 55, 0.80);
+  --ink-60:     rgba(11, 34, 55, 0.62);
+  --ink-40:     rgba(11, 34, 55, 0.42);
+  --hair:       #E1ECF2;   /* hairlines */
+  --deep:       #0A3CC8;   /* gradient start — deep blue */
+  --mid:        #0C7FD0;   /* gradient mid */
+  --lagoon:     #009FBE;   /* gradient end — turquoise */
+  --aqua:       #0E7490;   /* small accents & links (AA on white) */
+  --grad:       linear-gradient(96deg, var(--deep) 0%, var(--mid) 38%, var(--lagoon) 82%);
+
+  --display: "Sora", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --body:    "Onest", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono:    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --pad:     clamp(1.35rem, 4.5vw, 5rem);
+  --gap:     clamp(6rem, 13vh, 10.5rem);
+  --max:     1160px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+/* ── Type system ───────────────────────────────────────────────────────── */
+
+.display {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.45rem, 7.2vw, 6.1rem);
+  line-height: 1.03;
+  letter-spacing: -0.038em;
+  margin: 0;
+}
+.display .line { display: block; }
+
+.h2 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.9rem, 4.4vw, 3.7rem);
+  line-height: 1.07;
+  letter-spacing: -0.032em;
+  margin: 0;
+}
+
+/* Gradient ink — key words only */
+.g-ink {
+  background: var(--grad);
+  background-size: 145% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: inkdrift 10s ease-in-out infinite alternate;
+}
+@keyframes inkdrift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  margin: 0 0 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+}
+.kicker .k-line {
+  flex: 1;
+  height: 1px;
+  background: var(--hair);
+  min-width: 2rem;
+}
+.kicker .k-tag { color: var(--aqua); }
+.kicker .k-coord { white-space: nowrap; }
+@media (max-width: 640px) { .kicker .k-coord { display: none; } }
+
+.lede {
+  font-size: clamp(1.05rem, 1.45vw, 1.25rem);
+  line-height: 1.7;
+  font-weight: 450;
+  color: var(--ink-60);
+  max-width: 56ch;
+  margin: 2.1rem 0 0;
+}
+.lede strong { color: var(--ink); font-weight: 700; }
+
+.body-copy {
+  font-size: 1.04rem;
+  line-height: 1.8;
+  color: var(--ink-60);
+  max-width: 60ch;
+  margin: 1.5rem 0 0;
+}
+.body-copy strong { color: var(--ink); font-weight: 700; }
+
+/* ── Shared SVG gradients ─────────────────────────────────────────────── */
+.svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ── Buttons — quiet, precise pills ───────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  text-decoration: none;
+  font-family: var(--display);
+  font-size: 0.94rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: var(--ink);
+  border: none;
+  border-radius: 999px;
+  padding: 0.95em 1.9em;
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease;
+}
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--grad);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -14px rgba(10, 60, 200, 0.45); }
+.btn:hover::before { opacity: 1; }
+.btn svg { transition: transform 0.25s ease; }
+.btn:hover svg { transform: translateX(4px); }
+
+.btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  text-decoration: none;
+  font-family: var(--body);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--aqua);
+  padding: 0.3em 0.1em;
+  border-bottom: 1.5px solid rgba(14, 116, 144, 0.28);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.btn-quiet:hover { color: var(--deep); border-color: var(--deep); }
+
+/* ── Masthead ─────────────────────────────────────────────────────────── */
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.95rem var(--pad);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hair);
+}
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  text-decoration: none;
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 1.12rem;
+}
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.nav a:not(.cta) {
+  text-decoration: none;
+  color: var(--ink-60);
+  transition: color 0.2s ease;
+  padding: 0.3em 0;
+}
+.nav a:not(.cta):hover { color: var(--ink); }
+.nav a.cta {
+  text-decoration: none;
+  color: #fff;
+  background: var(--ink);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.84rem;
+  padding: 0.7em 1.4em;
+  border-radius: 999px;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+.nav a.cta:hover { background: var(--mid); transform: translateY(-1px); }
+@media (max-width: 760px) {
+  .nav { gap: 1rem; }
+  .nav a:not(.cta) { display: none; }
+}
+
+/* ── Wave bands — the signature ───────────────────────────────────────── */
+
+.waveband {
+  position: relative;
+  height: clamp(110px, 15vw, 185px);
+  overflow: hidden;
+  pointer-events: none;
+}
+.waveband--tall { height: clamp(150px, 19vw, 240px); }
+.wlayer {
+  position: absolute;
+  inset: -18% 0 0 0;
+  will-change: transform;
+}
+.wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  animation: driftL var(--dur, 48s) linear infinite;
+}
+.wave.rev { animation-name: driftR; }
+@keyframes driftL { from { transform: translateX(0); }    to { transform: translateX(-50%); } }
+@keyframes driftR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  text-align: center;
+  padding: clamp(3.2rem, 8vh, 6rem) var(--pad) 0;
+  background:
+    radial-gradient(1100px 420px at 50% 108%, rgba(56, 189, 248, 0.10), transparent 70%),
+    var(--paper);
+}
+.hero-inner {
+  max-width: 980px;
+  margin: 0 auto;
+}
+.hero-coord {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  margin: 0 0 1.9rem;
+}
+.hero-coord .sep { color: var(--lagoon); padding: 0 0.5em; }
+.hero .lede { margin-left: auto; margin-right: auto; margin-top: 1.8rem; }
+.hero-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.8rem;
+  margin-top: 2.5rem;
+  flex-wrap: wrap;
+}
+.hero-proof {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85em;
+  margin-top: 2.5rem;
+  padding: 0.85em 1.5em;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  color: var(--ink-60);
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, color 0.25s ease;
+}
+.hero-proof strong { color: var(--ink); font-weight: 700; }
+.hero-proof:hover {
+  border-color: rgba(0, 159, 190, 0.5);
+  box-shadow: 0 10px 30px -18px rgba(12, 127, 208, 0.45);
+  color: var(--ink-80);
+}
+.live-dot {
+  flex: none;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--lagoon);
+  box-shadow: 0 0 0 4px rgba(0, 159, 190, 0.16);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Capability strip ─────────────────────────────────────────────────── */
+
+.marquee {
+  overflow: hidden;
+  padding: 1.05rem 0;
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+  background: var(--paper);
+}
+.marquee-inner {
+  display: flex;
+  width: max-content;
+  animation: marquee 52s linear infinite;
+}
+.marquee:hover .marquee-inner { animation-play-state: paused; }
+.marquee-group { display: flex; align-items: center; flex: none; }
+.marquee-group span {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-60);
+  white-space: nowrap;
+  padding: 0 1.6em;
+}
+.marquee-group i {
+  font-style: normal;
+  color: var(--lagoon);
+  font-size: 0.6rem;
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ── Chapters ─────────────────────────────────────────────────────────── */
+
+.chapter { padding: var(--gap) var(--pad); }
+.chapter-inner { max-width: var(--max); margin: 0 auto; }
+[id] { scroll-margin-top: 5.2rem; }
+
+/* ── Problem ──────────────────────────────────────────────────────────── */
+
+.problem-grid {
+  display: grid;
+  grid-template-columns: 1.12fr 1fr;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+  margin-top: 3.4rem;
+}
+.junk-title {
+  font-weight: 600;
+  font-size: 1.06rem;
+  margin: 0 0 1.4rem;
+  color: var(--ink);
+}
+.junk-list { list-style: none; padding: 0; margin: 0; }
+.junk-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.95em;
+  padding: 1em 0;
+  border-top: 1px solid var(--hair);
+  font-size: 1.01rem;
+}
+.junk-list li:last-child { border-bottom: 1px solid var(--hair); }
+.junk-list i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.8em;
+  color: var(--ink-40);
+  flex: none;
+}
+.junk-list s {
+  color: var(--ink-60);
+  text-decoration-color: rgba(0, 159, 190, 0.55);
+  text-decoration-thickness: 1.5px;
+}
+
+.surface-panel {
+  position: relative;
+  background: linear-gradient(138deg, var(--deep) 0%, var(--mid) 55%, var(--lagoon) 100%);
+  color: #fff;
+  border-radius: 22px;
+  padding: clamp(2rem, 3.4vw, 3rem);
+  box-shadow:
+    0 4px 14px -6px rgba(10, 60, 200, 0.25),
+    0 48px 90px -42px rgba(12, 127, 208, 0.55);
+  overflow: hidden;
+}
+.surface-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,0.14), transparent 55%);
+  pointer-events: none;
+}
+.surface-title {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+}
+.surface-copy {
+  margin: 1.15rem 0 0;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.99rem;
+}
+.surface-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.6rem 0 2.1rem;
+}
+.surface-list li {
+  padding: 0.6em 0;
+  font-weight: 600;
+  font-size: 0.98rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.surface-list li::before {
+  content: "—";
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+  margin-right: 0.85em;
+}
+.surface-panel .btn {
+  background: #fff;
+  color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+.surface-panel .btn::before { display: none; }
+.surface-panel .btn:hover { box-shadow: 0 14px 30px -12px rgba(3, 22, 60, 0.5); }
+
+@media (max-width: 880px) {
+  .problem-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Product ──────────────────────────────────────────────────────────── */
+
+.chapter--product { background: var(--paper); }
+.stage {
+  margin-top: 4rem;
+  perspective: 2200px;
+  perspective-origin: 50% 30%;
+}
+.product-frame {
+  max-width: var(--max);
+  margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 18px;
+  overflow: hidden;
+  transform: rotateX(6deg) rotateY(-7deg) rotateZ(0.5deg);
+  box-shadow:
+    0 2px 6px rgba(11, 34, 55, 0.05),
+    0 26px 50px -22px rgba(11, 34, 55, 0.18),
+    70px 130px 160px -70px rgba(12, 127, 208, 0.30);
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.8s ease;
+}
+.product-frame:hover {
+  transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  box-shadow:
+    0 2px 6px rgba(11, 34, 55, 0.05),
+    0 30px 60px -26px rgba(11, 34, 55, 0.16),
+    0 90px 150px -70px rgba(12, 127, 208, 0.28);
+}
+@media (max-width: 900px) {
+  .stage { perspective: none; }
+  .product-frame { transform: none; }
+}
+
+.product-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.75rem 1.1rem;
+  background: var(--morning);
+  border-bottom: 1px solid var(--hair);
+}
+.product-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--hair); }
+.product-dot:nth-child(2) { background: #BEE3F4; }
+.product-dot:nth-child(3) { background: var(--lagoon); }
+.product-url {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-40);
+  letter-spacing: 0.04em;
+}
+
+.product-body {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  min-height: 540px;
+}
+.prod-side {
+  padding: 1.5rem 1.2rem;
+  border-right: 1px solid var(--hair);
+  background: #FAFDFE;
+  display: flex;
+  flex-direction: column;
+}
+.prod-brand {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 2rem;
+}
+.prod-brand-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--grad);
+  display: inline-block;
+}
+.prod-side ul {
+  list-style: none; padding: 0; margin: 0;
+  font-size: 0.88rem;
+  display: flex; flex-direction: column; gap: 0.12em;
+}
+.prod-side li {
+  padding: 0.55em 0.8em;
+  color: var(--ink-60);
+  border-radius: 8px;
+  display: flex; align-items: center; gap: 0.55em;
+  cursor: default;
+}
+.prod-side li.is-active {
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  border: 1px solid var(--hair);
+  box-shadow: 0 1px 3px rgba(11, 34, 55, 0.05);
+}
+.prod-tick { width: 5px; height: 5px; border-radius: 50%; background: var(--lagoon); }
+.prod-side-foot {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--ink-40);
+  letter-spacing: 0.12em;
+  padding-top: 1.5rem;
+}
+
+.prod-main {
+  padding: 1.8rem 1.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.7rem;
+}
+.prod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.prod-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-40);
+  margin: 0;
+}
+.prod-header h4 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  letter-spacing: -0.025em;
+  margin: 0.3em 0 0;
+}
+.prod-stats { display: flex; gap: 2.2rem; }
+.prod-stats > div { text-align: right; }
+.prod-stats span {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  display: block;
+  line-height: 1;
+}
+.prod-stats label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--ink-40);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 0.5em;
+  display: block;
+}
+
+.prod-calendar {
+  background: var(--morning);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  border: 1px solid var(--hair);
+}
+.prod-cal-hours {
+  display: grid;
+  grid-template-columns: 96px repeat(9, 1fr);
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--ink-40);
+  letter-spacing: 0.08em;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px dashed var(--hair);
+}
+.prod-cal-hours span { padding-left: 0.3em; }
+.prod-cal-rows { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; }
+.prod-cal-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  height: 34px;
+}
+.prod-cal-name { font-size: 0.8rem; color: var(--ink-60); font-weight: 500; }
+.prod-cal-track { position: relative; height: 100%; }
+.prod-lesson {
+  position: absolute;
+  top: 3px; bottom: 3px;
+  border-radius: 7px;
+  padding: 0 0.8em;
+  display: flex; align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.prod-lesson:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -10px rgba(11, 34, 55, 0.35);
+}
+.prod-lesson span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prod-lesson.a { background: #D9F0FB; color: #0B4A6E; }
+.prod-lesson.b { background: #DCE6FD; color: #23408F; }
+.prod-lesson.c { background: #D6F3EC; color: #0A5F50; }
+
+.prod-revenue {
+  border-top: 1px solid var(--hair);
+  padding-top: 1.5rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+.prod-revenue h5 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 2.1rem;
+  letter-spacing: -0.03em;
+  margin: 0.2em 0 0;
+}
+.prod-delta {
+  margin: 0.35em 0 0;
+  font-size: 0.76rem;
+  color: var(--aqua);
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+.prod-spark { width: 100%; height: 80px; }
+.prod-spark .spark-line { fill: none; stroke: url(#g-spark); stroke-width: 2.2; }
+.prod-spark .spark-area { fill: url(#g-spark-area); }
+.prod-spark .spark-dot  { fill: var(--lagoon); }
+
+@media (max-width: 820px) {
+  .product-body { grid-template-columns: 1fr; min-height: 0; }
+  .prod-side { display: none; }
+  .prod-header { align-items: flex-start; flex-direction: column; gap: 1.4rem; }
+  .prod-stats { width: 100%; justify-content: space-between; gap: 1rem; }
+  .prod-stats > div { text-align: left; }
+}
+
+.product-caption {
+  max-width: var(--max);
+  margin: 1.4rem auto 0;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-40);
+  text-align: center;
+}
+
+/* ── Features ─────────────────────────────────────────────────────────── */
+
+.feature-grid {
+  list-style: none;
+  padding: 0;
+  margin: 3.4rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.1rem;
+}
+.feature-grid li {
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 16px;
+  padding: 1.9rem 1.7rem 2rem;
+  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.feature-grid li:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 159, 190, 0.45);
+  box-shadow: 0 24px 44px -28px rgba(12, 127, 208, 0.35);
+}
+.feat-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--aqua);
+  margin-bottom: 1.2rem;
+}
+.feature-grid h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.18rem;
+  line-height: 1.22;
+  letter-spacing: -0.022em;
+  margin: 0 0 0.55em;
+}
+.feature-grid p {
+  margin: 0;
+  color: var(--ink-60);
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+@media (max-width: 980px) { .feature-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .feature-grid { grid-template-columns: 1fr; } }
+
+.creed {
+  margin: 4.5rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.6rem, 3vw, 3rem);
+}
+.creed-item { padding-top: 1.1em; position: relative; }
+.creed-item::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 3.2rem; height: 3px;
+  border-radius: 2px;
+  background: var(--grad);
+}
+.creed-item h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.55em;
+}
+.creed-item p {
+  margin: 0;
+  color: var(--ink-60);
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+@media (max-width: 860px) { .creed { grid-template-columns: 1fr; gap: 2rem; } }
+
+/* ── Proof ────────────────────────────────────────────────────────────── */
+
+.cust-strip {
+  margin-top: 3.4rem;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: clamp(1.2rem, 2.5vw, 2rem);
+  align-items: stretch;
+}
+.cust {
+  padding: clamp(1.9rem, 3vw, 2.7rem);
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.cust.is-live {
+  box-shadow:
+    0 2px 6px rgba(11, 34, 55, 0.04),
+    36px 60px 90px -50px rgba(12, 127, 208, 0.4);
+}
+.cust.is-live:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 159, 190, 0.4);
+  box-shadow:
+    0 2px 6px rgba(11, 34, 55, 0.04),
+    36px 70px 110px -50px rgba(12, 127, 208, 0.5);
+}
+.cust-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--aqua);
+  margin-bottom: 0.6rem;
+}
+.cust-live-badge.is-open { color: var(--ink-40); }
+.cust-mark {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.cust-mark .cust-dot { color: var(--lagoon); }
+.cust-mark.mono {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  letter-spacing: 0;
+  color: var(--ink-60);
+}
+.cust-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-60);
+  text-transform: uppercase;
+  line-height: 1.8;
+}
+.cust-link {
+  margin-top: auto;
+  padding-top: 1.4em;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--aqua);
+}
+.cust.cust-invite {
+  border: 1.5px dashed rgba(11, 34, 55, 0.28);
+  background: transparent;
+}
+.cust.cust-invite:hover {
+  border-color: rgba(0, 159, 190, 0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 24px 44px -30px rgba(12, 127, 208, 0.3);
+}
+@media (max-width: 720px) { .cust-strip { grid-template-columns: 1fr; } }
+
+/* ── Promise ──────────────────────────────────────────────────────────── */
+
+.promise {
+  background: linear-gradient(180deg, #F0F9FC 0%, #E9F6FA 100%);
+  text-align: center;
+  padding: calc(var(--gap) * 0.85) var(--pad) var(--gap);
+}
+.promise-inner { max-width: 880px; margin: 0 auto; }
+.promise-kicker { justify-content: center; }
+.promise-kicker .k-line { max-width: 4.5rem; }
+.promise .display {
+  font-size: clamp(2.2rem, 6vw, 5.2rem);
+}
+.promise .body-copy {
+  margin-left: auto;
+  margin-right: auto;
+  font-size: clamp(1.05rem, 1.4vw, 1.2rem);
+  color: var(--ink-80);
+  max-width: 54ch;
+}
+.promise-chips {
+  list-style: none;
+  padding: 0;
+  margin: 2.6rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+}
+.promise-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+  padding: 0.75em 1.5em;
+  background: #fff;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  box-shadow: 0 8px 20px -14px rgba(12, 127, 208, 0.35);
+}
+.promise-chips li::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--grad);
+}
+
+/* ── Closer ───────────────────────────────────────────────────────────── */
+
+.closer {
+  position: relative;
+  text-align: center;
+  padding: var(--gap) var(--pad) 0;
+  background: var(--paper);
+}
+.closer-inner { max-width: 880px; margin: 0 auto; }
+.closer-kicker { justify-content: center; }
+.closer-kicker .k-line { max-width: 4.5rem; }
+.closer .lede { margin-left: auto; margin-right: auto; max-width: 52ch; }
+
+.closer-form {
+  margin: 3.2rem auto 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.85rem;
+  align-items: end;
+  max-width: 760px;
+  text-align: left;
+}
+.closer-form label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--ink-40);
+  text-transform: uppercase;
+}
+.closer-form input {
+  width: 100%;
+  margin-top: 0.55em;
+  padding: 0.95em 1.25em;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  background: var(--paper);
+  font-family: var(--body);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.closer-form input::placeholder { color: var(--ink-40); font-weight: 400; }
+.closer-form input:focus {
+  outline: none;
+  border-color: var(--mid);
+  box-shadow: 0 0 0 4px rgba(12, 127, 208, 0.14);
+}
+.closer-form .btn { justify-content: center; }
+.closer-sent {
+  display: none;
+  margin: 0.6rem 0 0;
+  padding: 1rem 1.5em;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 500;
+  border-radius: 14px;
+  grid-column: 1 / -1;
+  text-align: center;
+}
+.closer-form.is-sent .closer-sent { display: block; }
+.closer-form.is-sent label,
+.closer-form.is-sent .btn { opacity: 0.35; pointer-events: none; }
+
+.closer-note {
+  margin-top: 1.6rem;
+  font-size: 0.9rem;
+  color: var(--ink-60);
+}
+.closer-note a {
+  color: var(--aqua);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1.5px solid rgba(14, 116, 144, 0.3);
+}
+.closer-note a:hover { border-color: var(--aqua); }
+@media (max-width: 680px) {
+  .closer-form { grid-template-columns: 1fr; }
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+
+footer {
+  border-top: 1px solid var(--hair);
+  padding: 2.6rem var(--pad) 3rem;
+  background: var(--paper);
+}
+.foot {
+  max-width: var(--max);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-60);
+}
+.foot-left { display: inline-flex; align-items: center; gap: 0.65em; }
+.foot-nav { display: flex; gap: 1.6em; flex-wrap: wrap; justify-content: center; }
+.foot-nav a { color: var(--ink-60); text-decoration: none; transition: color 0.2s ease; }
+.foot-nav a:hover { color: var(--aqua); }
+.foot-mono {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-align: right;
+  margin: 0;
+  color: var(--ink-40);
+}
+@media (max-width: 820px) {
+  .foot { grid-template-columns: 1fr; text-align: left; gap: 1.2rem; }
+  .foot-nav { justify-content: flex-start; }
+  .foot-mono { text-align: left; }
+}
+
+/* ── Reveal ───────────────────────────────────────────────────────────── */
+
+.js-ready .reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0ms);
+  will-change: opacity, transform;
+}
+.js-ready .reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .wave { animation: none !important; }
+  .marquee-inner { animation: none !important; }
+  .live-dot { animation: none !important; }
+  .g-ink { animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ── Focus & selection ────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 3px solid var(--aqua);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+::selection { background: #CDEFF7; color: var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- Shared gradients for all wave bands & sparkline -->
+<svg class="svg-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="g-wa" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2563EB" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="g-wb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38BDF8" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#38BDF8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="g-wc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#06B6D4" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#06B6D4" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="g-wd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0EA5E9" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#0EA5E9" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="g-spark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0A3CC8"/>
+      <stop offset="1" stop-color="#009FBE"/>
+    </linearGradient>
+    <linearGradient id="g-spark-area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0C7FD0" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#0C7FD0" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="g-logo" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0A3CC8"/>
+      <stop offset="1" stop-color="#009FBE"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<header class="masthead">
+  <a href="#" class="mark" aria-label="Plannivo home">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M2 10.5 Q7 4.5 12 10.5 T22 10.5" stroke="url(#g-logo)" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M2 16.5 Q7 11.5 12 16.5 T22 16.5" stroke="url(#g-logo)" stroke-width="2.4" stroke-linecap="round" opacity="0.4"/>
+    </svg>
+    <span>Plannivo</span>
+  </a>
+  <nav class="nav" aria-label="Primary">
+    <a href="#problem">The problem</a>
+    <a href="#product">Product</a>
+    <a href="#proof">Proof</a>
+    <a href="#promise">The promise</a>
+    <a href="#demo" class="cta">Book a demo</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ────────────────────────────────  HERO  ────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-coord reveal">N 38°22′<span class="sep">·</span>E 26°46′<span class="sep">·</span>Urla, Aegean</p>
+
+      <h1 class="display">
+        <span class="line reveal">Spreadsheets</span>
+        <span class="line reveal" style="--d:90ms">don&rsquo;t survive</span>
+        <span class="line g-ink reveal" style="--d:180ms">saltwater.</span>
+      </h1>
+
+      <p class="lede reveal" style="--d:300ms">
+        Plannivo runs an entire watersports academy — bookings, students,
+        payroll, rentals, repairs, the till — on one screen. Built inside a
+        Duotone pro center, not adapted from a yoga-studio tool. And we can
+        prove it: <strong>we run our own school on it, live, every day.</strong>
+      </p>
+
+      <div class="hero-cta reveal" style="--d:400ms">
+        <a href="#demo" class="btn">
+          Book a 20-min demo
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="https://ukc.plannivo.com" target="_blank" rel="noopener" class="btn-quiet">Watch a real school run on it →</a>
+      </div>
+
+      <a class="hero-proof reveal" style="--d:500ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span><strong>ukc.plannivo.com</strong> is a real academy, live right now. Not a sandbox. Tap it.</span>
+      </a>
+    </div>
+
+    <!-- Signature: first-light wave band -->
+    <div class="waveband waveband--tall" aria-hidden="true">
+      <div class="wlayer" data-par="0.14">
+        <svg class="wave" style="--dur:64s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wa)" d="M0 96 Q360 40 720 96 T1440 96 T2160 96 T2880 96 V190 H0 Z"/></svg>
+      </div>
+      <div class="wlayer" data-par="0.26">
+        <svg class="wave rev" style="--dur:46s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wb)" d="M0 118 Q180 150 360 118 T720 118 T1080 118 T1440 118 T1800 118 T2160 118 T2520 118 T2880 118 V190 H0 Z"/></svg>
+      </div>
+      <div class="wlayer" data-par="0.4">
+        <svg class="wave" style="--dur:34s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wc)" d="M0 104 Q120 132 240 104 T480 104 T720 104 T960 104 T1200 104 T1440 104 T1680 104 T1920 104 T2160 104 T2400 104 T2640 104 T2880 104 V190 H0 Z"/></svg>
+      </div>
+      <div class="wlayer" data-par="0.55">
+        <svg class="wave rev" style="--dur:26s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wd)" d="M0 142 Q180 116 360 142 T720 142 T1080 142 T1440 142 T1800 142 T2160 142 T2520 142 T2880 142 V190 H0 Z"/></svg>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ────────────────────────────────  MARQUEE  ─────────────────────────── -->
+  <div class="marquee" aria-label="Everything Plannivo handles">
+    <div class="marquee-inner">
+      <div class="marquee-group">
+        <span>Bookings</span><i>●</i><span>Calendar</span><i>●</i><span>Students</span><i>●</i><span>CRM</span><i>●</i><span>Payroll</span><i>●</i><span>Commissions</span><i>●</i><span>Rentals</span><i>●</i><span>Repairs</span><i>●</i><span>Shop</span><i>●</i><span>Memberships</span><i>●</i><span>Packages</span><i>●</i><span>Iyzico payments</span><i>●</i><span>Waivers</span><i>●</i><span>Multi-role access</span><i>●</i><span>Unlimited updates</span><i>●</i>
+      </div>
+      <div class="marquee-group" aria-hidden="true">
+        <span>Bookings</span><i>●</i><span>Calendar</span><i>●</i><span>Students</span><i>●</i><span>CRM</span><i>●</i><span>Payroll</span><i>●</i><span>Commissions</span><i>●</i><span>Rentals</span><i>●</i><span>Repairs</span><i>●</i><span>Shop</span><i>●</i><span>Memberships</span><i>●</i><span>Packages</span><i>●</i><span>Iyzico payments</span><i>●</i><span>Waivers</span><i>●</i><span>Multi-role access</span><i>●</i><span>Unlimited updates</span><i>●</i>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────  THE PROBLEM  ─────────────────────────── -->
+  <section class="chapter" id="problem">
+    <div class="chapter-inner">
+      <p class="kicker reveal"><span class="k-tag">The stack you run today</span><span class="k-line"></span><span class="k-coord">N 38°22′ · Urla</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Your school is not<br>a <span class="g-ink">spreadsheet.</span></h2>
+
+      <div class="problem-grid">
+        <div class="junk reveal" style="--d:120ms">
+          <p class="junk-title">Be honest about what's holding your season together:</p>
+          <ul class="junk-list">
+            <li><i>✕</i><s>Six spreadsheets, one of them named FINAL_v2_REALLY</s></li>
+            <li><i>✕</i><s>A WhatsApp group doing the job of a booking system</s></li>
+            <li><i>✕</i><s>Two payment tools that don't talk to each other</s></li>
+            <li><i>✕</i><s>A ring binder of paper waivers</s></li>
+            <li><i>✕</i><s>A calendar app nobody actually trusts</s></li>
+            <li><i>✕</i><s>Payroll, reconstructed from memory, at midnight in October</s></li>
+          </ul>
+        </div>
+
+        <div class="surface-panel reveal" style="--d:220ms">
+          <p class="surface-title">One surface.</p>
+          <p class="surface-copy">
+            Every booking, every student, every euro — in one place that reads
+            the same for the founder, the instructors, and the student walking
+            up the beach.
+          </p>
+          <ul class="surface-list">
+            <li>One login</li>
+            <li>One URL</li>
+            <li>One line in your P&amp;L for software</li>
+          </ul>
+          <a href="#demo" class="btn">Replace the stack</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  PRODUCT  ────────────────────────────── -->
+  <section class="chapter chapter--product" id="product">
+    <div class="chapter-inner">
+      <p class="kicker reveal"><span class="k-tag">The product</span><span class="k-line"></span><span class="k-coord">One screen · One login</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">This is the<br>whole <span class="g-ink">office.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        No dopamine hooks, no forty tabs. A calm screen you glance at between
+        lessons — and everything is already handled.
+      </p>
+
+      <div class="stage reveal" style="--d:220ms">
+        <div class="product-frame">
+          <div class="product-top">
+            <span class="product-dot" aria-hidden="true"></span>
+            <span class="product-dot" aria-hidden="true"></span>
+            <span class="product-dot" aria-hidden="true"></span>
+            <span class="product-url">ukc.plannivo.com&nbsp;/&nbsp;dashboard</span>
+          </div>
+          <div class="product-body">
+
+            <nav class="prod-side" aria-hidden="true">
+              <div class="prod-brand"><span class="prod-brand-dot"></span>UKC.</div>
+              <ul>
+                <li class="is-active"><span class="prod-tick"></span>Dashboard</li>
+                <li>Calendar</li>
+                <li>Students</li>
+                <li>Instructors</li>
+                <li>Shop</li>
+                <li>Finance</li>
+                <li>Care</li>
+                <li>Marketing</li>
+              </ul>
+              <div class="prod-side-foot">v0.1.333 · live</div>
+            </nav>
+
+            <div class="prod-main">
+              <div class="prod-header">
+                <div>
+                  <p class="prod-eyebrow">MONDAY · 14 APR</p>
+                  <h4>Good morning, Oguz.</h4>
+                </div>
+                <div class="prod-stats">
+                  <div><span>12</span><label>lessons today</label></div>
+                  <div><span>€840</span><label>expected revenue</label></div>
+                  <div><span>5</span><label>check-ins pending</label></div>
+                </div>
+              </div>
+
+              <div class="prod-calendar">
+                <div class="prod-cal-hours" aria-hidden="true">
+                  <span></span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
+                </div>
+                <div class="prod-cal-rows">
+                  <div class="prod-cal-row">
+                    <span class="prod-cal-name">Siyabend</span>
+                    <div class="prod-cal-track">
+                      <div class="prod-lesson a" style="left:12%; width:22%"><span>Kite L2 · Ayşe</span></div>
+                      <div class="prod-lesson b" style="left:46%; width:18%"><span>Wing L1 · Mert</span></div>
+                    </div>
+                  </div>
+                  <div class="prod-cal-row">
+                    <span class="prod-cal-name">Arda</span>
+                    <div class="prod-cal-track">
+                      <div class="prod-lesson c" style="left:2%; width:30%"><span>Supervision · group</span></div>
+                      <div class="prod-lesson a" style="left:58%; width:20%"><span>Kite L3 · Ali</span></div>
+                    </div>
+                  </div>
+                  <div class="prod-cal-row">
+                    <span class="prod-cal-name">Elif</span>
+                    <div class="prod-cal-track">
+                      <div class="prod-lesson b" style="left:22%; width:28%"><span>Foil L1 · Kemal</span></div>
+                    </div>
+                  </div>
+                  <div class="prod-cal-row">
+                    <span class="prod-cal-name">Malek</span>
+                    <div class="prod-cal-track">
+                      <div class="prod-lesson c" style="left:34%; width:36%"><span>Kite Camp · 4 riders</span></div>
+                    </div>
+                  </div>
+                  <div class="prod-cal-row">
+                    <span class="prod-cal-name">Ufuk</span>
+                    <div class="prod-cal-track">
+                      <div class="prod-lesson a" style="left:14%; width:18%"><span>Kite L2</span></div>
+                      <div class="prod-lesson b" style="left:40%; width:24%"><span>Downwinder</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="prod-revenue">
+                <div>
+                  <p class="prod-eyebrow">APRIL REVENUE</p>
+                  <h5>€&nbsp;42,180</h5>
+                  <p class="prod-delta">↗ 14% month on month</p>
+                </div>
+                <svg class="prod-spark" viewBox="0 0 400 80" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="spark-area" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12 L400,80 L0,80 Z"/>
+                  <path class="spark-line" d="M0,60 L40,55 L80,48 L120,52 L160,40 L200,35 L240,25 L280,30 L320,18 L360,22 L400,12"/>
+                  <circle class="spark-dot" cx="400" cy="12" r="3.5"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="product-caption reveal" style="--d:280ms">Illustrative dashboard — a representative view, not live customer data.</p>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  FEATURES  ───────────────────────────── -->
+  <section class="chapter" id="platform">
+    <div class="chapter-inner">
+      <p class="kicker reveal"><span class="k-tag">What you get</span><span class="k-line"></span><span class="k-coord">Kite · Wing · Foil</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">Everything a season<br><span class="g-ink">throws at you.</span></h2>
+
+      <ul class="feature-grid">
+        <li class="reveal">
+          <span class="feat-tag">Bookings</span>
+          <h3>The calendar that fights back</h3>
+          <p>Lessons, rentals, group matching, conflict detection, no-show windows — one canvas.</p>
+        </li>
+        <li class="reveal" style="--d:60ms">
+          <span class="feat-tag">Students</span>
+          <h3>A real CRM, not a contact list</h3>
+          <p>Progress logs, waivers, family groups, gear preferences — every rider, remembered.</p>
+        </li>
+        <li class="reveal" style="--d:120ms">
+          <span class="feat-tag">Money</span>
+          <h3>Payroll that computes itself</h3>
+          <p>Iyzico card payments, cash-at-centre, wallets, packages — and commissions done for you.</p>
+        </li>
+        <li class="reveal" style="--d:180ms">
+          <span class="feat-tag">Instructors</span>
+          <h3>Trust, kept intact</h3>
+          <p>Availability, commissions, gear life, repair workflows. They see their cut — never your gross.</p>
+        </li>
+        <li class="reveal" style="--d:240ms">
+          <span class="feat-tag">Shop &amp; rentals</span>
+          <h3>Open in July, smart in January</h3>
+          <p>Products, memberships, walk-ins — with a direct-link mode for the closed season.</p>
+        </li>
+        <li class="reveal" style="--d:300ms">
+          <span class="feat-tag">Your brand</span>
+          <h3>Your school, front and centre</h3>
+          <p>Your subdomain, your palette, your voice. Students see your academy — not our logo.</p>
+        </li>
+      </ul>
+
+      <div class="creed">
+        <div class="creed-item reveal">
+          <h3>It speaks kite.</h3>
+          <p>L1–L5, supervision, downwinders, e-foil. You will never explain your sport to your software again.</p>
+        </div>
+        <div class="creed-item reveal" style="--d:100ms">
+          <h3>It protects trust.</h3>
+          <p>Automatic payroll. Instructors see their schedule, their students, their commission — never the lesson gross.</p>
+        </div>
+        <div class="creed-item reveal" style="--d:200ms">
+          <h3>It follows the season.</h3>
+          <p>Direct-link mode for winter. Multi-instructor conflict detection for July. Same tool, different posture.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Wave band between features and proof -->
+  <div class="waveband" aria-hidden="true">
+    <div class="wlayer" data-par="0.14">
+      <svg class="wave rev" style="--dur:58s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wa)" d="M0 96 Q360 40 720 96 T1440 96 T2160 96 T2880 96 V190 H0 Z"/></svg>
+    </div>
+    <div class="wlayer" data-par="0.28">
+      <svg class="wave" style="--dur:42s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wc)" d="M0 118 Q180 150 360 118 T720 118 T1080 118 T1440 118 T1800 118 T2160 118 T2520 118 T2880 118 V190 H0 Z"/></svg>
+    </div>
+    <div class="wlayer" data-par="0.46">
+      <svg class="wave rev" style="--dur:30s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wd)" d="M0 140 Q180 114 360 140 T720 140 T1080 140 T1440 140 T1800 140 T2160 140 T2520 140 T2880 140 V190 H0 Z"/></svg>
+    </div>
+  </div>
+
+
+  <!-- ─────────────────────────────  PROOF  ──────────────────────────────── -->
+  <section class="chapter" id="proof" style="padding-top: calc(var(--gap) * 0.6);">
+    <div class="chapter-inner">
+      <p class="kicker reveal"><span class="k-tag">The proof</span><span class="k-line"></span><span class="k-coord">Live since 2025</span></p>
+      <h2 class="h2 reveal" style="--d:80ms">One customer.<br><span class="g-ink">On purpose.</span></h2>
+      <p class="body-copy reveal" style="--d:160ms">
+        Every other tool greets you with a logo wall. We greet you with a
+        login. Duotone Pro Center Urla has run on Plannivo since 2025 —
+        every booking, every payslip, every repair, every day. It's not a
+        case study. It's live right now, and you can click it.
+      </p>
+
+      <div class="cust-strip">
+        <a class="cust is-live reveal" style="--d:220ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+          <span class="cust-live-badge"><span class="live-dot" aria-hidden="true"></span>Live now</span>
+          <span class="cust-mark">UKC<span class="cust-dot">.</span></span>
+          <span class="cust-label">Duotone Pro Center Urla · TR — kite · wing · foil · since 2025</span>
+          <span class="cust-link">ukc.plannivo.com →</span>
+        </a>
+        <a class="cust cust-invite reveal" style="--d:320ms" href="#demo">
+          <span class="cust-live-badge is-open">Open slot</span>
+          <span class="cust-mark mono">/your.center</span>
+          <span class="cust-label">An invitation, not a logo wall</span>
+          <span class="cust-link">become the second →</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Wave band into the promise -->
+  <div class="waveband" aria-hidden="true" style="background: linear-gradient(180deg, transparent 55%, #F0F9FC 100%);">
+    <div class="wlayer" data-par="0.16">
+      <svg class="wave" style="--dur:60s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wb)" d="M0 100 Q360 46 720 100 T1440 100 T2160 100 T2880 100 V190 H0 Z"/></svg>
+    </div>
+    <div class="wlayer" data-par="0.3">
+      <svg class="wave rev" style="--dur:40s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wc)" d="M0 122 Q180 152 360 122 T720 122 T1080 122 T1440 122 T1800 122 T2160 122 T2520 122 T2880 122 V190 H0 Z"/></svg>
+    </div>
+    <div class="wlayer" data-par="0.48">
+      <svg class="wave" style="--dur:28s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wd)" d="M0 144 Q180 118 360 144 T720 144 T1080 144 T1440 144 T1800 144 T2160 144 T2520 144 T2880 144 V190 H0 Z"/></svg>
+    </div>
+  </div>
+
+
+  <!-- ─────────────────────────────  PROMISE  ────────────────────────────── -->
+  <section class="promise" id="promise">
+    <div class="promise-inner">
+      <p class="kicker promise-kicker reveal"><span class="k-line"></span><span class="k-tag">The promise</span><span class="k-line"></span></p>
+      <h2 class="display reveal" style="--d:80ms">
+        <span class="line">Don&rsquo;t like something?</span>
+        <span class="line g-ink">We change it.</span>
+      </h2>
+      <p class="body-copy reveal" style="--d:180ms">
+        Every Plannivo customer gets <strong>unlimited updates</strong> — no
+        tiers, no change-request fees, no "it's on the roadmap". If any part
+        of the platform doesn't fit the way your school runs, tell us and we
+        make it right for you. We crafted Plannivo around our own academy.
+        We'll craft it around yours.
+      </p>
+      <ul class="promise-chips reveal" style="--d:280ms">
+        <li>Unlimited updates</li>
+        <li>Standard for every customer</li>
+        <li>Built around your school</li>
+      </ul>
+    </div>
+  </section>
+
+
+  <!-- ─────────────────────────────  DEMO  ───────────────────────────────── -->
+  <section class="closer" id="demo">
+    <div class="closer-inner">
+      <p class="kicker closer-kicker reveal"><span class="k-line"></span><span class="k-tag">Your move</span><span class="k-line"></span></p>
+      <h2 class="display reveal" style="--d:60ms">
+        <span class="line">Be the</span>
+        <span class="line g-ink">second.</span>
+      </h2>
+      <p class="lede reveal" style="--d:160ms">
+        UKC was first — the academy Plannivo was built inside. The next
+        subdomain is yours. We'll set it up by hand: your calendar, your
+        prices, your season. Twenty minutes, no credit card, no sales cadence.
+      </p>
+
+      <form id="demo-form" class="closer-form reveal" style="--d:260ms">
+        <label>
+          <span>Email</span>
+          <input type="email" placeholder="you@yourschool.com" required>
+        </label>
+        <label>
+          <span>Academy</span>
+          <input type="text" placeholder="Your center's name" required>
+        </label>
+        <button type="submit" class="btn">
+          Request demo
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <p class="closer-sent">Your email app just opened with the request — hit send and we'll reply personally.</p>
+      </form>
+
+      <p class="closer-note reveal" style="--d:360ms">
+        Prefer email? <a href="mailto:hello@plannivo.com">hello@plannivo.com</a> — the founder answers.
+      </p>
+    </div>
+
+    <!-- Waves at the foot of the page -->
+    <div class="waveband waveband--tall" aria-hidden="true">
+      <div class="wlayer" data-par="0.14">
+        <svg class="wave" style="--dur:62s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wa)" d="M0 96 Q360 40 720 96 T1440 96 T2160 96 T2880 96 V190 H0 Z"/></svg>
+      </div>
+      <div class="wlayer" data-par="0.26">
+        <svg class="wave rev" style="--dur:44s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wb)" d="M0 116 Q180 148 360 116 T720 116 T1080 116 T1440 116 T1800 116 T2160 116 T2520 116 T2880 116 V190 H0 Z"/></svg>
+      </div>
+      <div class="wlayer" data-par="0.4">
+        <svg class="wave" style="--dur:32s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wc)" d="M0 104 Q120 132 240 104 T480 104 T720 104 T960 104 T1200 104 T1440 104 T1680 104 T1920 104 T2160 104 T2400 104 T2640 104 T2880 104 V190 H0 Z"/></svg>
+      </div>
+      <div class="wlayer" data-par="0.55">
+        <svg class="wave rev" style="--dur:24s" viewBox="0 0 2880 190" preserveAspectRatio="none"><path fill="url(#g-wd)" d="M0 142 Q180 116 360 142 T720 142 T1080 142 T1440 142 T1800 142 T2160 142 T2520 142 T2880 142 V190 H0 Z"/></svg>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <div class="foot-left">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2 10.5 Q7 4.5 12 10.5 T22 10.5" stroke="url(#g-logo)" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M2 16.5 Q7 11.5 12 16.5 T22 16.5" stroke="url(#g-logo)" stroke-width="2.4" stroke-linecap="round" opacity="0.4"/>
+      </svg>
+      <span>Plannivo · Urla, TR</span>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="#problem">The problem</a>
+      <a href="#product">Product</a>
+      <a href="#proof">Proof</a>
+      <a href="mailto:hello@plannivo.com">hello@plannivo.com</a>
+    </nav>
+    <p class="foot-mono">© 2026 PLANNIVO · EST. 2025 · WIND PERMITTING</p>
+  </div>
+</footer>
+
+<script>
+/* Plannivo landing · horizon — progressive enhancement only */
+(function () {
+  'use strict';
+
+  /* Gate animations — content visible without JS */
+  document.documentElement.classList.add('js-ready');
+
+  /* ── Reveal on scroll ─────────────────────────────────────────────────── */
+  var revealObserver = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+  );
+  document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+
+  /* ── Wave-layer scroll parallax ───────────────────────────────────────── */
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduced) {
+    var layers = Array.prototype.slice.call(document.querySelectorAll('.wlayer[data-par]'));
+    var ticking = false;
+    var update = function () {
+      var vh = window.innerHeight;
+      layers.forEach(function (l) {
+        var r = l.parentElement.getBoundingClientRect();
+        if (r.bottom < -120 || r.top > vh + 120) return;
+        var center = r.top + r.height / 2 - vh / 2;
+        var y = center * parseFloat(l.dataset.par) * 0.16;
+        l.style.transform = 'translateY(' + y.toFixed(1) + 'px)';
+      });
+      ticking = false;
+    };
+    window.addEventListener('scroll', function () {
+      if (!ticking) { ticking = true; requestAnimationFrame(update); }
+    }, { passive: true });
+    update();
+  }
+
+  /* ── Demo form ────────────────────────────────────────────────────────── */
+  /* No backend yet — open the visitor's mail client with a pre-filled
+     request so the lead actually reaches hello@plannivo.com. Swap for a
+     real fetch() when a lead endpoint exists. */
+  var form = document.getElementById('demo-form');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"]');
+      var email = form.querySelector('input[type="email"]').value.trim();
+      var academy = form.querySelector('input[type="text"]').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = 'Opening…';
+
+      var subject = encodeURIComponent('Demo request — ' + academy);
+      var body = encodeURIComponent(
+        'Academy: ' + academy + '\n' +
+        'Contact: ' + email + '\n\n' +
+        "We'd like a 20-minute demo of Plannivo."
+      );
+      window.location.href =
+        'mailto:hello@plannivo.com?subject=' + subject + '&body=' + body;
+
+      form.classList.add('is-sent');
+    });
+  }
+
+  /* ── Smooth scroll for anchor links ───────────────────────────────────── */
+  document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      var target = document.querySelector(link.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+})();
+</script>
+</body>
+</html>
