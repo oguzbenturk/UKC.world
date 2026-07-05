@@ -15,6 +15,7 @@ import {
   Radio,
   Spin,
 } from 'antd';
+import { SafetyCertificateOutlined, CheckOutlined } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import Rental from '@/shared/models/Rental';
@@ -24,6 +25,11 @@ import apiClientDefault from '@/shared/services/apiClient';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
+
+// Flat insurance rate offered on staff-created rentals. The customer-facing
+// RentalBookingModal reads a per-service `insurance_rate`; the staff drawer
+// offers a single, predictable add-on that inflates the rental total by this %.
+const INSURANCE_RATE = 10;
 
 const formatRentalDuration = (duration) => {
   const hours = Number(duration);
@@ -54,6 +60,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
   const [availableRentalPackages, setAvailableRentalPackages] = useState([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
+  const [insuranceEnabled, setInsuranceEnabled] = useState(false);
 
   // Load customers
   const loadCustomers = useCallback(async () => {
@@ -124,6 +131,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
     if (editingRental) {
       const isMultiple = editingRental.participant_type === 'multiple';
       setParticipantMode(isMultiple ? 'multiple' : 'single');
+      setInsuranceEnabled(false);
       form.setFieldsValue({
         customer_id: isMultiple ? undefined : editingRental.user_id,
         customer_ids: isMultiple ? [editingRental.user_id] : undefined,
@@ -136,6 +144,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
     } else {
       form.resetFields();
       setParticipantMode('single');
+      setInsuranceEnabled(false);
       form.setFieldsValue({
         status: 'active',
         rental_date: dayjs(),
@@ -178,15 +187,12 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
     fetchPackages();
   }, [watchedCustomerId, apiClient]);
 
-  // Live discount preview — mirrors the staff discount applied at creation
+  // Watched price + discount inputs. The insurance/discount preview below is
+  // derived from them together: insurance inflates the base BEFORE the discount
+  // is netted, mirroring the backend order (total_price is stored WITH
+  // insurance, then applyDiscount() nets a % off that stored total).
   const watchedTotalPrice = Form.useWatch('total_price', form);
   const watchedDiscountPercent = Form.useWatch('discount_percent', form);
-  const discountPreview = useMemo(() => {
-    const base = Number(watchedTotalPrice) || 0;
-    const pct = Math.min(Math.max(Number(watchedDiscountPercent) || 0, 0), 100);
-    const amount = base * (pct / 100);
-    return { base, pct, amount, total: base - amount };
-  }, [watchedTotalPrice, watchedDiscountPercent]);
 
   // Equipment summary
   const watchedEquipmentIds = Form.useWatch('equipment_ids', form);
@@ -210,6 +216,39 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
         : null,
     };
   }, [selectedEquipmentItems, businessCurrency, formatCurrency]);
+
+  // ── Insurance + discount pricing ──────────────────────────────────────────
+  // Optional flat-rate insurance staff can add at creation. It inflates the
+  // rental price by INSURANCE_RATE%, exactly like the customer-facing modal
+  // bakes insurance into total_price (there is no dedicated column). Not offered
+  // when editing or when a package covers the rental (no cash charge to inflate).
+  const equipmentBaseTotal = useMemo(
+    () => selectedEquipmentItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0),
+    [selectedEquipmentItems]
+  );
+
+  // Base = the price staff typed; falls back to the summed equipment price when
+  // the field is left blank (the backend derives the same base in that case).
+  const baseBeforeInsurance = useMemo(() => {
+    const entered = Number(watchedTotalPrice);
+    if (Number.isFinite(entered) && entered > 0) return entered;
+    return equipmentBaseTotal;
+  }, [watchedTotalPrice, equipmentBaseTotal]);
+
+  const insuranceApplicable = !editingRental && !(usePackage && !!selectedPackageId);
+  const insuranceAmount = insuranceEnabled && insuranceApplicable && baseBeforeInsurance > 0
+    ? parseFloat((baseBeforeInsurance * INSURANCE_RATE / 100).toFixed(2))
+    : 0;
+  const priceWithInsurance = parseFloat((baseBeforeInsurance + insuranceAmount).toFixed(2));
+
+  // Discount is netted off the insurance-inclusive price, matching the backend
+  // (applyDiscount computes its amount from the stored total_price).
+  const discountPreview = useMemo(() => {
+    const base = priceWithInsurance || 0;
+    const pct = Math.min(Math.max(Number(watchedDiscountPercent) || 0, 0), 100);
+    const amount = parseFloat((base * (pct / 100)).toFixed(2));
+    return { base, pct, amount, total: parseFloat((base - amount).toFixed(2)) };
+  }, [priceWithInsurance, watchedDiscountPercent]);
 
   // Option renderers
   const renderCustomerOptions = useCallback(() => {
@@ -274,6 +313,7 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
     setUsePackage(false);
     setSelectedPackageId(null);
     setAvailableRentalPackages([]);
+    setInsuranceEnabled(false);
     onClose();
   }, [form, onClose]);
 
@@ -283,11 +323,30 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
       const values = await form.validateFields();
       const rentalDate = values.rental_date || dayjs();
 
+      // Resolve the base price the same way the preview does: the typed price,
+      // or the summed equipment price when the field is left blank.
+      const enteredPrice =
+        values.total_price !== undefined && values.total_price !== null && values.total_price !== ''
+          ? Number(values.total_price)
+          : null;
+      const submitBase = enteredPrice != null && enteredPrice > 0 ? enteredPrice : equipmentBaseTotal;
+      const insuranceOn = insuranceEnabled && insuranceApplicable;
+      const submitInsuranceAmount = insuranceOn && submitBase > 0
+        ? parseFloat((submitBase * INSURANCE_RATE / 100).toFixed(2))
+        : 0;
+      const submitPriceWithInsurance = parseFloat((submitBase + submitInsuranceAmount).toFixed(2));
+
+      // Insurance is baked into total_price (mirrors the customer modal); note
+      // the add-on so it stays auditable, since there is no dedicated column.
+      const submitNotes = insuranceOn && submitInsuranceAmount > 0
+        ? `${values.notes ? `${values.notes} ` : ''}(incl. ${INSURANCE_RATE}% insurance)`.trim()
+        : values.notes;
+
       const basePayload = {
         equipment_ids: values.equipment_ids,
         rental_date: rentalDate.format('YYYY-MM-DD'),
         status: values.status || 'active',
-        notes: values.notes,
+        notes: submitNotes,
         start_date: rentalDate.startOf('day').toISOString(),
         end_date: rentalDate.endOf('day').toISOString(),
         participant_type: participantMode,
@@ -296,8 +355,13 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
         rental_days: 1,
       };
 
-      if (values.total_price !== undefined && values.total_price !== null && values.total_price !== '') {
-        basePayload.total_price = Number(values.total_price);
+      // Send the insurance-inclusive price when insurance is on; otherwise keep
+      // the prior behaviour (send the typed price, or let the backend derive it
+      // from the equipment when the field is left blank).
+      if (insuranceOn && submitPriceWithInsurance > 0) {
+        basePayload.total_price = submitPriceWithInsurance;
+      } else if (enteredPrice != null) {
+        basePayload.total_price = enteredPrice;
       }
 
       // Staff discount applied at creation (backend → discounts table, same as drawer)
@@ -545,6 +609,40 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
               />
             </Form.Item>
 
+            {/* Insurance — optional flat add-on baked into the rental total.
+                Hardcoded English strings to match the adjacent Discount block. */}
+            {!editingRental && !(usePackage && selectedPackageId) && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Insurance</p>
+                <button
+                  type="button"
+                  onClick={() => setInsuranceEnabled((v) => !v)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                    insuranceEnabled
+                      ? 'border-sky-500 bg-sky-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${insuranceEnabled ? 'bg-sky-500' : 'bg-slate-100'}`}>
+                    <SafetyCertificateOutlined className={`text-base ${insuranceEnabled ? 'text-white' : 'text-slate-400'}`} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-sm font-semibold leading-tight ${insuranceEnabled ? 'text-sky-700' : 'text-slate-700'}`}>
+                      Add {INSURANCE_RATE}% insurance
+                    </span>
+                    <span className={`block text-xs mt-0.5 ${insuranceEnabled ? 'text-sky-500' : 'text-slate-400'}`}>
+                      {insuranceAmount > 0
+                        ? `+${formatCurrency(insuranceAmount, businessCurrency)} added to the total`
+                        : `Increases the rental price by ${INSURANCE_RATE}%`}
+                    </span>
+                  </span>
+                  <span className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${insuranceEnabled ? 'border-sky-500 bg-sky-500' : 'border-slate-300 bg-white'}`}>
+                    {insuranceEnabled && <CheckOutlined className="text-white text-[10px]" />}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Discount — applied at creation, same as the customer drawer */}
             <Form.Item name="discount_percent" label="Discount" className="!mb-2">
               <InputNumber
@@ -560,17 +658,29 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
               />
             </Form.Item>
 
-            {/* Discounted total preview */}
-            {discountPreview.pct > 0 && discountPreview.base > 0 && (
+            {/* Price summary — insurance add-on and/or discount netting.
+                Subtotal is the pre-insurance base; insurance inflates it and the
+                discount is netted off the insurance-inclusive price, exactly as
+                the backend stores total_price then applies the discount. */}
+            {((insuranceEnabled && insuranceApplicable && insuranceAmount > 0) ||
+              (discountPreview.pct > 0 && baseBeforeInsurance > 0)) && (
               <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Subtotal</span>
-                  <span className="text-slate-700">{formatCurrency(discountPreview.base, businessCurrency)}</span>
+                  <span className="text-slate-700">{formatCurrency(baseBeforeInsurance, businessCurrency)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-emerald-600">Discount ({discountPreview.pct}%)</span>
-                  <span className="text-emerald-600">−{formatCurrency(discountPreview.amount, businessCurrency)}</span>
-                </div>
+                {insuranceEnabled && insuranceApplicable && insuranceAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-sky-600">Insurance ({INSURANCE_RATE}%)</span>
+                    <span className="text-sky-600">+{formatCurrency(insuranceAmount, businessCurrency)}</span>
+                  </div>
+                )}
+                {discountPreview.pct > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-600">Discount ({discountPreview.pct}%)</span>
+                    <span className="text-emerald-600">−{formatCurrency(discountPreview.amount, businessCurrency)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-1 border-t border-slate-200">
                   <span className="text-sm font-semibold text-slate-600">Total</span>
                   <span className="text-base font-bold text-slate-900">{formatCurrency(discountPreview.total, businessCurrency)}</span>
