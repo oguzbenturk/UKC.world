@@ -118,82 +118,16 @@
     });
   }
 
-  /* ══ LIVE WIND — real station first, honest fallback always ══════════════ */
+  /* ══ WIND CARD — fixed representative values by owner's choice ════════════
+     No live fetching. The card always shows a clearly-labelled good Urla
+     afternoon; the static HTML already carries the same numbers + label. */
   var windCard = document.querySelector('.card-wind');
-  var elKn = document.getElementById('wind-kn');
-  var elGust = document.getElementById('wind-gust');
-  var elDir = document.getElementById('wind-dir');
   var elArrow = document.getElementById('wind-arrow');
-  var elStatusText = document.getElementById('wind-status-text');
-  var elWindTag = document.getElementById('wind-tag');
-  var CARDINALS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-
-  function degToCardinal(d) {
-    if (!isFinite(d)) return '—';
-    return CARDINALS[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
+  if (windCard) {
+    windCard.classList.remove('is-live');
+    windCard.setAttribute('aria-label', 'Wind, representative');
   }
-  function pickNumber(obj, keys, min, max) {
-    for (var i = 0; i < keys.length; i++) {
-      var v = obj && obj[keys[i]];
-      if (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) {
-        var n = Number(v);
-        if (isFinite(n) && n >= min && n <= max) return n;
-      }
-    }
-    return null;
-  }
-  function renderWind(kn, gust, dir, isLive) {
-    elKn.textContent = kn != null ? kn.toFixed(1) : '—';
-    elGust.textContent = gust != null ? gust.toFixed(1) : '—';
-    if (dir != null) {
-      elDir.textContent = degToCardinal(dir) + ' ' + Math.round(dir) + '°';
-      elArrow.style.transform = 'rotate(' + Math.round(dir) + 'deg)';
-    } else {
-      elDir.textContent = '—';
-    }
-    /* the LIVE label may ONLY appear on a genuinely fetched reading */
-    if (isLive) {
-      windCard.classList.add('is-live');
-      windCard.setAttribute('aria-label', 'Live wind');
-      elWindTag.textContent = 'LIVE WIND';
-      elStatusText.textContent = 'live · station on our beach';
-    } else {
-      windCard.classList.remove('is-live');
-      windCard.setAttribute('aria-label', 'Wind, representative');
-      elWindTag.textContent = 'WIND — REPRESENTATIVE';
-      elStatusText.textContent = 'representative — live station feed returns soon';
-    }
-  }
-  function representativeWind() {
-    /* a good Urla afternoon — clearly labelled, never pretending to be live */
-    renderWind(18.4, 24.1, 328, false);
-  }
-  function fetchWind() {
-    if (!window.fetch || !window.AbortController) { representativeWind(); return; }
-    var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, 3000);
-    fetch('https://ukc.plannivo.com/api/weather/pws', { signal: ctrl.signal, mode: 'cors' })
-      .then(function (r) {
-        if (!r.ok) throw new Error('status ' + r.status);
-        return r.json();
-      })
-      .then(function (d) {
-        clearTimeout(timer);
-        var root = (d && typeof d === 'object') ? d : {};
-        var obs = root.observation || root.data || root.current || root;
-        var kn = pickNumber(obs, ['windAvgKts','windSpeedKt','windSpeed','wind_kts','speedKt','windKts','wind_avg_kts','speed'], 0, 120);
-        var gust = pickNumber(obs, ['windGustKts','windGustKt','windGust','gustKt','gust_kts','gustKts','gust'], 0, 120);
-        var dir = pickNumber(obs, ['directionDeg','windDirection','winddir','direction','dirDeg','dir'], 0, 360);
-        if (kn == null) throw new Error('no usable wind key');
-        renderWind(kn, gust, dir, true);
-      })
-      .catch(function () {
-        clearTimeout(timer);
-        representativeWind();
-      });
-  }
-  fetchWind();
-  setInterval(function () { if (!document.hidden) fetchWind(); }, 300000); /* stays fresh, 5 min */
+  if (elArrow) elArrow.style.transform = 'rotate(328deg)';
 
   /* ══ CARD PHYSICS — parallax + gust response, one rAF loop ═══════════════ */
   var floats = Array.prototype.map.call(document.querySelectorAll('[data-depth]'), function (el) {

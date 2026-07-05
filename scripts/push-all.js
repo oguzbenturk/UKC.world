@@ -138,6 +138,16 @@ function bumpVersion(type = 'patch') {
     );
     fs.writeFileSync(indexHtmlPath, htmlContent, 'utf-8');
   }
+  // Cache-bust the landing's assets: nginx serves the landing's css/js with
+  // 1y immutable cache, so unversioned URLs strand returning browsers on
+  // stale styles (white/broken page after a redesign). Versioned query
+  // strings force a fresh fetch whenever the HTML changes.
+  const landingIndexPath = path.join(cwd, 'plannivo-landing', 'index.html');
+  if (fs.existsSync(landingIndexPath)) {
+    let landingHtml = fs.readFileSync(landingIndexPath, 'utf-8');
+    landingHtml = landingHtml.replace(/(styles\.css|script\.js)(\?v=[^"']*)?/g, `$1?v=${newVersion}`);
+    fs.writeFileSync(landingIndexPath, landingHtml, 'utf-8');
+  }
   return newVersion;
 }
 
