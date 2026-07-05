@@ -1,0 +1,1643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#081119">
+<title>Plannivo — Dusk sessions. One platform for kite, wing &amp; foil schools.</title>
+<meta name="description" content="Bookings, students, payroll, rentals, repairs — one surface for kite, wing and foil schools. Built inside a Duotone pro center and proven live, every day, at ukc.plannivo.com.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Plannivo — Spreadsheets don't survive saltwater.">
+<meta property="og:description" content="One platform runs the whole watersports academy. We know it works — we run our own school on it, live, every day.">
+<meta property="og:url" content="https://plannivo.com/">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23005F8F'/><stop offset='1' stop-color='%235FD9FF'/></linearGradient></defs><path d='M16 2 L30 16 L16 30 L2 16 Z' fill='url(%23g)'/></svg>">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLANNIVO · DUSK — wind-and-water landing
+   deep ocean #081119→#0A1520→#0D1B28 · antrasit #4B4F54 (structure ONLY)
+   electric blue #009EE2 · streamline lerp #005F8F→#009EE2→#5FD9FF
+   ember #FF9E4F — horizon line ONLY, ≤8%
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --bg-0:#081119; --bg-1:#0A1520; --bg-2:#0D1B28;
+  --ink-hi:#F2F8FC;            /* headings */
+  --ink-body:#C9D6E0;          /* body ≥7:1 on bg */
+  --ink-mono:#93A5B4;          /* mono micro-labels ≥4.5:1 */
+  --antrasit:#4B4F54;          /* Duotone Antrasit — borders/dividers/chrome ONLY */
+  --blue:#009EE2; --blue-deep:#005F8F; --blue-ice:#5FD9FF;
+  --live:#2EE6A8;
+  --glass:rgba(14,30,44,0.55);
+  --glass-border:rgba(60,104,132,0.46);   /* antrasit × rgba(0,158,226,.28) premix */
+  --font-display:"Bricolage Grotesque",system-ui,sans-serif;
+  --font-body:"Hanken Grotesk",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  --pad:clamp(1.1rem,4vw,3rem);
+  --maxw:1120px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:5rem}
+body{
+  margin:0;
+  font-family:var(--font-body);
+  font-size:1.0625rem; line-height:1.65;
+  color:var(--ink-body);
+  background:
+    linear-gradient(180deg,var(--bg-0) 0%,var(--bg-1) 34%,var(--bg-2) 78%,var(--bg-1) 100%);
+  background-color:var(--bg-1);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(0,158,226,.35);color:var(--ink-hi)}
+
+a{color:var(--blue-ice);text-decoration:none}
+a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4px}
+img,svg,video{max-width:100%}
+strong{color:var(--ink-hi);font-weight:650}
+
+h1,h2,h3,h4{font-family:var(--font-display);color:var(--ink-hi);margin:0;font-weight:600;letter-spacing:-0.015em}
+.mono{font-family:var(--font-mono)}
+
+/* ── The engine canvas — fixed, behind everything, never interactive ────── */
+#sea{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:0;pointer-events:none;display:block;
+}
+/* static art fallback — reduced motion (or the perf watchdog giving up) */
+.engine-fallback{
+  position:fixed;inset:0;z-index:0;pointer-events:none;display:none;
+  background:
+    radial-gradient(120% 70% at 50% 108%, rgba(0,95,143,.28) 0%, transparent 60%),
+    radial-gradient(90% 40% at 50% 100%, rgba(255,158,79,.10) 0%, transparent 55%);
+}
+.engine-fallback svg{position:absolute;inset:0;width:100%;height:100%}
+@media (prefers-reduced-motion:reduce){
+  #sea{display:none}
+  .engine-fallback{display:block}
+}
+
+/* everything above the sim */
+.masthead,main,footer,.horizon-track{position:relative;z-index:1}
+
+/* ── Horizon progress line — glides with scroll ─────────────────────────── */
+.horizon-track{
+  position:fixed;left:0;right:0;bottom:0;height:2px;z-index:5;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(75,79,84,.55) 12%,rgba(75,79,84,.55) 88%,transparent);
+}
+.horizon-fill{
+  position:absolute;left:0;top:0;bottom:0;width:100%;
+  background:linear-gradient(90deg,var(--blue-deep),var(--blue) 70%,var(--blue-ice));
+  box-shadow:0 0 12px rgba(0,158,226,.55), 0 0 26px rgba(255,158,79,.08);
+  transform:scaleX(0);transform-origin:left center;
+  transition:transform .18s linear;
+}
+.horizon-kite{
+  position:absolute;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;left:0;
+  background:linear-gradient(135deg,var(--blue),var(--blue-ice));
+  transform:rotate(45deg);
+  box-shadow:0 0 10px rgba(95,217,255,.8);
+}
+
+/* ── Masthead ───────────────────────────────────────────────────────────── */
+.masthead{
+  position:fixed;top:0;left:0;right:0;z-index:6;
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:.85rem var(--pad);
+  background:linear-gradient(180deg,rgba(8,17,25,.94),rgba(8,17,25,.88));
+  border-bottom:1px solid rgba(75,79,84,.35);
+}
+.mark{display:inline-flex;align-items:center;gap:.5rem;color:var(--ink-hi)}
+.mark:hover{text-decoration:none}
+.mark-word{font-family:var(--font-display);font-weight:650;font-size:1.05rem;letter-spacing:-.01em}
+.nav{display:flex;align-items:center;gap:1.4rem;font-size:.86rem}
+.nav a{color:var(--ink-body)}
+.nav a:hover{color:var(--blue-ice);text-decoration:none}
+.nav .cta{
+  padding:.42rem .95rem;border-radius:999px;color:#05131D;font-weight:700;
+  background:linear-gradient(120deg,var(--blue),var(--blue-ice));
+  box-shadow:0 0 18px rgba(0,158,226,.32);
+}
+.nav .cta:hover{filter:brightness(1.08)}
+.nav-wrap{display:flex;align-items:center;gap:.7rem}
+.nav-toggle{
+  display:none;align-items:center;justify-content:center;
+  width:40px;height:36px;padding:0;cursor:pointer;
+  background:rgba(14,30,44,.5);border:1px solid rgba(147,165,180,.45);
+  border-radius:8px;color:var(--ink-body);
+}
+.nav-toggle:hover{border-color:rgba(0,158,226,.55);color:var(--blue-ice)}
+@media (max-width:900px){
+  .nav a:not(.cta){display:none}
+  .nav-toggle{display:inline-flex}
+  .nav.is-open{
+    position:absolute;top:calc(100% + .5rem);right:var(--pad);
+    flex-direction:column;align-items:flex-start;gap:1rem;
+    background:rgba(8,17,25,.97);border:1px solid rgba(75,79,84,.55);
+    border-radius:14px;padding:1.1rem 1.3rem;
+    box-shadow:0 24px 60px rgba(4,10,18,.6);
+  }
+  .nav.is-open a:not(.cta){display:block}
+}
+.skip-link{
+  position:fixed;left:1rem;top:-4rem;z-index:10;
+  padding:.6rem 1rem;border-radius:8px;
+  background:linear-gradient(120deg,var(--blue),var(--blue-ice));color:#05131D;font-weight:700;
+  transition:top .2s ease;
+}
+.skip-link:focus{top:1rem}
+
+/* ── Shared section scaffolding ─────────────────────────────────────────── */
+.chapter{max-width:var(--maxw);margin:0 auto;padding:clamp(4.5rem,9vh,7.5rem) var(--pad)}
+.kicker{
+  font-family:var(--font-mono);font-size:.72rem;letter-spacing:.16em;
+  color:var(--ink-mono);text-transform:uppercase;margin:0 0 1.1rem;
+  display:flex;align-items:center;gap:.8rem;
+}
+.kicker::after{content:"";flex:0 0 52px;height:1px;background:linear-gradient(90deg,var(--antrasit),transparent)}
+.h2{font-size:clamp(1.7rem,1.1rem + 2.2vw,2.6rem);line-height:1.12;margin-bottom:1rem}
+.grad{
+  background:linear-gradient(96deg,#0087C2 0%,var(--blue) 40%,var(--blue-ice) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.body-copy{max-width:56ch;margin:0}
+.section-note{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-mono);letter-spacing:.05em}
+
+/* buttons */
+.btn{
+  display:inline-flex;align-items:center;gap:.55rem;
+  padding:.8rem 1.45rem;border-radius:999px;border:0;cursor:pointer;
+  font-family:var(--font-body);font-weight:700;font-size:.98rem;
+}
+.btn-signal{
+  color:#05131D;background:linear-gradient(120deg,var(--blue) 0%,var(--blue-ice) 100%);
+  box-shadow:0 0 22px rgba(0,158,226,.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.btn-signal:hover{filter:brightness(1.07);text-decoration:none}
+.btn-ghost{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.8rem 1.2rem;border-radius:999px;
+  border:1px solid rgba(147,165,180,.55);color:var(--ink-body);font-weight:600;font-size:.95rem;
+}
+.btn-ghost:hover{border-color:rgba(0,158,226,.55);color:var(--blue-ice);text-decoration:none}
+
+/* live dot */
+.live-dot{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--live);box-shadow:0 0 8px rgba(46,230,168,.8);
+  animation:pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ── 01 · HERO ──────────────────────────────────────────────────────────── */
+.hero{
+  min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+  max-width:var(--maxw);margin:0 auto;padding:7.5rem var(--pad) 4rem;
+  position:relative;z-index:1;
+}
+/* golden-hour bloom — wide, low, pinned to the hero horizon; the ONE warm move */
+.hero::after{
+  content:"";position:absolute;left:-24vw;right:-24vw;bottom:-8vh;height:42vh;
+  z-index:-1;pointer-events:none;
+  background:radial-gradient(58% 90% at 50% 100%,
+    rgba(255,158,79,.12) 0%, rgba(255,158,79,.04) 45%, transparent 72%);
+}
+.hero-kicker{display:flex;flex-wrap:wrap;align-items:center;gap:.9rem;margin:0 0 1.6rem}
+.tag{
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--blue-ice);padding:.32rem .7rem;border:1px solid rgba(0,158,226,.35);border-radius:999px;
+  background:rgba(0,158,226,.07);
+}
+.hero-kicker .coords{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.14em;color:var(--ink-mono)}
+.hero-title{
+  font-size:clamp(2.15rem,1rem + 3.6vw,3.6rem);
+  line-height:1.04;font-weight:640;max-width:15ch;
+  text-shadow:0 2px 40px rgba(8,17,25,.7);
+}
+.hero-title .line{display:block}
+.lede{font-size:clamp(1rem,.95rem + .3vw,1.15rem);max-width:54ch;margin:1.5rem 0 0}
+.hero-cta{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-top:2.1rem}
+.hero-proof{
+  display:inline-flex;align-items:center;gap:.6rem;margin-top:2.2rem;
+  font-size:.88rem;color:var(--ink-body);
+  padding:.55rem .95rem;border-radius:999px;
+  border:1px solid rgba(60,104,132,.4);background:rgba(14,30,44,.45);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  max-width:100%;
+}
+.hero-proof:hover{border-color:rgba(0,158,226,.5);text-decoration:none}
+.hero-glide-hint{
+  margin-top:auto;padding-top:3rem;
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.18em;color:var(--ink-mono);
+  text-transform:uppercase;
+}
+
+/* ── 02 · LIVE CONDITIONS — the four glass cards ────────────────────────── */
+/* luminous blobs behind the deck give the backdrop-blur something to eat */
+#conditions{position:relative;z-index:1}
+#conditions::before{
+  content:"";position:absolute;inset:-12% -18%;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(46% 38% at 22% 32%, rgba(0,95,143,.14) 0%, transparent 70%),
+    radial-gradient(38% 34% at 72% 16%, rgba(95,217,255,.08) 0%, transparent 70%),
+    radial-gradient(30% 26% at 86% 88%, rgba(255,158,79,.05) 0%, transparent 70%);
+}
+@media (prefers-reduced-motion:no-preference){
+  #conditions::before{animation:blobDrift 28s ease-in-out infinite alternate}
+}
+@keyframes blobDrift{
+  from{transform:translate3d(-2%,-1%,0) scale(1)}
+  to{transform:translate3d(2%,2%,0) scale(1.06)}
+}
+.conditions-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1.15rem;
+  margin-top:2.6rem;perspective:1100px;
+}
+@media (max-width:1080px){.conditions-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.conditions-grid{grid-template-columns:1fr}}
+
+.glass{
+  position:relative;border-radius:18px;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 24px 60px rgba(4,10,18,.5);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:box-shadow .45s ease,border-color .45s ease;
+}
+.glass:hover{
+  border-color:rgba(0,158,226,.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 24px 60px rgba(4,10,18,.55),
+    0 0 44px rgba(0,158,226,.18);
+}
+/* depth cues — the near card is crisp and bright, the far card soft and dim */
+.glass[data-depth="1.0"]{
+  border-color:rgba(88,150,185,.6);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 30px 70px rgba(4,10,18,.62);
+}
+.glass[data-depth="0.4"]{
+  border-color:rgba(60,104,132,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 30px rgba(4,10,18,.36);
+}
+.glass[data-depth="1.0"]:hover{
+  border-color:rgba(0,158,226,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 30px 70px rgba(4,10,18,.62),0 0 44px rgba(0,158,226,.18);
+}
+.glass[data-depth="0.4"]:hover{
+  border-color:rgba(0,158,226,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 12px 30px rgba(4,10,18,.36),0 0 34px rgba(0,158,226,.14);
+}
+@media (min-width:1081px){
+  .conditions-grid > .glass:nth-child(2){margin-top:1.5rem}
+  .conditions-grid > .glass:nth-child(3){margin-top:.5rem}
+  .conditions-grid > .glass:nth-child(4){margin-top:2rem}
+}
+.glass-inner{padding:1.15rem 1.2rem 1.05rem;display:flex;flex-direction:column;gap:.75rem;height:100%}
+/* idle bob — staggered, on the inner wrapper so JS owns the outer transform */
+.js-ready .glass-inner{animation:bob var(--bob-dur,9s) ease-in-out infinite;animation-delay:var(--bob-delay,0s)}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@media (prefers-reduced-motion:reduce){.js-ready .glass-inner{animation:none}}
+
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.card-tag{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;color:var(--blue-ice)}
+.card-stn{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-mono);
+  border:1px solid rgba(75,79,84,.6);border-radius:4px;padding:.12rem .4rem}
+.card-foot{margin-top:auto;font-family:var(--font-mono);font-size:.75rem;letter-spacing:.06em;color:var(--ink-mono)}
+
+/* wind card */
+.wind-main{display:flex;align-items:center;justify-content:space-between;gap:.8rem}
+.wind-read{font-family:var(--font-mono);color:var(--ink-hi);line-height:1}
+.wind-read b{font-size:2.6rem;font-weight:600;letter-spacing:-.03em}
+.wind-read em{font-style:normal;font-size:.85rem;color:var(--blue-ice);margin-left:.3rem}
+.wind-rose{flex:0 0 auto}
+#wind-arrow{transform-origin:32px 32px;transition:transform 1.2s cubic-bezier(.3,.9,.3,1)}
+.wind-sub{font-family:var(--font-mono);font-size:.72rem;color:var(--ink-body);margin:0}
+.wind-sub b{color:var(--ink-hi);font-weight:600}
+.wind-status{display:flex;align-items:flex-start;gap:.45rem;font-family:var(--font-mono);
+  font-size:.75rem;line-height:1.5;letter-spacing:.04em;color:var(--ink-mono);margin:0}
+.wind-status .live-dot{display:none;margin-top:.25em}
+.card-wind.is-live .wind-status .live-dot{display:inline-block}
+.card-wind.is-live .wind-status{color:var(--live)}
+
+/* calendar card */
+.cal-day{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.62rem;color:var(--ink-mono)}
+.cal-rows{display:flex;flex-direction:column;gap:.55rem}
+.cal-row{display:grid;grid-template-columns:4.4rem 1fr;align-items:center;gap:.5rem}
+.cal-name{font-size:.78rem;color:var(--ink-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-track{position:relative;height:14px;border-radius:4px;background:rgba(75,79,84,.22)}
+.cal-track i{position:absolute;top:2px;bottom:2px;border-radius:3px}
+.cal-track .a{background:linear-gradient(90deg,var(--blue),var(--blue-ice));box-shadow:0 0 8px rgba(0,158,226,.4)}
+.cal-track .b{background:rgba(95,217,255,.5)}
+.cal-track .c{background:rgba(0,95,143,.85)}
+
+/* wallet card */
+.wallet-balance{font-family:var(--font-mono);color:var(--ink-hi);font-size:1.7rem;font-weight:600;letter-spacing:-.02em;line-height:1}
+.wallet-balance small{display:block;font-size:.62rem;font-weight:400;color:var(--ink-mono);letter-spacing:.1em;margin-bottom:.3rem}
+.wallet-rows{display:flex;flex-direction:column;gap:.45rem;font-size:.78rem}
+.wallet-row{display:flex;justify-content:space-between;gap:.6rem;border-top:1px dashed rgba(75,79,84,.45);padding-top:.45rem}
+.wallet-row b{font-family:var(--font-mono);font-weight:500;color:var(--ink-hi);white-space:nowrap}
+.wallet-row .plus{color:var(--live)}
+
+/* equipment card */
+.eq-rows{display:flex;flex-direction:column;gap:.5rem;font-size:.78rem}
+.eq-row{display:flex;align-items:center;gap:.55rem;border-top:1px dashed rgba(75,79,84,.45);padding-top:.5rem}
+.eq-row:first-child{border-top:0;padding-top:0}
+.eq-dot{flex:0 0 7px;width:7px;height:7px;border-radius:50%}
+.eq-dot.ok{background:var(--live);box-shadow:0 0 6px rgba(46,230,168,.6)}
+.eq-dot.warn{background:#FFC24B;box-shadow:0 0 6px rgba(255,194,75,.5)}
+.eq-dot.bad{background:#FF7A7A;box-shadow:0 0 6px rgba(255,122,122,.5)}
+.eq-name{flex:1;color:var(--ink-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq-state{font-family:var(--font-mono);font-size:.62rem;color:var(--ink-mono);letter-spacing:.05em}
+
+.conditions-caption{
+  margin:1.6rem 0 0;font-family:var(--font-mono);font-size:.7rem;
+  color:var(--ink-mono);letter-spacing:.05em;max-width:70ch;line-height:1.7;
+}
+
+/* ── 03 · FEATURES · bento ──────────────────────────────────────────────── */
+.bento{
+  list-style:none;margin:2.6rem 0 0;padding:0;
+  display:grid;grid-template-columns:repeat(6,1fr);gap:1.05rem;
+}
+.tile{
+  grid-column:span 2;border-radius:16px;padding:1.35rem 1.3rem;
+  background:rgba(13,27,40,.72);
+  border:1px solid rgba(75,79,84,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07);
+  display:flex;flex-direction:column;gap:.45rem;
+  transition:border-color .4s ease,box-shadow .4s ease;
+}
+.tile:hover{border-color:rgba(0,158,226,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 34px rgba(0,158,226,.12)}
+.tile-lg{grid-column:span 3}
+.tile h3{font-size:1.12rem;font-weight:620}
+.tile p{margin:0;font-size:.9rem;line-height:1.55}
+.feat-tag{font-family:var(--font-mono);font-size:.64rem;letter-spacing:.15em;text-transform:uppercase;color:var(--blue-ice)}
+@media (max-width:900px){.tile,.tile-lg{grid-column:span 3}}
+@media (max-width:620px){.tile,.tile-lg{grid-column:span 6}}
+
+.tile-spark{margin-top:auto;padding-top:.6rem}
+.spark-label{font-family:var(--font-mono);font-size:.62rem;color:var(--ink-mono);letter-spacing:.08em}
+
+.brand-pill{
+  align-self:flex-start;margin-top:auto;
+  font-family:var(--font-mono);font-size:.78rem;color:var(--ink-hi);
+  border:1px solid rgba(0,158,226,.4);border-radius:999px;padding:.4rem .85rem;
+  background:rgba(0,158,226,.08);
+}
+.brand-pill em{font-style:normal;color:var(--blue-ice)}
+
+.tile-live{position:relative;color:inherit}
+.tile-live:hover{text-decoration:none}
+.live-badge{
+  display:inline-flex;align-items:center;gap:.45rem;align-self:flex-start;
+  font-family:var(--font-mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--live);border:1px solid rgba(46,230,168,.35);border-radius:999px;padding:.28rem .7rem;
+  background:rgba(46,230,168,.07);
+}
+.tile-link{margin-top:auto;font-family:var(--font-mono);font-size:.8rem;color:var(--blue-ice)}
+
+/* product film tile */
+.tile-film{grid-column:span 6;padding:0;overflow:hidden}
+.film-slot{
+  /* when the film is ready, drop tour.mp4 next to this file and replace
+     .film-placeholder with:
+     <video class="film-video" src="tour.mp4" muted loop playsinline autoplay preload="metadata"></video> */
+  position:relative;aspect-ratio:21/8;min-height:200px;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.8rem;
+  background:
+    radial-gradient(80% 120% at 50% 115%, rgba(0,95,143,.35) 0%, transparent 60%),
+    linear-gradient(180deg,rgba(10,21,32,.6),rgba(13,27,40,.9));
+}
+.film-slot > svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.film-slot > *{position:relative}
+.film-glyph{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(0,158,226,.5);background:rgba(0,158,226,.1);
+  box-shadow:0 0 30px rgba(0,158,226,.25);
+}
+.film-line{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.12em;color:var(--ink-body)}
+.film-caption{
+  padding:.8rem 1.3rem;border-top:1px solid rgba(75,79,84,.4);
+  font-family:var(--font-mono);font-size:.66rem;color:var(--ink-mono);letter-spacing:.05em;
+}
+
+/* ── 04 · PRICING ───────────────────────────────────────────────────────── */
+.pricing-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:1.15rem;margin-top:2.6rem}
+@media (max-width:820px){.pricing-grid{grid-template-columns:1fr}}
+.plan{
+  border-radius:18px;padding:1.8rem 1.7rem;
+  background:var(--glass);
+  border:1px solid var(--glass-border);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 24px 60px rgba(4,10,18,.5);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;flex-direction:column;gap:1.1rem;
+}
+.plan-name{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--blue-ice)}
+.plan h3{font-size:clamp(1.35rem,1.1rem + 1vw,1.8rem);line-height:1.15}
+.plan-copy{margin:0;font-size:.95rem;max-width:48ch}
+.plan-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:.5rem .9rem;font-size:.88rem}
+.plan-list li{display:flex;gap:.5rem;align-items:baseline}
+.plan-list li::before{content:"◆";font-size:.5rem;color:var(--blue);flex:0 0 auto;transform:translateY(-1px)}
+@media (max-width:560px){.plan-list{grid-template-columns:1fr}}
+.plan-chips{display:flex;flex-wrap:wrap;gap:.5rem;list-style:none;margin:0;padding:0}
+.plan-chips li{
+  font-family:var(--font-mono);font-size:.66rem;letter-spacing:.08em;color:var(--ink-body);
+  border:1px solid rgba(0,158,226,.35);border-radius:999px;padding:.32rem .75rem;background:rgba(0,158,226,.06);
+}
+.plan-cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;margin-top:.3rem}
+.plan-note{font-family:var(--font-mono);font-size:.66rem;color:var(--ink-mono);letter-spacing:.05em;margin:0}
+
+.plan-open{
+  border-style:dashed;border-color:rgba(75,79,84,.7);background:rgba(10,21,32,.35);
+  align-items:flex-start;justify-content:center;text-align:left;
+}
+.plan-open .open-slot{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mono);
+  border:1px solid rgba(75,79,84,.7);border-radius:999px;padding:.3rem .75rem}
+.plan-open .open-mark{font-family:var(--font-mono);font-size:1.5rem;color:var(--ink-hi)}
+.plan-open p{margin:0;font-size:.9rem;max-width:34ch}
+.plan-open a{font-family:var(--font-mono);font-size:.8rem}
+
+/* ── 05 · PROOF ─────────────────────────────────────────────────────────── */
+.cust-strip{display:grid;grid-template-columns:1.35fr 1fr;gap:1.15rem;margin-top:2.6rem}
+@media (max-width:820px){.cust-strip{grid-template-columns:1fr}}
+.cust{
+  border-radius:18px;padding:1.6rem 1.6rem;display:flex;flex-direction:column;gap:.7rem;
+  color:inherit;
+}
+.cust:hover{text-decoration:none}
+.cust.is-live{
+  background:var(--glass);border:1px solid var(--glass-border);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 24px 60px rgba(4,10,18,.5);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  transition:border-color .4s ease,box-shadow .4s ease;
+}
+.cust.is-live:hover{border-color:rgba(0,158,226,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 24px 60px rgba(4,10,18,.5),0 0 44px rgba(0,158,226,.16)}
+.cust-mark{font-family:var(--font-display);font-weight:700;font-size:2rem;color:var(--ink-hi);letter-spacing:-.02em}
+.cust-mark .cust-dot{color:var(--blue-ice)}
+.cust-label{font-size:.88rem}
+.cust-link{font-family:var(--font-mono);font-size:.8rem;color:var(--blue-ice);margin-top:auto}
+.cust-invite{
+  border:1px dashed rgba(75,79,84,.75);background:rgba(10,21,32,.3);
+}
+.cust-invite .cust-mark{font-family:var(--font-mono);font-size:1.35rem;font-weight:500;color:var(--ink-body)}
+.badge-open{
+  display:inline-flex;align-self:flex-start;font-family:var(--font-mono);font-size:.64rem;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mono);
+  border:1px solid rgba(75,79,84,.7);border-radius:999px;padding:.28rem .7rem;
+}
+
+/* ── 06 · PROMISE ───────────────────────────────────────────────────────── */
+.promise{
+  text-align:center;
+}
+.promise .kicker{justify-content:center}
+.promise .kicker::after{display:none}
+.promise-title{font-size:clamp(1.9rem,1.2rem + 2.6vw,3rem);line-height:1.08}
+.promise .body-copy{margin:1.3rem auto 0}
+.promise-chips{
+  list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;
+  margin:1.8rem 0 0;padding:0;
+}
+.promise-chips li{
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.1em;color:var(--ink-body);
+  border:1px solid rgba(0,158,226,.35);border-radius:999px;padding:.42rem .95rem;
+  background:rgba(0,158,226,.06);
+}
+
+/* ── 07 · DEMO closer ───────────────────────────────────────────────────── */
+.closer-title{font-size:clamp(2rem,1.1rem + 3.2vw,3.4rem);line-height:1.05}
+.closer-form{
+  display:grid;grid-template-columns:1fr 1fr auto;gap:.9rem;align-items:end;
+  margin-top:2.2rem;max-width:760px;
+}
+@media (max-width:720px){.closer-form{grid-template-columns:1fr}}
+.closer-form label{display:flex;flex-direction:column;gap:.4rem;font-size:.8rem;color:var(--ink-body)}
+.closer-form label span{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mono)}
+.closer-form input{
+  font:inherit;color:var(--ink-hi);
+  background:rgba(14,30,44,.6);border:1px solid rgba(147,165,180,.55);border-radius:10px;
+  padding:.75rem .9rem;
+}
+.closer-form input::placeholder{color:rgba(147,165,180,.8)}
+.closer-form input:focus{outline:2px solid var(--blue);outline-offset:2px;border-color:transparent}
+.closer-sent{display:none;grid-column:1/-1;margin:0;font-size:.85rem;color:var(--live)}
+.closer-form.is-sent .closer-sent{display:block}
+.closer-note{margin-top:1.4rem;font-size:.88rem}
+
+/* ── footer ─────────────────────────────────────────────────────────────── */
+footer{border-top:1px solid rgba(75,79,84,.4);background:rgba(8,17,25,.92)}
+.foot{
+  max-width:var(--maxw);margin:0 auto;padding:1.6rem var(--pad) 2.4rem;
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;
+}
+.foot-left{display:flex;align-items:center;gap:.5rem;font-size:.88rem;color:var(--ink-body)}
+.foot-nav{display:flex;flex-wrap:wrap;gap:1.1rem;font-size:.84rem}
+.foot-mono{width:100%;margin:.4rem 0 0;font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;color:var(--ink-mono)}
+
+/* ── camera-glide reveals ───────────────────────────────────────────────── */
+.reveal{opacity:1}
+.js-ready .reveal{
+  opacity:0;transform:translateY(26px) scale(.985);filter:blur(6px);
+  transition:opacity .9s cubic-bezier(.22,.9,.3,1) var(--d,0ms),
+             transform .9s cubic-bezier(.22,.9,.3,1) var(--d,0ms),
+             filter .9s cubic-bezier(.22,.9,.3,1) var(--d,0ms);
+}
+.js-ready .reveal.is-visible{opacity:1;transform:none;filter:none}
+@supports (animation-timeline: view()){
+  .js-ready .glide-zone .reveal{
+    opacity:1;transform:none;filter:none;transition:none;
+    animation:glideIn linear both;
+    animation-timeline:view();
+    animation-range:entry 5% entry 55%;
+    animation-delay:0s;
+  }
+  /* [data-depth] cards get a transform-free keyframe set: `fill:both` on a
+     transform keyframe would forever override the JS parallax/gust writes */
+  .js-ready .glide-zone .reveal[data-depth]{animation-name:glideInFlat}
+}
+@keyframes glideIn{
+  from{opacity:0;transform:translateY(30px) scale(.985);filter:blur(6px)}
+  to{opacity:1;transform:none;filter:none}
+}
+@keyframes glideInFlat{
+  from{opacity:0;filter:blur(6px)}
+  to{opacity:1;filter:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .js-ready .reveal{opacity:1 !important;transform:none !important;filter:none !important;transition:none !important;animation:none !important}
+  .live-dot{animation:none}
+  #wind-arrow{transition:none}
+  .horizon-fill{transition:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- shared SVG defs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#005F8F"/><stop offset="1" stop-color="#5FD9FF"/>
+    </linearGradient>
+    <linearGradient id="sparkStroke" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#005F8F"/><stop offset="1" stop-color="#5FD9FF"/>
+    </linearGradient>
+    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#009EE2" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#009EE2" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- THE ENGINE — full-viewport, fixed, z-0, pointer-events none -->
+<canvas id="sea" aria-hidden="true"></canvas>
+
+<!-- static art fallback: reduced motion / narrow viewports / no JS -->
+<div class="engine-fallback" aria-hidden="true">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+    <g fill="none" stroke-linecap="round">
+      <path d="M -40 140 C 300 90, 560 190, 860 145 S 1340 95, 1500 150" stroke="rgba(0,158,226,.26)" stroke-width="1.5"/>
+      <path d="M -40 300 C 260 250, 540 350, 840 300 S 1320 250, 1500 310" stroke="rgba(95,217,255,.18)" stroke-width="1.2"/>
+      <path d="M -40 470 C 320 420, 580 520, 880 470 S 1360 420, 1500 480" stroke="rgba(0,158,226,.22)" stroke-width="1.5"/>
+      <path d="M -40 640 C 280 595, 540 690, 840 645 S 1320 600, 1500 655" stroke="rgba(0,95,143,.32)" stroke-width="1.3"/>
+      <path d="M -40 815 C 300 780, 560 850, 860 815 S 1340 780, 1500 825" stroke="rgba(95,217,255,.15)" stroke-width="1.1"/>
+      <line x1="0" y1="742" x2="1440" y2="742" stroke="rgba(0,158,226,.2)" stroke-width="1"/>
+      <line x1="0" y1="742" x2="1440" y2="742" stroke="rgba(255,158,79,.06)" stroke-width="3"/>
+    </g>
+  </svg>
+</div>
+
+<!-- horizon progress line — the glide device -->
+<div class="horizon-track" aria-hidden="true">
+  <div class="horizon-fill" id="horizon-fill"></div>
+  <span class="horizon-kite" id="horizon-kite"></span>
+</div>
+
+<header class="masthead">
+  <a href="#" class="mark" aria-label="Plannivo home">
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z" fill="url(#markGrad)"/></svg>
+    <span class="mark-word">Plannivo</span>
+  </a>
+  <div class="nav-wrap">
+    <nav class="nav" id="primary-nav" aria-label="Primary">
+      <a href="#conditions">Conditions</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#proof">Proof</a>
+      <a href="#promise">The promise</a>
+      <a href="#demo" class="cta">Book a demo</a>
+    </nav>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="glide-zone" id="main" tabindex="-1">
+
+  <!-- ═════════════════════════════ 01 · HERO ═══════════════════════════ -->
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="hero-kicker reveal">
+      <span class="tag">Kite · Wing · Foil schools</span>
+      <span class="coords">38°22′N · URLA, TR · DUSK SESSION</span>
+    </p>
+
+    <h1 class="hero-title" id="hero-title">
+      <span class="line reveal">Spreadsheets</span>
+      <span class="line reveal" style="--d:110ms">don't survive</span>
+      <span class="line reveal" style="--d:220ms"><span class="grad">saltwater.</span></span>
+    </h1>
+
+    <p class="lede reveal" style="--d:320ms">
+      Plannivo runs an entire watersports academy — bookings, students,
+      payroll, rentals, repairs, the till — on one screen. Built inside a
+      Duotone pro center, not adapted from a yoga-studio tool. And we can
+      prove it: <strong>we run our own school on it, live, every day.</strong>
+    </p>
+
+    <div class="hero-cta reveal" style="--d:420ms">
+      <a href="#demo" class="btn btn-signal">
+        Book a 20-min demo
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="https://ukc.plannivo.com" target="_blank" rel="noopener" class="btn-ghost">Watch a real school run on it →</a>
+    </div>
+
+    <a class="hero-proof reveal" style="--d:520ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span><strong>ukc.plannivo.com</strong> is a real academy, live right now. Not a sandbox. Tap it.</span>
+    </a>
+
+    <p class="hero-glide-hint" aria-hidden="true">glide ↓ 02 · live conditions</p>
+  </section>
+
+  <!-- ═══════════════════════ 02 · LIVE CONDITIONS ══════════════════════ -->
+  <section class="chapter" id="conditions" aria-labelledby="conditions-title">
+    <p class="kicker reveal">02 · Live conditions</p>
+    <h2 class="h2 reveal" style="--d:80ms" id="conditions-title">The beach office,<br>at a <span class="grad">glance.</span></h2>
+    <p class="body-copy reveal" style="--d:160ms">
+      Four surfaces your front desk lives in all season. The wind card asks our
+      real station in Urla; the other three are representative views of the product.
+    </p>
+
+    <div class="conditions-grid">
+
+      <!-- LIVE WIND -->
+      <article class="glass card-wind reveal" data-depth="1.0" style="--bob-dur:8s;--bob-delay:.2s" aria-label="Wind, representative">
+        <div class="glass-inner">
+          <header class="card-head">
+            <span class="card-tag" id="wind-tag">WIND — REPRESENTATIVE</span>
+            <span class="card-stn">STN URLA</span>
+          </header>
+          <div class="wind-main">
+            <p class="wind-read"><b id="wind-kn">—</b><em>kn</em></p>
+            <svg class="wind-rose" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="27" fill="none" stroke="rgba(75,79,84,.7)" stroke-width="1"/>
+              <g stroke="rgba(147,165,180,.6)" stroke-width="1">
+                <line x1="32" y1="3" x2="32" y2="9"/><line x1="32" y1="55" x2="32" y2="61"/>
+                <line x1="3" y1="32" x2="9" y2="32"/><line x1="55" y1="32" x2="61" y2="32"/>
+              </g>
+              <text x="32" y="2.5" text-anchor="middle" dominant-baseline="hanging" font-family="JetBrains Mono,monospace" font-size="7" fill="#93A5B4">N</text>
+              <g id="wind-arrow">
+                <path d="M32 12 L37 26 L32 22.5 L27 26 Z" fill="url(#markGrad)"/>
+                <line x1="32" y1="23.5" x2="32" y2="46" stroke="url(#markGrad)" stroke-width="2" stroke-linecap="round"/>
+              </g>
+            </svg>
+          </div>
+          <p class="wind-sub">gust <b id="wind-gust">—</b> kn · <span id="wind-dir">—</span></p>
+          <p class="wind-status" id="wind-status"><span class="live-dot" aria-hidden="true"></span><span id="wind-status-text">reading station…</span></p>
+        </div>
+      </article>
+
+      <!-- BOOKING CALENDAR -->
+      <article class="glass reveal" data-depth="0.7" style="--d:80ms;--bob-dur:10s;--bob-delay:1.4s" aria-label="Booking calendar, illustrative">
+        <div class="glass-inner">
+          <header class="card-head">
+            <span class="card-tag">BOOKING CALENDAR</span>
+          </header>
+          <div class="cal-day"><span id="cal-date">TODAY</span><span>09 — 18</span></div>
+          <div class="cal-rows" aria-hidden="true">
+            <div class="cal-row"><span class="cal-name">Siyabend</span><div class="cal-track"><i class="a" style="left:6%;width:30%"></i><i class="b" style="left:52%;width:26%"></i></div></div>
+            <div class="cal-row"><span class="cal-name">Arda</span><div class="cal-track"><i class="c" style="left:2%;width:24%"></i><i class="a" style="left:58%;width:22%"></i></div></div>
+            <div class="cal-row"><span class="cal-name">Elif</span><div class="cal-track"><i class="b" style="left:26%;width:34%"></i></div></div>
+            <div class="cal-row"><span class="cal-name">Rental</span><div class="cal-track"><i class="c" style="left:40%;width:18%"></i><i class="b" style="left:78%;width:16%"></i></div></div>
+          </div>
+          <p class="card-foot">lessons · rentals · conflicts caught — illustrative</p>
+        </div>
+      </article>
+
+      <!-- CUSTOMER WALLET -->
+      <article class="glass reveal" data-depth="0.4" style="--d:160ms;--bob-dur:11s;--bob-delay:2.6s" aria-label="Customer wallet, illustrative">
+        <div class="glass-inner">
+          <header class="card-head">
+            <span class="card-tag">CUSTOMER WALLET</span>
+          </header>
+          <p class="wallet-balance"><small>BALANCE</small>€240.00</p>
+          <div class="wallet-rows" aria-hidden="true">
+            <div class="wallet-row"><span>Kite L3 · 2 h</span><b>−€120.00</b></div>
+            <div class="wallet-row"><span>Wallet top-up</span><b class="plus">+€300.00</b></div>
+            <div class="wallet-row"><span>Harness rental</span><b>−€15.00</b></div>
+          </div>
+          <p class="card-foot">one wallet, every charge — illustrative</p>
+        </div>
+      </article>
+
+      <!-- EQUIPMENT TRACKING -->
+      <article class="glass reveal" data-depth="0.7" style="--d:240ms;--bob-dur:9s;--bob-delay:.9s" aria-label="Equipment tracking, illustrative">
+        <div class="glass-inner">
+          <header class="card-head">
+            <span class="card-tag">EQUIPMENT</span>
+          </header>
+          <div class="eq-rows" aria-hidden="true">
+            <div class="eq-row"><span class="eq-dot ok"></span><span class="eq-name">Rebel SLS 12 m</span><span class="eq-state">rigged</span></div>
+            <div class="eq-row"><span class="eq-dot ok"></span><span class="eq-name">Sky Wing 5'2"</span><span class="eq-state">on beach</span></div>
+            <div class="eq-row"><span class="eq-dot warn"></span><span class="eq-name">Neo SLS 9 m</span><span class="eq-state">drying</span></div>
+            <div class="eq-row"><span class="eq-dot bad"></span><span class="eq-name">Harness · M</span><span class="eq-state">in repair</span></div>
+          </div>
+          <p class="card-foot">condition, lifecycle, repairs — illustrative</p>
+        </div>
+      </article>
+    </div>
+
+    <p class="conditions-caption reveal" style="--d:120ms">
+      Illustrative — representative view, not live customer data. Only the wind
+      card attempts a live feed, from the station on our own beach.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════ 03 · FEATURES ═════════════════════════ -->
+  <section class="chapter" id="features" aria-labelledby="features-title">
+    <p class="kicker reveal">03 · What you get</p>
+    <h2 class="h2 reveal" style="--d:80ms" id="features-title">Everything a season<br><span class="grad">throws at you.</span></h2>
+
+    <ul class="bento">
+      <li class="tile tile-lg reveal">
+        <span class="feat-tag">Money</span>
+        <h3>Payroll that computes itself</h3>
+        <p>Iyzico card payments, cash-at-centre, wallets, packages — and instructor commissions done for you, nightly.</p>
+        <svg class="tile-spark" viewBox="0 0 320 74" preserveAspectRatio="none" aria-hidden="true" height="60">
+          <path fill="url(#sparkFill)" d="M0,58 L32,54 L64,46 L96,50 L128,38 L160,33 L192,24 L224,28 L256,17 L288,21 L320,11 L320,74 L0,74 Z"/>
+          <path fill="none" stroke="url(#sparkStroke)" stroke-width="2.2" stroke-linecap="round" d="M0,58 L32,54 L64,46 L96,50 L128,38 L160,33 L192,24 L224,28 L256,17 L288,21 L320,11"/>
+          <circle fill="#5FD9FF" cx="320" cy="11" r="3.4"/>
+        </svg>
+        <p class="spark-label">commission run · nightly · automatic</p>
+      </li>
+
+      <li class="tile tile-lg reveal" style="--d:60ms">
+        <span class="feat-tag">Students</span>
+        <h3>A real CRM, not a contact list</h3>
+        <p>Progress logs, waivers, family groups, gear preferences — every rider, remembered. They see your academy's name, book their own slots, and watch their level climb.</p>
+      </li>
+
+      <li class="tile reveal" style="--d:120ms">
+        <span class="feat-tag">Shop &amp; rentals</span>
+        <h3>Open in July, smart in January</h3>
+        <p>Products, memberships, storage, walk-ins — with a direct-link mode for the closed season.</p>
+      </li>
+
+      <li class="tile reveal" style="--d:180ms">
+        <span class="feat-tag">Your brand</span>
+        <h3>Your school, front and centre</h3>
+        <p>Your subdomain, your palette, your voice. Students see your academy — not our logo.</p>
+        <span class="brand-pill" aria-hidden="true"><em>yourschool</em>.plannivo.com</span>
+      </li>
+
+      <li style="display:contents">
+        <a class="tile tile-live reveal" style="--d:240ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+          <span class="live-badge"><span class="live-dot" aria-hidden="true"></span>Live now</span>
+          <h3>Proven on a real beach</h3>
+          <p>The academy this platform was built inside.</p>
+          <span class="tile-link">ukc.plannivo.com →</span>
+        </a>
+      </li>
+
+      <li class="tile tile-film reveal" style="--d:300ms">
+        <div class="film-slot">
+          <svg viewBox="0 0 840 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <g fill="none" stroke-linecap="round">
+              <path d="M -20 60 C 180 35, 340 90, 520 62 S 800 30, 870 66" stroke="rgba(0,158,226,.14)" stroke-width="1.3"/>
+              <path d="M -20 150 C 160 122, 360 178, 540 148 S 810 118, 870 155" stroke="rgba(95,217,255,.1)" stroke-width="1.1"/>
+              <path d="M -20 245 C 190 220, 350 272, 530 244 S 800 214, 870 250" stroke="rgba(0,95,143,.2)" stroke-width="1.3"/>
+              <line x1="0" y1="286" x2="840" y2="286" stroke="rgba(0,158,226,.16)" stroke-width="1"/>
+              <line x1="0" y1="286" x2="840" y2="286" stroke="rgba(255,158,79,.05)" stroke-width="3"/>
+            </g>
+          </svg>
+          <span class="film-line">Product film — in production at the real center</span>
+        </div>
+        <p class="film-caption">Placeholder — product film not yet published. No footage is shown here.</p>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════ 04 · PRICING ══════════════════════════ -->
+  <section class="chapter" id="pricing" aria-labelledby="pricing-title">
+    <p class="kicker reveal">04 · Pricing</p>
+    <h2 class="h2 reveal" style="--d:80ms" id="pricing-title">Priced per school,<br>not per <span class="grad">headache.</span></h2>
+    <p class="body-copy reveal" style="--d:160ms">
+      No seat math, no module tiers, no surprise add-ons. We look at your season
+      together and quote one number for your whole school — then we hold it.
+    </p>
+
+    <div class="pricing-grid">
+      <article class="plan reveal" style="--d:220ms">
+        <span class="plan-name">Founding school</span>
+        <h3>One plan. The whole platform.</h3>
+        <p class="plan-copy">
+          Everything UKC runs on, set up by hand for your center — and because
+          you'd be among the first, you help decide what we build next.
+        </p>
+        <ul class="plan-list">
+          <li>Bookings, calendar &amp; conflict detection</li>
+          <li>Students, waivers &amp; CRM</li>
+          <li>Payroll &amp; instructor commissions</li>
+          <li>Shop, rentals, repairs &amp; memberships</li>
+          <li>Iyzico card payments — live today</li>
+          <li>Your subdomain, your brand</li>
+        </ul>
+        <ul class="plan-chips" aria-label="Included with every plan">
+          <li>Unlimited updates</li>
+          <li>Every customer, no tiers</li>
+          <li>Don't like something? We change it.</li>
+        </ul>
+        <div class="plan-cta-row">
+          <a href="#demo" class="btn btn-signal">Get your number — book a demo</a>
+        </div>
+        <p class="plan-note">Quoted per school after a 20-minute conversation. No published list price yet — on purpose.</p>
+      </article>
+
+      <article class="plan plan-open reveal" style="--d:320ms">
+        <span class="open-slot">Open slot</span>
+        <span class="open-mark">/your.center</span>
+        <p>Founding-school terms exist because we'd rather grow with three
+        schools we know by name than three hundred logos.</p>
+        <a href="#demo">claim the slot →</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════ 05 · PROOF ═══════════════════════════ -->
+  <section class="chapter" id="proof" aria-labelledby="proof-title">
+    <p class="kicker reveal">05 · The proof</p>
+    <h2 class="h2 reveal" style="--d:80ms" id="proof-title">One customer.<br><span class="grad">On purpose.</span></h2>
+    <p class="body-copy reveal" style="--d:160ms">
+      Every other tool greets you with a logo wall. We greet you with a login.
+      Duotone Pro Center Urla has run on Plannivo since 2025 — every booking,
+      every payslip, every repair, every day. It's not a case study. It's live
+      right now, and you can click it.
+    </p>
+
+    <div class="cust-strip">
+      <a class="cust is-live reveal" style="--d:220ms" href="https://ukc.plannivo.com" target="_blank" rel="noopener">
+        <span class="live-badge"><span class="live-dot" aria-hidden="true"></span>Live now</span>
+        <span class="cust-mark">UKC<span class="cust-dot">.</span></span>
+        <span class="cust-label">Duotone Pro Center Urla · TR — kite · wing · foil · since 2025</span>
+        <span class="cust-link">ukc.plannivo.com →</span>
+      </a>
+      <a class="cust cust-invite reveal" style="--d:320ms" href="#demo">
+        <span class="badge-open">Open slot</span>
+        <span class="cust-mark">/your.center</span>
+        <span class="cust-label">An invitation, not a logo wall</span>
+        <span class="cust-link">become the second →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ 06 · PROMISE ══════════════════════════ -->
+  <section class="chapter promise" id="promise" aria-labelledby="promise-title">
+    <p class="kicker reveal">06 · The promise</p>
+    <h2 class="promise-title reveal" style="--d:80ms" id="promise-title">Don't like something?<br><span class="grad">We change it.</span></h2>
+    <p class="body-copy reveal" style="--d:160ms">
+      Every Plannivo customer gets <strong>unlimited updates</strong> — no tiers,
+      no change-request fees, no "it's on the roadmap". If any part of the
+      platform doesn't fit the way your school runs, tell us and we make it
+      right for you. We crafted Plannivo around our own academy. We'll craft it
+      around yours.
+    </p>
+    <ul class="promise-chips reveal" style="--d:240ms">
+      <li>Unlimited updates</li>
+      <li>Standard for every customer</li>
+      <li>Built around your school</li>
+    </ul>
+  </section>
+
+  <!-- ════════════════════════════ 07 · DEMO ════════════════════════════ -->
+  <section class="chapter" id="demo" aria-labelledby="demo-title">
+    <p class="kicker reveal">07 · Your move</p>
+    <h2 class="closer-title reveal" style="--d:60ms" id="demo-title">Be the<br><span class="grad">second.</span></h2>
+    <p class="lede reveal" style="--d:160ms">
+      UKC was first — the academy Plannivo was built inside. The next subdomain
+      is yours. We'll set it up by hand: your calendar, your prices, your
+      season. Twenty minutes, no credit card, no sales cadence.
+    </p>
+
+    <form id="demo-form" class="closer-form reveal" style="--d:260ms">
+      <label>
+        <span>Email</span>
+        <input type="email" name="email" placeholder="you@yourschool.com" required autocomplete="email">
+      </label>
+      <label>
+        <span>Academy</span>
+        <input type="text" name="academy" placeholder="Your center's name" required autocomplete="organization">
+      </label>
+      <button type="submit" class="btn btn-signal">
+        Request demo
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="closer-sent" role="status">Your email app should have opened with the request — hit send and we'll reply personally. No mail app? Write to hello@plannivo.com.</p>
+    </form>
+
+    <p class="closer-note reveal" style="--d:360ms">
+      Prefer email? <a href="mailto:hello@plannivo.com">hello@plannivo.com</a> — the founder answers.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot">
+    <div class="foot-left">
+      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 L23 12 L12 23 L1 12 Z" fill="url(#markGrad)"/></svg>
+      <span>Plannivo · Urla, TR</span>
+    </div>
+    <nav class="foot-nav" aria-label="Footer">
+      <a href="#conditions">Conditions</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#proof">Proof</a>
+      <a href="#promise">The promise</a>
+      <a href="mailto:hello@plannivo.com">hello@plannivo.com</a>
+    </nav>
+    <p class="foot-mono">© 2026 PLANNIVO · EST. 2025 · WIND PERMITTING</p>
+  </div>
+</footer>
+
+<script>
+/* Plannivo · dusk — progressive enhancement only. Content works without JS. */
+(function () {
+  'use strict';
+
+  document.documentElement.classList.add('js-ready');
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var finePointer  = window.matchMedia('(pointer: fine)').matches;
+
+  /* hooks the engine IIFE fills in, so the reduced-motion listener can reach it */
+  var engineHooks = { start: null, stop: null, resize: null };
+
+  /* ══ Reveal fallback (IntersectionObserver) — @supports view() overrides it ══ */
+  if ('IntersectionObserver' in window) {
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -36px 0px' });
+    document.querySelectorAll('.reveal').forEach(function (el) { revealObserver.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-visible'); });
+  }
+
+  /* ══ Mobile nav disclosure ══ */
+  var navToggle = document.querySelector('.nav-toggle');
+  var primaryNav = document.getElementById('primary-nav');
+  if (navToggle && primaryNav) {
+    navToggle.addEventListener('click', function () {
+      var open = primaryNav.classList.toggle('is-open');
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    primaryNav.addEventListener('click', function (e) {
+      if (e.target && e.target.closest && e.target.closest('a')) {
+        primaryNav.classList.remove('is-open');
+        navToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  /* ══ Smooth anchor scroll — keeps focus + history honest ══ */
+  document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      var href = link.getAttribute('href');
+      if (!href || href === '#') return;
+      var target = document.querySelector(href);
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      target.setAttribute('tabindex', '-1');
+      try { target.focus({ preventScroll: true }); } catch (err) { target.focus(); }
+      if (window.history && history.pushState) history.pushState(null, '', href);
+    });
+  });
+
+  /* ══ Horizon progress — travels with scroll like a kite crossing the bay ══
+     compositor-only (transform), scrollHeight cached — no per-frame layout   */
+  var hFill = document.getElementById('horizon-fill');
+  var hKite = document.getElementById('horizon-kite');
+  var hTicking = false, hMax = 1, hVw = 1;
+  var scrollP = 0;                     /* 0→1 — shared with the engine below */
+  function measureHorizon() {
+    hMax = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    hVw = window.innerWidth;
+  }
+  function updateHorizon() {
+    var p = Math.min(1, Math.max(0, window.scrollY / hMax));
+    scrollP = p;
+    hFill.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+    hKite.style.transform = 'translateX(' + (p * hVw).toFixed(1) + 'px) rotate(45deg)';
+    hTicking = false;
+  }
+  window.addEventListener('scroll', function () {
+    if (hTicking) return;
+    hTicking = true;
+    requestAnimationFrame(updateHorizon);
+  }, { passive: true });
+  window.addEventListener('resize', function () { measureHorizon(); updateHorizon(); });
+  window.addEventListener('load', function () { measureHorizon(); updateHorizon(); });
+  measureHorizon();
+  updateHorizon();
+
+  /* ══ Calendar card date — today, never stale ══ */
+  var calDate = document.getElementById('cal-date');
+  if (calDate) {
+    var now = new Date();
+    var days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    calDate.textContent = days[now.getDay()] + ' · ' + now.getDate() + ' ' + months[now.getMonth()];
+  }
+
+  /* ══ Demo form — mailto until a lead endpoint exists ══ */
+  var form = document.getElementById('demo-form');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"]');
+      var email = form.querySelector('input[type="email"]').value.trim();
+      var academy = form.querySelector('input[type="text"]').value.trim();
+      var btnHTML = btn.innerHTML;
+      btn.disabled = true;
+      btn.textContent = 'Opening…';
+      setTimeout(function () {           /* never dead-end: allow retry/typo fix */
+        btn.disabled = false;
+        btn.innerHTML = btnHTML;
+      }, 3000);
+      var subject = encodeURIComponent('Demo request — ' + academy);
+      var body = encodeURIComponent(
+        'Academy: ' + academy + '\n' +
+        'Contact: ' + email + '\n\n' +
+        "We'd like a 20-minute demo of Plannivo."
+      );
+      window.location.href = 'mailto:hello@plannivo.com?subject=' + subject + '&body=' + body;
+      form.classList.add('is-sent');
+    });
+  }
+
+  /* ══ LIVE WIND — real station first, honest fallback always ══════════════ */
+  var windCard = document.querySelector('.card-wind');
+  var elKn = document.getElementById('wind-kn');
+  var elGust = document.getElementById('wind-gust');
+  var elDir = document.getElementById('wind-dir');
+  var elArrow = document.getElementById('wind-arrow');
+  var elStatusText = document.getElementById('wind-status-text');
+  var elWindTag = document.getElementById('wind-tag');
+  var CARDINALS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+
+  function degToCardinal(d) {
+    if (!isFinite(d)) return '—';
+    return CARDINALS[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
+  }
+  function pickNumber(obj, keys, min, max) {
+    for (var i = 0; i < keys.length; i++) {
+      var v = obj && obj[keys[i]];
+      if (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '')) {
+        var n = Number(v);
+        if (isFinite(n) && n >= min && n <= max) return n;
+      }
+    }
+    return null;
+  }
+  function renderWind(kn, gust, dir, isLive) {
+    elKn.textContent = kn != null ? kn.toFixed(1) : '—';
+    elGust.textContent = gust != null ? gust.toFixed(1) : '—';
+    if (dir != null) {
+      elDir.textContent = degToCardinal(dir) + ' ' + Math.round(dir) + '°';
+      elArrow.style.transform = 'rotate(' + Math.round(dir) + 'deg)';
+    } else {
+      elDir.textContent = '—';
+    }
+    /* the LIVE label may ONLY appear on a genuinely fetched reading */
+    if (isLive) {
+      windCard.classList.add('is-live');
+      windCard.setAttribute('aria-label', 'Live wind');
+      elWindTag.textContent = 'LIVE WIND';
+      elStatusText.textContent = 'live · station on our beach';
+    } else {
+      windCard.classList.remove('is-live');
+      windCard.setAttribute('aria-label', 'Wind, representative');
+      elWindTag.textContent = 'WIND — REPRESENTATIVE';
+      elStatusText.textContent = 'representative — live station feed returns soon';
+    }
+  }
+  function representativeWind() {
+    /* a good Urla afternoon — clearly labelled, never pretending to be live */
+    renderWind(18.4, 24.1, 328, false);
+  }
+  function fetchWind() {
+    if (!window.fetch || !window.AbortController) { representativeWind(); return; }
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 3000);
+    fetch('https://ukc.plannivo.com/api/weather/pws', { signal: ctrl.signal, mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('status ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        clearTimeout(timer);
+        var root = (d && typeof d === 'object') ? d : {};
+        var obs = root.observation || root.data || root.current || root;
+        var kn = pickNumber(obs, ['windAvgKts','windSpeedKt','windSpeed','wind_kts','speedKt','windKts','wind_avg_kts','speed'], 0, 120);
+        var gust = pickNumber(obs, ['windGustKts','windGustKt','windGust','gustKt','gust_kts','gustKts','gust'], 0, 120);
+        var dir = pickNumber(obs, ['directionDeg','windDirection','winddir','direction','dirDeg','dir'], 0, 360);
+        if (kn == null) throw new Error('no usable wind key');
+        renderWind(kn, gust, dir, true);
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        representativeWind();
+      });
+  }
+  fetchWind();
+  setInterval(function () { if (!document.hidden) fetchWind(); }, 300000); /* stays fresh, 5 min */
+
+  /* ══ CARD PHYSICS — parallax + gust response, one rAF loop ═══════════════ */
+  var floats = Array.prototype.map.call(document.querySelectorAll('[data-depth]'), function (el) {
+    return {
+      el: el,
+      depth: parseFloat(el.getAttribute('data-depth')) || 0.6,
+      px: 0, py: 0, tx: 0, ty: 0,           /* parallax current/target */
+      gx: 0, gvx: 0, gr: 0, gvr: 0, grx: 0, gvrx: 0  /* gust springs */
+    };
+  });
+
+  if (floats.length) {
+    var cardSleeping = true, cardIdleFrames = 0;
+
+    var cardTick = function () {
+      if (reduceMotion) { cardSleeping = true; return; }
+      var K = 0.045, C = 0.90; /* spring stiffness + damping */
+      var energy = 0;
+      floats.forEach(function (f) {
+        f.px += (f.tx - f.px) * 0.08;
+        f.py += (f.ty - f.py) * 0.08;
+        f.gvx += -f.gx * K; f.gvx *= C; f.gx += f.gvx;
+        f.gvr += -f.gr * K; f.gvr *= C; f.gr += f.gvr;
+        f.gvrx += -f.grx * K; f.gvrx *= C; f.grx += f.gvrx;
+        var rz = Math.max(-1.6, Math.min(1.6, f.gr));
+        var rx = Math.max(-1.2, Math.min(1.2, f.grx));
+        var tf =
+          'translate3d(' + (f.px + f.gx).toFixed(2) + 'px,' + f.py.toFixed(2) + 'px,0)' +
+          ' rotateZ(' + rz.toFixed(3) + 'deg) rotateX(' + rx.toFixed(3) + 'deg)';
+        if (tf !== f.lastTf) { f.el.style.transform = tf; f.lastTf = tf; }
+        energy += Math.abs(f.tx - f.px) + Math.abs(f.ty - f.py) +
+                  Math.abs(f.gvx) + Math.abs(f.gvr) + Math.abs(f.gvrx);
+      });
+      /* springs at rest → stop scheduling rAF; wakes on pointer / gust */
+      if (energy < 0.01) { cardIdleFrames++; } else { cardIdleFrames = 0; }
+      if (cardIdleFrames > 30) { cardSleeping = true; return; }
+      requestAnimationFrame(cardTick);
+    };
+    var wakeCards = function () {
+      if (reduceMotion || !cardSleeping) return;
+      cardSleeping = false;
+      cardIdleFrames = 0;
+      requestAnimationFrame(cardTick);
+    };
+
+    if (finePointer) {
+      window.addEventListener('pointermove', function (e) {
+        var nx = e.clientX / window.innerWidth - 0.5;
+        var ny = e.clientY / window.innerHeight - 0.5;
+        floats.forEach(function (f) {
+          f.tx = -nx * 14 * f.depth;
+          f.ty = -ny * 14 * f.depth;
+        });
+        wakeCards();
+      }, { passive: true });
+    }
+
+    /* gusts from the engine load the cards like kites, then release */
+    window.addEventListener('gust', function (e) {
+      var i = (e.detail && e.detail.intensity) || 0.6;
+      floats.forEach(function (f, idx) {
+        setTimeout(function () {
+          f.gvx += (4 + 6 * i) * f.depth * 0.55;     /* downwind shove */
+          f.gvr += (0.5 + 1.1 * i) * f.depth * 0.5;  /* rotateZ load, ≤1.6deg */
+          f.gvrx += (0.4 + 0.7 * i) * f.depth * 0.4; /* slight rotateX */
+        }, idx * 90); /* the gust front crosses the grid */
+      });
+      wakeCards();
+    });
+  }
+
+  /* ══ THE ENGINE — wind-field streamlines, gusts, spray, ocean ════════════ */
+  (function engine() {
+    var canvas = document.getElementById('sea');
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+    var fallbackEl = document.querySelector('.engine-fallback');
+
+    var W = 0, H = 0, DPR = 1;
+    var budget = false;         /* narrow viewports run a trimmed sim, not none */
+    var running = false, rafId = 0;
+    var particles = [], spray = [];
+    var targetCount = 0;
+    var perfLevel = 0;          /* 0 full · 1 half particles+half rate · 2 static fallback */
+    var goodWindows = 0;
+    var frameTimes = [], lastT = 0;
+    var pendingDt = 0, skipToggle = false;
+    var t = 0;                  /* sim time, seconds */
+    var pointer = { x: -9999, y: -9999, vx: 0, vy: 0, lx: 0, ly: 0, lt: 0 };
+    var bgGrad = null;          /* cached page-gradient — the frame fade fill */
+
+    /* gust state */
+    var gustAt = 0, gustDur = 2.5, gustStart = -99, gustIntensity = 0;
+    function scheduleGust(nowS) { gustAt = nowS + 6 + Math.random() * 8; }
+
+    /* streamline palette — #005F8F → #009EE2 → #5FD9FF */
+    var STOPS = [[0,95,143],[0,158,226],[95,217,255]];
+    function windColor(u, a) {
+      var seg = u < 0.5 ? 0 : 1, f = (u < 0.5 ? u : u - 0.5) * 2;
+      var c0 = STOPS[seg], c1 = STOPS[seg + 1];
+      var r = (c0[0] + (c1[0] - c0[0]) * f) | 0;
+      var g = (c0[1] + (c1[1] - c0[1]) * f) | 0;
+      var b = (c0[2] + (c1[2] - c0[2]) * f) | 0;
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+    /* precomputed LUTs — no rgba string allocation in the hot loop.
+       slow marks are dimmer (0.25) → fast marks brighter (0.55): streaks, not dots */
+    var STROKES = [];
+    for (var ci = 0; ci < 16; ci++) {
+      var cu = ci / 15;
+      STROKES.push(windColor(cu, (0.25 + 0.3 * cu).toFixed(3)));
+    }
+    var SPRAYS = [];
+    for (var si = 0; si < 10; si++) {
+      SPRAYS.push('rgba(95,217,255,' + (0.5 * si / 9).toFixed(3) + ')');
+    }
+
+    function desiredCount() {
+      var area = W * H;
+      var base;
+      if (budget) {
+        base = Math.max(60, Math.min(110, Math.round(area / 9000)));  /* ~80 on a phone */
+      } else {
+        base = Math.round(area / 4600);              /* ~280 at 1440×900 */
+        var cores = navigator.hardwareConcurrency || 4;
+        if (cores <= 4) base = Math.round(base * 0.72);
+        base = Math.max(200, Math.min(320, base));
+      }
+      if (perfLevel >= 1) base = Math.round(base / 2);
+      return base;
+    }
+
+    function makeParticle(anywhere) {
+      return {
+        x: anywhere ? Math.random() * W : -Math.random() * 80,  /* spawn band, no seam */
+        y: Math.random() * H,
+        px: 0, py: 0,
+        sp: 0.85 + Math.random() * 0.45,   /* speed floor 0.85 — always a moving streak */
+        drift: (Math.random() - 0.5) * 0.3
+      };
+    }
+
+    function resize() {
+      budget = window.innerWidth < 760;
+      DPR = budget ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.round(W * DPR);   /* also hard-clears the bitmap */
+      canvas.height = Math.round(H * DPR);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#081119');
+      bgGrad.addColorStop(0.5, '#0A1520');
+      bgGrad.addColorStop(1, '#0D1B28');
+      targetCount = desiredCount();
+      /* keep the existing pool across resizes — no hard visual pop */
+      for (var i = 0; i < particles.length; i++) {
+        if (particles[i].x > W) particles[i].x = Math.random() * W;
+        if (particles[i].y > H) particles[i].y = Math.random() * H;
+      }
+      if (particles.length > targetCount) particles.length = targetCount;
+      while (particles.length < targetCount) particles.push(makeParticle(true));
+    }
+
+    /* smooth time-varying flow field: summed sin/cos octaves, dominant +x */
+    function fieldAngle(x, y, time) {
+      var s = 0.0015;
+      return (
+        Math.sin(y * s * 2.3 + time * 0.33) * 0.42 +
+        Math.cos(x * s * 1.25 - time * 0.21 + y * s * 1.1) * 0.30 +
+        Math.sin((x + y) * s * 0.62 + time * 0.5) * 0.18
+      );
+    }
+
+    function gustEnv(nowS) {
+      var p = (nowS - gustStart) / gustDur;
+      if (p < 0 || p > 1) return 0;
+      return Math.sin(Math.PI * p); /* ease 0→1→0 */
+    }
+
+    function spawnSpray(n, gusty) {
+      if (perfLevel >= 2 || budget) return;
+      for (var i = 0; i < n; i++) {
+        spray.push({
+          x: gusty ? -10 : pointer.x + (Math.random() - 0.5) * 20,
+          y: gusty ? Math.random() * H * 0.85 : pointer.y + (Math.random() - 0.5) * 20,
+          vx: 7 + Math.random() * 6,
+          vy: (Math.random() - 0.35) * 1.2,
+          life: 1
+        });
+      }
+      if (spray.length > 220) spray.splice(0, spray.length - 220);
+    }
+
+    function drawOcean(nowS) {
+      if (perfLevel >= 2 || budget) return;
+      /* the water rises gently as you glide down the page — camera travel */
+      var baseY = H * (0.82 - scrollP * 0.06);
+      ctx.globalCompositeOperation = 'source-over';
+      /* 3 translucent drifting swells */
+      for (var l = 0; l < 3; l++) {
+        var amp = 6 + l * 5;
+        var speed = 0.35 + l * 0.22;
+        var yOff = baseY + l * 16;
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        for (var x = 0; x <= W; x += 24) {
+          var y = yOff + Math.sin(x * 0.008 + nowS * speed + l * 2.1) * amp
+                       + Math.sin(x * 0.021 - nowS * speed * 0.7) * amp * 0.4;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(0,' + (70 + l * 22) + ',' + (110 + l * 30) + ',' + (0.10 - l * 0.025) + ')';
+        ctx.fill();
+      }
+      /* dusk warmth caught on the swell tops — 3%, the horizon band only */
+      var warm = ctx.createLinearGradient(0, baseY - 46, 0, baseY + 12);
+      warm.addColorStop(0, 'rgba(255,158,79,0)');
+      warm.addColorStop(1, 'rgba(255,158,79,0.03)');
+      ctx.fillStyle = warm;
+      ctx.fillRect(0, baseY - 46, W, 58);
+      ctx.globalCompositeOperation = 'lighter';
+      /* moving crest highlight tracing the top swell */
+      ctx.strokeStyle = 'rgba(95,217,255,0.10)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (var cx = 0; cx <= W; cx += 24) {
+        var cy = baseY + Math.sin(cx * 0.008 + nowS * 0.35 + 0) * 6
+                       + Math.sin(cx * 0.021 - nowS * 0.245) * 2.4;
+        if (cx === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+      /* specular horizon — cyan, with the one permitted ember glint */
+      var hy = baseY - 4 + Math.sin(nowS * 0.5) * 1.5;
+      var grad = ctx.createLinearGradient(0, 0, W, 0);
+      grad.addColorStop(0, 'rgba(0,158,226,0)');
+      grad.addColorStop(0.35, 'rgba(0,158,226,0.10)');
+      grad.addColorStop(0.45, 'rgba(255,158,79,0.05)');
+      grad.addColorStop(0.55, 'rgba(255,158,79,0.12)'); /* ember — horizon only */
+      grad.addColorStop(0.65, 'rgba(255,158,79,0.05)');
+      grad.addColorStop(0.78, 'rgba(95,217,255,0.10)');
+      grad.addColorStop(1, 'rgba(0,158,226,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(W, hy); ctx.stroke();
+    }
+
+    function showFallback() {
+      canvas.style.display = 'none';
+      if (fallbackEl) fallbackEl.style.display = 'block';
+    }
+
+    function frame(nowMs) {
+      if (!running) return;
+      rafId = requestAnimationFrame(frame);
+
+      var dt = lastT ? Math.min(50, nowMs - lastT) : 16.7;
+      lastT = nowMs;
+
+      /* FPS watchdog — measures raw rAF cadence; can escalate AND recover */
+      frameTimes.push(dt);
+      if (frameTimes.length >= 60) {
+        var avg = 0;
+        for (var q = 0; q < frameTimes.length; q++) avg += frameTimes[q];
+        avg /= frameTimes.length;
+        frameTimes.length = 0;
+        if (avg > 22) {
+          goodWindows = 0;
+          if (perfLevel < 2) {
+            perfLevel++;
+            targetCount = desiredCount();
+            if (particles.length > targetCount) particles.length = targetCount;
+            if (perfLevel >= 2) {
+              /* the sim itself is the cost — stop it and show the static art */
+              spray.length = 0;
+              stop();
+              showFallback();
+              return;
+            }
+          }
+        } else if (avg < 18 && perfLevel === 1) {  /* 60Hz cadence ≈ 16.7ms */
+          if (++goodWindows >= 3) {
+            goodWindows = 0;
+            perfLevel = 0;
+            targetCount = desiredCount();
+          }
+        }
+      }
+
+      /* perfLevel 1: render at half rate — skipped time carries into the next step */
+      if (perfLevel === 1) {
+        skipToggle = !skipToggle;
+        if (skipToggle) { pendingDt += dt; return; }
+      }
+      var stepDt = Math.min(50, dt + pendingDt);
+      pendingDt = 0;
+      t += stepDt / 1000;
+
+      /* gust lifecycle */
+      if (t >= gustAt) {
+        gustStart = t;
+        gustIntensity = 0.4 + Math.random() * 0.6;
+        gustDur = 2.2 + Math.random() * 0.8;
+        scheduleGust(t + gustDur);
+        try {
+          window.dispatchEvent(new CustomEvent('gust', { detail: { intensity: gustIntensity } }));
+        } catch (err) { /* older browsers — sim continues */ }
+      }
+      var env = gustEnv(t);
+      var speedMul = 1 + 1.4 * gustIntensity * env;  /* 1 → ~2.4 → 1 */
+      if (env > 0.25 && Math.random() < 0.35) spawnSpray(2, true);
+
+      /* trail persistence: repaint the page gradient at low alpha (source-over).
+         destination-out on an 8-bit canvas never fully clears — permanent ghosting */
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+
+      drawOcean(t);
+
+      /* streamlines — the flow field drifts with scroll: the camera travels */
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      var dtn = stepDt / 16.7;
+      var ft = t + scrollP * 2.2;
+      for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        p.px = p.x; p.py = p.y;
+        var a = fieldAngle(p.x, p.y, ft) + p.drift * 0.4;
+        var spd = p.sp * 1.9 * speedMul * dtn;
+        var vx = Math.cos(a) * spd + spd * 0.9;   /* dominant left→right */
+        var vy = Math.sin(a) * spd * 0.62;
+
+        /* pointer = wind deflector */
+        var dx = p.x - pointer.x, dy = p.y - pointer.y;
+        var d2 = dx * dx + dy * dy;
+        if (d2 < 19600) { /* 140px */
+          var d = Math.sqrt(d2) || 1;
+          var push = (1 - d / 140) * 2.6 * dtn;
+          vx += (dx / d) * push;
+          vy += (dy / d) * push;
+        }
+
+        p.x += vx; p.y += vy;
+
+        if (p.x > W + 20 || p.y < -30 || p.y > H + 30) {
+          particles[i] = makeParticle(false);
+          continue;
+        }
+
+        var u = Math.min(1, Math.max(0, (p.sp * speedMul - 0.5) / 1.9));
+        ctx.strokeStyle = STROKES[(u * 15) | 0];
+        ctx.lineWidth = 0.8 + u * 0.9;
+        ctx.beginPath();
+        ctx.moveTo(p.px, p.py);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+      /* top-up pool if watchdog shrank then recovered viewport */
+      while (particles.length < targetCount) particles.push(makeParticle(false));
+
+      /* spray droplets */
+      if (spray.length) {
+        for (var s = spray.length - 1; s >= 0; s--) {
+          var dpl = spray[s];
+          dpl.x += dpl.vx * dtn * speedMul;
+          dpl.y += dpl.vy * dtn;
+          dpl.vy += 0.045 * dtn;         /* slight downward arc */
+          dpl.life -= 0.012 * dtn;
+          if (dpl.life <= 0 || dpl.x > W + 20 || dpl.y > H + 20) { spray.splice(s, 1); continue; }
+          ctx.fillStyle = SPRAYS[Math.max(0, Math.min(9, (dpl.life * 9) | 0))];
+          ctx.beginPath();
+          ctx.arc(dpl.x, dpl.y, 0.9 + dpl.life * 1.1, 0, 6.2832);
+          ctx.fill();
+        }
+      }
+    }
+
+    function start() {
+      if (running || reduceMotion || perfLevel >= 2) return;
+      running = true;
+      lastT = 0;
+      rafId = requestAnimationFrame(frame);
+    }
+    function stop() {
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+    }
+
+    /* pointer tracking + fast movement sheds spray */
+    if (finePointer) {
+      window.addEventListener('pointermove', function (e) {
+        var nowP = performance.now();
+        var dtp = nowP - pointer.lt;
+        if (dtp > 0) {
+          pointer.vx = (e.clientX - pointer.lx) / dtp;
+          pointer.vy = (e.clientY - pointer.ly) / dtp;
+        }
+        pointer.lx = e.clientX; pointer.ly = e.clientY; pointer.lt = nowP;
+        pointer.x = e.clientX; pointer.y = e.clientY;
+        var v = Math.abs(pointer.vx) + Math.abs(pointer.vy);
+        if (v > 2.2 && running) spawnSpray(3, false);
+      }, { passive: true });
+      /* pointerleave does NOT bubble — it lands on <html>, not window */
+      var resetPointer = function () {
+        pointer.x = -9999; pointer.y = -9999;
+        pointer.vx = 0; pointer.vy = 0;
+      };
+      document.documentElement.addEventListener('pointerleave', resetPointer);
+      window.addEventListener('blur', resetPointer);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) stop();
+      else start();
+    });
+
+    var resizeTimer;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        if (reduceMotion) return;
+        resize();
+        start();
+      }, 150);
+    });
+
+    engineHooks.resize = resize;
+    engineHooks.start = start;
+    engineHooks.stop = stop;
+
+    if (!reduceMotion) {
+      resize();
+      scheduleGust(0);
+      gustAt = 2.2 + Math.random() * 3;   /* first gust arrives early */
+      start();
+    }
+  })();
+
+  /* ══ prefers-reduced-motion is live, not a load-time snapshot ═════════════ */
+  var rmQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function onReduceMotionChange(e) {
+    reduceMotion = e.matches;
+    if (reduceMotion) {
+      if (engineHooks.stop) engineHooks.stop();   /* card loop self-sleeps on its flag */
+    } else {
+      if (engineHooks.resize) engineHooks.resize();
+      if (engineHooks.start) engineHooks.start();
+    }
+  }
+  if (rmQuery.addEventListener) rmQuery.addEventListener('change', onReduceMotionChange);
+  else if (rmQuery.addListener) rmQuery.addListener(onReduceMotionChange);
+})();
+</script>
+</body>
+</html>

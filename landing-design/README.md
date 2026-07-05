@@ -65,7 +65,9 @@ Fonts loaded from Google Fonts: Bricolage Grotesque (display), Hanken Grotesk (b
 
 ## Variants
 
-`variants/` holds the four candidate art directions from the 2026-07-04 redesign round (seaglass = promoted to main, horizon, regatta, goldenhour). **Do not upload `variants/` to production** — deploy only `index.html`, `styles.css`, `script.js` (plus `.well-known/`).
+`landing-design/variants/` holds the four candidate art directions from the 2026-07-04 redesign round (seaglass = promoted to the live page, horizon, regatta, goldenhour).
+
+**Why this README and the variants live OUTSIDE `plannivo-landing/`:** the production server is a git clone, and the deploy git-pulls straight into the folder nginx serves as plannivo.com — anything tracked inside `plannivo-landing/` becomes a public URL. Only `index.html`, `styles.css`, `script.js` and `.well-known/` belong there.
 
 ## Honesty rule (do not break)
 

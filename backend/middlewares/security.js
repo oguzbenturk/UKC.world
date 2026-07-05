@@ -327,6 +327,8 @@ export const configureCORS = () => {
         'http://127.0.0.1:3000',
         'http://127.0.0.1:5173',
         'https://ukc.plannivo.com',
+        'https://plannivo.com',      // marketing/landing site (live wind card fetches /api/weather/pws)
+        'https://www.plannivo.com',
         process.env.FRONTEND_URL
       ].filter(Boolean);
       
