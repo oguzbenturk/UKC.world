@@ -80,19 +80,17 @@ const InfoCell = ({ icon, label, value }) => {
   );
 };
 
-// ── Password strength checker ──────────────────────────────────────────────
+// ── Password requirement checker ───────────────────────────────────────────
+// Policy is minimum length only (owner decision 2026-07-05); no character-class
+// requirements. See src/shared/utils/passwordPolicy.js.
 const PASSWORD_CHECKS = [
-  { label: 'At least 8 characters',       test: (v) => v.length >= 8 },
-  { label: 'One uppercase letter',         test: (v) => /[A-Z]/.test(v) },
-  { label: 'One lowercase letter',         test: (v) => /[a-z]/.test(v) },
-  { label: 'One number',                   test: (v) => /\d/.test(v) },
-  { label: 'One special character (@$!%*?&)', test: (v) => /[@$!%*?&]/.test(v) },
+  { label: 'At least 8 characters', test: (v) => v.length >= 8 },
 ];
 
 function PasswordStrength({ value = '' }) {
   const passed = PASSWORD_CHECKS.filter((c) => c.test(value)).length;
   const pct = (passed / PASSWORD_CHECKS.length) * 100;
-  const color = passed <= 1 ? '#ef4444' : passed <= 3 ? '#f59e0b' : passed === 4 ? '#3b82f6' : '#10b981';
+  const color = passed === PASSWORD_CHECKS.length ? '#10b981' : '#f59e0b';
   if (!value) return null;
   return (
     <div className="mt-2 space-y-1.5">
@@ -776,8 +774,7 @@ function SecuritySection({ user }) {
                 {
                   validator: (_, value) => {
                     if (!value) return Promise.resolve();
-                    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-                    if (regex.test(value)) return Promise.resolve();
+                    if (value.length >= 8) return Promise.resolve();
                     return Promise.reject(new Error(t('instructor:security.doesNotMeetRequirements')));
                   },
                 },

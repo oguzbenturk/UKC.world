@@ -30,7 +30,7 @@ Bu modül "kullanıcı kim ve neye erişebilir" sorusunu yönetir:
 - `POST /refresh-session` — **PUBLIC + CSRF-exempt**. Access JWT'yi değil, httpOnly **refresh cookie**'sini doğrular; süresi dolmuş access JWT'yi bile yenileyebilir. Her zaman açık `/music` ekranını login tutan akış budur.
 - `POST /logout` — `authenticateJWT`. JWT `jti`'sini Redis `blacklist:<jti>` listesine ekler (TTL = token exp), refresh token ailesini iptal eder, cookie'leri temizler.
 - `POST /register` — `authRateLimit`. Yeni `outsider` rolü oluşturur/atar, cüzdan açar, kullanıcıyı tüm kanal sohbetlerine ekler, doğrulama e-postası gönderir.
-- `POST /change-password`, `POST /forgot-password`, `POST /validate-reset-token`, `POST /reset-password`, `POST /verify-email`, `POST /resend-verification` — parola politikası: min 8 + büyük/küçük harf + rakam + özel karakter (`@$!%*?&`).
+- `POST /change-password`, `POST /forgot-password`, `POST /validate-reset-token`, `POST /reset-password`, `POST /verify-email`, `POST /resend-verification` — parola politikası: **yalnızca min 8 karakter** (owner kararı 2026-07-05; büyük/küçük harf, rakam, özel karakter zorunluluğu kaldırıldı — `/join` self-register müşterileri basit şifre belirleyebilsin diye). Tek kaynak: `src/shared/utils/passwordPolicy.js` + `backend/routes/auth.js`.
 - `GET /csrf` — login öncesi `csrf_token` cookie'sini set eden bootstrap ucu.
 
 `backend/routes/twoFactor.js` (`/api/auth/2fa/*` benzeri): `setup-2fa`, `enable-2fa`, `disable-2fa`, `verify-2fa` (login'deki `temp2fa` token'ını tüketir), `backup-codes/count`, `backup-codes/regenerate`, `2fa-status`. Backup kodları 8 adet, `bcrypt` ile hash'lenir ve **yalnızca bir kez** gösterilir; doğrulanan kod listeden silinir.

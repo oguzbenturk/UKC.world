@@ -818,17 +818,12 @@ router.post('/register', authRateLimit, async (req, res) => {
     return res.status(400).json({ error: 'Invalid email format' });
   }
 
-  // SEC-042 FIX: Strong password validation
+  // Password policy: minimum length only. Owner decision (2026-07-05) — no
+  // uppercase/number/special-character requirement, so customers self-registering
+  // via /join can set a simple 8+ character password. Kept in sync with the
+  // frontend policy in src/shared/utils/passwordPolicy.js.
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long' });
-  }
-  
-  // Password must contain: uppercase, lowercase, number, and special character
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  if (!passwordRegex.test(password)) {
-    return res.status(400).json({ 
-      error: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'
-    });
   }
 
   // Validate age if provided
@@ -1264,8 +1259,6 @@ async function logSecurityEvent(userId, action, req, details = {}) {
  * Change password for the currently authenticated user
  * POST /api/auth/change-password
  */
-const PASSWORD_STRENGTH_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
 router.post('/change-password', authenticateJWT, passwordResetRateLimit, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
@@ -1273,9 +1266,10 @@ router.post('/change-password', authenticateJWT, passwordResetRateLimit, async (
     return res.status(400).json({ error: 'Current password and new password are required' });
   }
 
-  if (!PASSWORD_STRENGTH_REGEX.test(newPassword)) {
+  // Password policy: minimum length only (see /register comment).
+  if (newPassword.length < 8) {
     return res.status(400).json({
-      error: 'New password must be at least 8 characters and include uppercase, lowercase, a number, and a special character (@$!%*?&)'
+      error: 'New password must be at least 8 characters long'
     });
   }
 
@@ -1374,16 +1368,10 @@ router.post('/reset-password', passwordResetRateLimit, async (req, res) => {
     return res.status(400).json({ success: false, error: 'Token, email, and password are required' });
   }
 
-  // SEC-042 FIX: Strong password validation for password reset
+  // Password policy: minimum length only (see /register comment). This is the
+  // page customers reach from the /join welcome email to set their password.
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long' });
-  }
-  
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  if (!passwordRegex.test(password)) {
-    return res.status(400).json({ 
-      error: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'
-    });
   }
 
   try {

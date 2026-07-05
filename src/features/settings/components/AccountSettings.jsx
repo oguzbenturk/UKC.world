@@ -11,7 +11,7 @@ import { Card, Input, Button, Typography, Divider, Spin, DatePicker, App } from 
 import { UserOutlined, EditOutlined, LockOutlined, SaveOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
-import { PASSWORD_STRENGTH_REGEX, getPasswordChecks } from '@/shared/utils/passwordPolicy';
+import { isPasswordValid, getPasswordChecks } from '@/shared/utils/passwordPolicy';
 import dayjs from 'dayjs';
 
 const { Text, Paragraph } = Typography;
@@ -121,8 +121,8 @@ export default function AccountSettings() {
       message.warning(t('admin:account.password.toast.enterCurrent'));
       return;
     }
-    if (!PASSWORD_STRENGTH_REGEX.test(passwords.newPassword)) {
-      message.warning(t('admin:account.password.toast.strength'));
+    if (!isPasswordValid(passwords.newPassword)) {
+      message.warning(t('admin:account.password.toast.minLength'));
       return;
     }
     if (passwords.newPassword !== passwords.confirmPassword) {
@@ -343,10 +343,6 @@ export default function AccountSettings() {
               const checks = getPasswordChecks(passwords.newPassword);
               const items = [
                 { ok: checks.length, label: t('admin:account.password.requirements.length') },
-                { ok: checks.lower, label: t('admin:account.password.requirements.lower') },
-                { ok: checks.upper, label: t('admin:account.password.requirements.upper') },
-                { ok: checks.digit, label: t('admin:account.password.requirements.digit') },
-                { ok: checks.special, label: t('admin:account.password.requirements.special') },
               ];
               return (
                 <ul className="mt-2 space-y-0.5 text-xs list-none pl-0">

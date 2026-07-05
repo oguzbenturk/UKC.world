@@ -355,7 +355,7 @@ export const configureCORS = () => {
 // Common validation schemas
 export const commonValidations = {
   email: body('email').isEmail().normalizeEmail(),
-  password: body('password').isLength({ min: 8 }).matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/),
+  password: body('password').isLength({ min: 8 }),
   id: body('id').isInt({ min: 1 }),
   token: body('token').isLength({ min: 6, max: 6 }).isNumeric(),
   name: body('name').trim().isLength({ min: 1, max: 100 }),

@@ -457,7 +457,6 @@ const GroupInvitationPage = () => {
                   rules={[
                     { required: true, message: 'Required' },
                     { min: 8, message: 'Min 8 characters' },
-                    { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, message: 'Needs uppercase, lowercase, number & special char' },
                   ]}
                   className="!mb-1"
                 >

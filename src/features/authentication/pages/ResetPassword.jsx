@@ -31,8 +31,9 @@ const ResetPassword = () => {
   const [tokenError, setTokenError] = useState(null);
   const [formError, setFormError] = useState(null);
 
-  // Mirrors backend regex: 1 lowercase, 1 uppercase, 1 digit, 1 special (@$!%*?&), min 8 chars.
-  const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  // Password policy: minimum length only (see src/shared/utils/passwordPolicy.js).
+  // Customers reach this page from the /join welcome email to set their password.
+  const MIN_PASSWORD_LENGTH = 8;
 
   useEffect(() => {
     validateToken();
@@ -72,8 +73,8 @@ const ResetPassword = () => {
       return;
     }
 
-    if (!STRONG_PW.test(password)) {
-      setFormError('Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character (@$!%*?&).');
+    if (!password || password.length < MIN_PASSWORD_LENGTH) {
+      setFormError(t('public:resetPassword.errors.passwordMinValidation'));
       return;
     }
 
@@ -213,10 +214,6 @@ const ResetPassword = () => {
             rules={[
               { required: true, message: t('public:resetPassword.errors.enterPassword') },
               { min: 8, message: t('public:resetPassword.errors.passwordMinValidation') },
-              {
-                pattern: STRONG_PW,
-                message: 'Must include uppercase, lowercase, a number, and a special character (@$!%*?&).'
-              },
             ]}
           >
             <Input.Password

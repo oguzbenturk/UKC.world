@@ -321,10 +321,6 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
               rules={[
                 { required: true, message: t('common:validation.required') },
                 { min: 8, message: t('public:register.validation.passwordMin') },
-                {
-                  pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
-                  message: t('public:register.validation.passwordPattern'),
-                },
               ]}
             >
               <Input.Password
