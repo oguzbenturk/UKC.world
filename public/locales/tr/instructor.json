@@ -299,7 +299,7 @@
     "completed": "tamamlandı",
     "inactive_tag": "Pasif",
     "changeProfilePhoto": "Profil fotoğrafını değiştir",
-    "photoSizeError": "Fotoğraf 2MB'dan küçük olmalı",
+    "photoSizeError": "Fotoğraf 30MB'dan küçük olmalı",
     "photoUpdated": "Profil fotoğrafı güncellendi",
     "failedToUploadPhoto": "Fotoğraf yüklenemedi",
     "infoFields": {

@@ -324,7 +324,12 @@ export async function getLessonFinanceBreakdown({
       COALESCE(
         CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
              THEN COALESCE(idc.self_student_commission_rate, 45) END,
-        bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0
+        bcc.commission_value, isc.commission_value, icr.rate_value,
+        -- Rescue is captain-rate-only: when no explicit rescue rate is set the
+        -- captain earns nothing (do NOT fall back to the default commission).
+        -- Keeps this surface consistent with getInstructorEarningsData above,
+        -- so payout balances reconcile with recorded instructor_earnings.
+        (CASE WHEN srv.lesson_category_tag = 'rescue_boat' THEN NULL ELSE idc.commission_value END), 0
       ) as commission_rate,
       COALESCE(
         CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
@@ -558,7 +563,12 @@ export async function getAllInstructorBalances() {
       COALESCE(
         CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id
              THEN COALESCE(idc.self_student_commission_rate, 45) END,
-        bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, 0
+        bcc.commission_value, isc.commission_value, icr.rate_value,
+        -- Rescue is captain-rate-only: when no explicit rescue rate is set the
+        -- captain earns nothing (do NOT fall back to the default commission).
+        -- Keeps this surface consistent with getInstructorEarningsData above,
+        -- so payout balances reconcile with recorded instructor_earnings.
+        (CASE WHEN srv.lesson_category_tag = 'rescue_boat' THEN NULL ELSE idc.commission_value END), 0
       ) as commission_rate,
       COALESCE(
         CASE WHEN s.self_student_of_instructor_id = b.instructor_user_id

@@ -299,7 +299,7 @@
     "completed": "completed",
     "inactive_tag": "Inactive",
     "changeProfilePhoto": "Change profile photo",
-    "photoSizeError": "Image must be under 2MB",
+    "photoSizeError": "Image must be under 30MB",
     "photoUpdated": "Profile photo updated",
     "failedToUploadPhoto": "Failed to upload photo",
     "infoFields": {

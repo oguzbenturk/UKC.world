@@ -311,7 +311,11 @@ const AssignPackageDropdown = ({ participants, onSelect, allPkgs }) => {
 // ═════════════════════════════════════════════════════════════════════
 
 // eslint-disable-next-line complexity
-const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate }) => {
+// rescueOnly: restrict the service list to rescue-boat services (discipline_tag
+// 'rescue_boat') and retitle the drawer. Everything else (pricing, member 50%
+// discount, wallet charge, commissions, cancellation refunds) is the normal
+// booking pipeline — rescue bookings ARE calendar bookings.
+const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, rescueOnly = false }) => {
   const { selectedSlot, services, users, instructors, refreshData, createBooking } = useCalendar();
   const { showSuccess, showError, showInfo } = useToast();
   const { formatCurrency, businessCurrency } = useCurrency();
@@ -384,7 +388,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   // Schedule. slotsByDate keyed by `${date}|${instructorId}`.
   const [slotsByDate, setSlotsByDate] = useState({});
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState(120);
+  // Rescue trips are per-trip units (service.duration forced to 1h at creation);
+  // both the price preview (service.price × hours) and the server-side recompute
+  // scale with booked duration, so any duration ≠ 1h would mis-charge a trip.
+  // Pin 60min in rescue mode — the picker is hidden and the guards below keep
+  // defaults/slots from overriding it.
+  const [selectedDuration, setSelectedDuration] = useState(rescueOnly ? 60 : 120);
   const [bookingDefaults, setBookingDefaults] = useState(null);
   const [instructorSearch, setInstructorSearch] = useState('');
   const [conflictWarning, setConflictWarning] = useState(null);
@@ -486,7 +495,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         const [sh, sm] = initialFormData.startTime.split(':').map(Number);
         const [eh, em] = initialFormData.endTime.split(':').map(Number);
         const mins = (eh * 60 + em) - (sh * 60 + sm);
-        if (mins > 0) setSelectedDuration(mins);
+        if (mins > 0 && !rescueOnly) setSelectedDuration(mins);
       }
       setShowReview(false);
       setConflictWarning(null);
@@ -520,7 +529,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     apiClient.get('/settings').then(r => {
       if (r.data?.booking_defaults) {
         setBookingDefaults(r.data.booking_defaults);
-        setSelectedDuration(r.data.booking_defaults.defaultDuration || 120);
+        if (!rescueOnly) setSelectedDuration(r.data.booking_defaults.defaultDuration || 120);
       }
     }).catch(() => {
       setBookingDefaults({ defaultDuration: 120, allowedDurations: [60, 90, 120, 150, 180, 240] });
@@ -688,7 +697,15 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   }, [refreshData]);
 
   // ── Customer selection (Select dropdown) ─────────────────────
-  const handleCustomerChange = useCallback((selectedIds) => {
+  const handleCustomerChange = useCallback((selectedIdsRaw) => {
+    // Rescue mode: SINGLE payer only — extra people on the boat go in the
+    // Passengers field. With 2+ participants the submit would route to
+    // POST /bookings/group, which has no rescue pricing (member 50% discount
+    // and passengers are calendar-route only) and charges each participant
+    // the full trip price. Keep the most recently selected customer.
+    const selectedIds = rescueOnly && Array.isArray(selectedIdsRaw) && selectedIdsRaw.length > 1
+      ? [selectedIdsRaw[selectedIdsRaw.length - 1]]
+      : selectedIdsRaw;
     const current = formData.participants || [];
     const kept = current.filter(p => selectedIds.includes(p.userId));
     const existingIds = new Set(kept.map(p => p.userId));
@@ -720,7 +737,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       setUserPackages(prev => { const copy = { ...prev }; removedIds.forEach(id => delete copy[id]); return copy; });
       setUserBalances(prev => { const copy = { ...prev }; removedIds.forEach(id => delete copy[id]); return copy; });
     }
-  }, [formData.participants, customerPool, updateFormData]);
+  }, [formData.participants, customerPool, updateFormData, rescueOnly]);
 
   // ── Instructor selection ────────────────────────────────────────
   const handleInstructorSelect = useCallback((instr) => {
@@ -732,6 +749,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
 
   // ── Duration / Time ─────────────────────────────────────────────
   const handleDurationChange = useCallback((mins) => {
+    if (rescueOnly) return; // duration pinned to 1h (1 trip) in rescue mode
     setSelectedDuration(mins);
     if (formData.startTime) {
       const startMins = timeStringToMinutes(formData.startTime);
@@ -739,7 +757,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
         updateFormData({ endTime: minutesToTimeString(startMins + mins), duration: mins / 60 });
       }
     }
-  }, [formData.startTime, updateFormData]);
+  }, [formData.startTime, updateFormData, rescueOnly]);
   const handleStartTimeSelect = useCallback((time) => {
     const startMins = timeStringToMinutes(time);
     if (startMins === null) return;
@@ -857,7 +875,19 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   }, [formData.lessonPackageOverrides, updateFormData]);
 
   // ── Service selection ───────────────────────────────────────────
-  const availableServices = useMemo(() => filterServicesByCapacity(services || [], participantCount).filter(isLessonService), [services, participantCount]);
+  const availableServices = useMemo(() => {
+    if (rescueOnly) {
+      // Rescue mode: filter by discipline ONLY — skip the capacity filter.
+      // For rescue services max_participants means "max passengers on the
+      // boat" and service_type is DERIVED from it ('semi-private'/'group' for
+      // 2+, see StepLessonServiceModal buildPayload), so the 1-participant
+      // capacity filter would hide every real rescue service. The paying
+      // customer is always one; extra people go in the Passengers field.
+      // (Both snake_case and camelCase shapes exist depending on endpoint.)
+      return (services || []).filter(s => (s?.discipline_tag || s?.disciplineTag) === 'rescue_boat');
+    }
+    return filterServicesByCapacity(services || [], participantCount).filter(isLessonService);
+  }, [services, participantCount, rescueOnly]);
 
   const filteredServicesList = useMemo(() => {
     const q = (serviceSearch || '').trim().toLowerCase();
@@ -872,6 +902,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   }, [availableServices, serviceSearch]);
 
   const groupedServices = useMemo(() => {
+    // Rescue mode: one flat "rescue" group (getServiceCategory buckets rescue
+    // services under 'lesson', which would read oddly as a section label here)
+    if (rescueOnly) {
+      return filteredServicesList.length ? [{ category: 'rescue', services: filteredServicesList }] : [];
+    }
     const groups = {};
     for (const svc of filteredServicesList) {
       const cat = getServiceCategory(svc);
@@ -880,7 +915,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     }
     const order = ['private', 'semi-private', 'group', 'supervision', 'lesson'];
     return order.filter(k => groups[k]?.length).map(k => ({ category: k, services: groups[k] }));
-  }, [filteredServicesList]);
+  }, [filteredServicesList, rescueOnly]);
 
   // Set of service IDs where at least one participant has a matching package
   const pkgMatchSet = useMemo(() => {
@@ -1514,7 +1549,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     >
       {/* ── Title Bar ── */}
       <div className="sticky top-0 z-20 flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-white">
-        <h2 className="text-base font-semibold text-slate-800 m-0">New Booking</h2>
+        <h2 className="text-base font-semibold text-slate-800 m-0">{rescueOnly ? '🚤 Assign Rescue' : 'New Booking'}</h2>
         <button type="button" onClick={() => handleClose(false)} className="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 border-0 cursor-pointer transition-colors text-sm bg-transparent">✕</button>
       </div>
 
@@ -1538,6 +1573,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
               /* Expanded */
               <>
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">Customer</div>
+                {rescueOnly && (
+                  <p className="text-[11px] text-slate-400 -mt-1 mb-2">
+                    Rescue is booked for one customer — add extra people on board via the Passengers field below.
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <Select
                     mode="multiple"
@@ -1658,11 +1698,17 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">Duration</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {allowedDurations.map(d => (
-                          <button key={d} type="button" onClick={() => handleDurationChange(d)} className={`px-3.5 py-1 text-sm rounded-lg border font-medium transition-all ${selectedDuration === d ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>{d / 60}h</button>
-                        ))}
-                      </div>
+                      {rescueOnly ? (
+                        /* Per-trip pricing: duration is pinned to 1h (1 trip) so the
+                           charge is always exactly one trip price */
+                        <span className="inline-flex items-center px-3.5 py-1 text-sm rounded-lg border font-medium bg-blue-600 text-white border-blue-600 shadow-sm">1 trip · 1h</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {allowedDurations.map(d => (
+                            <button key={d} type="button" onClick={() => handleDurationChange(d)} className={`px-3.5 py-1 text-sm rounded-lg border font-medium transition-all ${selectedDuration === d ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>{d / 60}h</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -1746,12 +1792,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                       </div>
                     ))}
 
-                    {/* Add another lesson */}
-                    <button
-                      type="button"
-                      onClick={addExtraLesson}
-                      className="w-full mt-1 px-3 py-2 text-sm font-medium text-blue-600 border border-dashed border-blue-300 bg-blue-50/50 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors"
-                    >+ Add another lesson</button>
+                    {/* Add another lesson — hidden in rescue mode (each rescue is a
+                        single per-trip booking; multi-lesson durations would bypass
+                        the pinned 1-trip duration) */}
+                    {!rescueOnly && (
+                      <button
+                        type="button"
+                        onClick={addExtraLesson}
+                        className="w-full mt-1 px-3 py-2 text-sm font-medium text-blue-600 border border-dashed border-blue-300 bg-blue-50/50 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors"
+                      >+ Add another lesson</button>
+                    )}
 
                     {totalLessonHours > 0 && (formData.extraLessons?.length || 0) > 0 && (
                       <div className="text-[11px] text-slate-500 text-right">Total: {totalLessonHours}h across {1 + formData.extraLessons.length} lessons</div>
@@ -2008,7 +2058,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                       </div>
                     )) : (
                       <div className="text-center py-6 text-slate-400 text-sm">
-                        {serviceSearch ? `No services matching "${serviceSearch}".` : isGroupBooking ? `No group services for ${participantCount}.` : 'No services available.'}
+                        {serviceSearch ? `No services matching "${serviceSearch}".` : rescueOnly ? 'No rescue services available. Create one under Services with discipline "Rescue".' : isGroupBooking ? `No group services for ${participantCount}.` : 'No services available.'}
                       </div>
                     )}
                   </div>

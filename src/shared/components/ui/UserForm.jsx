@@ -618,11 +618,11 @@ const UserForm = ({ user, onSuccess, onCancel, roles, customSubmit, isModal: _is
     if (!isJpgOrPng) {
       message.error(t('common:userForm.jpgPngOnly'));
     }
-    const isLt2M = file.size / 1024 / 1024 < 2;
-    if (!isLt2M) {
+    const isLt30M = file.size / 1024 / 1024 < 30; // keep in sync with backend /users/upload-avatar 30MB limit
+    if (!isLt30M) {
       message.error(t('common:userForm.imageTooLarge'));
     }
-    return isJpgOrPng && isLt2M;
+    return isJpgOrPng && isLt30M;
   };
 
   // Lightweight helper to update current user avatar in localStorage if matching

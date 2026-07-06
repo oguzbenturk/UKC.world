@@ -349,7 +349,7 @@
     "uploadSuccess": "{{name}} dosyası başarıyla yüklendi",
     "uploadFailed": "{{name}} dosyası yüklenemedi.",
     "jpgPngOnly": "Yalnızca JPG/PNG dosyası yükleyebilirsiniz!",
-    "imageTooLarge": "Görsel 2MB'dan küçük olmalıdır!",
+    "imageTooLarge": "Görsel 30MB'dan küçük olmalıdır!",
     "userUpdated": "Kullanıcı başarıyla güncellendi!",
     "userCreated": "Kullanıcı başarıyla oluşturuldu!",
     "firstNameRequired": "Lütfen adı girin!",

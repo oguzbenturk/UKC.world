@@ -346,7 +346,7 @@
     "uploadSuccess": "Fichier {{name}} téléchargé avec succès",
     "uploadFailed": "Échec du téléchargement du fichier {{name}}.",
     "jpgPngOnly": "Vous ne pouvez télécharger que des fichiers JPG/PNG !",
-    "imageTooLarge": "L'image doit être inférieure à 2 Mo !",
+    "imageTooLarge": "L'image doit être inférieure à 30 Mo !",
     "userUpdated": "Utilisateur mis à jour avec succès !",
     "userCreated": "Utilisateur créé avec succès !",
     "firstNameRequired": "Veuillez saisir le prénom !",

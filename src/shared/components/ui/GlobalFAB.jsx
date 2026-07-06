@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, ShoppingBagIcon, UserPlusIcon, IdentificationIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, CalendarDaysIcon, WrenchScrewdriverIcon, ShoppingBagIcon, UserPlusIcon, IdentificationIcon, LifebuoyIcon } from '@heroicons/react/24/outline';
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 import BookingDrawer from '@/features/bookings/components/components/BookingDrawer';
 import NewRentalDrawer from '@/features/rentals/components/NewRentalDrawer';
@@ -21,6 +21,7 @@ const GlobalFAB = () => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [bookingDrawerOpen, setBookingDrawerOpen] = useState(false);
+  const [rescueDrawerOpen, setRescueDrawerOpen] = useState(false);
   const [rentalDrawerOpen, setRentalDrawerOpen] = useState(false);
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [memberDrawerOpen, setMemberDrawerOpen] = useState(false);
@@ -90,6 +91,16 @@ const GlobalFAB = () => {
             <button
               onClick={() => {
                 setMenuOpen(false);
+                setRescueDrawerOpen(true);
+              }}
+              className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
+            >
+              <LifebuoyIcon className="h-4 w-4 text-rose-500 shrink-0" />
+              Assign Rescue
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
                 setRentalDrawerOpen(true);
               }}
               className="flex items-center gap-2.5 bg-white border border-slate-200 shadow-xl rounded-xl px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 whitespace-nowrap transition-colors"
@@ -152,6 +163,19 @@ const GlobalFAB = () => {
           <BookingDrawer
             isOpen={bookingDrawerOpen}
             onClose={() => setBookingDrawerOpen(false)}
+          />
+        </CalendarProvider>
+      )}
+
+      {/* Rescue drawer — the same BookingDrawer restricted to rescue-boat
+          services, so charges/commissions/cancellation reuse the booking
+          pipeline. Own CalendarProvider, only mounted when open. */}
+      {rescueDrawerOpen && (
+        <CalendarProvider>
+          <BookingDrawer
+            isOpen={rescueDrawerOpen}
+            onClose={() => setRescueDrawerOpen(false)}
+            rescueOnly
           />
         </CalendarProvider>
       )}

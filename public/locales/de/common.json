@@ -342,7 +342,7 @@
     "uploadSuccess": "Datei {{name}} erfolgreich hochgeladen",
     "uploadFailed": "Datei {{name}} konnte nicht hochgeladen werden.",
     "jpgPngOnly": "Es können nur JPG/PNG-Dateien hochgeladen werden!",
-    "imageTooLarge": "Das Bild muss kleiner als 2 MB sein!",
+    "imageTooLarge": "Das Bild muss kleiner als 30 MB sein!",
     "userUpdated": "Benutzer erfolgreich aktualisiert!",
     "userCreated": "Benutzer erfolgreich erstellt!",
     "firstNameRequired": "Bitte geben Sie den Vornamen ein!",

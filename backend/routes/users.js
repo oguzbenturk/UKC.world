@@ -1361,7 +1361,7 @@ const fileFilter = function (_req, file, cb) {
   else cb(new Error('Only image uploads are allowed'));
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB
+const upload = multer({ storage, fileFilter, limits: { fileSize: 30 * 1024 * 1024 } }); // 30MB — phone photos were failing the old 2MB cap
 
 router.post('/upload-avatar', authenticateJWT, upload.single('avatar'), async (req, res) => {
   try {

@@ -345,7 +345,7 @@
     "uploadSuccess": "{{name}} file uploaded successfully",
     "uploadFailed": "{{name}} file upload failed.",
     "jpgPngOnly": "You can only upload JPG/PNG file!",
-    "imageTooLarge": "Image must smaller than 2MB!",
+    "imageTooLarge": "Image must be smaller than 30MB!",
     "userUpdated": "User updated successfully!",
     "userCreated": "User created successfully!",
     "firstNameRequired": "Please input the first name!",

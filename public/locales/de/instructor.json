@@ -299,7 +299,7 @@
     "completed": "abgeschlossen",
     "inactive_tag": "Inaktiv",
     "changeProfilePhoto": "Profilfoto ändern",
-    "photoSizeError": "Bild muss kleiner als 2MB sein",
+    "photoSizeError": "Bild muss kleiner als 30MB sein",
     "photoUpdated": "Profilfoto aktualisiert",
     "failedToUploadPhoto": "Foto konnte nicht hochgeladen werden",
     "infoFields": {

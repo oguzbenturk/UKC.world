@@ -165,7 +165,7 @@ function ProfileSection({ user, onSaved }) {
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 30 * 1024 * 1024) { // keep in sync with backend /users/upload-avatar 30MB limit
       message.error(t('instructor:profile.photoSizeError'));
       return;
     }

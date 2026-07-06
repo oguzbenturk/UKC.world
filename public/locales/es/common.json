@@ -346,7 +346,7 @@
     "uploadSuccess": "Archivo {{name}} subido correctamente",
     "uploadFailed": "Error al subir el archivo {{name}}.",
     "jpgPngOnly": "Solo puedes subir archivos JPG/PNG.",
-    "imageTooLarge": "La imagen debe ser menor de 2 MB.",
+    "imageTooLarge": "La imagen debe ser menor de 30 MB.",
     "userUpdated": "Usuario actualizado correctamente.",
     "userCreated": "Usuario creado correctamente.",
     "firstNameRequired": "Por favor, introduce el nombre.",

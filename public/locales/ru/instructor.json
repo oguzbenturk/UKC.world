@@ -301,7 +301,7 @@
     "completed": "завершено",
     "inactive_tag": "Неактивен",
     "changeProfilePhoto": "Изменить фото профиля",
-    "photoSizeError": "Изображение должно быть менее 2 МБ",
+    "photoSizeError": "Изображение должно быть менее 30 МБ",
     "photoUpdated": "Фото профиля обновлено",
     "failedToUploadPhoto": "Не удалось загрузить фото",
     "infoFields": {

@@ -17,7 +17,7 @@ import dayjs from 'dayjs';
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-const MAX_FILE_SIZE_MB = 2;
+const MAX_FILE_SIZE_MB = 30; // keep in sync with backend /users/upload-avatar 30MB limit
 
 export default function AccountSettings() {
   const { t } = useTranslation(['admin']);
