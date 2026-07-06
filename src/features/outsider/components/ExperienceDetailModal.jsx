@@ -542,7 +542,7 @@ const ExperienceDetailModal = ({ pkg = null, variants = [], visible, onClose, on
                   boxShadow: '0 0 12px rgba(0,168,196,0.25)',
                 }}
               >
-                Buy This Package
+                Check Availability
               </Button>
               <p className="text-center text-slate-400 text-[10px] mt-3 flex items-center justify-center gap-1 font-duotone-regular">
                 <InfoCircleOutlined /> No payment required today. Secure your spot now.

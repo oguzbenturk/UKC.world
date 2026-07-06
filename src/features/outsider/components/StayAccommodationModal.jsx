@@ -113,17 +113,29 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
 
   const formatPrice = (eurPrice) => formatDualCurrency(eurPrice, 'EUR');
 
-  /** Per-guest nightly rate rows shown in the rate ladder. */
+  /**
+   * Per-guest nightly rate rows shown in the rate ladder — one row for EVERY
+   * guest count from 1 up to the unit capacity, priced with the same
+   * pickOccupancyRate fallback the charge uses. Counts above the highest
+   * configured tier reuse that tier's rate, so e.g. "1 guest €100 · 2 guests
+   * €140 · 3 guests €140" reads explicitly instead of leaving the 3rd row
+   * implied. Prices are the party TOTAL per night (×guests when per-person).
+   */
   const rateRows = useMemo(() => {
     if (occList) {
       const valid = occList
         .map((o) => ({ guests: Number(o.guests), price: parseFloat(o.price_per_night) }))
-        .filter((o) => Number.isFinite(o.guests) && o.guests > 0 && Number.isFinite(o.price) && o.price > 0)
-        .sort((a, b) => a.guests - b.guests);
-      if (valid.length > 0) return valid;
+        .filter((o) => Number.isFinite(o.guests) && o.guests > 0 && Number.isFinite(o.price) && o.price > 0);
+      if (valid.length > 0) {
+        return Array.from({ length: capacity }, (_, i) => {
+          const n = i + 1;
+          const rate = pickOccupancyRate(occList, n, pricePerNight);
+          return { guests: n, price: rate * (perPerson ? n : 1) };
+        }).filter((r) => Number.isFinite(r.price) && r.price > 0);
+      }
     }
     return pricePerNight > 0 ? [{ guests: null, price: pricePerNight }] : [];
-  }, [occList, pricePerNight]);
+  }, [occList, pricePerNight, capacity, perPerson]);
 
   /** Best length-of-stay discount for a given number of nights, or null. */
   const discountForNights = (n) =>
@@ -417,7 +429,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
           {rateRows.length > 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-5">
               <p className="text-[11px] uppercase tracking-wider font-duotone-bold text-slate-500 mb-3">
-                Per-night rate{perPerson ? ' · per person' : ''}
+                Price per night
               </p>
               <div className="space-y-1.5 max-h-[17rem] overflow-y-auto pkg-modal-scroll">
                 {rateRows.map((r) => {
@@ -537,7 +549,7 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                 boxShadow: '0 0 12px rgba(0,168,196,0.25)',
               }}
             >
-              {isHotel ? 'Request Booking' : 'Book Now'}
+              {isHotel ? 'Request Booking' : 'Check Availability'}
             </Button>
             <p className="text-center text-slate-400 text-[10px] mt-3 flex items-center justify-center gap-1 font-duotone-regular">
               <InfoCircleOutlined /> {isHotel
