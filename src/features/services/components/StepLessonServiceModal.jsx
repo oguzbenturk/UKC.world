@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Drawer, Form, Input, InputNumber, Select, Row, Col, Button, Divider, App, Upload } from 'antd';
+import { Drawer, Form, Input, InputNumber, Select, Row, Col, Button, Divider, App, Upload, Switch } from 'antd';
 import { PlusOutlined, LoadingOutlined, DeleteOutlined } from '@ant-design/icons';
 import { serviceApi } from '@/shared/services/serviceApi';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -65,6 +65,7 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
         description: service.description || '',
         imageUrl: service.imageUrl || service.image_url || null,
         memberDiscountPercent: service.memberDiscountPercent ?? service.member_discount_percent ?? undefined,
+        isVisible: (service.isVisible ?? service.is_visible) !== false,
       });
     } else {
       form.resetFields();
@@ -115,6 +116,8 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
             ? parseFloat(values.memberDiscountPercent)
             : RESCUE_DEFAULT_MEMBER_DISCOUNT)
         : null,
+      // Hidden services stay staff-assignable but drop off the customer Academy pages.
+      isVisible: values.isVisible !== false,
     };
   };
 
@@ -384,6 +387,24 @@ export default function StepLessonServiceModal({ open, onClose, onCreated, servi
         <Form.Item name="description" label="Description">
           <Input.TextArea rows={3} placeholder="Description (optional)" />
         </Form.Item>
+
+        <Divider className="my-3" />
+
+        {/* Visibility — hidden services stay staff-assignable but drop off the
+            customer-facing Academy pages. Defaults ON. */}
+        <Form.Item
+          name="isVisible"
+          valuePropName="checked"
+          initialValue={true}
+          label="Visible to customers"
+          tooltip="Turn off to hide this service from the public Academy pages. It stays fully usable and assignable by staff."
+          className="!mb-1"
+        >
+          <Switch checkedChildren="Visible" unCheckedChildren="Hidden" />
+        </Form.Item>
+        <p className="text-xs text-gray-400 m-0">
+          When hidden, customers won't see this lesson in Academy, but staff can still book and assign it.
+        </p>
       </Form>
     </Drawer>
   );

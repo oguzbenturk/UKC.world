@@ -1,5 +1,6 @@
 // backend/routes/services.js
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
@@ -16,6 +17,29 @@ import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { dispatchNotification, dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import { cacheMiddleware, cacheKeyGenerators, cacheInvalidationMiddleware, cacheInvalidationPatterns } from '../middlewares/cache.js';
 const router = express.Router();
+
+// ── Customer-facing visibility (mirrors backend/routes/products.js) ──────────
+// A service/package with is_visible = false is hidden from the public Academy
+// pages but stays fully visible + assignable for staff. Enforcement keys off the
+// authenticated principal (never a spoofable query param): the two public list
+// endpoints have no auth middleware, so optionalAuth decodes a Bearer token IF
+// present without ever rejecting a guest.
+const PRIVILEGED_VISIBILITY_ROLES = new Set(['admin', 'super_admin', 'manager', 'receptionist', 'front_desk']);
+
+const optionalAuth = (req, _res, next) => {
+  const token = (req.headers.authorization || '').split(' ')[1];
+  req.user = null;
+  if (token) {
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    } catch {
+      req.user = null;
+    }
+  }
+  next();
+};
+
+const callerCanSeeHidden = (req) => !!(req.user && PRIVILEGED_VISIBILITY_ROLES.has(req.user.role));
 
 // Minimal currency defaults to prevent FK errors when currency_settings isn't seeded
 const CURRENCY_DEFAULTS = {
@@ -42,7 +66,12 @@ async function ensureCurrencyExists(client, code) {
 }
 
 // Get all services
-router.get('/', cacheMiddleware(300, cacheKeyGenerators.services), async (req, res) => {
+// optionalAuth + privilege-varied cache key: privileged staff receive hidden
+// services, so their cached response must never be served to a guest hitting the
+// same URL (the default key is URL-only, which would leak hidden services).
+router.get('/', optionalAuth, cacheMiddleware(300, (req) =>
+  `${cacheKeyGenerators.services(req)}:vis-${callerCanSeeHidden(req) ? 'priv' : 'pub'}`
+), async (req, res) => {
   try {
     const { category, level, isPackage } = req.query;
     
@@ -76,7 +105,13 @@ router.get('/', cacheMiddleware(300, cacheKeyGenerators.services), async (req, r
     } else if (isPackage === 'false') {
       query += ` AND s.package_id IS NULL`;
     }
-    
+
+    // Customers/guests only ever see visible services; staff see everything so
+    // hidden services stay assignable in booking/package flows.
+    if (!callerCanSeeHidden(req)) {
+      query += ` AND s.is_visible = true`;
+    }
+
     query += ` ORDER BY s.name ASC`;
     
     const { rows } = await pool.query(query, queryParams);
@@ -109,6 +144,7 @@ router.get('/', cacheMiddleware(300, cacheKeyGenerators.services), async (req, r
         rentalSegment: row.rental_segment || null,
         insuranceRate: row.insurance_rate != null ? parseFloat(row.insurance_rate) : null,
         memberDiscountPercent: row.member_discount_percent != null ? parseFloat(row.member_discount_percent) : null,
+        isVisible: row.is_visible !== false,
         isPackage: isPackageResult,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -237,6 +273,7 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
         itinerary: row.itinerary || null,
         eventStatus: row.event_status || null,
         pricePerHour: row.total_hours ? Math.round(parseFloat(row.price) / parseFloat(row.total_hours)) : 0,
+        isVisible: row.is_visible !== false,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         status: 'active'
@@ -251,8 +288,13 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
 });
 
 // Public lesson packages endpoint (no auth)
-// Used by guest-facing academy pages (e.g. /academy/kite-lessons)
-router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages:public'), async (req, res) => {
+// Used by guest-facing academy pages (e.g. /academy/kite-lessons).
+// optionalAuth + privilege-varied cache key so hidden packages are withheld from
+// customers/guests but still returned to staff (who never book from this list —
+// staff assign via /packages/available — but may preview the customer view).
+router.get('/packages/public', optionalAuth, cacheMiddleware(300, (req) =>
+  `api:services:packages:public:vis-${callerCanSeeHidden(req) ? 'priv' : 'pub'}`
+), async (req, res) => {
   try {
     const { category } = req.query;
 
@@ -314,6 +356,11 @@ router.get('/packages/public', cacheMiddleware(300, () => 'api:services:packages
     if (category) {
       queryParams.push(category);
       query += ` AND (p.discipline_tag = $${queryParams.length} OR p.lesson_category_tag = $${queryParams.length})`;
+    }
+
+    // Hide non-visible packages from customers/guests; staff still receive them.
+    if (!callerCanSeeHidden(req)) {
+      query += ` AND p.is_visible = true`;
     }
 
     query += ' ORDER BY p.total_hours ASC NULLS LAST, p.price ASC';
@@ -510,6 +557,7 @@ router.post('/packages', authorize(['admin', 'manager']), cacheInvalidationMiddl
       'package_hourly_rate',
       'package_daily_rate',
       'package_nightly_rate',
+      'is_visible',
       'created_at',
       'updated_at'
     ];
@@ -555,6 +603,8 @@ router.post('/packages', authorize(['admin', 'manager']), cacheInvalidationMiddl
       packageHourlyRate ? parseFloat(packageHourlyRate) : null,
       packageDailyRate ? parseFloat(packageDailyRate) : null,
       packageNightlyRate ? parseFloat(packageNightlyRate) : null,
+      // Hidden only when the client explicitly sends isVisible:false; defaults visible.
+      req.body?.isVisible !== false,
       now,
       now
     ];
@@ -2108,8 +2158,9 @@ router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMi
           accommodation_nights = $15, rental_days = $16, image_url = $17,
           lesson_service_id = $18, equipment_id = $19, accommodation_unit_id = $20, rental_service_id = $21,
           equipment_name = $22, accommodation_unit_name = $23, rental_service_name = $24,
-          package_hourly_rate = $25, package_daily_rate = $26, package_nightly_rate = $27, updated_at = NOW()
-      WHERE id = $28
+          package_hourly_rate = $25, package_daily_rate = $26, package_nightly_rate = $27,
+          is_visible = COALESCE($28, is_visible), updated_at = NOW()
+      WHERE id = $29
       RETURNING *
     `;
     
@@ -2142,9 +2193,11 @@ router.put('/packages/:id', authorize(['admin', 'manager']), cacheInvalidationMi
       packageHourlyRate ? parseFloat(packageHourlyRate) : null,
       packageDailyRate ? parseFloat(packageDailyRate) : null,
       packageNightlyRate ? parseFloat(packageNightlyRate) : null,
+      // null → keep current visibility (COALESCE); only overwrite when the client sends a boolean.
+      typeof req.body?.isVisible === 'boolean' ? req.body.isVisible : null,
       id
     ]);
-    
+
     if (rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Package not found' });
@@ -2761,6 +2814,7 @@ router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(ca
       'rental_segment',
       'member_discount_percent',
       'insurance_rate',
+      'is_visible',
       'created_at',
       'updated_at'
     ];
@@ -2768,6 +2822,8 @@ router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(ca
     const resolvedMemberDiscountPercent = (memberDiscountPercent != null && memberDiscountPercent !== '')
       ? parseFloat(memberDiscountPercent)
       : null;
+    // Hidden only when the client explicitly sends isVisible:false; defaults visible.
+    const resolvedIsVisible = req.body?.isVisible !== false;
     const serviceValues = [
       serviceId,
       resolvedName,
@@ -2790,6 +2846,7 @@ router.post('/', authorize(['admin', 'manager']), cacheInvalidationMiddleware(ca
       rentalSegment || null,
       resolvedMemberDiscountPercent,
       resolvedInsuranceRate,
+      resolvedIsVisible,
       now,
       now
     ];
@@ -3005,8 +3062,9 @@ router.put('/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(
       rental_segment = $18,
       insurance_rate = $19,
       member_discount_percent = $20,
+      is_visible = COALESCE($21, is_visible),
       updated_at = NOW()
-    WHERE id = $21
+    WHERE id = $22
     `;
 
     await client.query(updateServiceQuery, [
@@ -3032,6 +3090,8 @@ router.put('/:id', authorize(['admin', 'manager']), cacheInvalidationMiddleware(
       (req.body?.memberDiscountPercent != null && req.body.memberDiscountPercent !== '')
         ? parseFloat(req.body.memberDiscountPercent)
         : null,
+      // null → keep current visibility (COALESCE); only overwrite when the client sends a boolean.
+      typeof req.body?.isVisible === 'boolean' ? req.body.isVisible : null,
       id
     ]);
     

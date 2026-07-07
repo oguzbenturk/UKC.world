@@ -209,7 +209,14 @@ function LessonServices() {
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
-      render: (text) => <span className="font-medium">{text}</span>,
+      render: (text, record) => (
+        <span className="font-medium">
+          {text}
+          {(record.isVisible ?? record.is_visible) === false && (
+            <Tag color="default" className="ml-2 !text-xs">Hidden</Tag>
+          )}
+        </span>
+      ),
     },
     {
       title: 'Discipline',

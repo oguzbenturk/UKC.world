@@ -25,7 +25,8 @@ import {
   Alert,
   DatePicker,
   Image,
-  Upload
+  Upload,
+  Switch
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -291,7 +292,9 @@ function PackageManagementInner() {
       // lessonCategoryTag NULL, mirroring the rescue service shape.
       disciplineTag: entities.lessonService?.disciplineTag ?? null,
       lessonCategoryTag: null,
-      levelTag: null
+      levelTag: null,
+      // Hidden packages stay staff-assignable but drop off the customer Academy pages.
+      isVisible: values.isVisible !== false,
     };
 
     // Add event-specific fields for downwinders/camps
@@ -406,7 +409,8 @@ function PackageManagementInner() {
       packageDailyRate: pkg.packageDailyRate || undefined,
       packageNightlyRate: pkg.packageNightlyRate || undefined,
       prices: pkg.prices || [{ currencyCode: pkg.currency || 'EUR', price: pkg.price }],
-      imageUrl: pkg.imageUrl
+      imageUrl: pkg.imageUrl,
+      isVisible: (pkg.isVisible ?? pkg.is_visible) !== false,
     };
 
     // Add event fields if they exist
@@ -461,7 +465,8 @@ function PackageManagementInner() {
     form.resetFields();
     form.setFieldsValue({
       packageType: type,
-      prices: [{ currencyCode: userCurrency || 'EUR', price: 0 }]
+      prices: [{ currencyCode: userCurrency || 'EUR', price: 0 }],
+      isVisible: true,
     });
     setPackageModalVisible(true);
   };
@@ -683,6 +688,9 @@ function PackageManagementInner() {
               <Tag color={config.color} className="!text-xs border-0 font-medium">
                 {config.label}
               </Tag>
+              {(pkg.isVisible ?? pkg.is_visible) === false && (
+                <Tag color="default" className="!text-xs border-0 font-medium ml-1">Hidden</Tag>
+              )}
             </div>
           </div>
         </div>
@@ -1041,7 +1049,8 @@ function PackageManagementInner() {
               className="package-creator-form"
               initialValues={{
                 packageType: 'lesson',
-                prices: [{ currencyCode: userCurrency || 'EUR', price: 0 }]
+                prices: [{ currencyCode: userCurrency || 'EUR', price: 0 }],
+                isVisible: true,
               }}
             >
               <div className="p-4 md:p-6">
@@ -1099,6 +1108,21 @@ function PackageManagementInner() {
                     <Form.Item name="description" label="Description">
                       <TextArea rows={3} placeholder="Describe what's included in this package" />
                     </Form.Item>
+
+                    {/* Visibility — hidden packages stay staff-assignable but drop
+                        off the customer-facing Academy pages. Defaults ON. */}
+                    <Form.Item
+                      name="isVisible"
+                      valuePropName="checked"
+                      label="Visible to customers"
+                      tooltip="Turn off to hide this package from the public Academy pages. It stays fully usable and assignable by staff."
+                      className="!mb-0"
+                    >
+                      <Switch checkedChildren="Visible" unCheckedChildren="Hidden" />
+                    </Form.Item>
+                    <p className="text-xs text-gray-400 mt-1 mb-0">
+                      When hidden, customers won&apos;t see this package in Academy, but staff can still assign it.
+                    </p>
                   </div>
 
                   {/* Package Composition Preview */}
