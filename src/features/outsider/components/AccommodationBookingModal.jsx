@@ -1,7 +1,10 @@
 /**
  * AccommodationBookingModal
  *
- * Polished dark-themed booking modal for Stay pages with:
+ * Light booking modal for Stay pages — shares the Duotone-teal design language
+ * with StayAccommodationModal (white surfaces, slate neutrals, #00a8c4 accent,
+ * font-duotone type, charcoal CTA) so the preview → availability flow reads as
+ * one product. Features:
  *  - Custom calendar for check-in / check-out
  *  - Live availability (booked dates disabled)
  *  - Guest count + notes
@@ -11,7 +14,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, InputNumber, Input, Spin, Alert, App, Select, Upload, Tag } from 'antd';
+import { Modal, Input, Spin, Alert, App, Select, Upload, Tag } from 'antd';
 import {
   CalendarOutlined,
   TeamOutlined,
@@ -28,6 +31,8 @@ import {
   SafetyCertificateOutlined,
   BankOutlined,
   UploadOutlined,
+  MinusOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import IyzicoPaymentModal from '@/shared/components/IyzicoPaymentModal';
 import { analyticsService } from '@/shared/services/analyticsService';
@@ -60,23 +65,23 @@ function BankDetailsCard({ account }) {
     ...(account.accountNumber ? [{ label: 'Account No.', value: account.accountNumber }] : []),
   ];
   return (
-    <div className="mt-2 rounded-xl border border-violet-500/20 bg-violet-500/5 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-violet-500/10">
-        <BankOutlined className="text-violet-400 text-xs" />
-        <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Transfer To</span>
-        {account.currency && <Tag color="purple" className="!m-0 !text-[10px] !font-bold ml-auto">{account.currency}</Tag>}
+    <div className="mt-2 rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50">
+        <BankOutlined className="text-xs" style={{ color: '#00a8c4' }} />
+        <span className="text-[10px] font-duotone-bold uppercase tracking-wider" style={{ color: '#007a8f' }}>Transfer To</span>
+        {account.currency && <Tag className="!m-0 !text-[10px] !font-bold ml-auto !border-slate-200 !bg-white !text-slate-600">{account.currency}</Tag>}
       </div>
-      <div className="px-3 py-1 divide-y divide-violet-500/10">
+      <div className="px-3 py-1 divide-y divide-slate-100">
         {fields.map(({ label, value }) => (
           <div key={label} className="py-2">
-            <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{label}</p>
-            <p className="text-xs text-white/80 font-mono break-all">{value}</p>
+            <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+            <p className="text-xs text-slate-700 font-mono break-all">{value}</p>
           </div>
         ))}
       </div>
       {account.instructions && (
-        <div className="px-3 py-2 bg-amber-500/5 border-t border-amber-500/10">
-          <p className="text-[10px] text-amber-400/80 leading-snug">{account.instructions}</p>
+        <div className="px-3 py-2 bg-amber-50 border-t border-amber-100">
+          <p className="text-[10px] text-amber-700 leading-snug">{account.instructions}</p>
         </div>
       )}
     </div>
@@ -298,19 +303,19 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
     const isCurrentMonth = d.month() === calendarMonth.month();
     const booked = isDateBooked(d);
 
-    if (isPast) return 'text-white/15 cursor-not-allowed';
-    if (booked) return 'bg-red-500/20 text-red-400/60 cursor-not-allowed line-through';
-    if (checkIn && d.isSame(checkIn, 'day')) return 'bg-blue-500 text-white font-bold rounded-l-lg';
-    if (checkOut && d.isSame(checkOut, 'day')) return 'bg-blue-500 text-white font-bold rounded-r-lg';
-    if (checkIn && checkOut && d.isAfter(checkIn) && d.isBefore(checkOut)) return 'bg-blue-500/20 text-blue-300';
+    if (isPast) return 'text-slate-300 cursor-not-allowed';
+    if (booked) return 'bg-rose-50 text-rose-400 cursor-not-allowed line-through';
+    if (checkIn && d.isSame(checkIn, 'day')) return 'bg-[#00a8c4] text-white font-bold rounded-l-lg';
+    if (checkOut && d.isSame(checkOut, 'day')) return 'bg-[#00a8c4] text-white font-bold rounded-r-lg';
+    if (checkIn && checkOut && d.isAfter(checkIn) && d.isBefore(checkOut)) return 'bg-[#00a8c4]/15 text-[#007a8f]';
     if (selectingCheckOut && checkIn && d.isAfter(checkIn)) {
       return isCurrentMonth
-        ? 'text-white hover:bg-blue-500/30 cursor-pointer'
-        : 'text-white/30 hover:bg-blue-500/20 cursor-pointer';
+        ? 'text-slate-700 hover:bg-[#00a8c4]/20 cursor-pointer'
+        : 'text-slate-300 hover:bg-[#00a8c4]/10 cursor-pointer';
     }
     return isCurrentMonth
-      ? 'text-white hover:bg-white/10 cursor-pointer'
-      : 'text-white/20 hover:bg-white/5 cursor-pointer';
+      ? 'text-slate-700 hover:bg-slate-100 cursor-pointer'
+      : 'text-slate-300 hover:bg-slate-50 cursor-pointer';
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────
@@ -394,38 +399,42 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
       destroyOnHidden
       className="accommodation-booking-modal"
       closeIcon={
-        <div className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+        <div className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
           <CloseOutlined />
         </div>
       }
       styles={{
         content: {
-          backgroundColor: '#0d1118',
-          border: '1px solid rgba(255,255,255,0.08)',
+          backgroundColor: '#ffffff',
+          border: '1px solid rgba(15,23,42,0.08)',
           padding: 0,
           borderRadius: '20px',
           overflow: 'hidden',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
+          boxShadow: '0 25px 50px -12px rgba(15,23,42,0.25)',
         },
         body: { padding: 0 },
       }}
     >
       {/* ── Header ── */}
-      <div className="px-6 pt-6 pb-4 border-b border-white/5">
+      {/* pr-14 keeps the nightly price clear of the modal's close button */}
+      <div className="pl-6 pr-14 pt-6 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <CalendarOutlined className="text-white text-lg" />
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: 'rgba(0,168,196,0.10)' }}
+          >
+            <CalendarOutlined className="text-lg" style={{ color: '#00a8c4' }} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-white m-0 truncate">{unitName}</h3>
-            <p className="text-xs text-white/40 m-0">
+            <h3 className="text-lg font-duotone-bold-extended text-slate-900 m-0 truncate">{unitName}</h3>
+            <p className="text-xs text-slate-400 m-0 font-duotone-regular">
               {isHotel ? t('outsider:accommodationBooking.header.requestDates') : t('outsider:accommodationBooking.header.selectAndPay')}
             </p>
           </div>
           {nightlyRate > 0 && (
             <div className="text-right shrink-0">
-              <span className="text-blue-400 text-lg font-bold">{formatPrice(nightlyRate)}</span>
-              <span className="text-white/30 text-xs block">
+              <span className="text-lg font-duotone-bold" style={{ color: '#007a8f' }}>{formatPrice(nightlyRate)}</span>
+              <span className="text-slate-400 text-xs block font-duotone-regular">
                 {t('outsider:accommodationBooking.header.perNight')}{isPerPerson ? ' · per person' : ''}
               </span>
             </div>
@@ -444,16 +453,16 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             <div className="flex items-center justify-between mb-4">
               <button
                 onClick={() => setCalendarMonth(m => m.subtract(1, 'month'))}
-                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors"
               >
                 <LeftOutlined className="text-xs" />
               </button>
-              <span className="text-sm font-bold text-white tracking-wide">
+              <span className="text-sm font-duotone-bold-extended text-slate-900 tracking-wide">
                 {calendarMonth.format('MMMM YYYY')}
               </span>
               <button
                 onClick={() => setCalendarMonth(m => m.add(1, 'month'))}
-                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors"
               >
                 <RightOutlined className="text-xs" />
               </button>
@@ -462,7 +471,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             {/* Weekday headers */}
             <div className="grid grid-cols-7 gap-0 mb-1">
               {WEEKDAYS.map(d => (
-                <div key={d} className="text-center text-[10px] text-white/30 font-semibold uppercase py-1">
+                <div key={d} className="text-center text-[10px] text-slate-400 font-duotone-bold uppercase py-1">
                   {d}
                 </div>
               ))}
@@ -485,7 +494,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     className={`relative h-9 text-xs font-medium transition-all duration-150 ${getDayClass(date)}`}
                   >
                     {isToday && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-blue-400" />
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#00a8c4]" />
                     )}
                     {d.date()}
                   </button>
@@ -494,22 +503,22 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-3 text-[10px] text-white/40">
+            <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-400">
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-blue-500" /> {t('outsider:accommodationBooking.calendar.legend.selected')}
+                <span className="w-3 h-3 rounded bg-[#00a8c4]" /> {t('outsider:accommodationBooking.calendar.legend.selected')}
               </div>
               {!isHotel && (
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-red-500/30 border border-red-500/40" /> {t('outsider:accommodationBooking.calendar.legend.booked')}
+                  <span className="w-3 h-3 rounded bg-rose-100 border border-rose-200" /> {t('outsider:accommodationBooking.calendar.legend.booked')}
                 </div>
               )}
               <div className="flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-blue-400" /> {t('outsider:accommodationBooking.calendar.legend.today')}
+                <span className="w-1 h-1 rounded-full bg-[#00a8c4]" /> {t('outsider:accommodationBooking.calendar.legend.today')}
               </div>
             </div>
 
             {/* Selection hint */}
-            <div className="mt-3 text-xs text-center text-white/40">
+            <div className="mt-3 text-xs text-center text-slate-400 font-duotone-regular">
               {!checkIn && !selectingCheckOut && t('outsider:accommodationBooking.calendar.hint.selectCheckin')}
               {checkIn && selectingCheckOut && (
                 <span>
@@ -517,7 +526,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 </span>
               )}
               {checkIn && checkOut && (
-                <span className="text-blue-300">
+                <span className="font-duotone-bold" style={{ color: '#007a8f' }}>
                   {t('outsider:accommodationBooking.calendar.hint.rangeSelected', {
                     checkin: checkIn.format('MMM D'),
                     checkout: checkOut.format('MMM D'),
@@ -530,28 +539,43 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
 
           {/* ── Guest count + Notes ── */}
           <div className="px-6 pb-3">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 flex-1">
-                <TeamOutlined className="text-white/40" />
-                <span className="text-xs text-white/60">{t('outsider:accommodationBooking.guests.label')}</span>
-                <InputNumber
-                  min={1}
-                  max={capacity}
-                  value={guestsCount}
-                  onChange={v => setGuestsCount(v || 1)}
-                  size="small"
-                  className="!w-16 !bg-white/5 !border-white/10 [&_.ant-input-number-input]:!text-white"
-                />
-                <span className="text-[10px] text-white/30">{t('outsider:accommodationBooking.guests.max', { count: capacity })}</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+              <div className="flex items-center gap-2 shrink-0">
+                <TeamOutlined className="text-slate-400" />
+                <span className="text-xs text-slate-600 font-duotone-bold">{t('outsider:accommodationBooking.guests.label')}</span>
+                {/* Clear +/- stepper — the nightly price above updates as this changes */}
+                <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-1 py-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setGuestsCount(g => Math.max(1, g - 1))}
+                    disabled={guestsCount <= 1}
+                    aria-label="Fewer guests"
+                    className="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <MinusOutlined className="text-[10px]" />
+                  </button>
+                  <span className="w-6 text-center text-sm font-duotone-bold text-slate-900 tabular-nums">{guestsCount}</span>
+                  <button
+                    type="button"
+                    onClick={() => setGuestsCount(g => Math.min(capacity, g + 1))}
+                    disabled={guestsCount >= capacity}
+                    aria-label="More guests"
+                    className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-[rgba(0,168,196,0.1)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    style={{ color: guestsCount >= capacity ? undefined : '#00a8c4' }}
+                  >
+                    <PlusOutlined className="text-[10px]" />
+                  </button>
+                </div>
+                <span className="text-[10px] text-slate-400">{t('outsider:accommodationBooking.guests.max', { count: capacity })}</span>
               </div>
-              <div className="flex items-center gap-2 flex-1">
-                <EditOutlined className="text-white/40" />
+              <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                <EditOutlined className="text-slate-400 shrink-0" />
                 <Input
                   placeholder={t('outsider:accommodationBooking.guests.notesPlaceholder')}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   size="small"
-                  className="!bg-white/5 !border-white/10 !text-white placeholder:!text-white/20 !text-xs"
+                  className="!text-xs"
                 />
               </div>
             </div>
@@ -559,15 +583,15 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
 
           {/* ── Payment Method ── */}
           <div className="px-6 pb-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
+            <p className="text-[10px] font-duotone-bold uppercase tracking-wider text-slate-400 mb-2">
               {t('outsider:accommodationBooking.payment.method')}
             </p>
             <div className={`grid gap-3 ${canPayLater ? 'grid-cols-3' : 'grid-cols-2'}`}>
               {[
-                { key: 'wallet', icon: <WalletOutlined />, label: t('outsider:accommodationBooking.payment.wallet'), sub: formatCurrency(walletInUserCurrency, userCurrency), color: 'blue-500', textColor: 'text-blue-400' },
-                { key: 'deposit', icon: <SafetyCertificateOutlined />, label: t('outsider:accommodationBooking.payment.deposit', { percent: DEPOSIT_PERCENT }), sub: nights > 0 ? formatPrice(depositAmount) : t('outsider:accommodationBooking.payment.twentyPercent'), color: 'violet-500', textColor: 'text-violet-400' },
-                ...(canPayLater ? [{ key: 'pay_later', icon: <ClockCircleOutlined />, label: t('outsider:accommodationBooking.payment.payLater'), sub: t('outsider:accommodationBooking.payment.atCenter'), color: 'sky-500', textColor: 'text-sky-400' }] : []),
-              ].map(({ key, icon, label, sub, color, textColor }) => {
+                { key: 'wallet', icon: <WalletOutlined />, label: t('outsider:accommodationBooking.payment.wallet'), sub: formatCurrency(walletInUserCurrency, userCurrency) },
+                { key: 'deposit', icon: <SafetyCertificateOutlined />, label: t('outsider:accommodationBooking.payment.deposit', { percent: DEPOSIT_PERCENT }), sub: nights > 0 ? formatPrice(depositAmount) : t('outsider:accommodationBooking.payment.twentyPercent') },
+                ...(canPayLater ? [{ key: 'pay_later', icon: <ClockCircleOutlined />, label: t('outsider:accommodationBooking.payment.payLater'), sub: t('outsider:accommodationBooking.payment.atCenter') }] : []),
+              ].map(({ key, icon, label, sub }) => {
                 const isActive = paymentMethod === key;
                 return (
                   <button
@@ -575,19 +599,18 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     type="button"
                     onClick={() => setPaymentMethod(key)}
                     className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-center ${
-                      isActive
-                        ? `border-${color} bg-${color}/10 shadow-sm`
-                        : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'
+                      isActive ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                     }`}
+                    style={isActive ? { borderColor: '#00a8c4', backgroundColor: 'rgba(0,168,196,0.07)' } : undefined}
                   >
                     {isActive && (
-                      <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-${color} flex items-center justify-center`}>
+                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: '#00a8c4' }}>
                         <CheckOutlined className="text-white text-[8px]" />
                       </div>
                     )}
-                    <span className={`text-lg ${isActive ? textColor : 'text-white/40'}`}>{icon}</span>
-                    <span className={`text-xs font-semibold leading-tight ${isActive ? textColor : 'text-white/60'}`}>{label}</span>
-                    <span className={`text-[10px] leading-tight ${isActive ? `${textColor}/70` : 'text-white/30'}`}>{sub}</span>
+                    <span className={`text-lg ${isActive ? '' : 'text-slate-400'}`} style={isActive ? { color: '#00a8c4' } : undefined}>{icon}</span>
+                    <span className={`text-xs font-duotone-bold leading-tight ${isActive ? '' : 'text-slate-600'}`} style={isActive ? { color: '#007a8f' } : undefined}>{label}</span>
+                    <span className={`text-[10px] leading-tight ${isActive ? '' : 'text-slate-400'}`} style={isActive ? { color: 'rgba(0,122,143,0.75)' } : undefined}>{sub}</span>
                   </button>
                 );
               })}
@@ -595,23 +618,23 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
 
             {/* Deposit breakdown */}
             {isDeposit && nights > 0 && (
-              <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 space-y-3">
-                <div className="rounded-lg bg-violet-500/10 border border-violet-500/15 p-3 space-y-1.5">
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                <div className="rounded-lg bg-white border border-slate-200 p-3 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-violet-300 font-semibold">{t('outsider:accommodationBooking.payment.depositNow')}</span>
-                    <span className="text-sm font-bold text-violet-200">{formatPrice(depositAmount)}</span>
+                    <span className="text-xs text-slate-600 font-duotone-bold">{t('outsider:accommodationBooking.payment.depositNow')}</span>
+                    <span className="text-sm font-duotone-bold" style={{ color: '#007a8f' }}>{formatPrice(depositAmount)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-violet-300 font-semibold">{t('outsider:accommodationBooking.payment.payOnArrival')}</span>
-                    <span className="text-sm font-bold text-violet-200">{formatPrice(remainingAmount)}</span>
+                    <span className="text-xs text-slate-600 font-duotone-bold">{t('outsider:accommodationBooking.payment.payOnArrival')}</span>
+                    <span className="text-sm font-duotone-bold text-slate-900">{formatPrice(remainingAmount)}</span>
                   </div>
-                  <p className="text-[10px] text-violet-400/70 leading-tight pt-1">
+                  <p className="text-[10px] text-slate-400 leading-tight pt-1">
                     Pay {DEPOSIT_PERCENT}% now to reserve your stay. The remaining {100 - DEPOSIT_PERCENT}% is due on arrival.
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">{t('outsider:accommodationBooking.payment.payDepositVia')}</p>
+                  <p className="text-[10px] font-duotone-bold uppercase tracking-wider text-slate-500 mb-2">{t('outsider:accommodationBooking.payment.payDepositVia')}</p>
                   <div className="grid grid-cols-1 gap-2">
                     {[
                       { key: 'bank_transfer', icon: <BankOutlined />, label: t('outsider:accommodationBooking.payment.bankTransfer') },
@@ -623,11 +646,12 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                           type="button"
                           onClick={() => setDepositMethod(key)}
                           className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border-2 transition-all ${
-                            active ? 'border-violet-500 bg-violet-500/10' : 'border-white/10 bg-white/5 hover:border-white/20'
+                            active ? 'bg-white' : 'border-slate-200 bg-white hover:border-slate-300'
                           }`}
+                          style={active ? { borderColor: '#00a8c4' } : undefined}
                         >
-                          <span className={`text-sm ${active ? 'text-violet-400' : 'text-white/30'}`}>{icon}</span>
-                          <span className={`text-xs font-semibold ${active ? 'text-violet-300' : 'text-white/50'}`}>{label}</span>
+                          <span className={`text-sm ${active ? '' : 'text-slate-400'}`} style={active ? { color: '#00a8c4' } : undefined}>{icon}</span>
+                          <span className={`text-xs font-duotone-bold ${active ? '' : 'text-slate-500'}`} style={active ? { color: '#007a8f' } : undefined}>{label}</span>
                         </button>
                       );
                     })}
@@ -650,7 +674,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     {selectedAccount && <BankDetailsCard account={selectedAccount} />}
                     {selectedAccount && (
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-violet-400/80 mb-2">{t('outsider:accommodationBooking.payment.uploadReceipt')}</p>
+                        <p className="text-[10px] font-duotone-bold uppercase tracking-wider text-slate-500 mb-2">{t('outsider:accommodationBooking.payment.uploadReceipt')}</p>
                         <Upload
                           onRemove={(file) => setFileList(prev => prev.filter(f => f.uid !== file.uid))}
                           beforeUpload={(file) => {
@@ -668,12 +692,13 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                         >
                           <button
                             type="button"
-                            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed border-violet-500/30 bg-violet-500/5 text-violet-400 text-xs hover:bg-violet-500/10 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-dashed text-xs transition-colors hover:bg-[rgba(0,168,196,0.06)]"
+                            style={{ borderColor: 'rgba(0,168,196,0.45)', color: '#007a8f', backgroundColor: 'rgba(0,168,196,0.03)' }}
                           >
                             <UploadOutlined /> {t('outsider:accommodationBooking.payment.selectReceipt')}
                           </button>
                         </Upload>
-                        <p className="text-[10px] mt-1.5 text-violet-400/60 leading-tight">
+                        <p className="text-[10px] mt-1.5 text-slate-400 leading-tight">
                           Upload your deposit receipt for {formatPrice(depositAmount)} — JPEG, PNG, or PDF accepted.
                         </p>
                       </div>
@@ -687,7 +712,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
               <Alert
                 type="warning"
                 showIcon
-                className="!mt-3 !rounded-xl !text-xs !bg-amber-500/10 !border-amber-500/20 [&_.ant-alert-message]:!text-amber-400 [&_.ant-alert-description]:!text-amber-400/70 [&_.anticon]:!text-amber-400"
+                className="!mt-3 !rounded-xl !text-xs"
                 message={t('outsider:accommodationBooking.insufficient.title')}
                 description={t('outsider:accommodationBooking.insufficient.description')}
               />
@@ -696,7 +721,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
 
           {/* ── Promo Code ── */}
           <div className="px-6 pb-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-2">
+            <p className="text-[10px] font-duotone-bold uppercase tracking-wider text-slate-400 mb-2">
               {t('outsider:accommodationBooking.payment.promoCode')}
             </p>
             <PromoCodeInput
@@ -708,18 +733,18 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
               onValidCode={(voucherData) => setAppliedVoucher(voucherData)}
               onClear={() => setAppliedVoucher(null)}
               disabled={bookMutation.isPending}
-              variant="dark"
+              variant="light"
             />
           </div>
 
           {/* ── Summary + Submit ── */}
           <div className="px-6 pb-6">
-            <div className="bg-[#13151a] rounded-2xl p-4 border border-white/5">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 shadow-sm">
               <div className="mb-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-white/40 text-xs uppercase tracking-wider font-semibold m-0">{t('outsider:accommodationBooking.summary.total')}</p>
-                    <p className="text-white/30 text-xs m-0">
+                    <p className="text-slate-500 text-xs uppercase tracking-wider font-duotone-bold m-0">{t('outsider:accommodationBooking.summary.total')}</p>
+                    <p className="text-slate-400 text-xs m-0 font-duotone-regular">
                       {nights > 0
                         ? (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0)
                           ? `${nights} night${nights !== 1 ? 's' : ''} (${t('outsider:accommodationBooking.summary.mixedRates')})`
@@ -730,18 +755,18 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-2xl font-bold text-white tracking-tight">
+                    <span className="text-2xl font-duotone-bold-extended text-slate-900 tracking-tight">
                       {nights > 0 ? formatPrice(effectiveTotalPrice) : '—'}
                     </span>
                     {nights > 0 && isPerPerson && guestsCount > 1 && (
-                      <span className="block text-[11px] text-white/40 mt-0.5">
+                      <span className="block text-[11px] text-slate-400 mt-0.5">
                         {formatPrice(effectiveTotalPrice / guestsCount)} per person
                       </span>
                     )}
                   </div>
                 </div>
                 {nights > 0 && (priceBreakdown.weekendNights > 0 || priceBreakdown.holidayNights > 0 || priceBreakdown.discount) && (
-                  <div className="mt-2 space-y-1 text-xs text-white/30">
+                  <div className="mt-2 space-y-1 text-xs text-slate-400">
                     {priceBreakdown.weekendNights > 0 && (
                       <div className="flex justify-between">
                         <span>{priceBreakdown.weekendNights} weekend night{priceBreakdown.weekendNights !== 1 ? 's' : ''}</span>
@@ -761,7 +786,7 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                       </div>
                     )}
                     {priceBreakdown.discount && (
-                      <div className="flex justify-between text-green-400/70">
+                      <div className="flex justify-between text-emerald-600">
                         <span>{t('outsider:accommodationBooking.summary.discount', { nights: priceBreakdown.discount.min_nights })}</span>
                         <span>−{priceBreakdown.discount.discount_type === 'percentage'
                           ? `${priceBreakdown.discount.discount_value}%`
@@ -772,30 +797,31 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                 )}
               </div>
 
-              <button
-                disabled={
-                  !checkIn || !checkOut || nights < 1 || bookMutation.isPending ||
+              {(() => {
+                const submitDisabled =
+                  !checkIn || !checkOut || nights < 1 ||
                   (paymentMethod === 'wallet' && walletInsufficient) ||
-                  (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0))
-                }
+                  (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0));
+                return (
+              <button
+                disabled={submitDisabled || bookMutation.isPending}
                 onClick={handleSubmit}
                 className={`
-                  w-full h-12 rounded-xl text-base font-bold border-none transition-all duration-200
+                  w-full h-12 rounded-xl text-base font-duotone-bold transition-all duration-200
                   flex items-center justify-center gap-2
-                  ${(!checkIn || !checkOut || nights < 1 || (paymentMethod === 'wallet' && walletInsufficient) || (isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0)))
-                    ? 'bg-white/5 text-white/20 cursor-not-allowed'
-                    : isDeposit
-                      ? 'bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-violet-500/20 hover:from-violet-400 hover:to-violet-500 active:scale-[0.98]'
-                      : paymentMethod === 'pay_later'
-                        ? 'bg-gradient-to-r from-sky-500 to-sky-600 text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-sky-500 active:scale-[0.98]'
-                        : paymentMethod === 'credit_card'
-                          ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500 active:scale-[0.98]'
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98]'
-                  }
+                  ${submitDisabled
+                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                    : 'hover:scale-[1.01] active:scale-[0.99] shadow-md'}
                 `}
+                style={submitDisabled ? undefined : {
+                  backgroundColor: '#4b4f54',
+                  color: '#00a8c4',
+                  border: '1px solid rgba(0,168,196,0.5)',
+                  boxShadow: '0 0 12px rgba(0,168,196,0.25)',
+                }}
               >
                 {bookMutation.isPending ? (
-                  <Spin size="small" className="[&_.ant-spin-dot-item]:!bg-white" />
+                  <Spin size="small" className="[&_.ant-spin-dot-item]:!bg-[#00a8c4]" />
                 ) : (
                   <>
                     <RocketOutlined />
@@ -811,8 +837,10 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
                   </>
                 )}
               </button>
+                );
+              })()}
 
-              <p className="text-center text-white/30 text-[10px] mt-3 flex items-center justify-center gap-1 m-0">
+              <p className="text-center text-slate-400 text-[10px] mt-3 flex items-center justify-center gap-1 m-0 font-duotone-regular">
                 <InfoCircleOutlined />
                 {isDeposit
                   ? `Pay ${DEPOSIT_PERCENT}% now, remaining ${100 - DEPOSIT_PERCENT}% on arrival.`
@@ -829,27 +857,6 @@ const AccommodationBookingModal = ({ open, onClose, unit = {}, onSuccess }) => {
         </>
       )}
 
-      <style>{`
-        .accommodation-booking-modal .ant-modal-content {
-          padding: 0;
-          background: transparent;
-        }
-        .accommodation-booking-modal .ant-input-number {
-          background: rgba(255,255,255,0.05) !important;
-          border-color: rgba(255,255,255,0.1) !important;
-        }
-        .accommodation-booking-modal .ant-input-number-input {
-          color: white !important;
-        }
-        .accommodation-booking-modal .ant-input-number-handler-wrap {
-          background: rgba(255,255,255,0.05) !important;
-          border-color: rgba(255,255,255,0.1) !important;
-        }
-        .accommodation-booking-modal .ant-input-number-handler {
-          border-color: rgba(255,255,255,0.1) !important;
-          color: white !important;
-        }
-      `}</style>
     </Modal>
 
       <IyzicoPaymentModal

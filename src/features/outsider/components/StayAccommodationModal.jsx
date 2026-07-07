@@ -52,7 +52,6 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
 
   const [photoIndex, setPhotoIndex] = useState(0);
   const [guests, setGuests] = useState(1);
-  const [nights, setNights] = useState(1);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
@@ -62,7 +61,6 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
     if (visible) {
       setPhotoIndex(0);
       setGuests(1);
-      setNights(1);
       setPreviewVisible(false);
       setPreviewIndex(0);
     }
@@ -151,11 +149,12 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
     return Math.max(0, out);
   };
 
+  // Per-NIGHT preview: the guest picks the actual date range (and unlocks any
+  // length-of-stay discount) on the calendar in the next step, so this modal no
+  // longer multiplies by a nights count — it just shows the nightly party total.
   const nightlyForSelected = pickOccupancyRate(occList, guests, pricePerNight);
-  const subtotal = nightlyForSelected * nights * guestMultiplier;
-  const stayDiscount = discountForNights(nights);
-  const total = applyDiscount(subtotal, nights, stayDiscount);
-  // Per-person share of the stay total (so the discount is reflected per head too).
+  const total = nightlyForSelected * guestMultiplier;
+  // Per-person share of the nightly total (so per-person pricing reads per head too).
   const perPersonTotal = perPerson && guests > 0 ? total / guests : total;
 
   // Weekly price — shown ONLY when a length-of-stay discount applies at 7 nights ("if configured").
@@ -169,12 +168,6 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
       : Math.round((1 - tot / sub) * 100);
     return { total: tot, savePct: pct > 0 ? pct : null };
   }, [weeklyDiscount, occList, guests, pricePerNight, guestMultiplier]);
-
-  const discountLabel = stayDiscount
-    ? (stayDiscount.discount_type === 'percentage'
-        ? `${Math.round(Number(stayDiscount.discount_value))}% off`
-        : `${formatPrice(Number(stayDiscount.discount_value))}/night off`)
-    : null;
 
   // Cheapest rate across the ladder → the "from" anchor. rateRows is sorted by
   // guest count, not price, so the lowest occupancy isn't necessarily the lowest
@@ -499,10 +492,9 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
             <p className="text-slate-500 text-sm mb-5 font-duotone-regular">Contact us for pricing and availability.</p>
           )}
 
-          {/* Guests + Nights steppers */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
+          {/* Guests stepper — dates/nights are chosen on the next step's calendar */}
+          <div className="mb-5">
             <Stepper label="Guests" value={guests} min={1} max={capacity} onChange={setGuests} />
-            <Stepper label="Nights" value={nights} min={1} max={60} onChange={setNights} />
           </div>
 
           {/* Spacer */}
@@ -512,9 +504,9 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 shadow-sm">
             <div className="flex justify-between items-end gap-3 mb-1">
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-wider font-duotone-bold text-slate-500">From</p>
+                <p className="text-[11px] uppercase tracking-wider font-duotone-bold text-slate-500">Per night</p>
                 <p className="text-slate-400 text-xs font-duotone-regular">
-                  {guests} guest{guests > 1 ? 's' : ''} · {nights} night{nights > 1 ? 's' : ''}
+                  {guests} guest{guests > 1 ? 's' : ''}
                 </p>
                 {perPerson && guests > 1 && (
                   <p className="text-xs font-duotone-bold mt-0.5" style={{ color: '#007a8f' }}>
@@ -530,18 +522,13 @@ const StayAccommodationModal = ({ unit = {}, pkg = {}, visible, onClose, onBookN
                 )}
               </span>
             </div>
-            {stayDiscount && discountLabel && (
-              <p className="text-right text-xs text-emerald-700 font-duotone-bold mt-1 mb-3">
-                Includes {discountLabel} for {nights}+ nights
-              </p>
-            )}
             <Button
               block
               size="large"
               type="primary"
               icon={<RocketOutlined />}
               onClick={() => onBookNow?.(pkg)}
-              className={`!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg font-duotone-bold shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99] ${stayDiscount ? '' : 'mt-3'}`}
+              className="!h-12 sm:!h-14 !rounded-xl !text-base sm:!text-lg font-duotone-bold shadow-md transition-transform hover:scale-[1.01] active:scale-[0.99] mt-3"
               style={{
                 backgroundColor: '#4b4f54',
                 color: ACCENT,
