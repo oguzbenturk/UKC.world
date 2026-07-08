@@ -351,14 +351,19 @@
   },
   "spareParts": {
     "title": "Yedek Parça Siparişleri",
+    "subtitle": "Sipariş ettiğin her parça, hangi aşamada ve ödendi mi.",
+    "empty": "Henüz yedek parça siparişi yok. Sipariş ettiğin ilk parçayı kaydet.",
+    "results": "{{count}} sipariş",
     "actions": {
       "refresh": "Yenile",
-      "exportCsv": "CSV Dışa Aktar",
+      "exportPdf": "PDF Dışa Aktar",
       "newOrder": "Yeni Sipariş",
       "apply": "Uygula"
     },
     "filters": {
+      "all": "Tümü",
       "statusPlaceholder": "Durum",
+      "paymentPlaceholder": "Ödeme",
       "searchPlaceholder": "Parça veya tedarikçi ara...",
       "status": {
         "pending": "Beklemede",
@@ -366,6 +371,18 @@
         "received": "Teslim Alındı",
         "cancelled": "İptal Edildi"
       }
+    },
+    "payment": {
+      "unpaid": "Ödenmedi",
+      "paid": "Ödendi"
+    },
+    "totals": {
+      "outstanding": "Ödenecek",
+      "paid": "Ödenen"
+    },
+    "pdf": {
+      "created": "Oluşturuldu",
+      "generated": "Oluşturulma"
     },
     "table": {
       "part": "Parça",
@@ -375,14 +392,20 @@
       "actions": "İşlemler",
       "markOrdered": "Sipariş Edildi İşaretle",
       "markReceived": "Teslim Alındı İşaretle",
-      "delete": "Sil"
+      "delete": "Sil",
+      "cost": "Tutar",
+      "payment": "Ödeme",
+      "markPaid": "Ödendi İşaretle",
+      "markUnpaid": "Ödenmedi İşaretle"
     },
     "mobileCard": {
       "supplierLabel": "Tedarikçi: {{supplier}}",
       "qty": "Miktar: {{qty}}",
       "ordered": "Sipariş Edildi",
       "recv": "Teslim Al",
-      "del": "Sil"
+      "del": "Sil",
+      "markPaid": "Ödendi",
+      "markUnpaid": "Ödenmedi"
     },
     "modal": {
       "title": "Yeni Yedek Parça Siparişi",
@@ -395,7 +418,11 @@
       "quantityRequired": "Miktar zorunludur",
       "supplierLabel": "Tedarikçi",
       "supplierPlaceholder": "örn. ABC Tedarik",
-      "statusLabel": "Durum"
+      "costLabel": "Tutar",
+      "currencyLabel": "Para Birimi",
+      "paymentLabel": "Ödeme",
+      "statusLabel": "Durum",
+      "notesLabel": "Notlar"
     },
     "toast": {
       "created": "Sipariş oluşturuldu",
@@ -404,7 +431,14 @@
       "statusError": "Durum güncellenemedi",
       "deleted": "Sipariş silindi",
       "deleteError": "Sipariş silinemedi",
-      "loadError": "Siparişler yüklenemedi"
+      "loadError": "Siparişler yüklenemedi",
+      "paymentError": "Ödeme güncellenemedi",
+      "costError": "Tutar güncellenemedi",
+      "exportError": "PDF dışa aktarılamadı",
+      "payment": {
+        "paid": "Ödendi olarak işaretlendi",
+        "unpaid": "Ödenmedi olarak işaretlendi"
+      }
     },
     "unauthorized": "Üzgünüz, bu sayfaya erişim yetkiniz yok."
   },
@@ -1341,6 +1375,10 @@
     }
   },
   "warranty": {
+    "tabs": {
+      "claims": "Talepler",
+      "spareParts": "Yedek parça"
+    },
     "list": {
       "title": "Garanti talepleri",
       "searchPlaceholder": "İsim, e-posta, kod, ürün ile ara…",

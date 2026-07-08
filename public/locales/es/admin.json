@@ -351,14 +351,19 @@
   },
   "spareParts": {
     "title": "Pedidos de repuestos",
+    "subtitle": "Cada pieza pedida, su estado y su pago.",
+    "empty": "Aún no hay pedidos de repuestos. Registra la primera pieza que pidas.",
+    "results": "{{count}} pedidos",
     "actions": {
       "refresh": "Actualizar",
-      "exportCsv": "Exportar CSV",
+      "exportPdf": "Exportar PDF",
       "newOrder": "Nuevo pedido",
       "apply": "Aplicar"
     },
     "filters": {
+      "all": "Todos",
       "statusPlaceholder": "Estado",
+      "paymentPlaceholder": "Pago",
       "searchPlaceholder": "Buscar pieza o proveedor...",
       "status": {
         "pending": "Pendiente",
@@ -366,6 +371,18 @@
         "received": "Recibido",
         "cancelled": "Cancelado"
       }
+    },
+    "payment": {
+      "unpaid": "No pagado",
+      "paid": "Pagado"
+    },
+    "totals": {
+      "outstanding": "Pendiente",
+      "paid": "Pagado"
+    },
+    "pdf": {
+      "created": "Creado",
+      "generated": "Generado"
     },
     "table": {
       "part": "Pieza",
@@ -375,14 +392,20 @@
       "actions": "Acciones",
       "markOrdered": "Marcar como pedido",
       "markReceived": "Marcar como recibido",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "cost": "Coste",
+      "payment": "Pago",
+      "markPaid": "Marcar pagado",
+      "markUnpaid": "Marcar no pagado"
     },
     "mobileCard": {
       "supplierLabel": "Proveedor: {{supplier}}",
       "qty": "Cant: {{qty}}",
       "ordered": "Pedido",
       "recv": "Recib",
-      "del": "Elim"
+      "del": "Elim",
+      "markPaid": "Pagado",
+      "markUnpaid": "No pagado"
     },
     "modal": {
       "title": "Nuevo pedido de repuesto",
@@ -395,7 +418,11 @@
       "quantityRequired": "La cantidad es obligatoria",
       "supplierLabel": "Proveedor",
       "supplierPlaceholder": "ej., Suministros ACME",
-      "statusLabel": "Estado"
+      "costLabel": "Coste",
+      "currencyLabel": "Moneda",
+      "paymentLabel": "Pago",
+      "statusLabel": "Estado",
+      "notesLabel": "Notas"
     },
     "toast": {
       "created": "Pedido creado",
@@ -404,7 +431,14 @@
       "statusError": "Error al actualizar el estado",
       "deleted": "Pedido eliminado",
       "deleteError": "Error al eliminar el pedido",
-      "loadError": "Error al cargar los pedidos"
+      "loadError": "Error al cargar los pedidos",
+      "paymentError": "Error al actualizar el pago",
+      "costError": "Error al actualizar el coste",
+      "exportError": "Error al exportar el PDF",
+      "payment": {
+        "paid": "Marcado como pagado",
+        "unpaid": "Marcado como no pagado"
+      }
     },
     "unauthorized": "Lo sentimos, no estás autorizado para acceder a esta página."
   },

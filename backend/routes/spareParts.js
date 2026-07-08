@@ -13,6 +13,10 @@ const mapRow = (r) => ({
   supplier: r.supplier,
   status: r.status,
   notes: r.notes,
+  paymentStatus: r.payment_status,
+  costAmount: r.cost_amount === null || r.cost_amount === undefined ? null : Number(r.cost_amount),
+  currency: r.currency,
+  paidAt: r.paid_at,
   createdBy: r.created_by,
   orderedAt: r.ordered_at,
   receivedAt: r.received_at,
@@ -23,12 +27,16 @@ const mapRow = (r) => ({
 // GET /api/spare-parts
 router.get('/', authenticateJWT, async (req, res) => {
   try {
-    const { status, q } = req.query;
+    const { status, paymentStatus, q } = req.query;
     const clauses = [];
     const params = [];
     if (status) {
       params.push(status);
       clauses.push(`status = $${params.length}`);
+    }
+    if (paymentStatus) {
+      params.push(paymentStatus);
+      clauses.push(`payment_status = $${params.length}`);
     }
     if (q) {
       params.push(`%${q}%`);
@@ -49,15 +57,25 @@ router.get('/', authenticateJWT, async (req, res) => {
 // POST /api/spare-parts
 router.post('/', authenticateJWT, async (req, res) => {
   try {
-    const { partName, quantity, supplier, status = 'pending', notes } = req.body || {};
+    const {
+      partName, quantity, supplier, status = 'pending', notes,
+      paymentStatus = 'unpaid', costAmount, currency = 'EUR'
+    } = req.body || {};
     if (!partName || !quantity) {
       return res.status(400).json({ error: 'partName and quantity are required' });
     }
+    const cost = costAmount === undefined || costAmount === null || costAmount === '' ? null : Number(costAmount);
+    if (cost !== null && (!Number.isFinite(cost) || cost < 0)) {
+      return res.status(400).json({ error: 'costAmount must be a non-negative number' });
+    }
+    const paidAt = paymentStatus === 'paid' ? new Date() : null;
     const { rows } = await pool.query(
-      `INSERT INTO spare_parts_orders (part_name, quantity, supplier, status, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO spare_parts_orders
+         (part_name, quantity, supplier, status, notes, payment_status, cost_amount, currency, paid_at, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [partName, Number(quantity), supplier || null, status, notes || null, req.user?.id || null]
+      [partName, Number(quantity), supplier || null, status, notes || null,
+       paymentStatus, cost, currency || 'EUR', paidAt, req.user?.id || null]
     );
     res.status(201).json(mapRow(rows[0]));
   } catch (err) {
@@ -76,7 +94,10 @@ router.patch('/:id', authenticateJWT, async (req, res) => {
     const params = [];
     const push = (col, val) => { params.push(val); fields.push(`${col} = $${params.length}`); };
 
-    const { partName, quantity, supplier, status, notes, orderedAt, receivedAt } = req.body || {};
+    const {
+      partName, quantity, supplier, status, notes, orderedAt, receivedAt,
+      paymentStatus, costAmount, currency, paidAt
+    } = req.body || {};
     if (partName !== undefined) push('part_name', partName);
     if (quantity !== undefined) push('quantity', Number(quantity));
     if (supplier !== undefined) push('supplier', supplier);
@@ -84,6 +105,20 @@ router.patch('/:id', authenticateJWT, async (req, res) => {
     if (notes !== undefined) push('notes', notes);
     if (orderedAt !== undefined) push('ordered_at', orderedAt ? new Date(orderedAt) : null);
     if (receivedAt !== undefined) push('received_at', receivedAt ? new Date(receivedAt) : null);
+    if (costAmount !== undefined) {
+      const cost = costAmount === null || costAmount === '' ? null : Number(costAmount);
+      if (cost !== null && (!Number.isFinite(cost) || cost < 0)) {
+        return res.status(400).json({ error: 'costAmount must be a non-negative number' });
+      }
+      push('cost_amount', cost);
+    }
+    if (currency !== undefined) push('currency', currency || 'EUR');
+    if (paymentStatus !== undefined) {
+      push('payment_status', paymentStatus);
+      // Keep paid_at in sync with the toggle unless the caller sets it explicitly.
+      if (paidAt === undefined) push('paid_at', paymentStatus === 'paid' ? new Date() : null);
+    }
+    if (paidAt !== undefined) push('paid_at', paidAt ? new Date(paidAt) : null);
 
     if (!fields.length) return res.status(400).json({ error: 'No valid fields to update' });
     params.push(id);

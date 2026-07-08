@@ -351,14 +351,19 @@
   },
   "spareParts": {
     "title": "Commandes de pièces détachées",
+    "subtitle": "Chaque pièce commandée, son état et son paiement.",
+    "empty": "Aucune commande de pièce pour l'instant. Enregistrez la première pièce commandée.",
+    "results": "{{count}} commandes",
     "actions": {
       "refresh": "Actualiser",
-      "exportCsv": "Exporter CSV",
+      "exportPdf": "Exporter PDF",
       "newOrder": "Nouvelle commande",
       "apply": "Appliquer"
     },
     "filters": {
+      "all": "Tous",
       "statusPlaceholder": "Statut",
+      "paymentPlaceholder": "Paiement",
       "searchPlaceholder": "Rechercher une pièce ou un fournisseur...",
       "status": {
         "pending": "En attente",
@@ -366,6 +371,18 @@
         "received": "Reçu",
         "cancelled": "Annulé"
       }
+    },
+    "payment": {
+      "unpaid": "Non payé",
+      "paid": "Payé"
+    },
+    "totals": {
+      "outstanding": "À payer",
+      "paid": "Payé"
+    },
+    "pdf": {
+      "created": "Créé",
+      "generated": "Généré"
     },
     "table": {
       "part": "Pièce",
@@ -375,14 +392,20 @@
       "actions": "Actions",
       "markOrdered": "Marquer commandé",
       "markReceived": "Marquer reçu",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "cost": "Coût",
+      "payment": "Paiement",
+      "markPaid": "Marquer payé",
+      "markUnpaid": "Marquer non payé"
     },
     "mobileCard": {
       "supplierLabel": "Fournisseur : {{supplier}}",
       "qty": "Qté : {{qty}}",
       "ordered": "Commandé",
       "recv": "Reçu",
-      "del": "Supp"
+      "del": "Supp",
+      "markPaid": "Payé",
+      "markUnpaid": "Non payé"
     },
     "modal": {
       "title": "Nouvelle commande de pièce détachée",
@@ -395,7 +418,11 @@
       "quantityRequired": "La quantité est obligatoire",
       "supplierLabel": "Fournisseur",
       "supplierPlaceholder": "ex. Fournitures ACME",
-      "statusLabel": "Statut"
+      "costLabel": "Coût",
+      "currencyLabel": "Devise",
+      "paymentLabel": "Paiement",
+      "statusLabel": "Statut",
+      "notesLabel": "Notes"
     },
     "toast": {
       "created": "Commande créée",
@@ -404,7 +431,14 @@
       "statusError": "Impossible de mettre à jour le statut",
       "deleted": "Commande supprimée",
       "deleteError": "Impossible de supprimer la commande",
-      "loadError": "Impossible de charger les commandes"
+      "loadError": "Impossible de charger les commandes",
+      "paymentError": "Impossible de mettre à jour le paiement",
+      "costError": "Impossible de mettre à jour le coût",
+      "exportError": "Impossible d'exporter le PDF",
+      "payment": {
+        "paid": "Marqué comme payé",
+        "unpaid": "Marqué comme non payé"
+      }
     },
     "unauthorized": "Désolé, vous n'êtes pas autorisé à accéder à cette page."
   },

@@ -351,14 +351,19 @@
   },
   "spareParts": {
     "title": "Ersatzteilbestellungen",
+    "subtitle": "Jedes bestellte Teil, sein Status und seine Zahlung.",
+    "empty": "Noch keine Ersatzteilbestellungen. Erfasse das erste bestellte Teil.",
+    "results": "{{count}} Bestellungen",
     "actions": {
       "refresh": "Aktualisieren",
-      "exportCsv": "CSV exportieren",
+      "exportPdf": "PDF exportieren",
       "newOrder": "Neue Bestellung",
       "apply": "Anwenden"
     },
     "filters": {
+      "all": "Alle",
       "statusPlaceholder": "Status",
+      "paymentPlaceholder": "Zahlung",
       "searchPlaceholder": "Teil oder Lieferant suchen...",
       "status": {
         "pending": "Ausstehend",
@@ -366,6 +371,18 @@
         "received": "Erhalten",
         "cancelled": "Storniert"
       }
+    },
+    "payment": {
+      "unpaid": "Unbezahlt",
+      "paid": "Bezahlt"
+    },
+    "totals": {
+      "outstanding": "Offen",
+      "paid": "Bezahlt"
+    },
+    "pdf": {
+      "created": "Erstellt",
+      "generated": "Erstellt am"
     },
     "table": {
       "part": "Teil",
@@ -375,14 +392,20 @@
       "actions": "Aktionen",
       "markOrdered": "Als bestellt markieren",
       "markReceived": "Als erhalten markieren",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "cost": "Kosten",
+      "payment": "Zahlung",
+      "markPaid": "Als bezahlt markieren",
+      "markUnpaid": "Als unbezahlt markieren"
     },
     "mobileCard": {
       "supplierLabel": "Lieferant: {{supplier}}",
       "qty": "Menge: {{qty}}",
       "ordered": "Bestellt",
       "recv": "Erhalten",
-      "del": "Lösch"
+      "del": "Lösch",
+      "markPaid": "Bezahlt",
+      "markUnpaid": "Unbezahlt"
     },
     "modal": {
       "title": "Neue Ersatzteilbestellung",
@@ -395,7 +418,11 @@
       "quantityRequired": "Menge ist erforderlich",
       "supplierLabel": "Lieferant",
       "supplierPlaceholder": "z.B. ACME Supplies",
-      "statusLabel": "Status"
+      "costLabel": "Kosten",
+      "currencyLabel": "Währung",
+      "paymentLabel": "Zahlung",
+      "statusLabel": "Status",
+      "notesLabel": "Notizen"
     },
     "toast": {
       "created": "Bestellung erstellt",
@@ -404,7 +431,14 @@
       "statusError": "Fehler beim Aktualisieren des Status",
       "deleted": "Bestellung gelöscht",
       "deleteError": "Fehler beim Löschen der Bestellung",
-      "loadError": "Fehler beim Laden der Bestellungen"
+      "loadError": "Fehler beim Laden der Bestellungen",
+      "paymentError": "Zahlung konnte nicht aktualisiert werden",
+      "costError": "Kosten konnten nicht aktualisiert werden",
+      "exportError": "PDF-Export fehlgeschlagen",
+      "payment": {
+        "paid": "Als bezahlt markiert",
+        "unpaid": "Als unbezahlt markiert"
+      }
     },
     "unauthorized": "Entschuldigung, Sie haben keine Berechtigung, auf diese Seite zuzugreifen."
   },

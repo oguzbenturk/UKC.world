@@ -79,6 +79,14 @@ const WindHistoryChart = ({
     return out;
   }, [range, t0, t1, d.showAxis]);
 
+  // Knots (y) axis: a fixed scale so the curve height reads as an actual wind speed.
+  // Same 0–MAX_KN domain as the forecast curve; labels sit at the left edge.
+  const knTicks = React.useMemo(() => {
+    if (!d.showAxis) return [];
+    const y = (v) => d.top + (1 - Math.max(0, Math.min(MAX_KN, v)) / MAX_KN) * d.plotH;
+    return [10, 20, 30].map((kn) => ({ kn, y: y(kn) }));
+  }, [d]);
+
   const fmtTick = (ms) => {
     const dt = new Date(ms);
     if (range === '7d') return dt.toLocaleDateString(locale, { weekday: 'short' });
@@ -90,6 +98,11 @@ const WindHistoryChart = ({
   return (
     <div ref={ref} className="relative w-full" aria-hidden={variant === 'spark'}>
       <svg width={W} height={totalH} className="block">
+        {/* knots scale — faint horizontal gridlines behind the curve */}
+        {knTicks.map(({ kn, y }) => (
+          <line key={`kg${kn}`} x1="0" y1={y} x2={W} y2={y} stroke="#f1f5f9" strokeWidth="1" />
+        ))}
+
         {/* rideable reference line */}
         {d.showRef && (
           <line x1="0" y1={refY} x2={W} y2={refY} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="2 4" />
@@ -109,6 +122,57 @@ const WindHistoryChart = ({
             <line x1={latest.x} y1={d.top} x2={latest.x} y2={BASE_Y} stroke={WR_HEX[latest.band] || BRAND_CYAN} strokeWidth="1" strokeOpacity="0.4" />
             <circle cx={latest.x} cy={latest.y} r={variant === 'spark' ? 3 : 4} fill={WR_HEX[latest.band] || BRAND_CYAN} stroke="#fff" strokeWidth="1.5" />
           </>
+        )}
+
+        {/* knots scale labels + unit (over the curve, white halo so they stay readable) */}
+        {knTicks.map(({ kn, y }) => (
+          <text
+            key={`kt${kn}`}
+            x="3"
+            y={y - 3}
+            fontSize="10"
+            fontWeight="600"
+            fill="#94a3b8"
+            stroke="#ffffff"
+            strokeWidth="2.5"
+            paintOrder="stroke"
+            fontFamily="inherit"
+          >
+            {kn}
+          </text>
+        ))}
+        {d.showAxis && (
+          <text
+            x="3"
+            y={d.top + 3}
+            fontSize="9.5"
+            fontWeight="700"
+            fill="#cbd5e1"
+            stroke="#ffffff"
+            strokeWidth="2.5"
+            paintOrder="stroke"
+            fontFamily="inherit"
+          >
+            kts
+          </text>
+        )}
+
+        {/* latest reading — the current live wind, in knots */}
+        {latest && d.showAxis && (
+          <text
+            x={Math.max(20, latest.x - 8)}
+            y={Math.min(BASE_Y - 5, Math.max(d.top + 12, latest.y - 9))}
+            textAnchor="end"
+            fontSize="13"
+            fontWeight="700"
+            fill={WR_HEX[latest.band] || BRAND_CYAN}
+            stroke="#ffffff"
+            strokeWidth="3"
+            paintOrder="stroke"
+            fontFamily="inherit"
+          >
+            {Math.round(latest.kn)}
+          </text>
         )}
 
         {/* time axis (full only) */}

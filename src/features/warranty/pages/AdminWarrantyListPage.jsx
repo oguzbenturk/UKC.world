@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Table, Input, Select, Button, Tag, Space, Tooltip, Empty } from 'antd';
+import { Card, Table, Input, Select, Button, Tag, Space, Tooltip, Empty, Tabs } from 'antd';
 import {
   ReloadOutlined, EyeOutlined, SearchOutlined, SafetyOutlined, ClockCircleOutlined,
-  PlusOutlined
+  PlusOutlined, ToolOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import AdminWarrantyDetailModal from '../components/AdminWarrantyDetailModal';
 import AdminWarrantyCreateModal from '../components/AdminWarrantyCreateModal';
 import { useAdminWarrantyList, useAdminWarrantyStats } from '../hooks/useWarranty';
 import { STATUSES, formatBytes } from '../constants';
+import SparePartsOrders from '@/features/admin/pages/SparePartsOrders';
 
 export default function AdminWarrantyListPage() {
   const { t } = useTranslation(['admin', 'public']);
@@ -133,32 +134,22 @@ export default function AdminWarrantyListPage() {
     }
   ];
 
-  return (
-    <div className="px-4 py-6 sm:px-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-600">
-            UKC.Care
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {t('admin:warranty.list.title', 'Warranty claims')}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => { listQuery.refetch(); statsQuery.refetch(); }}
-          >
-            {t('admin:warranty.actions.refresh', 'Refresh')}
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateOpen(true)}
-          >
-            {t('admin:warranty.actions.newClaim', 'New claim')}
-          </Button>
-        </div>
+  const claimsTab = (
+    <>
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => { listQuery.refetch(); statsQuery.refetch(); }}
+        >
+          {t('admin:warranty.actions.refresh', 'Refresh')}
+        </Button>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setCreateOpen(true)}
+        >
+          {t('admin:warranty.actions.newClaim', 'New claim')}
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -251,6 +242,45 @@ export default function AdminWarrantyListPage() {
           statsQuery.refetch();
           if (claim?.id) handleOpenClaim(claim.id);
         }}
+      />
+    </>
+  );
+
+  return (
+    <div className="px-4 py-6 sm:px-8">
+      <div className="mb-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-600">
+          UKC.Care
+        </p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          {t('admin:warranty.list.title', 'Warranty claims')}
+        </h1>
+      </div>
+
+      <Tabs
+        defaultActiveKey="claims"
+        items={[
+          {
+            key: 'claims',
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <SafetyOutlined />
+                {t('admin:warranty.tabs.claims', 'Claims')}
+              </span>
+            ),
+            children: claimsTab
+          },
+          {
+            key: 'spare-parts',
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <ToolOutlined />
+                {t('admin:warranty.tabs.spareParts', 'Spare parts')}
+              </span>
+            ),
+            children: <SparePartsOrders />
+          }
+        ]}
       />
     </div>
   );

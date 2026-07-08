@@ -351,14 +351,19 @@
   },
   "spareParts": {
     "title": "Заказы запчастей",
+    "subtitle": "Каждая заказанная деталь, её статус и оплата.",
+    "empty": "Заказов запчастей пока нет. Добавьте первую заказанную деталь.",
+    "results": "{{count}} заказов",
     "actions": {
       "refresh": "Обновить",
-      "exportCsv": "Экспорт CSV",
+      "exportPdf": "Экспорт PDF",
       "newOrder": "Новый заказ",
       "apply": "Применить"
     },
     "filters": {
+      "all": "Все",
       "statusPlaceholder": "Статус",
+      "paymentPlaceholder": "Оплата",
       "searchPlaceholder": "Поиск по запчасти или поставщику...",
       "status": {
         "pending": "Ожидает",
@@ -366,6 +371,18 @@
         "received": "Получено",
         "cancelled": "Отменено"
       }
+    },
+    "payment": {
+      "unpaid": "Не оплачено",
+      "paid": "Оплачено"
+    },
+    "totals": {
+      "outstanding": "К оплате",
+      "paid": "Оплачено"
+    },
+    "pdf": {
+      "created": "Создано",
+      "generated": "Сформировано"
     },
     "table": {
       "part": "Запчасть",
@@ -375,14 +392,20 @@
       "actions": "Действия",
       "markOrdered": "Отметить заказанным",
       "markReceived": "Отметить полученным",
-      "delete": "Удалить"
+      "delete": "Удалить",
+      "cost": "Стоимость",
+      "payment": "Оплата",
+      "markPaid": "Отметить оплаченным",
+      "markUnpaid": "Отметить неоплаченным"
     },
     "mobileCard": {
       "supplierLabel": "Поставщик: {{supplier}}",
       "qty": "Кол-во: {{qty}}",
       "ordered": "Заказано",
       "recv": "Получено",
-      "del": "Удал"
+      "del": "Удал",
+      "markPaid": "Оплачено",
+      "markUnpaid": "Не оплачено"
     },
     "modal": {
       "title": "Новый заказ запчасти",
@@ -395,7 +418,11 @@
       "quantityRequired": "Количество обязательно",
       "supplierLabel": "Поставщик",
       "supplierPlaceholder": "напр., ACME Supplies",
-      "statusLabel": "Статус"
+      "costLabel": "Стоимость",
+      "currencyLabel": "Валюта",
+      "paymentLabel": "Оплата",
+      "statusLabel": "Статус",
+      "notesLabel": "Заметки"
     },
     "toast": {
       "created": "Заказ создан",
@@ -404,7 +431,14 @@
       "statusError": "Не удалось обновить статус",
       "deleted": "Заказ удалён",
       "deleteError": "Не удалось удалить заказ",
-      "loadError": "Не удалось загрузить заказы"
+      "loadError": "Не удалось загрузить заказы",
+      "paymentError": "Не удалось обновить оплату",
+      "costError": "Не удалось обновить стоимость",
+      "exportError": "Не удалось экспортировать PDF",
+      "payment": {
+        "paid": "Отмечено как оплачено",
+        "unpaid": "Отмечено как неоплачено"
+      }
     },
     "unauthorized": "Извините, у вас нет доступа к этой странице."
   },

@@ -351,14 +351,19 @@
   },
   "spareParts": {
     "title": "Spare Parts Orders",
+    "subtitle": "Every part you order, where it is, and whether it's paid.",
+    "empty": "No spare part orders yet. Log the first part you order.",
+    "results": "{{count}} orders",
     "actions": {
       "refresh": "Refresh",
-      "exportCsv": "Export CSV",
+      "exportPdf": "Export PDF",
       "newOrder": "New Order",
       "apply": "Apply"
     },
     "filters": {
+      "all": "All",
       "statusPlaceholder": "Status",
+      "paymentPlaceholder": "Payment",
       "searchPlaceholder": "Search part or supplier...",
       "status": {
         "pending": "Pending",
@@ -366,6 +371,18 @@
         "received": "Received",
         "cancelled": "Cancelled"
       }
+    },
+    "payment": {
+      "unpaid": "Unpaid",
+      "paid": "Paid"
+    },
+    "totals": {
+      "outstanding": "Outstanding",
+      "paid": "Paid"
+    },
+    "pdf": {
+      "created": "Created",
+      "generated": "Generated"
     },
     "table": {
       "part": "Part",
@@ -375,14 +392,20 @@
       "actions": "Actions",
       "markOrdered": "Mark Ordered",
       "markReceived": "Mark Received",
-      "delete": "Delete"
+      "delete": "Delete",
+      "cost": "Cost",
+      "payment": "Payment",
+      "markPaid": "Mark Paid",
+      "markUnpaid": "Mark Unpaid"
     },
     "mobileCard": {
       "supplierLabel": "Supplier: {{supplier}}",
       "qty": "Qty: {{qty}}",
       "ordered": "Ordered",
       "recv": "Recv",
-      "del": "Del"
+      "del": "Del",
+      "markPaid": "Paid",
+      "markUnpaid": "Unpaid"
     },
     "modal": {
       "title": "New Spare Part Order",
@@ -395,7 +418,11 @@
       "quantityRequired": "Quantity is required",
       "supplierLabel": "Supplier",
       "supplierPlaceholder": "e.g., ACME Supplies",
-      "statusLabel": "Status"
+      "costLabel": "Cost",
+      "currencyLabel": "Currency",
+      "paymentLabel": "Payment",
+      "statusLabel": "Status",
+      "notesLabel": "Notes"
     },
     "toast": {
       "created": "Order created",
@@ -404,7 +431,14 @@
       "statusError": "Failed to update status",
       "deleted": "Order deleted",
       "deleteError": "Failed to delete order",
-      "loadError": "Failed to load orders"
+      "loadError": "Failed to load orders",
+      "paymentError": "Failed to update payment",
+      "costError": "Failed to update cost",
+      "exportError": "Failed to export PDF",
+      "payment": {
+        "paid": "Marked as paid",
+        "unpaid": "Marked as unpaid"
+      }
     },
     "unauthorized": "Sorry, you are not authorized to access this page."
   },
@@ -1341,6 +1375,10 @@
     }
   },
   "warranty": {
+    "tabs": {
+      "claims": "Claims",
+      "spareParts": "Spare parts"
+    },
     "list": {
       "title": "Warranty claims",
       "searchPlaceholder": "Search by name, email, code, product…",

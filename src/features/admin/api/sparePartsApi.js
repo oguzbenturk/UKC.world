@@ -5,9 +5,10 @@ const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`,
 });
 
-export async function listSpareParts({ status, q } = {}) {
+export async function listSpareParts({ status, paymentStatus, q } = {}) {
   const params = new URLSearchParams();
   if (status) params.append('status', status);
+  if (paymentStatus) params.append('paymentStatus', paymentStatus);
   if (q) params.append('q', q);
   const res = await fetch(`${base}?${params.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch');
