@@ -65,12 +65,13 @@ async function ensureCurrencyExists(client, code) {
   );
 }
 
-// Get all services
-// optionalAuth + privilege-varied cache key: privileged staff receive hidden
-// services, so their cached response must never be served to a guest hitting the
-// same URL (the default key is URL-only, which would leak hidden services).
+// Get all services. /services is shared by staff booking flows (which must see
+// hidden services so they stay assignable) AND customer-facing pages (which pass
+// visible_only=true to force the customer view even when a staff member is
+// logged in). The cache key varies by BOTH the visible_only param and the
+// caller's privilege so a filtered response is never served to a staff request.
 router.get('/', optionalAuth, cacheMiddleware(300, (req) =>
-  `${cacheKeyGenerators.services(req)}:vis-${callerCanSeeHidden(req) ? 'priv' : 'pub'}`
+  `${cacheKeyGenerators.services(req)}:vo-${req.query.visible_only === 'true' ? 1 : 0}:vis-${callerCanSeeHidden(req) ? 'priv' : 'pub'}`
 ), async (req, res) => {
   try {
     const { category, level, isPackage } = req.query;
@@ -106,9 +107,11 @@ router.get('/', optionalAuth, cacheMiddleware(300, (req) =>
       query += ` AND s.package_id IS NULL`;
     }
 
-    // Customers/guests only ever see visible services; staff see everything so
-    // hidden services stay assignable in booking/package flows.
-    if (!callerCanSeeHidden(req)) {
+    // Hide non-visible services when the caller is a customer/guest, OR when a
+    // customer-facing page explicitly requests the customer view (visible_only).
+    // Staff booking/assignment flows omit visible_only, so hidden services stay
+    // assignable there.
+    if (!callerCanSeeHidden(req) || req.query.visible_only === 'true') {
       query += ` AND s.is_visible = true`;
     }
 
@@ -288,12 +291,12 @@ router.get('/packages', authorize(['admin', 'manager']), async (req, res) => {
 });
 
 // Public lesson packages endpoint (no auth)
-// Used by guest-facing academy pages (e.g. /academy/kite-lessons).
-// optionalAuth + privilege-varied cache key so hidden packages are withheld from
-// customers/guests but still returned to staff (who never book from this list —
-// staff assign via /packages/available — but may preview the customer view).
-router.get('/packages/public', optionalAuth, cacheMiddleware(300, (req) =>
-  `api:services:packages:public:vis-${callerCanSeeHidden(req) ? 'priv' : 'pub'}`
+// Used by guest-facing academy pages (e.g. /academy/kite-lessons). Every caller
+// of this endpoint is the customer storefront, so hidden packages are ALWAYS
+// withheld here — even for staff (who assign via /packages + /packages/available,
+// which are unaffected). This keeps the Academy view identical for everyone.
+router.get('/packages/public', cacheMiddleware(300, (req) =>
+  `api:services:packages:public:${req.query.category || 'all'}`
 ), async (req, res) => {
   try {
     const { category } = req.query;
@@ -358,10 +361,8 @@ router.get('/packages/public', optionalAuth, cacheMiddleware(300, (req) =>
       query += ` AND (p.discipline_tag = $${queryParams.length} OR p.lesson_category_tag = $${queryParams.length})`;
     }
 
-    // Hide non-visible packages from customers/guests; staff still receive them.
-    if (!callerCanSeeHidden(req)) {
-      query += ` AND p.is_visible = true`;
-    }
+    // Always hide non-visible packages on the customer-facing Academy pages.
+    query += ` AND p.is_visible = true`;
 
     query += ' ORDER BY p.total_hours ASC NULLS LAST, p.price ASC';
 

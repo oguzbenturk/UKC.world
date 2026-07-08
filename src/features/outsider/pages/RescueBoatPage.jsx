@@ -130,7 +130,7 @@ const RescueBoatPage = () => {
     let active = true;
     (async () => {
       try {
-        const { data } = await apiClient.get('/services');
+        const { data } = await apiClient.get('/services', { params: { visible_only: true } });
         if (!active) return;
         const list = Array.isArray(data) ? data : [];
         setServices(list.filter((s) => s.disciplineTag === 'rescue_boat'));

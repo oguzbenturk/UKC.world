@@ -1101,7 +1101,7 @@ const AcademyServicePackagesPage = ({
         } else if (normalize(dynamicServiceKey).startsWith('rental_')) {
           // Rental segment page — fetch services + packages and build discipline-filterable cards
           const [servicesRes, packagesRes] = await Promise.all([
-            apiClient.get('/services'),
+            apiClient.get('/services', { params: { visible_only: true } }),
             apiClient.get('/services/packages/public').catch(() => ({ data: [] })),
           ]);
           const rawServices = Array.isArray(servicesRes.data) ? servicesRes.data : [];
@@ -1152,7 +1152,7 @@ const AcademyServicePackagesPage = ({
           // For lesson pages, fetch packages and services as before
           const [packagesRes, servicesRes] = await Promise.all([
             apiClient.get('/services/packages/public'),
-            apiClient.get('/services')
+            apiClient.get('/services', { params: { visible_only: true } })
           ]);
           
           const packageRows = Array.isArray(packagesRes.data) ? packagesRes.data : [];
