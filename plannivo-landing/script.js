@@ -113,7 +113,7 @@
         'Contact: ' + email + '\n\n' +
         "We'd like a 20-minute demo of Plannivo."
       );
-      window.location.href = 'mailto:hello@plannivo.com?subject=' + subject + '&body=' + body;
+      window.location.href = 'mailto:info@plannivo.com?subject=' + subject + '&body=' + body;
       form.classList.add('is-sent');
     });
   }
