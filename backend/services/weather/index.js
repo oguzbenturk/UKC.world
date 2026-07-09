@@ -40,12 +40,21 @@ export const buildForecast = (bundle, opts = {}) => {
     if (m) tabs.push({ key: m.key, name: m.name, resolution: m.resolution, initUtcIso: m.initUtcIso, horizonHours: horizonHours(m.hours) });
   }
 
+  let effectiveKey = modelKey;
+  if (effectiveKey === 'mix' && !mix.contributors.length) {
+    // No mix contributors upstream (e.g. only GFS returned) — fall back to the
+    // sharpest available raw model so the default view is never empty.
+    const firstRaw = MODEL_ORDER.find((k) => k !== 'mix' && bundle.models.some((m) => m.key === k));
+    if (!firstRaw) throw new Error('No forecast models available');
+    effectiveKey = firstRaw;
+  }
+
   let selected;
-  if (modelKey === 'mix') {
+  if (effectiveKey === 'mix') {
     selected = { hours: mix.hours, meta: { key: 'mix', name: 'UKC Mix', resolution: '', initUtcIso: maxInit(bundle.models, mix.contributors) } };
   } else {
-    const m = bundle.models.find((x) => x.key === modelKey);
-    if (!m) throw new Error(`Unknown model: ${modelKey}`);
+    const m = bundle.models.find((x) => x.key === effectiveKey);
+    if (!m) throw new Error(`Unknown model: ${effectiveKey}`);
     selected = { hours: m.hours, meta: { key: m.key, name: m.name, resolution: m.resolution, initUtcIso: m.initUtcIso } };
   }
 

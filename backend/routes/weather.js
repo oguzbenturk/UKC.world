@@ -117,10 +117,7 @@ router.get('/report/:spotId', async (req, res) => {
 // GET /api/weather/report — all spots in one go
 router.get('/report', async (req, res) => {
   try {
-    const reports = await getAllSpotReports({
-      lang: req.query.lang,
-      windUnit: req.query.wj,
-    });
+    const reports = await getAllSpotReports({ lang: req.query.lang });
     res.json({ fetchedAt: new Date().toISOString(), reports });
   } catch (err) {
     res.status(502).json({ error: err?.message || 'Failed to fetch forecasts' });

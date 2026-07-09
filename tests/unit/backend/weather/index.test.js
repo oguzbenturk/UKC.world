@@ -37,4 +37,19 @@ describe('buildForecast', () => {
   it('throws on an unknown model', () => {
     expect(() => buildForecast(bundle, { model: 'nope' })).toThrow(/Unknown model/);
   });
+
+  it('falls back to the sharpest raw model when mix has no contributors', () => {
+    const gfsOnlyBundle = {
+      location: 'Urla, Gulbahce', lat: 38.3, lon: 26.6, altM: 1, sstC: 25, tzOffsetHours: 3, fetchedAt: 'x',
+      models: [
+        { key: 'gfs13', name: 'GFS', resolution: '13 km', initUtcIso: '2026-07-09T00:00:00Z', hours: [h(20)] },
+      ],
+    };
+    const f = buildForecast(gfsOnlyBundle, {});
+    expect(f.model.key).toBe('gfs13'); // fell back, NOT 'mix'
+    expect(f.hours.length).toBeGreaterThan(0);
+    const tabKeys = f.models.map((m) => m.key);
+    expect(tabKeys).toContain('gfs13');
+    expect(tabKeys).not.toContain('mix');
+  });
 });
