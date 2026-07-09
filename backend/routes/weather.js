@@ -1,16 +1,9 @@
 import express from 'express';
 import axios from 'axios';
-import { listSpots, getSpotReport, getAllSpotReports, getUkcLive, getPwsLive, getPwsHistory } from '../services/weather/index.js';
+import { listSpots, getSpotReport, getAllSpotReports, getUkcLive, getPwsLive, getPwsHistory, getModelAccuracy } from '../services/weather/index.js';
+import { degToCardinal } from '../services/weather/cardinal.js';
 
 const router = express.Router();
-
-// Convert degrees to cardinal direction
-const degToCardinal = (deg) => {
-  if (deg == null || isNaN(deg)) return 'N';
-  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-  const ix = Math.round(deg / 22.5) % 16;
-  return dirs[ix];
-};
 
 // GET /api/weather/hourly?date=YYYY-MM-DD&lat=..&lon=..
 router.get('/hourly', async (req, res) => {
@@ -58,7 +51,7 @@ router.get('/hourly', async (req, res) => {
         speedKn: Math.round(speed),
         gustKn: Math.round(gust),
         dirDeg,
-        dirText: degToCardinal(dirDeg),
+        dirText: degToCardinal(dirDeg) || 'N',
         tempC: Math.round(temp * 10) / 10, // Round to 1 decimal place
       };
     }
@@ -111,14 +104,12 @@ router.get('/pws/history', async (req, res) => {
 // GET /api/weather/report/:spotId — dual-purpose: single spot Windguru forecast as JSON
 router.get('/report/:spotId', async (req, res) => {
   try {
-    const report = await getSpotReport(req.params.spotId, {
-      lang: req.query.lang,
-      windUnit: req.query.wj,
-    });
+    const report = await getSpotReport(req.params.spotId, { lang: req.query.lang, model: req.query.model });
     res.json(report);
   } catch (err) {
     const msg = err?.message || 'Failed to fetch forecast';
     if (msg.startsWith('Unknown spot')) return res.status(404).json({ error: msg });
+    if (msg.startsWith('Unknown model')) return res.status(400).json({ error: msg });
     res.status(502).json({ error: msg });
   }
 });
@@ -133,6 +124,17 @@ router.get('/report', async (req, res) => {
     res.json({ fetchedAt: new Date().toISOString(), reports });
   } catch (err) {
     res.status(502).json({ error: err?.message || 'Failed to fetch forecasts' });
+  }
+});
+
+// GET /api/weather/models/accuracy?spotId=gulbahce — per-model MAE vs the beach station.
+router.get('/models/accuracy', async (req, res) => {
+  try {
+    const data = await getModelAccuracy(req.query.spotId);
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'Failed to fetch model accuracy' });
   }
 });
 

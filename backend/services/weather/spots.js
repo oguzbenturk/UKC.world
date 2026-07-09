@@ -11,6 +11,7 @@ export const SPOTS = {
     timezone: 'Europe/Istanbul',
     windguruSpotId: '574666',
     water: 'flat',
+    station: 'IURLA24', // WU PWS at the beach — the only spot with a truth station (accuracy scoring)
   },
   alacati: {
     id: 'alacati',
