@@ -1,7 +1,7 @@
 import { getWindBand } from './windBands';
 
 // Shared SVG-path geometry for the wind curves (forecast + live history). Kept out of
-// the components so WindCurve and WindHistoryChart draw identical, gap-aware, band-
+// the components so the forecast grid and WindHistoryChart draw identical, gap-aware, band-
 // coloured lines from the same primitives.
 
 // Shared y-axis ceiling (knots): the forecast curve and the history chart use the same

@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Disclosure } from '@headlessui/react';
 import { ArrowUpRightIcon, MapPinIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import DayStrip from './DayStrip';
+import ForecastGrid from './ForecastGrid';
+import ModelTabs from './ModelTabs';
+import { useSpotModelSeries } from '../hooks/useSpotModelSeries';
+import { useModelAccuracy } from '../hooks/useModelAccuracy';
+import { MIX_KEY } from '../utils/models';
 import SessionVerdict from './SessionVerdict';
 import HourDetail from './HourDetail';
 import KiteRecommendation from './KiteRecommendation';
@@ -18,14 +22,21 @@ const SpotCard = ({ report, weight, index = 0, featured = false, defaultOpen = f
   const locale = (i18n.resolvedLanguage || i18n.language || 'en').slice(0, 2);
 
   const spot = report?.spot;
-  const forecast = report?.forecast;
+  const baseForecast = report?.forecast;
 
-  // All hooks run unconditionally (before any early return) — rules-of-hooks safe,
-  // and crash-safe if a report ever flips between error and ok.
-  // First `maxDays` real forecast days. NB: the Windguru m=all scrape emits phantom
-  // far-future dates (its month-rollover heuristic mislabels each extra model table),
-  // but the genuine contiguous block is the FIRST ~17 days, so slicing from the front is
-  // safe for any maxDays we use (≤10). See windguruScraper.js if you ever need more.
+  // Model tabs: Mix ships in the page payload (baseForecast); any other model is fetched
+  // on demand and swapped in. All hooks run unconditionally (rules-of-hooks safe).
+  const [model, setModel] = React.useState(MIX_KEY);
+  const isGulbahce = spot?.id === 'gulbahce';
+  const { data: modelData } = useSpotModelSeries(spot?.id, model, model !== MIX_KEY);
+  const { data: accuracyData } = useModelAccuracy(spot?.id, isGulbahce);
+
+  const forecast = model === MIX_KEY ? baseForecast : (modelData?.forecast || baseForecast);
+  const accuracy = React.useMemo(
+    () => Object.fromEntries((accuracyData?.models || []).map((m) => [m.key, m.maeKn])),
+    [accuracyData]
+  );
+
   const days = React.useMemo(() => groupByDay(forecast?.hours || []).slice(0, maxDays), [forecast, maxDays]);
   const todaySummary = React.useMemo(() => (days[0] ? dailySummary(days[0].rows) : null), [days]);
 
@@ -136,37 +147,25 @@ const SpotCard = ({ report, weight, index = 0, featured = false, defaultOpen = f
             {/* ── EXPANDED: full timeline ── */}
             <Disclosure.Panel>
               <div className="border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <Eyebrow>{t('windReport.metrics.hourly')}</Eyebrow>
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-gotham-medium text-slate-500">
-                      <span className="inline-block h-0.5 w-4 rounded-full" style={{ backgroundColor: '#00a8c4' }} />
-                      {t('windReport.metrics.wind')}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-gotham-medium text-slate-500">
-                      <span className="inline-block h-0.5 w-4 rounded-full border-t border-dashed border-slate-400" />
-                      {t('windReport.metrics.gusts')}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-gotham-medium text-emerald-600">
-                      <span className="inline-block h-2.5 w-3 rounded-sm bg-emerald-400/30 ring-1 ring-emerald-400/50" />
-                      {t('windReport.verdict.sessionWindow')}
-                    </span>
-                  </div>
+                  <ModelTabs
+                    models={forecast?.models || []}
+                    active={model}
+                    onSelect={setModel}
+                    accuracy={accuracy}
+                    t={t}
+                  />
                 </div>
 
-                <div className={`flex flex-col gap-4 ${days.length > 5 ? 'max-h-[520px] overflow-y-auto pr-1' : ''}`}>
-                  {days.map((d, di) => (
-                    <DayStrip
-                      key={d.dateLocal}
-                      dateLocal={d.dateLocal}
-                      rows={d.rows}
-                      selectedKey={selectedKey}
-                      onSelectHour={(h) => setSelectedKey(`${h.dateLocal}:${h.hour}`)}
-                      locale={locale}
-                      showAxis
-                    />
-                  ))}
-                </div>
+                <ForecastGrid
+                  days={days}
+                  modelName={forecast?.model?.name}
+                  selectedKey={selectedKey}
+                  onSelectHour={(h) => setSelectedKey(`${h.dateLocal}:${h.hour}`)}
+                  locale={locale}
+                  t={t}
+                />
 
                 {/* selected-hour kite (tracks the tapped hour) */}
                 <div className="mt-4 flex justify-end border-t border-slate-100 pt-3">

@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { WR_HEX, BRAND_CYAN } from '../utils/bandTheme';
 import { lineD, areaD } from '../utils/curveGeometry';
 
-// The band-coloured wind curve shared by the forecast (WindCurve) and the live-history
-// (WindHistoryChart) charts: a soft filled area + a stroked line per wind-band run, so
-// both always render the "colour = how windy" language identically. Callers pass the
-// pre-split `runs` (from segmentsByBand) and the SVG baseline `baseY`.
+// The band-coloured wind curve shared by the forecast grid and WindHistoryChart: a soft
+// filled area + a stroked line per wind-band run, so both always render the "colour = how
+// windy" language identically. Callers pass the pre-split `runs` (from segmentsByBand) and
+// the SVG baseline `baseY`.
 const WindBandPaths = ({ runs, baseY, strokeWidth = 2.5, stagger = 0.06, reduce = false }) => (
   <>
     {runs.map((run, i) => (
