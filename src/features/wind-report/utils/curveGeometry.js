@@ -1,11 +1,10 @@
 import { getWindBand } from './windBands';
 
-// Shared SVG-path geometry for the wind curves (forecast + live history). Kept out of
-// the components so the forecast grid and WindHistoryChart draw identical, gap-aware, band-
-// coloured lines from the same primitives.
+// Shared SVG-path geometry for the live-history wind curve. Kept out of the component
+// (WindHistoryChart) so it can build gap-aware, band-coloured lines from a single set of
+// primitives.
 
-// Shared y-axis ceiling (knots): the forecast curve and the history chart use the same
-// vertical scale so they read as one visual language ("colour + height = how windy").
+// Y-axis ceiling (knots) for the live-history wind curve ("colour + height = how windy").
 export const MAX_KN = 35;
 
 // Polyline "d" from a run of points.

@@ -40,10 +40,14 @@ const SpotCard = ({ report, weight, index = 0, featured = false, defaultOpen = f
   const days = React.useMemo(() => groupByDay(forecast?.hours || []).slice(0, maxDays), [forecast, maxDays]);
   const todaySummary = React.useMemo(() => (days[0] ? dailySummary(days[0].rows) : null), [days]);
 
+  // Default (and reset) the selected hour from the BASE (mix) forecast only, so switching
+  // model tabs never clobbers an hour the user picked to cross-compare across models.
   const defaultKey = React.useMemo(() => {
-    if (!todaySummary || todaySummary.peakHour == null || !days[0]) return null;
-    return `${days[0].dateLocal}:${todaySummary.peakHour}`;
-  }, [todaySummary, days]);
+    const baseDays = groupByDay(baseForecast?.hours || []).slice(0, maxDays);
+    const baseSummary = baseDays[0] ? dailySummary(baseDays[0].rows) : null;
+    if (!baseSummary || baseSummary.peakHour == null || !baseDays[0]) return null;
+    return `${baseDays[0].dateLocal}:${baseSummary.peakHour}`;
+  }, [baseForecast, maxDays]);
 
   const [selectedKey, setSelectedKey] = React.useState(defaultKey);
   React.useEffect(() => { setSelectedKey(defaultKey); }, [defaultKey]);
