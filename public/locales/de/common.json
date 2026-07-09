@@ -819,6 +819,8 @@
       "avg": "Durchschnitt",
       "hourly": "Stündliche Vorhersage"
     },
+    "grid": { "sky": "Himmel", "rating": "Bewertung", "model": "Vorhersagemodell" },
+    "models": { "mix": "UKC-Mix", "accuracyTip": "Durchschn. Fehler ggü. Strandstation, letzte 14 Tage" },
     "history": {
       "title": "Windverlauf",
       "last24h": "Letzte 24 Std.",

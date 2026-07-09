@@ -819,6 +819,8 @@
       "avg": "Medio",
       "hourly": "Pronóstico horario"
     },
+    "grid": { "sky": "Cielo", "rating": "Valoración", "model": "Modelo de pronóstico" },
+    "models": { "mix": "Mezcla UKC", "accuracyTip": "Error medio vs. estación de playa, últimos 14 días" },
     "sources": {
       "a": "ECMWF",
       "b": "GFS",

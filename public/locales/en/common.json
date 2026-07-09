@@ -875,6 +875,8 @@
       "avg": "Avg",
       "hourly": "Hourly forecast"
     },
+    "grid": { "sky": "Sky", "rating": "Rating", "model": "Forecast model" },
+    "models": { "mix": "UKC Mix", "accuracyTip": "Avg error vs beach station, last 14 days" },
     "history": {
       "title": "Wind history",
       "last24h": "Last 24 h",

@@ -871,6 +871,8 @@
       "avg": "Ortalama",
       "hourly": "Saatlik tahmin"
     },
+    "grid": { "sky": "Gökyüzü", "rating": "Puan", "model": "Tahmin modeli" },
+    "models": { "mix": "UKC Karışım", "accuracyTip": "Sahil istasyonuna göre ort. hata, son 14 gün" },
     "history": {
       "title": "Rüzgar geçmişi",
       "last24h": "Son 24 sa",

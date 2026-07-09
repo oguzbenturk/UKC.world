@@ -819,6 +819,8 @@
       "avg": "Moyen",
       "hourly": "Prévision horaire"
     },
+    "grid": { "sky": "Ciel", "rating": "Note", "model": "Modèle de prévision" },
+    "models": { "mix": "Mix UKC", "accuracyTip": "Erreur moy. vs station de plage, 14 derniers jours" },
     "sources": {
       "a": "ECMWF",
       "b": "GFS",
