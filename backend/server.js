@@ -105,6 +105,7 @@ import { authenticateAgentRequest } from './middlewares/authenticateAgent.js';
 import MessageCleanupService from './services/messageCleanupService.js';
 import { startLessonReminderJob } from './jobs/lessonReminderJob.js';
 import { startWindHistoryRecorderJob } from './jobs/windHistoryRecorderJob.js';
+import { startForecastSnapshotJob } from './jobs/forecastSnapshotJob.js';
 import './services/alerts/notificationAlertService.js';
 import telegramRouter from './routes/telegram.js';
 import spotifyRouter from './routes/spotify.js';
@@ -1745,6 +1746,14 @@ if (shouldStartServer) {
       logger.info('✅ Wind history recorder cron started');
     } catch (error) {
       logger.error('❌ Failed to start wind history recorder cron:', error);
+    }
+
+    // Start forecast snapshot recorder cron (every 6h) — feeds per-model accuracy scoring
+    try {
+      startForecastSnapshotJob();
+      logger.info('✅ Forecast snapshot cron started');
+    } catch (error) {
+      logger.error('❌ Failed to start forecast snapshot cron:', error);
     }
 
     // Initialize Telegram bot (registers webhook + attaches command handlers).
