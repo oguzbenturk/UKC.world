@@ -36,3 +36,17 @@ export const fetchPwsHistory = async (range = '24h') => {
   const { data } = await apiClient.get('/weather/pws/history', { params: { range } });
   return data;
 };
+
+/** One raw model's series for a spot (windguru tab equivalent). model = 'wrf3' | … */
+export const fetchSpotModelSeries = async (spotId, model, { lang } = {}) => {
+  const params = { model };
+  if (lang) params.lang = lang;
+  const { data } = await apiClient.get(`/weather/report/${spotId}`, { params });
+  return data;
+};
+
+/** Per-model accuracy (±kn) for a spot. Empty for spots without a station. */
+export const fetchModelAccuracy = async (spotId) => {
+  const { data } = await apiClient.get('/weather/models/accuracy', { params: { spotId } });
+  return data;
+};
