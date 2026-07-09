@@ -3,10 +3,10 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { parseAllModels } from '../windguruScraper.js';
+import { parseAllModels } from '../../../../backend/services/weather/windguruScraper.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const html = readFileSync(join(__dirname, '..', '__fixtures__', 'windguru-574666.html'), 'utf8');
+const html = readFileSync(join(__dirname, '../../../../backend/services/weather/__fixtures__/windguru-574666.html'), 'utf8');
 
 const spanDays = (hours) => {
   const ts = hours.map((h) => Date.parse(h.dateLocal));
