@@ -21,10 +21,6 @@ export const circularMeanDeg = (degs) => {
 };
 
 const round1 = (n) => (n == null ? null : Math.round(n * 10) / 10);
-const cloudMax = (h) => {
-  const v = [h.cloudHighPct, h.cloudMidPct, h.cloudLowPct].filter((x) => x != null);
-  return v.length ? Math.max(...v) : null;
-};
 const rain = (h) => (h.precip1hMm != null ? h.precip1hMm : (h.precip3hMm != null ? h.precip3hMm / 3 : null));
 
 /**
@@ -55,9 +51,9 @@ export const buildMix = (models) => {
       dirText: degToCardinal(dirDeg),
       tempC: round1(median(samples.map((s) => s.h.tempC))),
       pressureHpa: round1(median(samples.map((s) => s.h.pressureHpa))),
-      cloudHighPct: round1(median(samples.map((s) => cloudMax(s.h)))),
-      cloudMidPct: null,
-      cloudLowPct: null,
+      cloudHighPct: round1(median(samples.map((s) => s.h.cloudHighPct))),
+      cloudMidPct: round1(median(samples.map((s) => s.h.cloudMidPct))),
+      cloudLowPct: round1(median(samples.map((s) => s.h.cloudLowPct))),
       precip3hMm: null,
       precip1hMm: round1(median(samples.map((s) => rain(s.h)))),
       humidityPct: round1(median(samples.map((s) => s.h.humidityPct))),
