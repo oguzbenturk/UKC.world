@@ -879,10 +879,11 @@
     "models": { "mix": "UKC Mix", "accuracyTip": "Avg error vs beach station, last 14 days" },
     "history": {
       "title": "Wind history",
-      "last24h": "Last 24 h",
+      "recent": "Last {{range}}",
       "empty": "Recording — the history fills in as the station reports.",
       "error": "History unavailable right now.",
       "range": {
+        "1h": "1h",
         "6h": "6h",
         "24h": "24h",
         "7d": "7d"

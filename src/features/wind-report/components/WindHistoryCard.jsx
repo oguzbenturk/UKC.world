@@ -11,7 +11,7 @@ import { Eyebrow } from './Typo';
 const WindHistoryCard = () => {
   const { t, i18n } = useTranslation('common');
   const locale = (i18n.resolvedLanguage || i18n.language || 'en').slice(0, 2);
-  const [range, setRange] = React.useState('24h');
+  const [range, setRange] = React.useState('1h');
   const { data, isError } = usePwsHistory(range);
   const readings = data?.readings || [];
   // Drive the chart's span + "now" from the range/time the CURRENT data actually

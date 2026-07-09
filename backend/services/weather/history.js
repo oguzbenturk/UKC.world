@@ -66,12 +66,13 @@ export const recordPwsReading = async () => {
 // Mirror of the frontend's src/features/wind-report/utils/historyConfig.js — separate
 // bundles can't share a module, so keep these two in sync.
 const RANGE_MS = {
+  '1h': 60 * 60 * 1000,
   '6h': 6 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
   '7d': 7 * 24 * 60 * 60 * 1000,
 };
 export const HISTORY_RANGES = Object.keys(RANGE_MS);
-const DEFAULT_RANGE = '24h';
+const DEFAULT_RANGE = '1h';
 
 /**
  * Recorded observations for a station over a lookback range, oldest → newest.

@@ -77,7 +77,7 @@ const PwsLiveStation = ({ weight }) => {
   const { t } = useTranslation('common');
   const reduce = useReducedMotion();
   const { data: live, isLoading, isError } = usePwsLive();
-  const { data: history } = usePwsHistory('24h');
+  const { data: history } = usePwsHistory('1h');
 
   if (isLoading) {
     return (
@@ -142,7 +142,7 @@ const PwsLiveStation = ({ weight }) => {
 
           <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
             <div className="flex items-end gap-3">
-              <div className="font-duotone-bold-extended text-[3rem] leading-[0.85] tracking-normal text-slate-900 tabular-nums sm:text-[3.75rem]">
+              <div className={`font-duotone-bold-extended text-[3rem] leading-[0.85] tracking-normal tabular-nums sm:text-[3.75rem] ${WR_TEXT[band]}`}>
                 {kts.toFixed(1)}
               </div>
               <span className="mb-1.5 font-duotone-bold text-[16px] text-slate-500">{kt}</span>
@@ -228,11 +228,14 @@ const PwsLiveStation = ({ weight }) => {
       {history?.readings?.length > 0 && (
         <div className="border-t border-slate-100 px-6 pt-3 pb-1.5">
           <DataLabel className="mb-1 block text-slate-500">
-            {t('windReport.history.last24h', { defaultValue: 'Last 24 h' })}
+            {t('windReport.history.recent', {
+              range: t('windReport.history.range.1h', { defaultValue: '1h' }),
+              defaultValue: 'Last 1h',
+            })}
           </DataLabel>
           <WindHistoryChart
             readings={history.readings}
-            range="24h"
+            range="1h"
             variant="spark"
             nowMs={history.fetchedAt ? Date.parse(history.fetchedAt) : undefined}
             t={t}

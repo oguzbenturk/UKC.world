@@ -875,10 +875,11 @@
     "models": { "mix": "UKC Karışım", "accuracyTip": "Sahil istasyonuna göre ort. hata, son 14 gün" },
     "history": {
       "title": "Rüzgar geçmişi",
-      "last24h": "Son 24 sa",
+      "recent": "Son {{range}}",
       "empty": "Kaydediliyor — istasyon veri gönderdikçe geçmiş dolacak.",
       "error": "Geçmiş şu anda kullanılamıyor.",
       "range": {
+        "1h": "1h",
         "6h": "6h",
         "24h": "24h",
         "7d": "7d"

@@ -823,10 +823,11 @@
     "models": { "mix": "UKC-Mix", "accuracyTip": "Durchschn. Fehler ggü. Strandstation, letzte 14 Tage" },
     "history": {
       "title": "Windverlauf",
-      "last24h": "Letzte 24 Std.",
+      "recent": "Letzte {{range}}",
       "empty": "Wird aufgezeichnet — der Verlauf füllt sich, sobald die Station meldet.",
       "error": "Verlauf derzeit nicht verfügbar.",
       "range": {
+        "1h": "1h",
         "6h": "6h",
         "24h": "24h",
         "7d": "7d"

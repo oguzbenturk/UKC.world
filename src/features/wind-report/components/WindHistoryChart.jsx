@@ -90,6 +90,7 @@ const WindHistoryChart = ({
   const fmtTick = (ms) => {
     const dt = new Date(ms);
     if (range === '7d') return dt.toLocaleDateString(locale, { weekday: 'short' });
+    if (range === '1h') return `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
     return `${String(dt.getHours()).padStart(2, '0')}:00`;
   };
 
