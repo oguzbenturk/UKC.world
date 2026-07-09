@@ -1,6 +1,6 @@
 import React from 'react';
 import { getWindBand } from '../utils/windBands';
-import { WR_SOFT, WR_TEXT, WR_HEX } from '../utils/bandTheme';
+import { WR_SOFT, WR_ON_FILL, WR_HEX } from '../utils/bandTheme';
 import { dayColumns, daySourceLabel, starRating, cloudPct, rainMm } from '../utils/forecastGrid';
 
 // Dense Windguru-style forecast: hours (06–22) as columns grouped by day, with wind /
@@ -47,7 +47,7 @@ const ForecastGrid = ({ days = [], modelName = '', selectedKey, onSelectHour, lo
 
   const cellBand = (kn) => {
     const b = getWindBand(kn);
-    return b ? `${WR_SOFT[b]} ${WR_TEXT[b]}` : 'bg-slate-50 text-slate-400';
+    return b ? `${WR_SOFT[b]} ${WR_ON_FILL[b]}` : 'bg-slate-50 text-slate-400';
   };
 
   return (

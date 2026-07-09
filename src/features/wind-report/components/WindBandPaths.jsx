@@ -10,7 +10,7 @@ import { lineD, areaD } from '../utils/curveGeometry';
 const WindBandPaths = ({ runs, baseY, strokeWidth = 2.5, stagger = 0.06, reduce = false }) => (
   <>
     {runs.map((run, i) => (
-      <path key={`wa${i}`} d={areaD(run.pts, baseY)} fill={WR_HEX[run.band] || BRAND_CYAN} fillOpacity="0.20" />
+      <path key={`wa${i}`} d={areaD(run.pts, baseY)} fill={WR_HEX[run.band] || BRAND_CYAN} fillOpacity="0.32" />
     ))}
     {runs.map((run, i) => (
       <motion.path
