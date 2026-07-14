@@ -5,7 +5,7 @@ import {
   PrinterOutlined, DownloadOutlined, CloseOutlined,
   HomeOutlined, BookOutlined, EyeOutlined, ShoppingOutlined,
   GiftOutlined, ShoppingCartOutlined, CrownOutlined,
-  TeamOutlined,
+  TeamOutlined, WalletOutlined,
 } from '@ant-design/icons';
 import { useData } from '@/shared/hooks/useData';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -27,6 +27,7 @@ const CATEGORY_ICONS = {
   packages: <GiftOutlined />,
   shop: <ShoppingCartOutlined />,
   memberships: <CrownOutlined />,
+  adjustments: <WalletOutlined />,
 };
 
 const STATUS_PILL = {
@@ -35,6 +36,8 @@ const STATUS_PILL = {
   package:   { text: 'text-sky-600',     label: 'Incl. in package' },
   cancelled: { text: 'text-slate-400',   label: 'Cancelled' },
   refunded:  { text: 'text-rose-600',    label: 'Refunded' },
+  charge:    { text: 'text-slate-600',   label: 'Charge' },
+  credit:    { text: 'text-teal-600',    label: 'Credit' },
 };
 
 function StatusPill({ status }) {
@@ -503,7 +506,9 @@ const CustomerBillModal = ({
                 </div>
                 {visibleCategories.map(cat => {
                   const v = totals.subtotalsByCategory[cat] || 0;
-                  if (v <= 0) return null;
+                  // Adjustments can net negative (customer in credit) — show any
+                  // non-zero value, not just positive ones.
+                  if (Math.abs(v) < 0.005) return null;
                   return (
                     <div key={cat} className="flex justify-between text-[11px] text-slate-500 pl-3">
                       <span>{CATEGORY_LABELS[cat]}</span>

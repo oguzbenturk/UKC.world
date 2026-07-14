@@ -515,6 +515,90 @@ export const normalizeMemberships = (memberships = [], transactions = []) => {
   return memberships.map(m => normalizeMembership(m, paidIndex));
 };
 
+// ── Manual wallet adjustments (charges / credits with no sellable entity) ─────
+// Staff can post money straight to a customer's wallet that isn't tied to any
+// booking / rental / package / shop order / membership / accommodation — the
+// "Charge account" and "Refund" admin actions (wallet_transactions of type
+// `charge` / `refund`), plus customer-side manual debits. Because these rows
+// have no entity, none of the per-category normalizers above ever surface
+// them, so the bill's Subtotal silently omitted them and Balance Due drifted
+// away from the customer's real wallet balance (e.g. a €46 "Manual charge"
+// lowered the wallet but never appeared on the statement). Emitting them as
+// their own line items closes that gap: at "All time" the Balance Due now
+// mirrors the wallet balance to the cent.
+//
+// The classification here is deliberately the exact complement of
+// `computeTotals`' paymentsReceived, so no money is counted twice:
+//   standalone DEBIT that is not a refund   → a positive "charge" line   (adds to Subtotal)
+//   standalone REFUND credit                → a negative "credit" line   (reduces Subtotal)
+// Everything else standalone — deposits, manual credits, incoming payments
+// (money-IN credits) and cash-out refund debits — stays inside
+// paymentsReceived and is intentionally NOT emitted here.
+const SELLABLE_ENTITY_TYPES = new Set([
+  'booking', 'rental', 'accommodation_booking',
+  'customer_package', 'package', 'shop_order', 'member_purchase',
+]);
+
+// A wallet transaction is "entity-linked" (already represented by one of the
+// category line items) when it references a sellable entity type or carries a
+// booking id. Everything else — related_entity_type of 'manual'/null with no
+// booking — is a standalone wallet movement the bill would otherwise miss.
+const isEntityLinkedTx = (t) => {
+  const et = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
+  if (SELLABLE_ENTITY_TYPES.has(et)) return true;
+  if (t.bookingId || t.booking_id) return true;
+  return false;
+};
+
+const normalizeWalletAdjustments = (transactions = []) => {
+  const out = [];
+  for (const t of transactions || []) {
+    if (t.status && t.status !== 'completed') continue;
+    const type = String(t.type || '').toLowerCase();
+    // Internal reconciliation (discount / price-edit adjustments, reversals)
+    // never moves real money and is already baked into the affected line
+    // item's amount — never a standalone bill line.
+    if (type.includes('adjustment') || type.includes('reversal')) continue;
+    // Skip anything tied to a sellable entity — its own row already shows it.
+    if (isEntityLinkedTx(t)) continue;
+
+    const amt = num(t.amount);
+    // Direction is authoritative; fall back to the amount sign for older rows
+    // that predate the direction column.
+    const dir = String(t.direction || (amt < 0 ? 'debit' : 'credit')).toLowerCase();
+    const isRefund = type.includes('refund');
+
+    let kind = null;
+    if (isRefund && dir === 'credit') kind = 'credit';        // standalone refund → credit note
+    else if (dir === 'debit' && !isRefund) kind = 'charge';   // standalone charge → owed
+    else continue; // money-in credits & cash-out refund debits live in paymentsReceived
+
+    const magnitude = Math.abs(amt);
+    out.push({
+      id: `walletadj-${t.id}`,
+      category: 'adjustments',
+      date: safeDate(t.createdAt || t.created_at || t.transaction_date),
+      description: t.description || (kind === 'charge' ? 'Manual charge' : 'Manual credit'),
+      detail: t.paymentMethod || null,
+      qty: 1,
+      unit: kind,
+      unitPrice: null,
+      // Charges add to what's owed; credits reduce it (negative amount).
+      amount: kind === 'charge' ? magnitude : -magnitude,
+      currency: t.currency || null,
+      status: kind, // 'charge' | 'credit' — both counted in the Subtotal
+      paymentMethod: t.paymentMethod || null,
+      // Give each a stable-ish entity ref so the combined-bill dedupe treats
+      // them as unique per customer (no discount will ever match 'wallet_tx').
+      entityType: 'wallet_tx',
+      entityId: t.id,
+    });
+  }
+  return out;
+};
+
+export const normalizeManualAdjustments = normalizeWalletAdjustments;
+
 // ── Period filtering ────────────────────────────────────────────────────────
 // `period` is `[startDate, endDate]` or `null` for "all time".
 export const filterByPeriod = (items, period) => {
@@ -545,7 +629,7 @@ export const filterByPeriod = (items, period) => {
 // Multi-currency transactions are converted via the caller-supplied
 // `convertToBase(amount, fromCurrency)` helper (from CurrencyContext).
 
-const CATEGORY_ORDER = ['accommodation', 'lessons', 'supervision', 'rentals', 'packages', 'shop', 'memberships'];
+const CATEGORY_ORDER = ['accommodation', 'lessons', 'supervision', 'rentals', 'packages', 'shop', 'memberships', 'adjustments'];
 
 export const computeTotals = (items, transactions, period, baseCurrency, convertToBase) => {
   const inPeriod = filterByPeriod(items, period);
@@ -729,6 +813,7 @@ export const buildBillItems = ({
     ...packages.map(p => normalizePackage(p, paidIndex)),
     ...shopOrders.map(o => normalizeShopOrder(o, paidIndex)),
     ...memberships.map(m => normalizeMembership(m, paidIndex)),
+    ...normalizeWalletAdjustments(transactions),
   ].sort((a, b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
   const withDiscounts = applyDiscounts(items, discountsByEntity);
   if (!customerLabel && !customerId) return withDiscounts;
@@ -913,4 +998,5 @@ export const CATEGORY_LABELS = {
   packages: 'Packages',
   shop: 'Shop',
   memberships: 'Memberships',
+  adjustments: 'Adjustments',
 };

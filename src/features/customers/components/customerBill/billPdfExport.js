@@ -27,6 +27,8 @@ const STATUS_LABEL = {
   package: 'In package',
   cancelled: 'Cancelled',
   refunded: 'Refunded',
+  charge: 'Charge',
+  credit: 'Credit',
 };
 const STATUS_STYLE = {
   paid:      { fill: [220, 252, 231], text: [5, 122, 85] },
@@ -34,6 +36,8 @@ const STATUS_STYLE = {
   package:   { fill: [224, 242, 254], text: [3, 105, 161] },
   cancelled: { fill: [241, 245, 249], text: [100, 116, 139] },
   refunded:  { fill: [243, 232, 255], text: [126, 34, 206] },
+  charge:    { fill: [241, 245, 249], text: [71, 85, 105] },
+  credit:    { fill: [204, 251, 241], text: [15, 118, 110] },
 };
 
 const TURKISH_MAP = {
@@ -437,7 +441,7 @@ export async function exportBillPdf({
   const totalsLeft = pageWidth - margin - totalsWidth;
   const totalsRight = pageWidth - margin;
   // Approximate height needed for the totals so we keep them together.
-  const perCategoryCount = visibleCategories.filter((c) => (totals.subtotalsByCategory[c] || 0) > 0).length;
+  const perCategoryCount = visibleCategories.filter((c) => Math.abs(totals.subtotalsByCategory[c] || 0) >= 0.005).length;
   const perCustomerCount = isCohortMode && Array.isArray(totals.perCustomer) ? totals.perCustomer.length : 0;
   const approxTotalsHeight = 50 + perCategoryCount * 11 + (perCustomerCount > 0 ? 14 + perCustomerCount * 11 : 0) + 50;
   if (cursorY + approxTotalsHeight > pageHeight - margin) {
@@ -466,7 +470,8 @@ export async function exportBillPdf({
   doc.setTextColor(...MUTED_RGB);
   for (const cat of visibleCategories) {
     const v = totals.subtotalsByCategory[cat] || 0;
-    if (v <= 0) continue;
+    // Adjustments can net negative (customer in credit) — show any non-zero value.
+    if (Math.abs(v) < 0.005) continue;
     doc.text(tr(CATEGORY_LABELS[cat]), totalsLeft + 12, cursorY);
     doc.text(fmt(v), totalsRight, cursorY, { align: 'right' });
     cursorY += 11;
