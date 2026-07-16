@@ -543,8 +543,18 @@ const SELLABLE_ENTITY_TYPES = new Set([
 // category line items) when it references a sellable entity type or carries a
 // booking id. Everything else — related_entity_type of 'manual'/null with no
 // booking — is a standalone wallet movement the bill would otherwise miss.
+//
+// Refunds OF a sellable entity ('member_purchase_refund', 'shop_order_refund',
+// …) count as entity-linked too. Their money story is already fully told
+// elsewhere: the entity's line is cancelled/deleted (out of the Subtotal) and
+// computeTotals skips refund credits as internal motion. Surfacing them here
+// as standalone credit lines subtracted the same refund a SECOND time — e.g. a
+// deleted €12 membership made the bill €12 more generous than the wallet.
+// Only refunds with no entity at all (staff "Refund" actions, entityType
+// 'manual'/null) belong on the bill as credit lines.
 const isEntityLinkedTx = (t) => {
-  const et = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
+  const raw = String(t.relatedEntityType || t.entity_type || '').toLowerCase();
+  const et = raw.endsWith('_refund') ? raw.slice(0, -'_refund'.length) : raw;
   if (SELLABLE_ENTITY_TYPES.has(et)) return true;
   if (t.bookingId || t.booking_id) return true;
   return false;

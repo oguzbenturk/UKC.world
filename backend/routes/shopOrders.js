@@ -17,7 +17,7 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 import { updateShopOrderItemPrice } from '../services/shopOrderPriceService.js';
-import { applyDiscount, computeDiscountAmount } from '../services/discountService.js';
+import { applyDiscount, computeDiscountAmount, reverseOpenDiscountCreditsForEntity } from '../services/discountService.js';
 
 const router = express.Router();
 
@@ -1732,12 +1732,51 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cac
       }
     }
 
+    // Settle the wallet BEFORE erasing the order — this endpoint used to delete
+    // the order + discounts rows while leaving every wallet transaction behind,
+    // which either kept the customer's money (wallet-paid order, debits never
+    // refunded) or left a free-money discount credit orphaned against an order
+    // id that no longer exists (staff then had to hand-clean the ledger in the
+    // finances UI and routinely missed rows). Skip when the order was already
+    // cancelled/refunded — those flows have settled the wallet already.
+    if (order.user_id && order.payment_status === 'completed') {
+      // 1. Reverse any still-open discount-adjustment credit. For a wallet sale
+      //    this re-debits the credit so the gross charge can be refunded in full
+      //    below; for a cash/card sale it claws back the credit that never had a
+      //    matching debit in the first place.
+      await reverseOpenDiscountCreditsForEntity(client, 'shop_order', orderId, {
+        reason: `Order #${order.order_number} deleted`,
+        createdBy: req.user.id,
+      });
+
+      // 2. Refund the remaining net wallet charge per currency (nothing to do
+      //    for cash/card orders — they never debited the wallet).
+      const netCharges = await getEntityNetCharges({ client, shopOrderId: orderId });
+      for (const rc of netCharges) {
+        if (!(rc.amount > 0)) continue;
+        await recordTransaction({
+          client,
+          userId: order.user_id,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'refund',
+          direction: 'credit',
+          availableDelta: rc.amount,
+          description: `Refund for deleted Order #${order.order_number}`,
+          relatedEntityType: 'shop_order_refund',
+          // orderId is INTEGER, not UUID, so it lives in metadata
+          metadata: { orderId: Number(orderId), orderNumber: order.order_number },
+          createdBy: req.user.id,
+          idempotencyKey: `shop-order-refund:${orderId}:${rc.currency}`,
+          allowNegative: true,
+        });
+      }
+    }
+
     // Clean up the order's manual line-item discounts. They live in the separate
     // `discounts` table (not on shop_orders) with no FK cascade, so without this
-    // a deleted order leaves orphan discount rows behind (the source of the
-    // dangling shop_order discounts seen in the data). The matching
-    // discount_adjustment wallet credit keeps its own row; its discount_id FK is
-    // ON DELETE SET NULL so the ledger stays balanced.
+    // a deleted order leaves orphan discount rows behind. Their wallet credits
+    // were reversed above, so the ledger nets to zero for this order.
     await client.query(
       "DELETE FROM discounts WHERE entity_type = 'shop_order' AND entity_id = $1",
       [String(orderId)]
@@ -1950,6 +1989,12 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
     // second call left the order at full price. The order row already exists and
     // is payment_status='completed', so applyDiscount records the discounts-table
     // row and (for a wallet sale) posts the matching wallet credit.
+    //
+    // skipWalletCredit for cash/card: this route hardcodes payment_status
+    // 'completed' for EVERY payment method, but only a wallet sale debits the
+    // wallet at GROSS (which the credit then compensates). Cash/card staff
+    // sales collect the NET price in person — posting the credit anyway handed
+    // the customer the discount a second time as free wallet money.
     const discPct = Math.max(0, Math.min(100, Number(discount_percent) || 0));
     if (discPct > 0 && user_id) {
       await applyDiscount(client, {
@@ -1959,6 +2004,7 @@ router.post('/admin/quick-sale', authenticateJWT, authorizeRoles(['admin', 'mana
         percent: discPct,
         reason: discount_reason || 'Quick sale discount',
         createdBy: staffUserId,
+        skipWalletCredit: payment_method !== 'wallet',
       });
     }
 

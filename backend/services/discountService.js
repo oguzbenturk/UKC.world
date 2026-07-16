@@ -80,9 +80,11 @@ const ENTITY_CONFIG = {
 };
 
 // transaction_type used when crediting / reversing a discount adjustment.
-// The aggregator's existing `direction === 'credit'` rule already counts this
-// as "Payments received" in the bill, and the Financial History tab lists
-// every row from wallet_transactions, so it'll show up there automatically.
+// The bill aggregator deliberately EXCLUDES `*adjustment*` types from both
+// "Payments received" and the Adjustments line items — the discounted item's
+// own amount already reflects the discount (via the discounts table), so
+// counting this credit anywhere would double-count it. The Financial History
+// tab still lists the row like any other wallet transaction.
 const DISCOUNT_TX_TYPE = 'discount_adjustment';
 const DISCOUNT_REVERSAL_TX_TYPE = 'discount_adjustment_reversal';
 
@@ -293,6 +295,30 @@ async function postDiscountAdjustment(client, {
   return tx;
 }
 
+// Reverses every still-open discount-adjustment credit attached to an entity's
+// discount rows. Callers that are about to hard-delete the entity (and its
+// discounts rows) MUST run this first — deleting the discounts row severs the
+// only live link to the wallet credit, permanently orphaning it in the ledger
+// (the customer keeps money that no longer compensates anything).
+export async function reverseOpenDiscountCreditsForEntity(client, entityType, entityId, { reason, createdBy } = {}) {
+  const { rows } = await client.query(
+    `SELECT id FROM discounts WHERE entity_type = $1 AND entity_id = $2`,
+    [entityType, String(entityId)]
+  );
+  const reversals = [];
+  for (const d of rows) {
+    const openCredit = await findOpenDiscountAdjustment(client, d.id);
+    if (openCredit) {
+      const tx = await reverseDiscountAdjustment(client, openCredit, {
+        reason: reason || 'Discount credit reversed (entity deleted)',
+        createdBy,
+      });
+      if (tx) reversals.push(tx);
+    }
+  }
+  return reversals;
+}
+
 // Run the staff-payout cascade after a discount on `entityType:entityId`
 // changes. customer_package discounts touch every booking that consumed the
 // package, so they need both the package-wide commission recompute and the
@@ -337,6 +363,13 @@ export async function applyDiscount(client, {
   reason,
   createdBy,
   participantUserId = null,
+  // The discount-adjustment wallet credit compensates a GROSS wallet debit
+  // (wallet sales charge full price, then credit the discount back). When the
+  // entity was paid outside the wallet at the already-net price (cash/card
+  // quick sale), no gross debit exists and posting the credit would hand the
+  // customer free wallet money — callers pass true to suppress it while still
+  // recording the discounts-table row.
+  skipWalletCredit = false,
 }) {
   if (!customerId) throw Object.assign(new Error('customer_id required'), { status: 400 });
   if (!isSupported(entityType)) throw Object.assign(new Error(`Unsupported entity_type: ${entityType}`), { status: 400 });
@@ -445,7 +478,7 @@ export async function applyDiscount(client, {
   // reapply). Unpaid items don't need a refund — staff just collect less at
   // payment time.
   const needsFresh = !openCredit || Number(openCredit.amount) !== Number(amount);
-  if (snapshot.isPaid && amount > 0 && needsFresh) {
+  if (!skipWalletCredit && snapshot.isPaid && amount > 0 && needsFresh) {
     adjustment = await postDiscountAdjustment(client, {
       customerId,
       amount,
