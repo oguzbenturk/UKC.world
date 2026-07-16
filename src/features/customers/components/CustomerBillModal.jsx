@@ -30,24 +30,14 @@ const CATEGORY_ICONS = {
   adjustments: <WalletOutlined />,
 };
 
-const STATUS_PILL = {
-  paid:      { text: 'text-emerald-600', label: 'Paid' },
-  unpaid:    { text: 'text-amber-600',   label: 'Unpaid' },
-  package:   { text: 'text-sky-600',     label: 'Incl. in package' },
-  cancelled: { text: 'text-slate-400',   label: 'Cancelled' },
-  refunded:  { text: 'text-rose-600',    label: 'Refunded' },
-  charge:    { text: 'text-slate-600',   label: 'Charge' },
-  credit:    { text: 'text-teal-600',    label: 'Credit' },
+// Per-line paid/unpaid can't be derived reliably (wallet funding writes debit
+// rows that never mark an item "paid"), so the bill shows no payment status per
+// line — Payments received / Balance Due in the totals tell the money story.
+// Only row states that change the math keep a visible hint.
+const ROW_STATE_HINT = {
+  cancelled: { text: 'text-slate-400', label: 'Cancelled' },
+  refunded:  { text: 'text-rose-500',  label: 'Refunded' },
 };
-
-function StatusPill({ status }) {
-  const s = STATUS_PILL[status] || STATUS_PILL.paid;
-  return (
-    <span className={`text-[11px] font-semibold whitespace-nowrap ${s.text}`}>
-      {s.label}
-    </span>
-  );
-}
 
 const fmtShort = (date) => date ? date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -407,7 +397,6 @@ const CustomerBillModal = ({
                       <col style={{ width: '88px' }} />
                       <col style={{ width: '96px' }} />
                       {hasAnyDiscount && <col style={{ width: '110px' }} />}
-                      <col style={{ width: '110px' }} />
                     </colgroup>
                     <thead className="text-[10px] uppercase tracking-wider text-slate-400 bg-white">
                       <tr>
@@ -417,18 +406,23 @@ const CustomerBillModal = ({
                         <th className="text-center font-medium px-4 py-2">Unit</th>
                         <th className="text-center font-medium px-4 py-2">Amount</th>
                         {hasAnyDiscount && <th className="text-center font-medium px-4 py-2">Discount</th>}
-                        <th className="text-center font-medium px-4 py-2">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map(it => {
-                        const isCancelled = it.status === 'cancelled';
+                        const stateHint = ROW_STATE_HINT[it.status];
+                        const isStruck = it.status === 'cancelled' || it.status === 'refunded';
                         const hasDiscount = (it.discountAmount ?? 0) > 0;
                         return (
-                          <tr key={it.id} className={`border-t border-slate-100 ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                          <tr key={it.id} className={`border-t border-slate-100 ${isStruck ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                             <td className="px-4 py-2.5 align-top whitespace-nowrap text-slate-600">{fmtShort(it.date)}</td>
                             <td className="px-4 py-2.5 align-top">
                               <div className="font-medium text-slate-800 leading-tight">{it.description}</div>
+                              {stateHint && (
+                                <div className={`text-[10px] font-semibold uppercase tracking-wide mt-0.5 no-underline ${stateHint.text}`} style={{ textDecoration: 'none', display: 'inline-block' }}>
+                                  {stateHint.label}
+                                </div>
+                              )}
                               {it.detail && (
                                 <div className="text-[11px] text-slate-400 mt-1 leading-snug">{it.detail}</div>
                               )}
@@ -481,9 +475,6 @@ const CustomerBillModal = ({
                                 ) : <span className="text-slate-300">—</span>}
                               </td>
                             )}
-                            <td className="px-4 py-2.5 align-top text-center">
-                              <StatusPill status={it.status} />
-                            </td>
                           </tr>
                         );
                       })}

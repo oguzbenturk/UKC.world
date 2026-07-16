@@ -3,11 +3,16 @@
 // Produces a pixel-perfect, vector-quality PDF that mirrors the on-screen
 // bill design: centered Duotone Pro Center logo, double rule (black + teal),
 // BILL TO / PERIOD grid, per-category section tables with subtotal headers,
-// status pills, struck-through original prices on discounted rows, and the
+// struck-through original prices on discounted rows, and the
 // totals block (Subtotal → per-category breakdown → Payments received →
 // Balance Due). Text remains real (selectable, searchable), tables paginate
 // row-by-row so nothing is ever clipped, and Turkish characters are
 // transliterated for Helvetica's Latin-1 charset.
+//
+// No per-line payment status column: item-level paid/unpaid can't be derived
+// reliably from the wallet ledger (funding debits never mark items paid), so
+// only Cancelled/Refunded — states that change the totals — are annotated
+// inline under the description.
 //
 // `exportBillPdfFromElement` kept as a fallback only.
 
@@ -21,23 +26,9 @@ const ROW_HAIRLINE_RGB = [241, 245, 249];
 const DISCOUNT_RGB = [225, 29, 72];
 const PAID_RGB = [5, 150, 105];
 
-const STATUS_LABEL = {
-  paid: 'Paid',
-  unpaid: 'Unpaid',
-  package: 'In package',
-  cancelled: 'Cancelled',
-  refunded: 'Refunded',
-  charge: 'Charge',
-  credit: 'Credit',
-};
-const STATUS_STYLE = {
-  paid:      { fill: [220, 252, 231], text: [5, 122, 85] },
-  unpaid:    { fill: [254, 243, 199], text: [161, 98, 7] },
-  package:   { fill: [224, 242, 254], text: [3, 105, 161] },
-  cancelled: { fill: [241, 245, 249], text: [100, 116, 139] },
-  refunded:  { fill: [243, 232, 255], text: [126, 34, 206] },
-  charge:    { fill: [241, 245, 249], text: [71, 85, 105] },
-  credit:    { fill: [204, 251, 241], text: [15, 118, 110] },
+const ROW_STATE_LABEL = {
+  cancelled: 'CANCELLED',
+  refunded: 'REFUNDED',
 };
 
 const TURKISH_MAP = {
@@ -285,14 +276,14 @@ export async function exportBillPdf({
       { content: 'Unit', styles: { halign: 'right' } },
       { content: 'Amount', styles: { halign: 'right' } },
       ...(hasAnyDiscount ? [{ content: 'Discount', styles: { halign: 'right' } }] : []),
-      { content: 'Status', styles: { halign: 'center' } },
     ]];
 
     const body = rows.map((it) => {
-      const isCancelled = it.status === 'cancelled';
+      const isStruck = it.status === 'cancelled' || it.status === 'refunded';
       const isPackage = it.status === 'package';
       const hasDiscount = (it.discountAmount ?? 0) > 0;
       let descText = tr(it.description || '');
+      if (ROW_STATE_LABEL[it.status]) descText += `\n${ROW_STATE_LABEL[it.status]}`;
       if (it.detail) descText += `\n${tr(it.detail)}`;
       if (isCohortMode) {
         const parties = it.sharedCustomerNames?.length > 1
@@ -317,8 +308,7 @@ export async function exportBillPdf({
           ? { content: `${it.discountPercent}% −${fmt(it.discountAmount)}`, styles: { textColor: DISCOUNT_RGB, fontSize: 8 } }
           : { content: '—', styles: { textColor: [203, 213, 225] } });
       }
-      cells.push({ content: STATUS_LABEL[it.status] || tr(it.status || ''), _statusKey: it.status });
-      if (isCancelled) {
+      if (isStruck) {
         cells.forEach((c) => {
           if (typeof c === 'string') return;
           c.styles = { ...(c.styles || {}), textColor: [148, 163, 184] };
@@ -328,15 +318,14 @@ export async function exportBillPdf({
     });
 
     // Compute column widths: Date 60, Qty 36, Unit 60, Amount 64,
-    // (Discount 78), Status 70 — description gets the rest.
-    const fixedCols = { date: 60, qty: 36, unit: 60, amount: 64, discount: 78, status: 70 };
+    // (Discount 78) — description gets the rest.
+    const fixedCols = { date: 60, qty: 36, unit: 60, amount: 64, discount: 78 };
     const descWidth = contentWidth
       - fixedCols.date
       - fixedCols.qty
       - fixedCols.unit
       - fixedCols.amount
-      - (hasAnyDiscount ? fixedCols.discount : 0)
-      - fixedCols.status;
+      - (hasAnyDiscount ? fixedCols.discount : 0);
 
     const columnStyles = {
       0: { cellWidth: fixedCols.date, halign: 'left' },
@@ -347,9 +336,6 @@ export async function exportBillPdf({
     };
     if (hasAnyDiscount) {
       columnStyles[5] = { cellWidth: fixedCols.discount, halign: 'right' };
-      columnStyles[6] = { cellWidth: fixedCols.status, halign: 'center' };
-    } else {
-      columnStyles[5] = { cellWidth: fixedCols.status, halign: 'center' };
     }
 
     autoTable(doc, {
@@ -379,35 +365,11 @@ export async function exportBillPdf({
       margin: { left: margin, right: margin },
       tableLineColor: HAIRLINE_RGB,
       tableLineWidth: 0.4,
-      // Status pill + struck-through original price rendering.
+      // Struck-through original price rendering on discounted rows.
       didDrawCell: (data) => {
         if (data.section !== 'body') return;
         const raw = data.cell.raw;
         if (!raw || typeof raw !== 'object') return;
-
-        // Status pill (cell text was suppressed in didParseCell so we draw
-        // the whole pill ourselves)
-        if (raw._statusKey) {
-          const style = STATUS_STYLE[raw._statusKey] || STATUS_STYLE.unpaid;
-          const label = STATUS_LABEL[raw._statusKey] || raw._statusKey;
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
-          const labelWidth = doc.getTextWidth(label);
-          const padX = 8;
-          const pillH = 12;
-          const pillW = Math.max(labelWidth + padX * 2, 44);
-          const cx = data.cell.x + data.cell.width / 2;
-          const cy = data.cell.y + data.cell.height / 2;
-          const px = cx - pillW / 2;
-          const py = cy - pillH / 2;
-          doc.setFillColor(...style.fill);
-          doc.setDrawColor(...style.fill);
-          doc.roundedRect(px, py, pillW, pillH, 6, 6, 'F');
-          doc.setTextColor(...style.text);
-          doc.text(label, cx, py + pillH / 2 + 2.4, { align: 'center' });
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(51, 65, 85);
-        }
 
         // Strikethrough on the first line of a discounted Amount cell
         if (raw._hasStrike) {
@@ -422,14 +384,6 @@ export async function exportBillPdf({
             doc.line(cellRight - w, firstLineY - 2, cellRight, firstLineY - 2);
             doc.setLineWidth(0.2);
           }
-        }
-      },
-      didParseCell: (data) => {
-        if (data.section !== 'body') return;
-        // Right-align the Status column's raw text inside the cell so the
-        // pill (drawn in didDrawCell) centers cleanly even before overdraw.
-        if (data.cell.raw && data.cell.raw._statusKey) {
-          data.cell.text = [''];
         }
       },
     });
