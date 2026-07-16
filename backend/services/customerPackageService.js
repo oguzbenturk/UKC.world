@@ -223,6 +223,18 @@ export async function forceDeleteCustomerPackage({
 
   cleanup.bookingReferencesCleared = bookingUpdates.length;
 
+  // Remove the package's FIFO consumption ledger rows (migration 278). Even
+  // fully RELEASED rows survive here — their booking_id CASCADE never fires
+  // because bookings are soft-deleted — and the FK on customer_package_id
+  // blocked the DELETE below with an opaque 500 (undeletable package). The
+  // rows are meaningless once the package is gone; migration 288 also makes
+  // the FK ON DELETE CASCADE as a structural backstop.
+  const { rowCount: consumptionRowsRemoved } = await client.query(
+    'DELETE FROM booking_package_consumption WHERE customer_package_id = $1',
+    [packageId]
+  );
+  cleanup.consumptionRowsRemoved = consumptionRowsRemoved;
+
   // Cancel any accommodation booking created for this package.
   // The booking is identified by the notes field set at purchase time.
   // Also match by guest_id + date range as a secondary safeguard.
