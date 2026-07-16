@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Modal, Button, DatePicker, Spin, Empty, Tooltip, App, Tag } from 'antd';
+import { Modal, Button, DatePicker, Spin, Empty, Tooltip, App, Tag, Grid } from 'antd';
 import dayjs from 'dayjs';
 import {
   PrinterOutlined, DownloadOutlined, CloseOutlined,
@@ -125,6 +125,14 @@ const CustomerBillModal = ({
     () => allItems.some(it => (it.discountAmount ?? 0) > 0),
     [allItems]
   );
+
+  // On phones there's no room for a separate Discount column — fold the
+  // percent into the Amount cell instead (the struck-through original price
+  // already shows the money side). `sm === false` only below 576px; the
+  // undefined first render counts as desktop to avoid a layout flash.
+  const screens = Grid.useBreakpoint();
+  const isNarrow = screens.sm === false;
+  const showDiscountCol = hasAnyDiscount && !isNarrow;
 
   const periodTuple = period ? [period[0].toDate(), period[1].toDate()] : null;
 
@@ -388,7 +396,7 @@ const CustomerBillModal = ({
                       <table> is unreliable with `table-layout: fixed`; block
                       elements honour it consistently across browsers.) */}
                   <div className="ukc-bill-table-scroll overflow-x-auto">
-                  <div style={{ minWidth: 600 }}>
+                  <div style={{ minWidth: isNarrow ? 500 : 600 }}>
                   <table className="w-full text-xs table-fixed">
                     <colgroup>
                       <col style={{ width: '92px' }} />
@@ -396,7 +404,7 @@ const CustomerBillModal = ({
                       <col style={{ width: '56px' }} />
                       <col style={{ width: '88px' }} />
                       <col style={{ width: '96px' }} />
-                      {hasAnyDiscount && <col style={{ width: '110px' }} />}
+                      {showDiscountCol && <col style={{ width: '110px' }} />}
                     </colgroup>
                     <thead className="text-[10px] uppercase tracking-wider text-slate-400 bg-white">
                       <tr>
@@ -405,7 +413,7 @@ const CustomerBillModal = ({
                         <th className="text-center font-medium px-4 py-2">Qty</th>
                         <th className="text-center font-medium px-4 py-2">Unit</th>
                         <th className="text-center font-medium px-4 py-2">Amount</th>
-                        {hasAnyDiscount && <th className="text-center font-medium px-4 py-2">Discount</th>}
+                        {showDiscountCol && <th className="text-center font-medium px-4 py-2">Discount</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -464,12 +472,15 @@ const CustomerBillModal = ({
                                   <div>
                                     <div className="text-[10px] text-slate-400 line-through font-normal">{fmt(it.originalAmount)}</div>
                                     <div className="text-emerald-600">{fmt(it.amount)}</div>
+                                    {isNarrow && (
+                                      <div className="text-[10px] text-rose-500 font-medium">−{it.discountPercent}%</div>
+                                    )}
                                   </div>
                                 ) : fmt(it.amount)
                               )}
                             </td>
-                            {hasAnyDiscount && (
-                              <td className="px-4 py-2.5 align-top text-center tabular-nums whitespace-nowrap">
+                            {showDiscountCol && (
+                              <td className="px-4 py-2.5 align-top text-center tabular-nums">
                                 {hasDiscount ? (
                                   <span className="text-rose-600 text-[11px] font-medium">{it.discountPercent}% −{fmt(it.discountAmount)}</span>
                                 ) : <span className="text-slate-300">—</span>}
