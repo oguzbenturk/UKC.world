@@ -590,7 +590,11 @@
       "recordPayment": "Record Payment",
       "cancel": "Cancel",
       "paymentRecorded": "Payment of {{amount}} recorded for {{name}}",
-      "failedPayment": "Failed to record payment"
+      "failedPayment": "Failed to record payment",
+      "combinedLedgerNote": "Combined balance (instructor earnings + manager commission). This payment is recorded to the manager payroll ledger.",
+      "combinedEarned": "Total earned",
+      "combinedPaid": "Total paid",
+      "combinedOwed": "Balance owed"
     },
     "detailModal": {
       "navItems": {

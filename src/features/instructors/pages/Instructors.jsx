@@ -1,6 +1,6 @@
 // src/pages/Instructors.jsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Button, Avatar, Select, Input, Modal, Form, InputNumber, DatePicker, Tooltip } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import { PlusOutlined, UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined, SearchOutlined, WalletOutlined } from '@ant-design/icons';
@@ -14,6 +14,7 @@ import moment from 'moment';
 import EnhancedInstructorDetailModal from '../components/EnhancedInstructorDetailModal';
 import EnhancedManagerDetailPanel from '@/features/manager/components/EnhancedManagerDetailPanel';
 import AddInstructorModal from '../components/AddInstructorModal';
+import { createManagerPayment } from '@/features/manager/services/managerCommissionApi';
 
 /** Extract discipline tags from the skills array returned by the API */
 const getDisciplines = (instructor) =>
@@ -49,14 +50,18 @@ const ManagerTag = () => (
   </span>
 );
 
-/** Instructor-only owed (Pay records instructor payroll, not manager commissions). */
-const instructorOwedFromBal = (bal) => {
+/** What the Pay button settles. Manager+instructor staff are ONE payee with ONE
+ * combined ledger (paid through the manager channel — identical to the profile
+ * panel's ManagerPayments), so their owed figure is the combined balance. Pure
+ * instructors keep the instructor-payroll bucket. */
+const payableOwedFromBal = (record, bal) => {
   if (!bal) return 0;
+  if (record?.role_name === 'manager') return Number(bal.balance) || 0;
   if (bal.instructor && typeof bal.instructor.balance === 'number') return bal.instructor.balance;
   return Number(bal.balance) || 0;
 };
 
-const BalanceCell = ({ bal, fmt }) => {
+const BalanceCell = ({ bal, fmt, isManagerRow = false }) => {
   const { t } = useTranslation(['instructor']);
   if (!bal) return <span className="text-slate-300 text-xs">—</span>;
   const inst = bal.instructor ?? {
@@ -85,8 +90,18 @@ const BalanceCell = ({ bal, fmt }) => {
     </div>
   ) : null;
 
+  // Owner-mandated notation (2026-07-22) — TWO dialects on purpose:
+  // • Instructor rows: red "-X" = we still owe them X; green "+X" = they were
+  //   paid X more than earned (Kemal must read +94).
+  // • Manager row: mirrors the profile payment summary VERBATIM — positive
+  //   amber = owed, negative "−X" = drew X more than earned (Oğuzhan must read
+  //   −200 at the same time as Kemal reads +94).
   let inner;
-  if (bal.balance > 0) inner = <span className="text-xs font-semibold text-red-500 whitespace-nowrap">-{fmt(bal.balance)}</span>;
+  if (isManagerRow) {
+    if (bal.balance > 0) inner = <span className="text-xs font-semibold text-amber-600 whitespace-nowrap">{fmt(bal.balance)}</span>;
+    else if (bal.balance < 0) inner = <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">{fmt(bal.balance)}</span>;
+    else inner = <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">{t('instructor:instructorsList.balancePaid')}</span>;
+  } else if (bal.balance > 0) inner = <span className="text-xs font-semibold text-red-500 whitespace-nowrap">-{fmt(bal.balance)}</span>;
   else if (bal.balance < 0) inner = <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">+{fmt(Math.abs(bal.balance))}</span>;
   else inner = <span className="text-xs font-semibold text-emerald-600 whitespace-nowrap">{t('instructor:instructorsList.balancePaid')}</span>;
 
@@ -132,13 +147,15 @@ const InstructorMobileCard = ({ record, onAction, isAdmin, balanceData, fmt }) =
       {isAdmin && bal && (
         <div className="flex items-center justify-between text-xs mb-3 px-3 py-2 rounded-xl bg-slate-50/80 border border-slate-100">
           <span className="text-slate-400">{fmt(bal.totalEarned)} earned · {fmt(bal.totalPaid)} paid</span>
-          <span className={`font-bold ${bal.balance > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>
-            {bal.balance > 0 ? `${fmt(bal.balance)} ${t('instructor:instructorsList.balanceTooltip.owed')}` : t('instructor:instructorsList.settled')}
+          <span className={`font-bold ${bal.balance > 0 ? 'text-orange-600' : record.role_name === 'manager' && bal.balance < 0 ? 'text-slate-400' : 'text-emerald-600'}`}>
+            {bal.balance > 0
+              ? `${fmt(bal.balance)} ${t('instructor:instructorsList.balanceTooltip.owed')}`
+              : record.role_name === 'manager' && bal.balance < 0 ? fmt(bal.balance) : t('instructor:instructorsList.settled')}
           </span>
         </div>
       )}
       <div className="flex justify-end gap-1.5 pt-3 border-t border-slate-100">
-        {isAdmin && bal && instructorOwedFromBal(bal) > 0 && (
+        {isAdmin && bal && payableOwedFromBal(record, bal) > 0 && (
           <Button size="small" type="primary" icon={<WalletOutlined />} onClick={() => onAction('pay', record)}
             className="!rounded-lg" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>{t('instructor:payroll.pay')}</Button>
         )}
@@ -249,10 +266,10 @@ function Instructors() {
 
   const openPayModal = (instructor) => {
     const bal = balances[instructor.id];
-    const owedInstr = instructorOwedFromBal(bal);
+    const owed = payableOwedFromBal(instructor, bal);
     setPayModal({ open: true, instructor });
     payForm.setFieldsValue({
-      amount: owedInstr > 0 ? owedInstr : 0,
+      amount: owed > 0 ? owed : 0,
       payment_date: moment(),
       payment_method: 'bank_transfer',
       description: `Salary payment – ${instructor.name}`,
@@ -262,13 +279,26 @@ function Instructors() {
   const handlePay = async (values) => {
     setPaySubmitting(true);
     try {
-      await apiClient.post('/finances/instructor-payments', {
-        instructor_id: payModal.instructor.id,
-        amount: Math.abs(values.amount),
-        description: values.description,
-        payment_date: values.payment_date.format('YYYY-MM-DD'),
-        payment_method: values.payment_method,
-      });
+      // Manager+instructor staff settle through the manager payroll ledger —
+      // the SAME channel the profile panel (ManagerPayments) records to, so the
+      // list and the profile always reconcile. Pure instructors keep the
+      // instructor-payments channel.
+      if (payModal.instructor.role_name === 'manager') {
+        await createManagerPayment(payModal.instructor.id, {
+          amount: Math.abs(values.amount),
+          description: values.description,
+          payment_date: values.payment_date.format('YYYY-MM-DD'),
+          payment_method: values.payment_method,
+        });
+      } else {
+        await apiClient.post('/finances/instructor-payments', {
+          instructor_id: payModal.instructor.id,
+          amount: Math.abs(values.amount),
+          description: values.description,
+          payment_date: values.payment_date.format('YYYY-MM-DD'),
+          payment_method: values.payment_method,
+        });
+      }
       message.success(t('instructor:instructorsList.payModal.paymentRecorded', { amount: fmt(values.amount), name: payModal.instructor.name }));
       setPayModal({ open: false, instructor: null });
       payForm.resetFields();
@@ -458,7 +488,7 @@ function Instructors() {
                 title: t('instructor:instructorsList.columns.balance'),
                 key: 'balance',
                 width: 110,
-                render: (_, record) => <BalanceCell bal={balances[record.id]} fmt={fmt} />
+                render: (_, record) => <BalanceCell bal={balances[record.id]} fmt={fmt} isManagerRow={record.role_name === 'manager'} />
               }] : []),
               {
                 title: '',
@@ -466,7 +496,7 @@ function Instructors() {
                 width: isAdmin ? 160 : 80,
                 render: (_, instructor) => (
                   <div className="flex items-center justify-end gap-1">
-                    {isAdmin && instructorOwedFromBal(balances[instructor.id]) > 0 && (
+                    {isAdmin && payableOwedFromBal(instructor, balances[instructor.id]) > 0 && (
                       <Button size="small" onClick={() => openPayModal(instructor)}
                         className="!rounded-lg !border-orange-200 !text-orange-500 hover:!text-orange-600 hover:!border-orange-300 hover:!bg-orange-50 !text-[11px] !font-semibold !px-2.5"
                       >{t('instructor:payroll.pay')}</Button>
@@ -523,15 +553,44 @@ function Instructors() {
             {/* Balance summary cards */}
             {balances[payModal.instructor.id] && (() => {
               const bal = balances[payModal.instructor.id];
+              const isManagerStaff = payModal.instructor.role_name === 'manager';
+              if (isManagerStaff) {
+                // ONE combined ledger: earned = instructor + manager earnings;
+                // paid = every payout/deduction across both channels (earned −
+                // owed); owed = the same figure the profile panel shows.
+                const owed = Number(bal.balance) || 0;
+                const paidNet = Number((bal.totalEarned - owed).toFixed(2));
+                return (
+                  <>
+                    <p className="text-[11px] text-slate-500 mb-2">{t('instructor:instructorsList.payModal.combinedLedgerNote')}</p>
+                    <div className="grid grid-cols-3 gap-2 mb-5">
+                      <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 p-3 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-blue-500/80 font-medium">{t('instructor:instructorsList.payModal.combinedEarned')}</div>
+                        <div className="text-sm font-bold text-blue-700 mt-0.5">{fmt(bal.totalEarned)}</div>
+                      </div>
+                      <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100/60 p-3 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-emerald-500/80 font-medium">{t('instructor:instructorsList.payModal.combinedPaid')}</div>
+                        <div className="text-sm font-bold text-emerald-700 mt-0.5">{fmt(paidNet)}</div>
+                      </div>
+                      <div className="rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100/60 p-3 text-center">
+                        <div className="text-[10px] uppercase tracking-wider text-orange-500/80 font-medium">{t('instructor:instructorsList.payModal.combinedOwed')}</div>
+                        <div className="text-sm font-bold text-orange-700 mt-0.5">{fmt(owed)}</div>
+                      </div>
+                    </div>
+                  </>
+                );
+              }
               const inst = bal.instructor ?? bal;
-              const instOwed = instructorOwedFromBal(bal);
+              const instOwed = payableOwedFromBal(payModal.instructor, bal);
               return (
                 <>
                   <p className="text-[11px] text-slate-500 mb-2">
-                    <span dangerouslySetInnerHTML={{ __html: t('instructor:instructorsList.payModal.instructorEarningsOnly', { amount: fmt(instOwed) }) }} />
-                    {bal.manager && (bal.manager.totalEarned > 0 || bal.manager.totalPaid > 0) && (
-                      <span> {t('instructor:instructorsList.payModal.managerCommissionSeparate', { amount: fmt(bal.manager.balance) })}</span>
-                    )}
+                    {/* <strong> inside the locale string is rendered by Trans (basic
+                        HTML nodes), so no raw-HTML injection is needed. */}
+                    <Trans
+                      i18nKey="instructor:instructorsList.payModal.instructorEarningsOnly"
+                      values={{ amount: fmt(instOwed) }}
+                    />
                   </p>
                   <div className="grid grid-cols-3 gap-2 mb-5">
                     <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 p-3 text-center">

@@ -590,7 +590,11 @@
       "recordPayment": "Registrar pago",
       "cancel": "Cancelar",
       "paymentRecorded": "Pago de {{amount}} registrado para {{name}}",
-      "failedPayment": "No se pudo registrar el pago"
+      "failedPayment": "No se pudo registrar el pago",
+      "combinedLedgerNote": "Saldo combinado (ganancias del instructor + comisión del manager). Este pago se registra en el libro de nómina del manager.",
+      "combinedEarned": "Total ganado",
+      "combinedPaid": "Total pagado",
+      "combinedOwed": "Saldo pendiente"
     },
     "detailModal": {
       "navItems": {

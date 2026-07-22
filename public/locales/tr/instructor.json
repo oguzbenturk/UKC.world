@@ -590,7 +590,11 @@
       "recordPayment": "Ödemeyi Kaydet",
       "cancel": "İptal",
       "paymentRecorded": "{{name}} için {{amount}} ödeme kaydedildi",
-      "failedPayment": "Ödeme kaydedilemedi"
+      "failedPayment": "Ödeme kaydedilemedi",
+      "combinedLedgerNote": "Birleşik bakiye (eğitmen kazançları + yönetici komisyonu). Bu ödeme yönetici maaş defterine kaydedilir.",
+      "combinedEarned": "Toplam kazanç",
+      "combinedPaid": "Toplam ödenen",
+      "combinedOwed": "Kalan bakiye"
     },
     "detailModal": {
       "navItems": {

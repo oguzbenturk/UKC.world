@@ -1221,7 +1221,8 @@
       "deleted": "Payment deleted",
       "saveFailed": "Failed to save payment",
       "deleteFailed": "Failed to delete payment"
-    }
+    },
+    "instructorLedgerTag": "instructor ledger"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",

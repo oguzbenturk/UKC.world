@@ -76,12 +76,15 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
         apiClient.get(`/finances/instructor-earnings/${manager.id}`),
       ]);
 
-      // Payments (single channel — manager payments)
+      // Payments: the manager channel is the primary ledger, but any legacy
+      // instructor-channel payout rows (recorded before the Instructors-list
+      // Pay button was unified onto the manager channel) must stay visible and
+      // counted — otherwise money paid through that button silently vanishes
+      // from this summary and the profile disagrees with /instructors.
       let mPay = [];
       if (mgrPayRes.status === 'fulfilled' && mgrPayRes.value?.success) {
-        mPay = mgrPayRes.value.data || [];
+        mPay = (mgrPayRes.value.data || []).map(r => ({ ...r, channel: 'manager' }));
       }
-      setPayments(mPay);
 
       let mCommTotal = 0;
       if (mgrSummaryRes.status === 'fulfilled' && mgrSummaryRes.value?.success) {
@@ -89,14 +92,19 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       }
       setMgrCommissionTotal(mCommTotal);
 
-      // Instructor earnings (for display only — no separate payment channel)
+      // Instructor earnings + instructor-channel payout history
       let iTotal = 0;
+      let iPay = [];
       if (instrRes.status === 'fulfilled') {
         const d = instrRes.value?.data;
         const earnings = d?.earnings || [];
         iTotal = earnings.reduce((s, e) => s.plus(parseFloat(e.total_earnings || 0)), new Decimal(0)).toNumber();
+        iPay = (d?.payrollHistory || []).map(r => ({ ...r, channel: 'instructor' }));
       }
       setInstrEarningsTotal(iTotal);
+      setPayments([...mPay, ...iPay].sort(
+        (a, b) => new Date(b.payment_date || 0) - new Date(a.payment_date || 0)
+      ));
     } catch {
       /* best effort */
     } finally {
@@ -147,10 +155,18 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
       const p = buildPayload(values, type, record, managerName);
 
       if (type === 'edit' && record) {
-        await updateManagerPayment(manager.id, record.id, {
-          amount: p.amount, description: p.description,
-          payment_date: p.payment_date, payment_method: p.payment_method,
-        });
+        if (record.channel === 'instructor') {
+          // Legacy instructor-channel row — its CRUD lives on the finances API.
+          await apiClient.put(`/finances/instructor-payments/${record.id}`, {
+            amount: p.amount, description: p.description,
+            payment_date: p.payment_date, payment_method: p.payment_method,
+          });
+        } else {
+          await updateManagerPayment(manager.id, record.id, {
+            amount: p.amount, description: p.description,
+            payment_date: p.payment_date, payment_method: p.payment_method,
+          });
+        }
         message.success(t('manager:payments.messages.updated'));
       } else {
         await createManagerPayment(manager.id, {
@@ -172,7 +188,11 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
 
   const handleDelete = async (record) => {
     try {
-      await deleteManagerPayment(manager.id, record.id);
+      if (record.channel === 'instructor') {
+        await apiClient.delete(`/finances/instructor-payments/${record.id}`);
+      } else {
+        await deleteManagerPayment(manager.id, record.id);
+      }
       message.success(t('manager:payments.messages.deleted'));
       await fetchData();
       onPaymentSuccess?.();
@@ -200,9 +220,16 @@ const ManagerPayments = forwardRef(({ manager, onPaymentSuccess }, ref) => {
     },
     {
       title: t('manager:payments.columns.type'), key: 'type', width: 90, align: 'center',
-      render: (_, r) => parseFloat(r.amount || 0) >= 0
-        ? <Tag color="green" bordered={false} className="rounded-full m-0">{t('manager:payments.paymentType')}</Tag>
-        : <Tag color="red" bordered={false} className="rounded-full m-0">{t('manager:payments.deductionType')}</Tag>,
+      render: (_, r) => (
+        <span className="inline-flex items-center gap-1">
+          {parseFloat(r.amount || 0) >= 0
+            ? <Tag color="green" bordered={false} className="rounded-full m-0">{t('manager:payments.paymentType')}</Tag>
+            : <Tag color="red" bordered={false} className="rounded-full m-0">{t('manager:payments.deductionType')}</Tag>}
+          {r.channel === 'instructor' && (
+            <Tag bordered={false} className="rounded-full m-0 text-[10px] text-gray-500">{t('manager:payments.instructorLedgerTag')}</Tag>
+          )}
+        </span>
+      ),
     },
     {
       title: t('manager:payments.columns.method'), dataIndex: 'payment_method', key: 'method', width: 90,

@@ -1219,7 +1219,8 @@
       "deleted": "Paiement supprimé",
       "saveFailed": "Échec de l'enregistrement du paiement",
       "deleteFailed": "Échec de la suppression du paiement"
-    }
+    },
+    "instructorLedgerTag": "registre instructeur"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",

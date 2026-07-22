@@ -1644,6 +1644,14 @@ export async function recordLegacyTransaction({
   currency = DEFAULT_CURRENCY,
   status = 'completed',
   direction,
+  // Balance-delta overrides. When omitted, recordTransaction falls back to its
+  // own defaults (availableDelta = amount). MUST be forwarded: staff payouts
+  // (staffPaymentService) and pay-later debt rows pass availableDelta 0 so the
+  // ledger row never moves the personal wallet — dropping the field here made
+  // every salary payment credit the staff member's wallet by the full amount.
+  availableDelta,
+  pendingDelta,
+  nonWithdrawableDelta,
   description,
   paymentMethod,
   referenceNumber,
@@ -1724,6 +1732,9 @@ export async function recordLegacyTransaction({
     currency,
     status,
     direction,
+    ...(availableDelta !== undefined ? { availableDelta } : {}),
+    ...(pendingDelta !== undefined ? { pendingDelta } : {}),
+    ...(nonWithdrawableDelta !== undefined ? { nonWithdrawableDelta } : {}),
     description,
     paymentMethod: paymentMethod ?? metadataObject.paymentMethod ?? null,
     referenceNumber: referenceNumber ?? metadataObject.referenceNumber ?? null,

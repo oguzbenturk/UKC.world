@@ -1219,7 +1219,8 @@
       "deleted": "Платёж удалён",
       "saveFailed": "Не удалось сохранить платёж",
       "deleteFailed": "Не удалось удалить платёж"
-    }
+    },
+    "instructorLedgerTag": "ведомость инструктора"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",

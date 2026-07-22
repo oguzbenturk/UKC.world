@@ -97,6 +97,7 @@ Tümü `src/features/finances/pages/` altında; rotalar `src/routes/AppRoutes.js
 - **`allowNegative` yalnızca iade-tarzı kredilerde** kullanılmalı; `overdraft_limit` tabanı + denetim satırı vardır.
 - **Ham fiyat kolonlarını ASLA mutasyona uğratma** — indirimler ayrı tabloda; `getActiveDiscountAmount`/`discountSumLateral` ile çıkar.
 - Ödeme Geçmişi/Finans toplamları reversal ve `*_adjustment` satırlarını çift saymamak için dikkatle filtreler (`LEDGER_NOISE_TYPES`, `right(...,9) != '_reversal'`).
+- **`recordLegacyTransaction` delta-override'ları FORWARD etmeli (2026-07-22 fix).** Wrapper eskiden `availableDelta`/`pendingDelta`/`nonWithdrawableDelta` alanlarını kabul etmiyordu → `createStaffPayment`'ın `availableDelta: 0`'ı sessizce düşüyordu ve Mayıs 2026'dan beri HER maaş ödemesi/kesintisi personelin kişisel cüzdanına ±tutar yazdı (~€15.9k fantom kredi, 7 personel). Onarım: `backend/scripts/repair-staff-payout-wallet-leak.mjs` (payout satırlarının delta'ları 0'landı + cüzdanlar recompute). Aynı sınıftaki latent site: `services.js` non-trusted pay-later borç satırı (`availableDelta: 0`) — artık forward ediliyor.
 
 ## Prod Teşhis & Audit Scriptleri
 Bu modülde geçmiş incident'lar (cancel+reversal çift-geri-alma, kısmi-silme yetimleri, over-refund) tek seferlik onarım gerektirdi. İlgili salt-okunur tarama ve idempotent temizlik scriptleri `scripts/` kökünde tutulur ([[Operations_Scripts]]); finansal bütünlük denetimi [[Testing_QA]] kapsamındadır. Tümü `backend/.env`'in işaret ettiği DB'ye karşı çalışır (prod için SSH ile prod env'e geçilir).

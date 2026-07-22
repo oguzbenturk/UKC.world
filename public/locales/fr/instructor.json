@@ -590,7 +590,11 @@
       "recordPayment": "Enregistrer le paiement",
       "cancel": "Annuler",
       "paymentRecorded": "Paiement de {{amount}} enregistré pour {{name}}",
-      "failedPayment": "Impossible d'enregistrer le paiement"
+      "failedPayment": "Impossible d'enregistrer le paiement",
+      "combinedLedgerNote": "Solde combiné (revenus de l'instructeur + commission du responsable). Ce paiement est enregistré dans le registre de paie du responsable.",
+      "combinedEarned": "Total gagné",
+      "combinedPaid": "Total payé",
+      "combinedOwed": "Solde dû"
     },
     "detailModal": {
       "navItems": {

@@ -1219,7 +1219,8 @@
       "deleted": "Ödeme silindi",
       "saveFailed": "Ödeme kaydedilemedi",
       "deleteFailed": "Ödeme silinemedi"
-    }
+    },
+    "instructorLedgerTag": "eğitmen defteri"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",

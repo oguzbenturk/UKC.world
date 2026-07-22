@@ -777,17 +777,26 @@ export async function getAllInstructorBalances() {
     const mEarn = mgrEarnedMap[id] || 0;
     const mPaid = mgrPaidMap[id]?.paid || 0;
     const mDeducted = mgrPaidMap[id]?.deducted || 0;
-    // Clamped at 0 like getManagerCommissionSummary's pending: an overpaid
-    // manager owes nothing, but the surplus doesn't eat into instructor payroll.
+    // Per-bucket owed for the tooltip breakdown only — clamped at 0 like
+    // getManagerCommissionSummary's pending figure.
     const mBal = Math.max(Number((mEarn - mPaid - mDeducted).toFixed(2)), 0);
     const hasManager = mEarn > 0 || mPaid > 0 || mDeducted > 0;
+
+    // Manager+instructor staff are ONE payee with ONE ledger (owner rule
+    // 2026-07-22): the headline balance must equal the profile panel's
+    // "Balance Owed" (ManagerPayments) — combined earnings minus EVERY staff
+    // payout/deduction across BOTH wallet channels, unclamped. The previous
+    // per-bucket sum (inst.balance + clamped manager owed) diverged from the
+    // profile whenever one channel was overpaid (Oğuzhan: list +719 vs
+    // profile −200). Pure instructors keep the instructor-only balance.
+    const combinedBalance = hasManager
+      ? Number((inst.totalEarned + mEarn - inst.totalPaid - mPaid - mDeducted).toFixed(2))
+      : inst.balance;
 
     merged[id] = {
       totalEarned: Number((inst.totalEarned + mEarn).toFixed(2)),
       totalPaid: Number((inst.totalPaid + mPaid).toFixed(2)),
-      // NOT totalEarned - totalPaid: the manager side subtracts deductions and
-      // clamps at 0, so the combined owed is the sum of the two owed figures.
-      balance: Number((inst.balance + mBal).toFixed(2)),
+      balance: combinedBalance,
       instructor: {
         totalEarned: inst.totalEarned,
         totalPaid: inst.totalPaid,

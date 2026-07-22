@@ -592,7 +592,11 @@
       "recordPayment": "Записать платёж",
       "cancel": "Отмена",
       "paymentRecorded": "Платёж {{amount}} записан для {{name}}",
-      "failedPayment": "Не удалось записать платёж"
+      "failedPayment": "Не удалось записать платёж",
+      "combinedLedgerNote": "Совокупный баланс (заработок инструктора + комиссия менеджера). Этот платёж записывается в зарплатную ведомость менеджера.",
+      "combinedEarned": "Всего заработано",
+      "combinedPaid": "Всего выплачено",
+      "combinedOwed": "Остаток к выплате"
     },
     "detailModal": {
       "navItems": {

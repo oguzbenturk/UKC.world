@@ -590,7 +590,11 @@
       "recordPayment": "Zahlung erfassen",
       "cancel": "Abbrechen",
       "paymentRecorded": "Zahlung von {{amount}} für {{name}} erfasst",
-      "failedPayment": "Zahlung konnte nicht erfasst werden"
+      "failedPayment": "Zahlung konnte nicht erfasst werden",
+      "combinedLedgerNote": "Kombinierter Saldo (Kursleitereinnahmen + Managerprovision). Diese Zahlung wird im Manager-Gehaltsbuch erfasst.",
+      "combinedEarned": "Gesamt verdient",
+      "combinedPaid": "Gesamt gezahlt",
+      "combinedOwed": "Offener Saldo"
     },
     "detailModal": {
       "navItems": {

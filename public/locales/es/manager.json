@@ -1219,7 +1219,8 @@
       "deleted": "Pago eliminado",
       "saveFailed": "No se pudo guardar el pago",
       "deleteFailed": "No se pudo eliminar el pago"
-    }
+    },
+    "instructorLedgerTag": "libro del instructor"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",

@@ -1219,7 +1219,8 @@
       "deleted": "Zahlung gelöscht",
       "saveFailed": "Zahlung konnte nicht gespeichert werden",
       "deleteFailed": "Zahlung konnte nicht gelöscht werden"
-    }
+    },
+    "instructorLedgerTag": "Kursleiter-Buch"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
