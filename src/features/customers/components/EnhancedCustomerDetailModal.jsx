@@ -1078,15 +1078,20 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
       const needsConv = isStaff && txCur !== storageCurrency;
       const shownCur = needsConv ? storageCurrency : txCur;
       const toShown = (v) => needsConv ? convertCurrency(v || 0, txCur, storageCurrency) : (v || 0);
-      // A shop order's charge row carries the GROSS amount; its discount is a
-      // separate `discount_adjustment` credit row (hidden from this list below,
-      // see dataSource filter). Show the gross struck through + the net so the
-      // discount is visible inline and not double-counted. Scoped to shop_order
+      // A shop order's CHARGE row (debit) carries the GROSS amount; its discount
+      // is a separate `discount_adjustment` credit row (hidden from this list
+      // below, see dataSource filter). Show the gross struck through + the net
+      // so the discount is visible inline and not double-counted. DEBIT-only:
+      // credit rows tied to the order — cash/card/bank-transfer "Paid" payment
+      // legs — are recorded NET of the discount already, so re-netting them here
+      // displayed a second discount on the payment amount. Scoped to shop_order
       // to leave booking/rental/package history rendering untouched.
-      const disc = r.relatedEntityType === 'shop_order' ? (r.discountAmount || 0) : 0;
+      const disc = r.relatedEntityType === 'shop_order' && (Number(amount) || 0) < 0
+        ? (r.discountAmount || 0)
+        : 0;
       if (disc > 0) {
         const gross = amount || 0;
-        const net = gross > 0 ? gross - disc : gross + disc;
+        const net = gross + disc;
         const pct = r.discountPercent ? ` (${r.discountPercent}%)` : '';
         return (
           <Tooltip title={`${fmtCurrency(toShown(gross), shownCur)} − ${fmtCurrency(disc, 'EUR')} discount${pct}`}>
