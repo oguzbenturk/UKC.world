@@ -302,6 +302,7 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     isDaily, beachDays, perCustomer,
     selectedUnit, setSelectedUnit, units, unitsLoading,
     discountPercent, setDiscountPercent,
+    paidNow, setPaidNow, paidMethod, setPaidMethod,
     startDate, setStartDate, handleStartDateChange,
     endDate, setEndDate,
     canSubmit: !!(
@@ -461,6 +462,7 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
     isDaily, beachDays, perCustomer,
     selectedUnit, setSelectedUnit, units, unitsLoading,
     discountPercent, setDiscountPercent,
+    paidNow, setPaidNow, paidMethod, setPaidMethod,
     startDate, setStartDate, handleStartDateChange,
     endDate, setEndDate,
     canSubmit,
