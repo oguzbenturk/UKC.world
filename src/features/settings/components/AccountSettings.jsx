@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, Input, Button, Typography, Divider, Spin, DatePicker, App } from 'antd';
+import { Card, Input, Button, Typography, Divider, Spin, App } from 'antd';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import { UserOutlined, EditOutlined, LockOutlined, SaveOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import apiClient from '@/shared/services/apiClient';
@@ -275,12 +276,14 @@ export default function AccountSettings() {
 
           <div>
             <Text strong className="block mb-1">{t('admin:account.personalInfo.dateOfBirth')}</Text>
-            <DatePicker
+            <EasyDatePicker
               value={form.date_of_birth}
               onChange={(date) => setForm((f) => ({ ...f, date_of_birth: date }))}
               format="YYYY-MM-DD"
               style={{ width: '100%' }}
               placeholder={t('admin:account.personalInfo.dateOfBirth')}
+              maxDate={dayjs()}
+              defaultPickerYear={1995}
             />
           </div>
 

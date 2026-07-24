@@ -219,12 +219,26 @@ export async function recordConsumptionLedger(client, { bookingId, participantId
   }
 }
 
-/** True if a booking has any (non-released) spillover ledger rows. */
-export async function hasLedgerRows(client, bookingId) {
+/**
+ * True if a booking has any (non-released) spillover ledger rows.
+ * Scope mirrors _scopeClause: omit `participantId` (undefined) to check the
+ * WHOLE booking; pass null to check booking-level rows only (participant_id
+ * IS NULL); pass an id to check that participant's rows.
+ */
+export async function hasLedgerRows(client, bookingId, participantId = undefined) {
   if (!bookingId) return false;
+  if (participantId === undefined) {
+    const { rows } = await client.query(
+      `SELECT 1 FROM booking_package_consumption WHERE booking_id = $1 AND released_at IS NULL LIMIT 1`,
+      [bookingId]
+    );
+    return rows.length > 0;
+  }
+  const scope = _scopeClause(participantId, 2);
   const { rows } = await client.query(
-    `SELECT 1 FROM booking_package_consumption WHERE booking_id = $1 AND released_at IS NULL LIMIT 1`,
-    [bookingId]
+    `SELECT 1 FROM booking_package_consumption
+      WHERE booking_id = $1 AND released_at IS NULL AND ${scope.clause} LIMIT 1`,
+    [bookingId, ...scope.params]
   );
   return rows.length > 0;
 }

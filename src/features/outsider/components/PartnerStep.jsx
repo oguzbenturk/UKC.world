@@ -22,6 +22,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import {
   CalendarOutlined,
   ClockCircleOutlined,
@@ -738,13 +739,14 @@ const FindPartnerForm = ({ serviceId, packageData, onSubmit, submitting, onBack 
           <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">
             Date of birth *
           </label>
-          <DatePicker
+          <EasyDatePicker
             className="w-full !rounded-xl"
             value={dateOfBirth}
             onChange={setDateOfBirth}
             format="YYYY-MM-DD"
             placeholder="YYYY-MM-DD"
-            disabledDate={(d) => d && d.isAfter(dayjs().subtract(5, 'year'))}
+            maxDate={dayjs().subtract(5, 'year')}
+            defaultPickerYear={1995}
           />
         </div>
       </div>

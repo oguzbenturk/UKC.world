@@ -7,12 +7,17 @@ import { fetchCustomerPackagesForFunding, switchBookingFunding } from './booking
 // view. cash → package draws the lesson's hours from the customer's packages
 // (overflow stays as a cash 'partial' leg) and refunds the cash charged.
 // package → cash restores the hours and re-charges the lesson at the cash rate.
-export default function BookingFundingModal({ open, onClose, booking, onDone }) {
+// For semi-private/group bookings pass `participant` (one booking_participants
+// entry) — the switch then applies to that participant only.
+export default function BookingFundingModal({ open, onClose, booking, participant = null, onDone }) {
   const { formatCurrency, businessCurrency } = useCurrency();
   const currency = booking?.currency || businessCurrency || 'EUR';
 
-  const isPackageFunded = !!(booking?.customer_package_id) &&
-    (booking?.payment_status === 'package' || booking?.payment_status === 'partial');
+  const isPackageFunded = participant
+    ? (!!participant.customerPackageId &&
+        (participant.paymentStatus === 'package' || participant.paymentStatus === 'partial'))
+    : (!!(booking?.customer_package_id) &&
+        (booking?.payment_status === 'package' || booking?.payment_status === 'partial'));
   const mode = isPackageFunded ? 'cash' : 'package';
 
   const [packages, setPackages] = useState([]);
@@ -21,7 +26,7 @@ export default function BookingFundingModal({ open, onClose, booking, onDone }) 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const customerId = booking?.student_user_id || booking?.studentId || null;
+  const customerId = participant?.userId || booking?.student_user_id || booking?.studentId || null;
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +62,7 @@ export default function BookingFundingModal({ open, onClose, booking, onDone }) 
         bookingId: booking.id,
         mode,
         customerPackageId: mode === 'package' ? selectedPackageId : null,
+        participantId: participant?.id || null,
       });
       onDone?.(result);
       onClose?.();
@@ -68,7 +74,10 @@ export default function BookingFundingModal({ open, onClose, booking, onDone }) 
   };
 
   const okText = mode === 'package' ? 'Assign to Package' : 'Switch to Cash';
-  const title = mode === 'package' ? 'Assign Lesson to a Package' : 'Switch Lesson to Cash';
+  const who = participant?.userName || null;
+  const title = mode === 'package'
+    ? (who ? `Assign ${who}'s Spot to a Package` : 'Assign Lesson to a Package')
+    : (who ? `Switch ${who}'s Spot to Cash` : 'Switch Lesson to Cash');
 
   return (
     <Modal

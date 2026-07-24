@@ -1665,6 +1665,7 @@ export async function recordLegacyTransaction({
   createdBy,
   allowNegative = false,
   idempotencyKey = null,
+  transactionDate = null,
   client
 }) {
   const normalizedType = transactionType || type;
@@ -1748,6 +1749,7 @@ export async function recordLegacyTransaction({
     createdBy,
     allowNegative,
     idempotencyKey,
+    ...(transactionDate ? { transactionDate } : {}),
     client
   });
 }

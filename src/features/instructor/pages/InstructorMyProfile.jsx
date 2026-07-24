@@ -3,8 +3,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Avatar, Tag, Spin, Tooltip, Form, Input, DatePicker, Button, Empty, Select
+  Avatar, Tag, Spin, Tooltip, Form, Input, Button, Empty, Select
 } from 'antd';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import {
   UserOutlined, MailOutlined, PhoneOutlined, CalendarOutlined,
   TeamOutlined, DollarOutlined, ClockCircleOutlined, BookOutlined,
@@ -203,7 +204,7 @@ function ProfileSection({ user, onSaved }) {
                 <Input placeholder={t('instructor:profile.formFields.phonePlaceholder')} />
               </Form.Item>
               <Form.Item name="date_of_birth" label={t('instructor:profile.formFields.dateOfBirth')}>
-                <DatePicker className="w-full" format="YYYY-MM-DD" />
+                <EasyDatePicker className="w-full" format="YYYY-MM-DD" maxDate={dayjs()} defaultPickerYear={1995} />
               </Form.Item>
               <Form.Item name="city" label={t('instructor:profile.formFields.city')}>
                 <Input placeholder={t('instructor:profile.formFields.cityPlaceholder')} />

@@ -67,7 +67,7 @@ function DateNavigator({ view, selectedDate, onChangeDate, onPrev, onNext }) {
   const pickerFormat =
     view === 'week' ? '[W]w · YYYY'
     : view === 'month' ? 'MMMM YYYY'
-    : 'MMM D, YYYY';
+    : 'ddd, MMM D, YYYY';
 
   return (
     <div className="flex items-center space-x-1 sm:space-x-2">

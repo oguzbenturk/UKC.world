@@ -12,7 +12,8 @@ import bookingNotificationService from '../services/bookingNotificationService.j
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
-import { applyDiscount } from '../services/discountService.js';
+import { applyDiscount, computeDiscountAmount } from '../services/discountService.js';
+import { METHOD_PAYMENT_TX_TYPE } from '../constants/transactions.js';
 
 const RENTAL_CACHE_PATTERNS = ['api:GET:/api/rentals*'];
 
@@ -511,12 +512,22 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
     let finalPaymentStatus = payment_status;
     let skipWalletCharge = false;
 
-    // Payment method routing (credit card / pay later / wallet)
+    // Payment method routing (credit card / pay later / wallet / instant non-wallet).
+    // cash/card/bank_transfer = the staff "Paid" flow: the customer settled in
+    // person, so no real wallet debit — instead a zero-delta charge+payment pair
+    // is written after the insert so financial history shows both legs. Staff-only:
+    // a customer must not be able to declare their own rental pre-paid.
+    const instantPaidMethod = isStaff && ['cash', 'card', 'bank_transfer'].includes(payment_method)
+      ? payment_method
+      : null;
     if (payment_method === 'credit_card') {
       finalPaymentStatus = 'pending_payment';
       skipWalletCharge = true;
     } else if (payment_method === 'pay_later') {
       finalPaymentStatus = 'unpaid';
+      skipWalletCharge = true;
+    } else if (instantPaidMethod) {
+      finalPaymentStatus = 'paid';
       skipWalletCharge = true;
     }
     
@@ -737,7 +748,64 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
         );
       }
     }
-    
+
+    // Staff "Paid" with cash/card/bank transfer: the money changed hands outside
+    // the wallet, so write the zero-delta charge+payment pair (debit rental_charge,
+    // then credit cash_payment/card_payment/bank_transfer_payment). Balance never
+    // moves; Payment History shows the charge and the method payment; the credit
+    // leg counts as income. Debit first — the credit's later timestamp sorts it
+    // first in DESC history, matching the bank-transfer approval convention.
+    if (calculatedTotalPrice > 0 && instantPaidMethod && !usedPackageId) {
+      const equipmentNames = Object.values(equipmentDetails).map(item => item.name).join(', ');
+      // Charge leg at GROSS (finances nets the discounts table off debit totals);
+      // payment leg at NET of the staff discount below — the cash actually taken.
+      // Explicit transactionDate per leg: NOW() is frozen inside the transaction
+      // and identical timestamps randomize the pair's order in DESC history.
+      const pairNow = Date.now();
+      const instantDiscPct = Math.max(0, Math.min(100, parseFloat(req.body?.discount_percent) || 0));
+      const instantDiscAmount = instantDiscPct > 0 ? computeDiscountAmount(calculatedTotalPrice, instantDiscPct) : 0;
+      const netReceived = Math.max(0, parseFloat((calculatedTotalPrice - instantDiscAmount).toFixed(2)));
+      const pairBase = {
+        client,
+        userId: user_id,
+        status: 'completed',
+        currency: storageCurrency,
+        paymentMethod: instantPaidMethod,
+        metadata: {
+          equipmentIds: equipment_ids,
+          rentalDate: rentalDateFormatted,
+          source: 'rentals:create:instant_paid',
+          inputCurrency
+        },
+        entityType: 'rental',
+        relatedEntityType: 'rental',
+        relatedEntityId: rental.id,
+        rentalId: rental.id,
+        createdBy: actorId || null,
+        allowNegative: true
+      };
+      await recordLegacyTransaction({
+        ...pairBase,
+        amount: -Math.abs(calculatedTotalPrice),
+        availableDelta: 0,
+        transactionType: 'rental_charge',
+        direction: 'debit',
+        transactionDate: new Date(pairNow),
+        description: `Rental charge: ${equipmentNames} (${rentalDateFormatted})`
+      });
+      if (netReceived > 0) {
+        await recordLegacyTransaction({
+          ...pairBase,
+          amount: netReceived,
+          availableDelta: 0,
+          transactionType: METHOD_PAYMENT_TX_TYPE[instantPaidMethod] || 'cash_payment',
+          direction: 'credit',
+          transactionDate: new Date(pairNow + 1000),
+          description: `Payment received (${instantPaidMethod.replace('_', ' ')}): ${equipmentNames}${instantDiscAmount > 0 ? ` (net of €${instantDiscAmount.toFixed(2)} discount)` : ''}`
+        });
+      }
+    }
+
     // Also create records in rental_equipment table for compatibility
     for (const equipmentId of equipment_ids) {
       const equipmentInfo = equipmentDetails[equipmentId];
@@ -751,6 +819,9 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
 
     // Apply a staff discount entered in the create form (same mechanism as the
     // customer-drawer Discount action: discounts table + wallet credit if paid).
+    // skipWalletCredit when settled outside the wallet (cash/card/bank transfer):
+    // the staff collected the NET price in person, so no gross wallet debit
+    // exists for the credit to compensate — posting it would be free money.
     {
       const pct = parseFloat(req.body?.discount_percent);
       if (pct > 0 && rental?.id && user_id) {
@@ -761,6 +832,7 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructo
           percent: pct,
           reason: req.body?.discount_reason || 'Discount applied at rental creation',
           createdBy: actorId || null,
+          skipWalletCredit: !!instantPaidMethod,
         });
       }
     }

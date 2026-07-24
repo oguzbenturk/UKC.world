@@ -20,8 +20,13 @@
  * cascade commit atomically — a failure rolls the whole switch back, never
  * leaving a booking that is "package-funded AND cash-refunded" (or vice-versa).
  *
- * v1 scope: single-participant bookings only (group per-participant switching is
- * intentionally rejected with a clear error).
+ * Single-participant bookings switch at the booking level (v1 behavior, kept
+ * verbatim). Multi-participant (semi-private / group) bookings switch ONE
+ * participant at a time via `participantId`: the participant's own
+ * booking_participants row is re-funded, their ledger rows are scoped to that
+ * row, their cash leg settles against their own wallet, and the parent
+ * booking's aggregate fields are re-derived from all participant rows using
+ * the same rule POST /bookings/group applies at creation.
  */
 
 import Decimal from 'decimal.js';
@@ -134,11 +139,18 @@ async function restoreHoursToPackageLegacy(client, pkgId, hours) {
 // onto the package rate (and, for a package booking, leave a phantom credit
 // because package bookings don't re-credit). Staff can re-apply a discount
 // afterwards if they want one on the re-funded lesson. Returns # removed.
-async function recomputeAfterSwitch(client, bookingId, actorId = null) {
+async function recomputeAfterSwitch(client, bookingId, actorId = null, participantUserId = null) {
   const { deleteDiscount } = await import('./discountService.js');
+  // Booking-level switch: every discount on the booking was negotiated against
+  // the funding being replaced → remove them all (v1 behavior). Per-participant
+  // switch: remove ONLY that participant's scoped discount rows — deleting other
+  // participants' (or the group-level) discounts would reverse wallet credits
+  // that belong to people whose funding didn't change.
   const { rows: discRows } = await client.query(
-    `SELECT id FROM discounts WHERE entity_type = 'booking' AND entity_id = $1`,
-    [bookingId]
+    participantUserId
+      ? `SELECT id FROM discounts WHERE entity_type = 'booking' AND entity_id = $1 AND participant_user_id = $2::uuid`
+      : `SELECT id FROM discounts WHERE entity_type = 'booking' AND entity_id = $1`,
+    participantUserId ? [bookingId, String(participantUserId)] : [bookingId]
   );
   for (const d of discRows) {
     await deleteDiscount(client, d.id, { createdBy: actorId });
@@ -156,6 +168,214 @@ async function recomputeAfterSwitch(client, bookingId, actorId = null) {
 async function buildResult(client, bookingId, summary) {
   const { rows } = await client.query('SELECT * FROM bookings WHERE id = $1', [bookingId]);
   return { booking: rows[0] || null, ...summary };
+}
+
+/**
+ * Re-derive the parent booking's aggregate funding fields from its
+ * booking_participants rows, mirroring the creation rule in POST /bookings/group:
+ *   every participant 'package'  → payment_status 'package', amount 0
+ *   some package hours drawn     → 'partial', amount = Σ cash portions
+ *   no package hours             → 'paid',    amount = Σ payment_amount
+ * customer_package_id follows the primary participant (falling back to the
+ * first package-funded one), hour totals are participant sums (NULL when 0).
+ */
+async function recomputeGroupAggregates(client, bookingId) {
+  const { rows: parts } = await client.query(
+    `SELECT * FROM booking_participants WHERE booking_id = $1 ORDER BY is_primary DESC, id`,
+    [bookingId]
+  );
+  if (!parts.length) return null;
+
+  const status = (p) => String(p.payment_status || '').toLowerCase();
+  const allPackage = parts.every((p) => status(p) === 'package');
+  const anyPackageHours = parts.some((p) => (parseFloat(p.package_hours_used) || 0) > 0);
+  const cashSum = parts.reduce((s, p) => (
+    status(p) === 'package' ? s : s.add(new Decimal(parseFloat(p.payment_amount) || 0))
+  ), new Decimal(0)).toDecimalPlaces(2).toNumber();
+
+  const paymentStatus = allPackage ? 'package' : anyPackageHours ? 'partial' : 'paid';
+  const amount = allPackage ? 0 : cashSum;
+  const pkgOwner = parts.find((p) => p.is_primary && p.customer_package_id)
+    || parts.find((p) => p.customer_package_id);
+  const pkgHours = parts.reduce((s, p) => s + (parseFloat(p.package_hours_used) || 0), 0);
+  const cashHours = parts.reduce((s, p) => s + (parseFloat(p.cash_hours_used) || 0), 0);
+
+  await client.query(
+    `UPDATE bookings
+        SET payment_status = $1,
+            amount = $2,
+            final_amount = $2,
+            customer_package_id = $3,
+            package_hours_used = $4,
+            cash_hours_used = $5,
+            updated_at = NOW()
+      WHERE id = $6`,
+    [
+      paymentStatus,
+      amount,
+      pkgOwner?.customer_package_id || null,
+      pkgHours > 0 ? parseFloat(pkgHours.toFixed(2)) : null,
+      cashHours > 0 ? parseFloat(cashHours.toFixed(2)) : null,
+      bookingId,
+    ]
+  );
+  return { paymentStatus, amount };
+}
+
+async function switchParticipantToPackage(client, ctx) {
+  const { booking, participant: p, currency, duration, svc, serviceHourly, requestedPackageId, actorId } = ctx;
+  const bookingId = booking.id;
+  const ps = String(p.payment_status || '').toLowerCase();
+
+  // What this participant paid BEFORE the switch (their cash portion). A card/
+  // bank-paid participant has no booking_charge wallet row, so settleStudentCashTo
+  // refunds this to their wallet instead of leaving them billed twice.
+  const originalCharge = parseFloat(p.payment_amount) || 0;
+  const externalPaidAmount = (ps === 'paid' || ps === 'partial') ? originalCharge : 0;
+
+  if (ps === 'package') throw httpError(400, 'This participant is already fully funded by a package.');
+  if (await hasLedgerRows(client, bookingId, p.id)) {
+    throw httpError(400, 'This participant already draws from a package. Switch them to cash first.');
+  }
+  // Legacy bookings (partner flow, pre-ledger) can hold BOOKING-level ledger
+  // rows (participant_id IS NULL) — per-participant consumption on top of that
+  // would double-fund the lesson.
+  if (await hasLedgerRows(client, bookingId, null)) {
+    throw httpError(400, 'This booking draws from a package at booking level. Switch the whole booking to cash first.');
+  }
+
+  const spill = await consumeAcrossPackages(client, {
+    customerId: p.user_id,
+    hoursNeeded: duration,
+    matchCriteria: {
+      serviceName: svc.name,
+      lessonCategoryTag: svc.lessonCategoryTag,
+      disciplineTag: svc.disciplineTag,
+    },
+    requestedPackageId: requestedPackageId || null,
+    asOfDate: booking.date,
+    allowWaitingPayment: false,
+  });
+
+  if (!spill.draws.length) {
+    throw httpError(400, svc.name
+      ? `No active ${svc.name} package with hours for this participant. Assign/create a matching package first.`
+      : 'No active package with hours for this participant. Assign/create a package first.');
+  }
+
+  await recordConsumptionLedger(client, { bookingId, participantId: p.id, draws: spill.draws });
+
+  const packageHours = spill.packageHoursTotal;
+  const cashHours = spill.cashHours;
+  let participantStatus;
+  let participantAmount;
+  if (cashHours > 0.0001) {
+    participantStatus = 'partial';
+    participantAmount = parseFloat((cashHours * serviceHourly).toFixed(2));
+  } else {
+    participantStatus = 'package';
+    participantAmount = 0;
+  }
+
+  await client.query(
+    `UPDATE booking_participants
+        SET payment_status = $1,
+            payment_amount = $2,
+            customer_package_id = $3,
+            package_hours_used = $4,
+            cash_hours_used = $5,
+            updated_at = NOW()
+      WHERE id = $6`,
+    [participantStatus, participantAmount, spill.primaryPackageId,
+      parseFloat(packageHours.toFixed(2)), parseFloat((cashHours || 0).toFixed(2)), p.id]
+  );
+
+  const walletAdjustment = await settleStudentCashTo(client, {
+    bookingId, userId: p.user_id, currency, targetCharge: participantAmount, actorId,
+    reason: 'participant switched to package', externalPaidAmount,
+  });
+
+  await recomputeGroupAggregates(client, bookingId);
+  const discountsRemoved = await recomputeAfterSwitch(client, bookingId, actorId, p.user_id);
+
+  logger.info('Booking participant switched to package funding', {
+    bookingId, participantId: p.id, userId: p.user_id, participantStatus,
+    packageHours, cashHours, primaryPackageId: spill.primaryPackageId, discountsRemoved, actorId,
+  });
+
+  return buildResult(client, bookingId, {
+    mode: 'package',
+    participantId: p.id,
+    paymentStatus: participantStatus,
+    finalAmount: participantAmount,
+    packageHoursDrawn: packageHours,
+    cashHours,
+    discountsRemoved,
+    draws: spill.draws.map((d) => ({
+      packageId: d.packageId, packageName: d.packageName, hours: d.hours, ratePerHour: d.ratePerHour,
+    })),
+    walletAdjustment,
+  });
+}
+
+async function switchParticipantToCash(client, ctx) {
+  const { booking, participant: p, currency, duration, serviceHourly, groupSize, actorId } = ctx;
+  const bookingId = booking.id;
+  const ps = String(p.payment_status || '').toLowerCase();
+  const hadLedger = await hasLedgerRows(client, bookingId, p.id);
+
+  if (ps !== 'package' && ps !== 'partial' && !p.customer_package_id && !hadLedger) {
+    throw httpError(400, 'This participant is not funded by a package.');
+  }
+
+  if (hadLedger) {
+    await restoreFromLedger(client, { bookingId, participantId: p.id });
+  } else if (p.customer_package_id) {
+    const recorded = parseFloat(p.package_hours_used);
+    const restoreHours = Number.isFinite(recorded) ? recorded : (ps === 'package' ? duration : 0);
+    await restoreHoursToPackageLegacy(client, p.customer_package_id, restoreHours);
+  }
+
+  let cashPrice = serviceHourly > 0 ? parseFloat((serviceHourly * duration).toFixed(2)) : 0;
+  if (!(cashPrice > 0)) {
+    // No service price to derive from — fall back to an even share of the
+    // booking's group total (bookings.amount is the group TOTAL for group bookings).
+    const total = parseFloat(booking.final_amount) || parseFloat(booking.amount) || 0;
+    cashPrice = groupSize > 0 ? parseFloat((total / groupSize).toFixed(2)) : 0;
+  }
+
+  await client.query(
+    `UPDATE booking_participants
+        SET payment_status = 'paid',
+            payment_amount = $1,
+            customer_package_id = NULL,
+            package_hours_used = 0,
+            cash_hours_used = $2,
+            updated_at = NOW()
+      WHERE id = $3`,
+    [cashPrice, duration, p.id]
+  );
+
+  const walletAdjustment = await settleStudentCashTo(client, {
+    bookingId, userId: p.user_id, currency, targetCharge: cashPrice, actorId,
+    reason: 'participant switched to cash',
+  });
+
+  await recomputeGroupAggregates(client, bookingId);
+  const discountsRemoved = await recomputeAfterSwitch(client, bookingId, actorId, p.user_id);
+
+  logger.info('Booking participant switched to cash funding', {
+    bookingId, participantId: p.id, userId: p.user_id, cashPrice, discountsRemoved, actorId,
+  });
+
+  return buildResult(client, bookingId, {
+    mode: 'cash',
+    participantId: p.id,
+    paymentStatus: 'paid',
+    finalAmount: cashPrice,
+    discountsRemoved,
+    walletAdjustment,
+  });
 }
 
 async function switchToPackage(client, ctx) {
@@ -312,10 +532,12 @@ async function switchToCash(client, ctx) {
 
 /**
  * Switch a booking's funding method. Runs inside the caller's transaction.
+ * For multi-participant (semi-private / group) bookings, `participantId` is
+ * REQUIRED and switches just that participant's funding.
  * @param {import('pg').PoolClient} client
- * @param {{ bookingId: string, mode: 'package'|'cash', requestedPackageId?: string|null, actorId?: string|null }} params
+ * @param {{ bookingId: string, mode: 'package'|'cash', requestedPackageId?: string|null, actorId?: string|null, participantId?: string|number|null }} params
  */
-export async function switchBookingFunding(client, { bookingId, mode, requestedPackageId = null, actorId = null }) {
+export async function switchBookingFunding(client, { bookingId, mode, requestedPackageId = null, actorId = null, participantId = null }) {
   if (!client) throw new Error('Database client is required');
   if (mode !== 'package' && mode !== 'cash') {
     throw httpError(400, "mode must be 'package' or 'cash'");
@@ -328,16 +550,40 @@ export async function switchBookingFunding(client, { bookingId, mode, requestedP
   if (!bRows.length) throw httpError(404, 'Booking not found');
   const booking = bRows[0];
 
-  const { rows: pcRows } = await client.query(
-    `SELECT COUNT(*)::int AS n FROM booking_participants WHERE booking_id = $1`,
+  const { rows: participants } = await client.query(
+    `SELECT * FROM booking_participants WHERE booking_id = $1 ORDER BY is_primary DESC, id FOR UPDATE`,
     [bookingId]
   );
-  if ((pcRows[0]?.n || 0) > 1) {
-    throw httpError(400, 'Switching funding is not supported for multi-participant group bookings yet.');
+
+  let participant = null;
+  if (participants.length > 1) {
+    if (!participantId) {
+      throw httpError(400, 'This is a group booking — specify participantId to switch one participant\'s funding.');
+    }
+    participant = participants.find((p) => String(p.id) === String(participantId));
+    if (!participant) throw httpError(404, 'Participant not found on this booking.');
+    if (!participant.user_id) throw httpError(400, 'Participant has no customer account to fund.');
+  } else if (participants.length === 1) {
+    // One participant row. Classic single lessons have NO booking_participants
+    // row (they fund at booking level with participant_id IS NULL ledger rows),
+    // but group-created bookings ALWAYS scope their ledger + funding fields to
+    // the participant row — even with one participant. Route by where the
+    // funding state actually lives, so restores hit the rows that exist.
+    const sole = participants[0];
+    if (participantId && String(sole.id) !== String(participantId)) {
+      throw httpError(404, 'Participant not found on this booking.');
+    }
+    const soleScoped = await hasLedgerRows(client, bookingId, sole.id);
+    const bookingScoped = await hasLedgerRows(client, bookingId, null);
+    const useParticipantPath = sole.user_id && (
+      soleScoped ||
+      (!bookingScoped && (sole.customer_package_id || mode === 'package'))
+    );
+    if (useParticipantPath) participant = sole;
   }
 
   const customerId = booking.student_user_id;
-  if (!customerId) throw httpError(400, 'Booking has no customer to fund.');
+  if (!participant && !customerId) throw httpError(400, 'Booking has no customer to fund.');
 
   const statusLc = String(booking.status || '').toLowerCase().trim();
   if (CANCELLED_STATUSES.has(statusLc)) {
@@ -369,7 +615,15 @@ export async function switchBookingFunding(client, { bookingId, mode, requestedP
   }
   const serviceHourly = svc.durationHours > 0 ? svc.price / svc.durationHours : svc.price;
 
-  const ctx = { booking, customerId, currency, duration, svc, serviceHourly, requestedPackageId, actorId };
+  const ctx = {
+    booking, customerId, currency, duration, svc, serviceHourly,
+    requestedPackageId, actorId, participant, groupSize: participants.length,
+  };
+  if (participant) {
+    return mode === 'package'
+      ? switchParticipantToPackage(client, ctx)
+      : switchParticipantToCash(client, ctx);
+  }
   return mode === 'package' ? switchToPackage(client, ctx) : switchToCash(client, ctx);
 }
 

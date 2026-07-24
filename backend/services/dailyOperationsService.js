@@ -10,7 +10,7 @@ const LARGE_UNPAID_THRESHOLD = Number(process.env.LARGE_UNPAID_RENTAL_THRESHOLD 
 // read wallet_transactions using the same cash-basis type sets the rest of finances
 // uses. Deposits/top-ups count as money received; charges (debits against prepaid
 // balance) are NOT "payments" and are excluded.
-const DAILY_INCOME_TYPES = [...new Set([...PAYMENT_TYPES, 'wallet_deposit', 'deposit', 'bank_transfer_payment'])];
+const DAILY_INCOME_TYPES = [...new Set([...PAYMENT_TYPES, 'wallet_deposit', 'deposit', 'bank_transfer_payment', 'cash_payment', 'card_payment'])];
 const DAILY_REFUND_TYPES = [...new Set([...REFUND_TYPES, 'iyzico_refund'])];
 
 function getDayRange(dateStr) {

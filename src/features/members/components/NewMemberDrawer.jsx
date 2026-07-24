@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Drawer, Select, Spin, message, Tooltip, InputNumber, DatePicker } from 'antd';
 import dayjs from 'dayjs';
-import { applyDiscount } from '@/features/customers/components/customerBill/discountApi';
 import {
   CrownOutlined,
   SearchOutlined,
@@ -170,6 +169,11 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
   const [units, setUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(null);
+  // "Paid" = customer settled right now with a real-world method (cash / card /
+  // bank transfer): backend records a zero-delta charge+payment pair instead of
+  // debiting the wallet, so the balance is untouched and history shows both legs.
+  const [paidNow, setPaidNow] = useState(false);
+  const [paidMethod, setPaidMethod] = useState('cash');
   // Membership start date — defaults to today; staff can back/forward-date it.
   // Drives purchased_at and (with the plan's duration) the expiry on the backend.
   const [startDate, setStartDate] = useState(() => dayjs());
@@ -239,6 +243,7 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     setSelectedOffering(null);
     setSelectedUnit(null); setUnits([]); setUnitsLoading(false);
     setDiscountPercent(null);
+    setPaidNow(false); setPaidMethod('cash');
     setStartDate(dayjs());
     setEndDate(null);
   };
@@ -254,33 +259,21 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
       setSubmitting(true);
       // For storage, the SAME box # is sent for every selected customer, so a group shares
       // one physical box (each gets their own record on that unit).
-      const purchaseResponses = await Promise.all(selectedCustomers.map(userId =>
+      // Discount is applied SERVER-SIDE by the purchase route (discounts table +
+      // wallet credit for wallet sales, suppressed for paid-in-person sales, and
+      // the "Paid" payment ledger leg is recorded net of it) — no second request.
+      const pct = Number(discountPercent) || 0;
+      await Promise.all(selectedCustomers.map(userId =>
         apiClient.post('/member-offerings/admin/purchases', {
-          userId, offeringId: selectedOffering.id, paymentMethod: 'wallet',
+          userId, offeringId: selectedOffering.id,
+          paymentMethod: paidNow ? paidMethod : 'wallet',
           allowNegativeBalance: isElevated,
+          ...(pct > 0 ? { discountPercent: pct } : {}),
           ...(startDate ? { startDate: startDate.format('YYYY-MM-DD') } : {}),
           ...(isDaily && endDate ? { endDate: endDate.format('YYYY-MM-DD') } : {}),
           ...(isStorage ? { storageUnit: selectedUnit } : {}),
         })
       ));
-      // Staff discount applied at creation — same mechanism as the customer drawer
-      // (POST /api/discounts → discounts table + wallet credit). The membership's
-      // wallet charge is posted post-commit, so we apply the discount here (after
-      // the purchase + its charge exist) rather than inside the create transaction.
-      const pct = Number(discountPercent);
-      if (pct > 0) {
-        await Promise.all(purchaseResponses.map((resp, i) => {
-          const purchaseId = resp?.data?.id;
-          if (!purchaseId) return null;
-          return applyDiscount({
-            customerId: selectedCustomers[i],
-            entityType: 'member_purchase',
-            entityId: purchaseId,
-            percent: pct,
-            reason: 'Discount applied at membership creation',
-          }).catch((e) => { message.warning(`Membership created, but discount failed: ${e.message}`); });
-        }));
-      }
       message.success(`Membership assigned to ${selectedCustomers.length} customer${selectedCustomers.length > 1 ? 's' : ''}!`);
       queryClient.invalidateQueries(['admin-member-purchases']);
       queryClient.invalidateQueries(['admin-member-stats']);
@@ -572,13 +565,54 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
 
         <div className="mt-5">
           <SectionHeader label="Payment" />
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50">
-            <WalletOutlined className="text-slate-400" />
-            <div>
-              <p className="text-sm font-medium text-slate-700">Wallet Balance</p>
-              <p className="text-xs text-slate-400">{isElevated ? 'Negative balance allowed for your role' : 'Deducted from customer wallet'}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaidNow(false)}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                !paidNow ? 'border-indigo-500 bg-indigo-50/60' : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <WalletOutlined className={!paidNow ? 'text-indigo-500' : 'text-slate-400'} />
+              <div>
+                <p className="text-sm font-medium text-slate-700">Wallet</p>
+                <p className="text-[11px] text-slate-400">
+                  {isElevated ? 'On account — negative allowed' : 'Deducted from wallet'}
+                </p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaidNow(true)}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                paidNow ? 'border-emerald-500 bg-emerald-50/60' : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <CheckOutlined className={paidNow ? 'text-emerald-500' : 'text-slate-400'} />
+              <div>
+                <p className="text-sm font-medium text-slate-700">Paid</p>
+                <p className="text-[11px] text-slate-400">Settled now, wallet untouched</p>
+              </div>
+            </button>
           </div>
+          {paidNow && (
+            <div className="mt-2">
+              <Select
+                className="w-full"
+                value={paidMethod}
+                onChange={setPaidMethod}
+                options={[
+                  { value: 'cash', label: '💵 Cash' },
+                  { value: 'card', label: '💳 Card' },
+                  { value: 'transfer', label: '🏦 Bank Transfer' },
+                ]}
+              />
+              <p className="text-xs text-slate-400 mt-1.5">
+                Records the charge and a matching {paidMethod === 'transfer' ? 'bank transfer' : paidMethod} payment
+                in the customer's financial history — the wallet balance doesn't move.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Discount — applied at creation, same mechanism as the customer drawer */}

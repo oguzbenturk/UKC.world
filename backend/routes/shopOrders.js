@@ -16,6 +16,7 @@ import { addTag } from '../services/userTagService.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
+import { METHOD_PAYMENT_TX_TYPE } from '../constants/transactions.js';
 import { updateShopOrderItemPrice } from '../services/shopOrderPriceService.js';
 import { applyDiscount, computeDiscountAmount, reverseOpenDiscountCreditsForEntity } from '../services/discountService.js';
 
@@ -165,7 +166,8 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       bank_account_id,
       receipt_url,
       discount_percent, // Optional staff % discount (FAB "New Sale"), applied atomically below
-      discount_reason
+      discount_reason,
+      mark_as_paid // Staff "Paid" toggle: order settled in person with payment_method
     } = req.body;
 
     // Front-desk staff (admin/manager/owner/super_admin + front_desk/receptionist)
@@ -194,11 +196,24 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       return res.status(400).json({ error: 'Order must contain at least one item' });
     }
 
-    if (!payment_method || !['wallet', 'credit_card', 'cash', 'wallet_hybrid', 'bank_transfer'].includes(payment_method)) {
+    if (!payment_method || !['wallet', 'credit_card', 'card', 'cash', 'wallet_hybrid', 'bank_transfer'].includes(payment_method)) {
       return res.status(400).json({ error: 'Invalid payment method' });
     }
 
-    if (payment_method === 'bank_transfer' && !receipt_url) {
+    // Staff "Paid" flow: the customer settled in person (cash / card terminal /
+    // bank transfer the staff verified), so the order confirms as paid and a
+    // zero-delta charge+payment pair goes to the ledger below. Staff-only — a
+    // customer must not be able to declare their own order pre-paid.
+    const staffInstantPaid = isStaffSeller === true && mark_as_paid === true
+      && ['cash', 'card', 'bank_transfer'].includes(payment_method);
+
+    // 'card' means an in-person card payment recorded by staff (no gateway);
+    // online card payments keep using 'credit_card' (Iyzico).
+    if (payment_method === 'card' && !staffInstantPaid) {
+      return res.status(400).json({ error: "payment_method 'card' requires staff mark_as_paid" });
+    }
+
+    if (payment_method === 'bank_transfer' && !receipt_url && !staffInstantPaid) {
       return res.status(400).json({ error: 'A proof of payment (receipt) is required for bank transfer orders' });
     }
 
@@ -641,9 +656,9 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
     }
 
     // Process cash payment — auto-confirm order (payment collected on pickup/delivery)
-    if (payment_method === 'cash') {
+    if (payment_method === 'cash' && !staffInstantPaid) {
       await client.query(`
-        UPDATE shop_orders 
+        UPDATE shop_orders
         SET status = 'confirmed', payment_status = 'pending', confirmed_at = $2
         WHERE id = $1
       `, [order.id, orderCreatedAt]);
@@ -652,6 +667,67 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
         INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
         VALUES ($1, 'pending', 'confirmed', $2, 'Order confirmed — cash payment on pickup/delivery')
       `, [order.id, userId]);
+    }
+
+    // Staff "Paid" (cash / in-person card / verified bank transfer): confirm as
+    // paid and write the zero-delta charge+payment pair — the wallet balance
+    // never moves, but the customer's history shows the charge AND the method
+    // payment, and the credit leg counts as income. Debit first so the credit's
+    // later timestamp sorts it first in DESC history (bookings.js convention).
+    if (staffInstantPaid) {
+      await client.query(`
+        UPDATE shop_orders
+        SET status = 'confirmed', payment_status = 'completed', confirmed_at = $2
+        WHERE id = $1
+      `, [order.id, orderCreatedAt]);
+
+      await client.query(`
+        INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+        VALUES ($1, 'pending', 'confirmed', $2, $3)
+      `, [order.id, req.user.id, `Order paid in person (${payment_method}) — recorded by staff`]);
+
+      if (userId && finalAmount > 0) {
+        // Charge leg at GROSS (finances nets the discounts table off debit
+        // totals); payment leg at NET — the cash the staff actually took.
+        // Explicit transactionDate on each leg: inside one transaction NOW()
+        // is frozen, and identical timestamps make the pair's history order
+        // random. +1s guarantees the payment sorts above the charge in DESC.
+        const now = Date.now();
+        const netReceived = Math.max(0, parseFloat((finalAmount - staffDiscountAmount).toFixed(2)));
+        const pairBase = {
+          client,
+          userId,
+          currency: 'EUR',
+          status: 'completed',
+          paymentMethod: payment_method,
+          relatedEntityType: 'shop_order',
+          // No relatedEntityId — wallet_transactions.related_entity_id is UUID and
+          // shop_orders.id is SERIAL int. Numeric id stays in metadata.
+          createdBy: req.user.id,
+          allowNegative: true,
+          metadata: { orderId: order.id, orderNumber: order.order_number, source: 'shop_order_instant_paid' }
+        };
+        await recordTransaction({
+          ...pairBase,
+          amount: -finalAmount,
+          transactionType: 'shop_order_charge',
+          direction: 'debit',
+          availableDelta: 0,
+          transactionDate: new Date(now),
+          description: `${itemSummary} - Order #${order.order_number}`
+        });
+        if (netReceived > 0) {
+          await recordTransaction({
+            ...pairBase,
+            amount: netReceived,
+            transactionType: METHOD_PAYMENT_TX_TYPE[payment_method] || 'cash_payment',
+            direction: 'credit',
+            availableDelta: 0,
+            transactionDate: new Date(now + 1000),
+            description: `Payment received (${payment_method.replace('_', ' ')}): Order #${order.order_number}${staffDiscountAmount > 0 ? ` (net of €${staffDiscountAmount.toFixed(2)} discount)` : ''}`
+          });
+        }
+      }
     }
 
     // Process hybrid wallet+card payment (wallet deduction deferred to callback)
@@ -745,7 +821,7 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
     }
 
     // Process bank_transfer payment — order held pending admin receipt approval
-    if (payment_method === 'bank_transfer') {
+    if (payment_method === 'bank_transfer' && !staffInstantPaid) {
       if (receipt_url) {
         const receiptAmount = depositPct > 0 ? depositAmt : finalAmount;
         const adminNotes = depositPct > 0
@@ -792,6 +868,9 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
         percent: staffDiscPct,
         reason: discount_reason || 'Discount applied at sale creation',
         createdBy: req.user.id,
+        // Paid-in-person orders collected the NET price — no gross wallet debit
+        // exists, so the compensating credit would be free wallet money.
+        skipWalletCredit: staffInstantPaid,
       });
     }
 

@@ -30,7 +30,9 @@ export const fetchCustomerDiscounts = async (customerId) => {
   return data.discounts || [];
 };
 
-export const applyDiscount = async ({ customerId, entityType, entityId, percent, reason, participantUserId = null }) => {
+// skipWalletCredit: pass true when the entity was settled OUTSIDE the wallet at
+// the net price (Paid with cash/card/transfer) — see backend discountService.
+export const applyDiscount = async ({ customerId, entityType, entityId, percent, reason, participantUserId = null, skipWalletCredit = false }) => {
   const res = await fetch('/api/discounts', {
     method: 'POST',
     headers: buildHeaders(),
@@ -41,6 +43,7 @@ export const applyDiscount = async ({ customerId, entityType, entityId, percent,
       percent,
       reason,
       participant_user_id: participantUserId || null,
+      skip_wallet_credit: skipWalletCredit === true,
     }),
   });
   return handle(res);

@@ -18,11 +18,17 @@ export const fetchCustomerPackagesForFunding = async (customerId) => {
 //   mode: 'package' | 'cash'
 //   customerPackageId (optional, mode='package'): pin a specific package;
 //   omit to let the backend auto-match the customer's compatible packages.
-export const switchBookingFunding = async ({ bookingId, mode, customerPackageId = null }) => {
+//   participantId (required for semi-private/group): switch just that
+//   participant's funding; the backend re-derives the booking aggregates.
+export const switchBookingFunding = async ({ bookingId, mode, customerPackageId = null, participantId = null }) => {
   try {
     const { data } = await apiClient.post(
       `/bookings/${encodeURIComponent(bookingId)}/switch-funding`,
-      { mode, customer_package_id: customerPackageId || undefined }
+      {
+        mode,
+        customer_package_id: customerPackageId || undefined,
+        participant_id: participantId || undefined,
+      }
     );
     return data;
   } catch (err) {

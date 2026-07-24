@@ -209,6 +209,11 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
   const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [allowNegativeBalance, setAllowNegativeBalance] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(null);
+  // "Paid" = customer settled right now (cash / card terminal / bank transfer):
+  // the backend confirms the order as paid and writes a zero-delta charge+payment
+  // pair to the ledger instead of debiting the wallet.
+  const [paidNow, setPaidNow] = useState(false);
+  const [paidMethod, setPaidMethod] = useState('cash');
 
   const isAdminOrManager = ['admin', 'manager', 'super_admin', 'owner'].includes(user?.role?.toLowerCase?.());
   // Front-desk staff (receptionist / front_desk) may also sell on behalf of a
@@ -263,6 +268,8 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
       setOrderItems([]);
       setAllowNegativeBalance(false);
       setDiscountPercent(null);
+      setPaidNow(false);
+      setPaidMethod('cash');
     }
   }, [isOpen, form, loadCustomers, loadProducts]);
 
@@ -382,8 +389,11 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
           selected_size: item.selected_size || undefined,
           selected_color: item.selected_color || undefined,
         })),
-        payment_method: 'wallet',
-        allowNegativeBalance: isStaffSeller && allowNegativeBalance ? true : undefined,
+        payment_method: paidNow ? paidMethod : 'wallet',
+        // Staff "Paid" flow: order confirms as paid + zero-delta charge/payment
+        // pair in the ledger; the wallet is untouched (backend staff-gated).
+        mark_as_paid: paidNow ? true : undefined,
+        allowNegativeBalance: !paidNow && isStaffSeller && allowNegativeBalance ? true : undefined,
         notes: values.notes || undefined,
         shipping_address: values.shipping_address || undefined,
         // Send custom date if admin picked one (backend will use it for created_at)
@@ -609,6 +619,38 @@ function NewSaleDrawer({ isOpen, onClose, onSuccess }) {
         </Form.Item>
 
         {isStaffSeller && (
+          <div className="border border-emerald-200 rounded-lg p-3 space-y-2 mb-3">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox
+                checked={paidNow}
+                onChange={(e) => setPaidNow(e.target.checked)}
+              />
+              <span className="text-slate-700 font-medium">Paid</span>
+              <span className="text-slate-400 text-xs">— settled now, wallet untouched</span>
+            </label>
+            {paidNow && (
+              <>
+                <Select
+                  size="large"
+                  className="w-full"
+                  value={paidMethod}
+                  onChange={setPaidMethod}
+                  options={[
+                    { value: 'cash', label: '💵 Cash' },
+                    { value: 'card', label: '💳 Card' },
+                    { value: 'bank_transfer', label: '🏦 Bank Transfer' },
+                  ]}
+                />
+                <p className="text-xs text-slate-400 !mb-0">
+                  Records the charge and a matching {paidMethod === 'bank_transfer' ? 'bank transfer' : paidMethod} payment
+                  in the customer's financial history.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {isStaffSeller && !paidNow && (
           <div className="border border-amber-200 rounded-lg p-3 space-y-2 mb-3">
             <label className="flex items-center gap-2 cursor-pointer text-sm">
               <Checkbox

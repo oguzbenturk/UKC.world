@@ -1152,8 +1152,9 @@ router.get('/',
         COALESCE(
           json_agg(
             CASE 
-              WHEN bp.user_id IS NOT NULL THEN 
+              WHEN bp.user_id IS NOT NULL THEN
                 json_build_object(
+                  'id', bp.id,
                   'userId', bp.user_id,
                   'userName', pu.name,
                   'userEmail', pu.email,
@@ -1162,6 +1163,7 @@ router.get('/',
                   'paymentStatus', bp.payment_status,
                   'paymentAmount', bp.payment_amount,
                   'customerPackageId', bp.customer_package_id,
+                  'packageHoursUsed', bp.package_hours_used,
                   'notes', bp.notes
                 )
               ELSE NULL
@@ -1434,6 +1436,7 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
             CASE
               WHEN bp.user_id IS NOT NULL THEN
                 json_build_object(
+                  'id', bp.id,
                   'userId', bp.user_id,
                   'userName', pu.name,
                   'userEmail', pu.email,
@@ -1442,6 +1445,7 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
                   'paymentStatus', bp.payment_status,
                   'paymentAmount', bp.payment_amount,
                   'customerPackageId', bp.customer_package_id,
+                  'packageHoursUsed', bp.package_hours_used,
                   'notes', bp.notes
                 )
               ELSE NULL
@@ -3976,6 +3980,7 @@ router.post('/group',
         b.*,
         json_agg(
           json_build_object(
+            'id', bp.id,
             'userId', bp.user_id,
             'userName', u.name,
             'userEmail', u.email,
@@ -3984,6 +3989,7 @@ router.post('/group',
             'paymentStatus', bp.payment_status,
             'paymentAmount', bp.payment_amount,
             'customerPackageId', bp.customer_package_id,
+            'packageHoursUsed', bp.package_hours_used,
             'notes', bp.notes
           )
         ) as participants
@@ -4076,6 +4082,27 @@ router.post('/group',
         createdBy: actorId,
         role: createdByRole
       });
+    }
+
+    // Notify the assigned instructor for staff-created group/semi-private
+    // bookings (in-app + Telegram), mirroring the single-lesson endpoints.
+    // The student-created path already notifies them via sendBookingCreated
+    // (booking_instructor), so skip there to avoid duplicates. We DON'T
+    // skip self-assignment — many users wear both manager and instructor
+    // hats and want the Telegram ping for their own bookings.
+    const groupInstructorId = booking.instructor_user_id || instructor_user_id;
+    if (isStaffCreated && groupInstructorId) {
+      try {
+        await bookingNotificationService.notifyInstructorAssigned({
+          bookingId: booking.id,
+          instructorUserId: groupInstructorId
+        });
+      } catch (err) {
+        logger.warn('Failed to notify instructor of new group assignment', {
+          bookingId: booking.id,
+          error: err?.message
+        });
+      }
     }
 
     // Emit real-time event for booking creation
@@ -7366,10 +7393,12 @@ async function ensureRentalFromBooking(client, booking, actorUserId) {
 // POST /:id/switch-funding - Convert an existing booking between cash and package
 // funding from the booking detail view. Atomic: the ledger write, wallet
 // settlement and earnings/commission cascade all commit (or roll back) together.
-//   body: { mode: 'package' | 'cash', customer_package_id?: <uuid> }
+// Multi-participant (semi-private/group) bookings require participant_id and
+// switch that one participant's funding.
+//   body: { mode: 'package' | 'cash', customer_package_id?: <uuid>, participant_id?: <id> }
 router.post('/:id/switch-funding', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist', 'owner']), async (req, res) => {
   const { id } = req.params;
-  const { mode, customer_package_id } = req.body || {};
+  const { mode, customer_package_id, participant_id, participantId } = req.body || {};
   const actorId = resolveActorId(req);
 
   const client = await pool.connect();
@@ -7380,6 +7409,7 @@ router.post('/:id/switch-funding', authenticateJWT, authorizeRoles(['admin', 'ma
       mode,
       requestedPackageId: customer_package_id || null,
       actorId,
+      participantId: participant_id ?? participantId ?? null,
     });
     await client.query('COMMIT');
     return res.json({ success: true, ...result });

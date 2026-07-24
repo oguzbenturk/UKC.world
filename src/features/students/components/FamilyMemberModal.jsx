@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import {
   App,
   Button,
-  DatePicker,
   Form,
   Input,
   Modal,
@@ -19,6 +18,7 @@ import {
   Typography,
   Alert,
 } from 'antd';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import {
   UserAddOutlined,
   EditOutlined,
@@ -295,13 +295,13 @@ const FamilyMemberModal = ({ open, member = null, onSubmit, onCancel, submitting
               ]}
               extra={<Text type="secondary">{isChildRelationship ? t('student:family.modal.fields.dobUnderAge') : t('student:family.modal.fields.dobEnter')}</Text>}
             >
-              <DatePicker
+              <EasyDatePicker
                 style={{ width: '100%' }}
                 format="DD-MM-YYYY"
                 placeholder="DD-MM-YYYY"
                 maxDate={maxDate}
                 minDate={minDate}
-                showToday={false}
+                defaultPickerYear={isChildRelationship ? undefined : 1995}
                 className="rounded-lg"
               />
             </Form.Item>

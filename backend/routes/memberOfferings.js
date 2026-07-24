@@ -10,6 +10,8 @@ import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import CurrencyService from '../services/currencyService.js';
 import { dispatchNotification } from '../services/notificationDispatcherUnified.js';
 import { recordMembershipCommission, cancelCommission } from '../services/managerCommissionService.js';
+import { METHOD_PAYMENT_TX_TYPE } from '../constants/transactions.js';
+import { applyDiscount, computeDiscountAmount } from '../services/discountService.js';
 
 const router = Router();
 
@@ -1237,6 +1239,7 @@ router.post(
     body('startDate').optional().isISO8601().withMessage('Invalid start date'),
     body('endDate').optional().isISO8601().withMessage('Invalid end date'),
     body('storageUnit').optional({ nullable: true }).isInt({ min: 1 }).withMessage('storageUnit must be a positive integer'),
+    body('discountPercent').optional({ nullable: true }).isFloat({ min: 0, max: 100 }).withMessage('discountPercent must be 0-100'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -1246,7 +1249,7 @@ router.post(
 
     const client = await pool.connect();
     try {
-      const { userId, offeringId, paymentMethod, notes, startDate, endDate, storageUnit: requestedUnit } = req.body;
+      const { userId, offeringId, paymentMethod, notes, startDate, endDate, storageUnit: requestedUnit, discountPercent } = req.body;
 
       await client.query('BEGIN');
 
@@ -1377,37 +1380,75 @@ router.post(
       // Mirror the sale into wallet_transactions so it appears in the customer's financial
       // history. Runs on its OWN connection (NOT the transaction above) and AFTER commit, so a
       // wallet-log failure can never roll back / lose the already-committed purchase — keeping
-      // the prior non-fatal behavior. Cash/card/transfer write an audit row without moving the
-      // balance; wallet payments allow negative because the route is staff-gated.
+      // the prior non-fatal behavior.
+      //   wallet            → one REAL debit (balance moves; staff-gated allowNegative).
+      //   cash/card/transfer → a zero-delta charge+payment PAIR (debit membership_charge,
+      //     then credit cash_payment/card_payment/bank_transfer_payment) so history shows
+      //     both the charge and how it was settled, income counts once via the credit leg,
+      //     and the balance never moves — same pattern as bank-transfer receipt approval.
+      const discPct = Math.max(0, Math.min(100, Number(discountPercent) || 0));
+      const discAmount = discPct > 0 ? computeDiscountAmount(effectivePrice, discPct) : 0;
+
       try {
         const price = parseFloat(effectivePrice) || 0;
         if (price > 0) {
           const txCurrency = offering.currency || 'EUR';
-          await recordTransaction({
+          const label = `${isStorage ? 'Storage' : 'Membership'} purchase: ${offering.name}${priceMultiplier > 1 ? ` (${effectiveDays} days)` : ''}${storageUnit ? ` (unit #${storageUnit})` : ''}`;
+          const txMetadata = {
+            offeringId,
+            offeringName: offering.name,
+            memberPurchaseId: purchase.id,
+            category: offering.category,
+            storageUnit,
+            adminSale: true,
+          };
+          const baseTx = {
             userId,
-            amount: -price,
             currency: txCurrency,
-            transactionType: 'payment',
-            direction: 'debit',
-            availableDelta: paymentMethod === 'wallet' ? -price : 0,
-            description: `${isStorage ? 'Storage' : 'Membership'} purchase: ${offering.name}${priceMultiplier > 1 ? ` (${effectiveDays} days)` : ''}${storageUnit ? ` (unit #${storageUnit})` : ''}`,
             paymentMethod,
             createdBy: req.user.id,
             relatedEntityType: 'member_purchase',
             // No relatedEntityId — wallet_transactions.related_entity_id is UUID-typed and
             // member_purchases.id is SERIAL int. Numeric id lives in metadata for lookup.
-            metadata: {
-              offeringId,
-              offeringName: offering.name,
-              memberPurchaseId: purchase.id,
-              category: offering.category,
-              storageUnit,
-              adminSale: true,
-            },
+            metadata: txMetadata,
+            allowNegative: true,
+          };
+          if (paymentMethod === 'wallet') {
             // Wallet payments allow negative because the route is gated to staff and they've
             // already decided this customer should be sold to even with insufficient balance.
-            allowNegative: true,
-          });
+            await recordTransaction({
+              ...baseTx,
+              amount: -price,
+              transactionType: 'payment',
+              direction: 'debit',
+              availableDelta: -price,
+              description: label,
+            });
+          } else {
+            // Debit first, then credit — the credit's later timestamp sorts it first in
+            // DESC history ("Payment Received" above "Charge"), matching bookings.js.
+            // Charge leg at GROSS (finances nets the discounts table off debit totals);
+            // payment leg at NET of the staff discount — the cash actually collected.
+            const netReceived = Math.max(0, parseFloat((price - discAmount).toFixed(2)));
+            await recordTransaction({
+              ...baseTx,
+              amount: -price,
+              transactionType: 'membership_charge',
+              direction: 'debit',
+              availableDelta: 0,
+              description: label,
+            });
+            if (netReceived > 0) {
+              await recordTransaction({
+                ...baseTx,
+                amount: netReceived,
+                transactionType: METHOD_PAYMENT_TX_TYPE[paymentMethod] || 'cash_payment',
+                direction: 'credit',
+                availableDelta: 0,
+                description: `Payment received (${paymentMethod}): ${offering.name}${discAmount > 0 ? ` (net of €${discAmount.toFixed(2)} discount)` : ''}`,
+              });
+            }
+          }
         }
       } catch (txErr) {
         // Non-fatal: the member_purchases row is already committed; if the wallet log fails we
@@ -1425,6 +1466,35 @@ router.post(
       // manager was never paid. Base is beach-fee only (storage excluded); pure
       // storage records nothing. Runs after commit, non-fatal.
       recordMembershipCommission({ ...purchase, category: offering.category }).catch(() => {});
+
+      // Staff discount, applied server-side after the wallet mirror (same
+      // debit-then-credit ordering the old drawer-driven POST /discounts flow
+      // had). Non-wallet ("Paid") sales collected the NET price in person, so
+      // skipWalletCredit suppresses the compensating credit — the payment leg
+      // above is already net of the discount. Non-fatal, own transaction.
+      if (discPct > 0) {
+        const discClient = await pool.connect();
+        try {
+          await discClient.query('BEGIN');
+          await applyDiscount(discClient, {
+            customerId: userId,
+            entityType: 'member_purchase',
+            entityId: purchase.id,
+            percent: discPct,
+            reason: 'Discount applied at membership creation',
+            createdBy: req.user.id,
+            skipWalletCredit: paymentMethod !== 'wallet',
+          });
+          await discClient.query('COMMIT');
+        } catch (discErr) {
+          try { await discClient.query('ROLLBACK'); } catch { /* ignore */ }
+          logger.warn('Failed to apply membership creation discount', {
+            purchaseId: purchase.id, userId, discPct, error: discErr.message,
+          });
+        } finally {
+          discClient.release();
+        }
+      }
 
       logger.info(`Member purchase created by admin: user=${userId}, offering=${offering.name}${storageUnit ? `, unit=#${storageUnit}` : ''}`);
       res.status(201).json(purchase);

@@ -47,9 +47,12 @@ router.get('/', authorizeRoles(READ_ROLES), async (req, res) => {
   }
 });
 
-// POST /api/discounts  { customer_id, entity_type, entity_id, percent, reason?, participant_user_id? }
+// POST /api/discounts  { customer_id, entity_type, entity_id, percent, reason?, participant_user_id?, skip_wallet_credit? }
+// skip_wallet_credit: pass true when the entity was settled OUTSIDE the wallet at
+// the net price (cash/card/transfer "Paid" sales) — the compensating wallet
+// credit assumes a gross wallet debit exists and would otherwise be free money.
 router.post('/', authorizeRoles(STAFF_ROLES), async (req, res) => {
-  const { customer_id, entity_type, entity_id, percent, reason, participant_user_id } = req.body || {};
+  const { customer_id, entity_type, entity_id, percent, reason, participant_user_id, skip_wallet_credit } = req.body || {};
   if (!customer_id || !entity_type || entity_id == null || percent == null) {
     return res.status(400).json({ error: 'customer_id, entity_type, entity_id, percent are required' });
   }
@@ -68,6 +71,7 @@ router.post('/', authorizeRoles(STAFF_ROLES), async (req, res) => {
       reason,
       createdBy: req.user?.id || null,
       participantUserId: participant_user_id || null,
+      skipWalletCredit: skip_wallet_credit === true,
     });
     await client.query('COMMIT');
     logger.info('Discount applied', {

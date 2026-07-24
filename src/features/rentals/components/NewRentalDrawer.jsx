@@ -61,6 +61,11 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [equipmentDropdownOpen, setEquipmentDropdownOpen] = useState(false);
   const [insuranceEnabled, setInsuranceEnabled] = useState(false);
+  // "Paid" = customer settled right now with cash / card / bank transfer: the
+  // backend skips the wallet debit and writes a zero-delta charge+payment pair
+  // instead, so history shows both legs and the balance never moves.
+  const [paidNow, setPaidNow] = useState(false);
+  const [paidMethod, setPaidMethod] = useState('cash');
 
   // Load customers
   const loadCustomers = useCallback(async () => {
@@ -314,6 +319,8 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
     setSelectedPackageId(null);
     setAvailableRentalPackages([]);
     setInsuranceEnabled(false);
+    setPaidNow(false);
+    setPaidMethod('cash');
     onClose();
   }, [form, onClose]);
 
@@ -353,6 +360,11 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
         use_package: usePackage && !!selectedPackageId,
         customer_package_id: usePackage ? selectedPackageId : null,
         rental_days: 1,
+        // Paid-now: backend records the zero-delta charge+payment pair for this
+        // method instead of debiting the wallet. Omitted → backend default (wallet).
+        ...(!editingRental && paidNow && !(usePackage && selectedPackageId)
+          ? { payment_method: paidMethod }
+          : {}),
       };
 
       // Send the insurance-inclusive price when insurance is on; otherwise keep
@@ -640,6 +652,53 @@ function NewRentalDrawer({ isOpen, onClose, onSuccess, editingRental, prefilledC
                     {insuranceEnabled && <CheckOutlined className="text-white text-[10px]" />}
                   </span>
                 </button>
+              </div>
+            )}
+
+            {/* Paid — customer settles right now with a real-world method instead of
+                the wallet. Hardcoded English strings to match Insurance/Discount. */}
+            {!editingRental && !(usePackage && selectedPackageId) && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Payment</p>
+                <button
+                  type="button"
+                  onClick={() => setPaidNow((v) => !v)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                    paidNow
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${paidNow ? 'bg-emerald-500' : 'bg-slate-100'}`}>
+                    <CheckOutlined className={`text-base ${paidNow ? 'text-white' : 'text-slate-400'}`} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className={`block text-sm font-semibold leading-tight ${paidNow ? 'text-emerald-700' : 'text-slate-700'}`}>
+                      Paid
+                    </span>
+                    <span className={`block text-xs mt-0.5 ${paidNow ? 'text-emerald-500' : 'text-slate-400'}`}>
+                      {paidNow
+                        ? 'Charge + payment recorded in history — wallet untouched'
+                        : 'Off = rental charged to the customer wallet'}
+                    </span>
+                  </span>
+                  <span className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${paidNow ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 bg-white'}`}>
+                    {paidNow && <CheckOutlined className="text-white text-[10px]" />}
+                  </span>
+                </button>
+                {paidNow && (
+                  <Select
+                    size="large"
+                    className="w-full mt-2"
+                    value={paidMethod}
+                    onChange={setPaidMethod}
+                    options={[
+                      { value: 'cash', label: '💵 Cash' },
+                      { value: 'card', label: '💳 Card' },
+                      { value: 'bank_transfer', label: '🏦 Bank Transfer' },
+                    ]}
+                  />
+                )}
               </div>
             )}
 

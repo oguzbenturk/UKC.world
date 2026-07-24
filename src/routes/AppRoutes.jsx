@@ -174,6 +174,7 @@ const PublicProposalView = lazyWithRetry(() => import('../features/proposals/pag
 
 // Public QR customer self-registration (Customer Mode QR target)
 const QuickRegisterPage = lazyWithRetry(() => import('../features/customers/pages/QuickRegisterPage'));
+const DatePickerTestPage = lazyWithRetry(() => import('../features/dev/pages/DatePickerTestPage'));
 
 // Form Builder
 const FormsListPage = lazyWithRetry(() => import('../features/forms/pages/FormsListPage'));
@@ -365,6 +366,9 @@ const AppRoutes = () => {
 
   {/* Public route for QR-based customer self-registration (Customer Mode QR) */}
   <Route path="/join" element={<QuickRegisterPage />} />
+
+  {/* Temporary test page for the guided date-picker proposal — remove after rollout */}
+  <Route path="/dev/date-picker-test" element={<DatePickerTestPage />} />
 
   {/* Public route for custom forms (short URL: /f/CODE) */}
   <Route path="/f/success/:linkCode" element={<FormSuccessPage />} />

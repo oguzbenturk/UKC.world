@@ -45,7 +45,7 @@ const DEBIT_TRANSACTION_TYPES = new Set(['charge', 'debit', 'payment', 'service_
 // manual credits are credit-direction but do NOT represent money received from
 // the customer (refunds flow out; discounts/credits are bookkeeping). Anything
 // not in this set, when credit-direction, is treated as a charge reduction.
-const INCOME_TX_TYPES = ['wallet_deposit', 'deposit', 'payment', 'bank_transfer_payment'];
+const INCOME_TX_TYPES = ['wallet_deposit', 'deposit', 'payment', 'bank_transfer_payment', 'cash_payment', 'card_payment'];
 const PACKAGE_CASCADE_STRATEGIES = new Set(['delete-all-lessons', 'charge-used']);
 const DEFAULT_PACKAGE_STRATEGY = 'delete-all-lessons';
 

@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Spin, DatePicker, Upload, Select } from 'antd';
+import { Form, Input, Button, Spin, Upload, Select } from 'antd';
+import dayjs from 'dayjs';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import { message } from '@/shared/utils/antdStatic';
 import {
   ArrowLeftOutlined, UserOutlined, MailOutlined, PhoneOutlined,
-  LockOutlined, CalendarOutlined, EnvironmentOutlined,
+  LockOutlined, EnvironmentOutlined,
   CameraOutlined, SaveOutlined, TeamOutlined,
   BookOutlined, CheckOutlined,
 } from '@ant-design/icons';
-import moment from 'moment';
 import { useData } from '@/shared/hooks/useData';
 import { useInstructorRoleId } from '@/shared/hooks/useInstructorRoleId';
 import apiClient from '@/shared/services/apiClient';
@@ -114,7 +115,7 @@ const InstructorFormPage = () => {
           if (data) {
             form.setFieldsValue({
               ...data,
-              date_of_birth: data.date_of_birth ? moment(data.date_of_birth) : null,
+              date_of_birth: data.date_of_birth ? dayjs(data.date_of_birth) : null,
             });
             if (data.profile_image_url) setAvatarUrl(data.profile_image_url);
           }
@@ -309,7 +310,7 @@ const InstructorFormPage = () => {
                   <Input prefix={<PhoneOutlined className="text-slate-300" />} placeholder="+1 555 000 0000" className="rounded-lg" />
                 </Form.Item>
                 <Form.Item name="date_of_birth" label={<Label>{t('instructor:instructorForm.dateOfBirth')}</Label>}>
-                  <DatePicker style={{ width: '100%' }} placeholder="Select date" className="rounded-lg" suffixIcon={<CalendarOutlined className="text-slate-300" />} />
+                  <EasyDatePicker style={{ width: '100%' }} placeholder="Select date" className="rounded-lg" maxDate={dayjs()} defaultPickerYear={1995} />
                 </Form.Item>
                 <Form.Item name="preferred_currency" label={<Label>{t('instructor:instructorForm.preferredCurrency')}</Label>} initialValue="EUR">
                   <Select>

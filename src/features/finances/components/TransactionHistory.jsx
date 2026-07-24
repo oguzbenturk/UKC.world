@@ -42,6 +42,11 @@ const TYPE_COLORS = {
   package_price_adjustment: 'geekblue',
   discount_adjustment: 'green',
   discount_adjustment_reversal: 'orange',
+  cash_payment: 'green',
+  card_payment: 'green',
+  bank_transfer_payment: 'green',
+  membership_charge: 'purple',
+  shop_order_charge: 'blue',
 };
 
 const toTitleCase = (value) =>

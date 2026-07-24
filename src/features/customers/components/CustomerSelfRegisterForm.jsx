@@ -8,7 +8,7 @@ import ReactCountryFlag from 'react-country-flag';
 import dayjs from 'dayjs';
 import DataService from '@/shared/services/dataService';
 import apiClient from '@/shared/services/apiClient';
-import FlexibleDatePicker from '@/shared/components/ui/FlexibleDatePicker';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import { countries, detectCountryFromPhone } from '@/shared/components/ui/UserForm';
 
 /**
@@ -260,10 +260,12 @@ const CustomerSelfRegisterForm = ({ roles, onSuccess, onCancel, publicMode = fal
         <Row gutter={16}>
           <Col xs={24} sm={12}>
             <Form.Item name="date_of_birth" label={t('common:userForm.dateOfBirth')}>
-              <FlexibleDatePicker
+              <EasyDatePicker
                 style={{ width: '100%' }}
                 placeholder={t('common:userForm.selectDateOfBirth')}
-                disabledDate={(current) => current && current > dayjs().endOf('day')}
+                maxDate={dayjs()}
+                defaultPickerYear={1995}
+                variant={publicMode ? 'dark' : 'light'}
               />
             </Form.Item>
           </Col>

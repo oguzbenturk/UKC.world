@@ -113,6 +113,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [showFundingModal, setShowFundingModal] = useState(false);
+  // Semi-private/group: which participant the funding modal targets (null = whole booking)
+  const [fundingParticipant, setFundingParticipant] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedInstructor, setSelectedInstructor] = useState(null);
@@ -1650,11 +1652,30 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                           {t('common:bookings.detail.primary')}
                                         </span>
                                       )}
+                                      {(participant.paymentStatus === 'package' || participant.paymentStatus === 'partial') && participant.customerPackageId && (
+                                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                          {participant.paymentStatus === 'partial' ? 'Package + cash' : 'Package'}
+                                        </span>
+                                      )}
                                     </p>
                                     {participant.userEmail && (
                                       <p className="text-xs text-gray-500">{participant.userEmail}</p>
                                     )}
                                   </div>
+                                  {/* Per-participant funding switch (semi-private/group) */}
+                                  {canModifyBooking && booking.status !== 'cancelled' && participant.id && booking.participants.length > 1 && (
+                                    <button
+                                      type="button"
+                                      className="flex items-center px-2 py-1 rounded-md text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                                      onClick={() => { setFundingParticipant(participant); setShowFundingModal(true); }}
+                                      disabled={isProcessing}
+                                    >
+                                      <ArrowsRightLeftIcon className="h-3 w-3 mr-1" />
+                                      {(participant.paymentStatus === 'package' || participant.paymentStatus === 'partial') && participant.customerPackageId
+                                        ? 'To Cash'
+                                        : 'To Package'}
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1796,13 +1817,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           </button>
                         )}
 
-                        {/* Switch funding: cash ↔ package. Single-participant only (backend
-                            rejects group switching in v1). */}
+                        {/* Switch funding: cash ↔ package. Multi-participant bookings switch
+                            per participant via the buttons in the People card above. */}
                         {booking.status !== 'cancelled' && !(booking.participants && booking.participants.length > 1) && (
                           <button
                             type="button"
                             className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 transition-colors"
-                            onClick={() => setShowFundingModal(true)}
+                            onClick={() => { setFundingParticipant(null); setShowFundingModal(true); }}
                             disabled={isProcessing}
                           >
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5 mr-1" />
@@ -2016,7 +2037,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
       <BookingFundingModal
         open={showFundingModal}
         booking={booking}
-        onClose={() => setShowFundingModal(false)}
+        participant={fundingParticipant}
+        onClose={() => { setShowFundingModal(false); setFundingParticipant(null); }}
         onDone={(result) => {
           try {
             const label = result?.mode === 'cash' ? 'Lesson switched to cash' : 'Lesson assigned to package';
@@ -2027,7 +2049,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
           // standalone CustomerPackageManager, useCustomerPackages hooks) refetches
           // the new used/remaining hours instead of showing pre-switch values.
           try {
-            const affectedCustomer = booking?.student_user_id || booking?.studentId || null;
+            const affectedCustomer = fundingParticipant?.userId
+              || booking?.student_user_id || booking?.studentId || null;
             eventBus.emit('packages:changed', {
               reason: 'funding-switch',
               customers: affectedCustomer ? [affectedCustomer] : [],

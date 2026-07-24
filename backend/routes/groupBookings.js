@@ -253,6 +253,11 @@ export async function ensureGroupCalendarBooking(groupBookingId, socketService, 
     }
   }
 
+  // NOTE: no instructor notification here on purpose — the auto-created row is
+  // still 'pending', and POST /group-bookings/:id/confirm already sends the
+  // instructor a 'booking_instructor' ping when staff confirm the session.
+  // Notifying here too would double-ping the instructor for the same lesson.
+
   return { bookingId, created };
 }
 

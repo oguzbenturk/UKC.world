@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Form, Input, Button, Modal, DatePicker, Upload, Select, Steps, Switch, Tag, Radio, InputNumber } from 'antd';
+import { Form, Input, Button, Modal, Upload, Select, Steps, Switch, Tag, Radio, InputNumber } from 'antd';
+import dayjs from 'dayjs';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import { message } from '@/shared/utils/antdStatic';
 import {
   UserOutlined, MailOutlined, PhoneOutlined,
-  LockOutlined, CalendarOutlined, EnvironmentOutlined,
+  LockOutlined, EnvironmentOutlined,
   CameraOutlined, SaveOutlined,
   BookOutlined, CheckOutlined, ArrowRightOutlined, ArrowLeftOutlined,
   DollarOutlined, PercentageOutlined, SafetyCertificateOutlined, TrophyOutlined,
@@ -339,7 +341,7 @@ const AddInstructorModal = ({ open, onClose, onSuccess }) => {
                 <Input prefix={<PhoneOutlined className="text-slate-300" />} placeholder="+1 555 000 0000" />
               </Form.Item>
               <Form.Item name="date_of_birth" label={<Label>{t('instructor:addInstructor.dateOfBirth')}</Label>}>
-                <DatePicker style={{ width: '100%' }} placeholder="Select date" suffixIcon={<CalendarOutlined className="text-slate-300" />} />
+                <EasyDatePicker style={{ width: '100%' }} placeholder="Select date" maxDate={dayjs()} defaultPickerYear={1995} />
               </Form.Item>
               <Form.Item name="preferred_currency" label={<Label>{t('instructor:addInstructor.preferredCurrency')}</Label>} initialValue="EUR" className="col-span-2">
                 <Select>

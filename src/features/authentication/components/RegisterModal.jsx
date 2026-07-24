@@ -2,7 +2,9 @@
 // Multi-step registration wizard: Account → Profile → Address
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Form, Input, Button, Select, InputNumber, Progress, DatePicker, Space } from 'antd';
+import { Modal, Form, Input, Button, Select, InputNumber, Progress, Space } from 'antd';
+import dayjs from 'dayjs';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import { message } from '@/shared/utils/antdStatic';
 import {
   UserOutlined,
@@ -462,12 +464,12 @@ const RegisterModal = ({ visible, onClose, onSuccess, inline = false }) => {
                 ]}
                 extra={<span style={{ color: '#9ca3af', fontSize: 12 }}>{t('public:register.hints.dob')}</span>}
               >
-                <DatePicker
+                <EasyDatePicker
                   placeholder="DD/MM/YYYY"
                   className="w-full !rounded-lg"
                   size="large"
-                  format={['DD/MM/YYYY', 'DD.MM.YYYY', 'D/M/YYYY', 'D.M.YYYY', 'DDMMYYYY']}
-                  disabledDate={(current) => current && current.valueOf() > Date.now()}
+                  maxDate={dayjs()}
+                  defaultPickerYear={1995}
                 />
               </Form.Item>
               <Form.Item

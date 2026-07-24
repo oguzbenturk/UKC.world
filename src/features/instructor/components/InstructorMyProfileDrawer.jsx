@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Drawer, Avatar, Tag, Spin, Tooltip, Form, Input, DatePicker, Button, Empty, Progress, Select, Modal
 } from 'antd';
+import EasyDatePicker from '@/shared/components/ui/EasyDatePicker';
 import {
   UserOutlined, MailOutlined, PhoneOutlined, CalendarOutlined,
   TeamOutlined, DollarOutlined, BookOutlined, ThunderboltOutlined,
@@ -273,7 +274,7 @@ function ProfileSection({ user, onSaved }) {
                 <Input placeholder={t('instructor:profile.formFields.phonePlaceholder')} />
               </Form.Item>
               <Form.Item name="date_of_birth" label={t('instructor:profile.formFields.dateOfBirth')} className="!mb-3">
-                <DatePicker className="w-full" format="YYYY-MM-DD" />
+                <EasyDatePicker className="w-full" format="YYYY-MM-DD" maxDate={dayjs()} defaultPickerYear={1995} />
               </Form.Item>
               <Form.Item name="city" label={t('instructor:profile.formFields.city')} className="!mb-3">
                 <Input placeholder={t('instructor:profile.formFields.cityPlaceholder')} />

@@ -93,6 +93,21 @@ export const PAYMENT_METHOD = Object.freeze({
   PACKAGE_PRICE_ADJUSTMENT: 'package_price_adjustment',
 });
 
+// Credit-leg transaction_type for an instantly-settled non-wallet payment
+// ("Paid" with a method on the membership / rental / sale forms). Each such
+// payment is a two-row pair: a DEBIT charge + one of these CREDIT rows, both
+// availableDelta 0 — the wallet balance never moves, but Payment History shows
+// the charge AND the method-payment, and the credit counts as income (these
+// types must stay in finances.js INCOME_TX_TYPES and dailyOperationsService
+// DAILY_INCOME_TYPES, like bank_transfer_payment).
+export const METHOD_PAYMENT_TX_TYPE = Object.freeze({
+  cash: 'cash_payment',
+  card: 'card_payment',
+  credit_card: 'card_payment',
+  transfer: 'bank_transfer_payment',
+  bank_transfer: 'bank_transfer_payment',
+});
+
 // Wallet transaction direction.
 export const TX_DIRECTION = Object.freeze({
   CREDIT: 'credit',
