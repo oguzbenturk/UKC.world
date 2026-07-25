@@ -128,6 +128,13 @@ const TIERS = [
 export const getHypeLine = (kts, seed = 0) => {
   if (!Number.isFinite(kts) || kts < HYPE_MIN_KTS) return null;
   const tier = TIERS.find((tr) => kts >= tr.min && kts < tr.max) || TIERS[TIERS.length - 1];
-  const s = Number.isFinite(seed) ? Math.abs(Math.trunc(seed)) : 0;
-  return tier.lines[s % tier.lines.length];
+  // Integer-hash the seed before indexing. A raw `seed % length` aliases badly —
+  // PWS timestamps land ~300s apart and 300 shares factors with the array
+  // lengths, so consecutive readings would freeze on the same line. This 32-bit
+  // finalizer scatters near-consecutive seeds across the whole set.
+  let x = (Number.isFinite(seed) ? Math.abs(Math.trunc(seed)) : 0) >>> 0;
+  x = (x ^ (x >>> 16)) >>> 0;
+  x = Math.imul(x, 0x45d9f3b) >>> 0;
+  x = (x ^ (x >>> 16)) >>> 0;
+  return tier.lines[x % tier.lines.length];
 };

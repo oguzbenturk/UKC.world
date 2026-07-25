@@ -9,7 +9,7 @@
  * 
  * Version is auto-incremented by push-all.js and push-sync.js on each deploy
  */
-export const APP_VERSION = '0.1.357';
+export const APP_VERSION = '0.1.358';
 
 // Log version on app load (helpful for debugging)
 if (typeof window !== 'undefined') {
