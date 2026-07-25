@@ -3363,8 +3363,16 @@ router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manage
     const params = [];
     let paramIdx = 1;
 
-    dateConditions.push(`wt.transaction_type IN ('manual_credit', 'wallet_deposit')`);
-    // Only real, settled deposits. Soft-deleting a deposit flips the original row
+    // Money-received events: wallet top-ups (manual_credit / wallet_deposit) AND
+    // in-person payments recorded via the "Paid" button on the New Sale / Rental /
+    // Membership forms (cash_payment / card_payment / bank_transfer_payment — the
+    // CREDIT leg of the zero-delta charge+payment pair). Staff see the "Paid"
+    // button as the automated equivalent of manually crediting the customer, so
+    // both belong in this one "wallet transactions" view. Only the credit
+    // (received) leg is included — the paired *_charge debit is what the money was
+    // for, not money in, so it stays out.
+    dateConditions.push(`wt.transaction_type IN ('manual_credit', 'wallet_deposit', 'cash_payment', 'card_payment', 'bank_transfer_payment')`);
+    // Only real, settled rows. Soft-deleting a deposit flips the original row
     // to status='cancelled' (no deleted_at column); without this filter those
     // cancelled rows kept inflating the stats, Top Depositors and trends (e.g. a
     // single deleted €18,280 deposit). Pending/unconfirmed deposits live in the

@@ -1315,14 +1315,14 @@
       "allTransactions": "All Transactions"
     },
     "walletDeposits": {
-      "title": "Wallet Deposits",
-      "tag": "Credits",
-      "subtitle": "Wallet Credit & Deposit Activity · {{range}}",
+      "title": "Wallet Transactions",
+      "tag": "Money In",
+      "subtitle": "Deposits & in-person payments · {{range}}",
       "stats": {
-        "totalDeposited": "Total Deposited",
-        "depositCount": "Deposit Count",
-        "uniqueStudents": "Unique Students",
-        "avgDeposit": "Avg. Deposit"
+        "totalDeposited": "Total Received",
+        "depositCount": "Transactions",
+        "uniqueStudents": "Unique Customers",
+        "avgDeposit": "Avg. Transaction"
       }
     },
     "paymentRefunds": {

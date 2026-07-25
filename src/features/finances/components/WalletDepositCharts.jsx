@@ -13,8 +13,10 @@ const AVATAR_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#
 
 const PAYMENT_METHOD_LABELS = {
   cash: 'Cash',
+  card: 'Card',
   credit_card: 'Credit Card',
   bank_transfer: 'Bank Transfer',
+  transfer: 'Bank Transfer',
   paypal: 'PayPal',
   iyzico: 'Iyzico',
   wallet: 'Wallet',
@@ -23,8 +25,10 @@ const PAYMENT_METHOD_LABELS = {
 
 const PAYMENT_METHOD_COLORS = {
   cash: 'green',
+  card: 'blue',
   credit_card: 'blue',
   bank_transfer: 'geekblue',
+  transfer: 'geekblue',
   paypal: 'cyan',
   iyzico: 'purple',
   wallet: 'gold',
@@ -118,7 +122,7 @@ const WalletDepositCharts = ({ dateRange }) => {
   if (!hasData) {
     return (
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <Empty description="No deposit data for this period" />
+        <Empty description="No transactions for this period" />
       </Card>
     );
   }
@@ -228,7 +232,7 @@ const WalletDepositCharts = ({ dateRange }) => {
           className="rounded-3xl border border-slate-200/70 shadow-sm"
           title={
             <div className="flex items-center justify-between">
-              <span className="text-base font-semibold text-slate-800">Top Depositors</span>
+              <span className="text-base font-semibold text-slate-800">Top Contributors</span>
               <Segmented
                 size="small"
                 value={topView}
@@ -242,7 +246,7 @@ const WalletDepositCharts = ({ dateRange }) => {
           }
         >
           {topChartData.length === 0 ? (
-            <Empty description="No depositors" />
+            <Empty description="No data" />
           ) : topView === 'bar' ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={topChartData} layout="vertical" margin={{ left: 10, right: 20 }}>
@@ -256,7 +260,7 @@ const WalletDepositCharts = ({ dateRange }) => {
                   tickFormatter={(v) => v.length > 14 ? v.slice(0, 12) + '…' : v}
                 />
                 <Tooltip content={<CustomTooltip type="currency" />} />
-                <Bar dataKey="totalDeposited" name="Total Deposited" radius={[0, 6, 6, 0]}>
+                <Bar dataKey="totalDeposited" name="Total Received" radius={[0, 6, 6, 0]}>
                   {topChartData.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -290,7 +294,7 @@ const WalletDepositCharts = ({ dateRange }) => {
         {/* Deposit Trends */}
         <Card
           className="rounded-3xl border border-slate-200/70 shadow-sm"
-          title={<span className="text-base font-semibold text-slate-800">Deposit Trends</span>}
+          title={<span className="text-base font-semibold text-slate-800">Transaction Trends</span>}
         >
           {trends.length === 0 ? (
             <Empty description="No trend data" />
@@ -322,7 +326,7 @@ const WalletDepositCharts = ({ dateRange }) => {
       {/* Recent Deposits Table */}
       <Card
         className="rounded-3xl border border-slate-200/70 shadow-sm overflow-hidden"
-        title={<span className="text-base font-semibold text-slate-800">Recent Deposits</span>}
+        title={<span className="text-base font-semibold text-slate-800">Recent Transactions</span>}
         styles={{ body: { padding: 0 } }}
       >
         <Table
@@ -332,7 +336,7 @@ const WalletDepositCharts = ({ dateRange }) => {
           pagination={{
             pageSize: 20,
             showSizeChanger: false,
-            showTotal: (total) => `${total} deposit${total !== 1 ? 's' : ''}`,
+            showTotal: (total) => `${total} transaction${total !== 1 ? 's' : ''}`,
           }}
           scroll={{ x: 860 }}
           size="small"

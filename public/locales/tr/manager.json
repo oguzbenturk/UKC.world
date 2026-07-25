@@ -1313,14 +1313,14 @@
       "allTransactions": "Tum Islemler"
     },
     "walletDeposits": {
-      "title": "Cüzdan Yüklemeleri",
-      "tag": "Krediler",
-      "subtitle": "Cüzdan Kredi ve Yükleme Aktivitesi · {{range}}",
+      "title": "Cüzdan İşlemleri",
+      "tag": "Gelen Para",
+      "subtitle": "Yüklemeler ve yerinde ödemeler · {{range}}",
       "stats": {
-        "totalDeposited": "Toplam Yüklenen",
-        "depositCount": "Yükleme Sayısı",
-        "uniqueStudents": "Benzersiz Öğrenciler",
-        "avgDeposit": "Ort. Yükleme"
+        "totalDeposited": "Toplam Alınan",
+        "depositCount": "İşlemler",
+        "uniqueStudents": "Benzersiz Müşteriler",
+        "avgDeposit": "Ort. İşlem"
       }
     },
     "paymentRefunds": {
