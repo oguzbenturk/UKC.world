@@ -8,6 +8,7 @@ import WindHistoryChart from './WindHistoryChart';
 import { calcKiteSize } from '../utils/kiteSize';
 import { stateBand, WR_TEXT, WR_DOT, WR_CHIP, WR_HEX, BRAND_CYAN } from '../utils/bandTheme';
 import { GUST_FACTOR_THRESHOLD } from '../utils/verdict';
+import { getHypeLine } from '../utils/hypeLines';
 import { Eyebrow, DataLabel } from './Typo';
 
 const relativeUpdated = (live, t) => {
@@ -117,6 +118,11 @@ const PwsLiveStation = ({ weight }) => {
   const gustFactor = live.windGustKts && kts ? live.windGustKts / kts : 0;
   const isGusty = gustFactor > GUST_FACTOR_THRESHOLD;
 
+  // Rotating hype line — only once the wind is genuinely rideable (>= 15 kt).
+  // Seeded on the reading's own timestamp so it's stable per reading (no flicker
+  // on re-render) yet swaps to a fresh line when a new observation lands.
+  const hype = getHypeLine(kts, live.unixtime || 0);
+
   return (
     <Shell>
       {/* breathing accent glow tinted by current state — gated by reduced-motion */}
@@ -139,6 +145,21 @@ const PwsLiveStation = ({ weight }) => {
           <p className={`font-duotone-bold leading-[0.98] tracking-normal ${WR_TEXT[band]} text-[30px] sm:text-[36px]`}>
             {verdict}
           </p>
+
+          {/* stoke line — appears only when it's actually windy (>= 15 kt). Keyed
+              on the text so a new reading's line fades in fresh. */}
+          {hype && (
+            <motion.p
+              key={hype}
+              initial={reduce ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduce ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className={`mt-2 flex items-center gap-2 font-duotone-bold text-[15px] leading-snug sm:text-[17px] ${WR_TEXT[band]}`}
+            >
+              <span className={`inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${WR_DOT[band]} ${reduce ? '' : 'animate-pulse'}`} />
+              {hype}
+            </motion.p>
+          )}
 
           <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
             <div className="flex items-end gap-3">

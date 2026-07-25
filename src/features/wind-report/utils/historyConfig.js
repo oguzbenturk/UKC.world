@@ -23,6 +23,16 @@ export const TICK_MS = {
   '7d': 24 * 60 * 60 * 1000,
 };
 
+// Range key → spacing between inline wind-speed value labels drawn ON the curve
+// (finer than the time-axis ticks): a number every 10 min on 1h, every 30 min on
+// 6h, etc., so you can read the actual knots along the line, not just its shape.
+export const LABEL_MS = {
+  '1h': 10 * 60 * 1000,
+  '6h': 30 * 60 * 1000,
+  '24h': 2 * 60 * 60 * 1000,
+  '7d': 24 * 60 * 60 * 1000,
+};
+
 // A break longer than this between consecutive readings means the station was offline
 // (the recorder samples every ~5 min) → render a gap, no interpolation across it.
 export const GAP_MS = 20 * 60 * 1000;
