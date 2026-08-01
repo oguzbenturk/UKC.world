@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, Empty, Spin, Segmented } from 'antd';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, LabelList
+} from 'recharts';
+import dayjs from 'dayjs';
 import { formatCurrency } from '@/shared/utils/formatters';
 
-const EQUIPMENT_COLORS = ['#f97316', '#ea580c', '#fb923c', '#fdba74', '#c2410c', '#9a3412', '#f59e0b', '#d97706', '#b45309', '#92400e'];
-const TREND_COLOR = '#f97316';
+const ACCENT = '#f97316';
+const ACCENT_DEEP = '#ea580c';
+const MICRO_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400';
+const SECTION_TITLE = 'font-duotone-medium-condensed text-lg uppercase tracking-wide text-slate-900';
+
 // Actual rentals.payment_status values: paid / unpaid / pending_payment (card awaiting
 // confirmation) / package (package-funded, €0) / failed (gateway init failed).
+// Reserved status colors — always rendered with a label, never color alone.
 const STATUS_COLORS = {
   paid: '#10b981',
   unpaid: '#ef4444',
   pending_payment: '#f59e0b',
   package: '#6366f1',
-  failed: '#dc2626',
+  failed: '#e11d48',
   refunded: '#8b5cf6'
 };
 const STATUS_LABELS = {
@@ -24,44 +32,76 @@ const STATUS_LABELS = {
   refunded: 'Refunded'
 };
 const statusLabel = (status) => STATUS_LABELS[status] || (status ? status.replace(/_/g, ' ') : 'Unknown');
+const statusColor = (status) => STATUS_COLORS[status] || '#94a3b8';
+
+const compactCurrency = (value) => {
+  const v = Number(value) || 0;
+  if (Math.abs(v) >= 1000) return `€${(v / 1000).toFixed(1)}k`;
+  return `€${Math.round(v)}`;
+};
+
+const monthTick = (month) => {
+  const d = dayjs(`${month}-01`);
+  return d.isValid() ? d.format("MMM 'YY") : month;
+};
+
+const TooltipShell = ({ title, rows }) => (
+  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
+    <p className="mb-1.5 text-sm font-semibold text-slate-800">{title}</p>
+    {rows.map((row) => (
+      <p key={row.label} className="flex items-center justify-between gap-6 text-xs text-slate-500">
+        {row.label}
+        <span className="font-semibold text-slate-800 tabular-nums">{row.value}</span>
+      </p>
+    ))}
+  </div>
+);
+
+const EquipmentTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const eq = payload[0]?.payload;
+  if (!eq) return null;
+  return (
+    <TooltipShell
+      title={eq.name}
+      rows={[
+        { label: 'Rentals', value: eq.rentals },
+        { label: 'Revenue', value: formatCurrency(eq.revenue) },
+        { label: 'Avg / rental', value: formatCurrency(eq.avgPrice) },
+      ]}
+    />
+  );
+};
+
+const TrendTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const point = payload[0]?.payload;
+  if (!point) return null;
+  return (
+    <TooltipShell
+      title={monthTick(point.month)}
+      rows={[
+        { label: 'Revenue', value: formatCurrency(point.revenue) },
+        { label: 'Rentals', value: point.rentals },
+      ]}
+    />
+  );
+};
 
 // Presentational: data is fetched once by FinanceRentals and shared with RentalAnalytics.
 const RentalBreakdownCharts = ({ data, loading }) => {
-  const [equipmentView, setEquipmentView] = useState('bar');
+  const [metric, setMetric] = useState('rentals');
 
-  const CustomTooltip = ({ active, payload, label, type }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
-        <p className="mb-1 text-sm font-semibold text-slate-800">{label || payload[0]?.name}</p>
-        {payload.map((entry) => (
-          <p key={entry.dataKey || entry.name} className="text-xs text-slate-600">
-            <span style={{ color: entry.color }}>{entry.name || entry.dataKey}: </span>
-            <span className="font-medium">
-              {entry.dataKey === 'revenue' || entry.dataKey === 'avgPrice' || type === 'currency'
-                ? formatCurrency(entry.value)
-                : entry.value}
-            </span>
-          </p>
-        ))}
-      </div>
-    );
-  };
+  const equipment = data?.equipment || [];
+  const trends = data?.trends || [];
+  const paymentStatus = useMemo(() => data?.paymentStatus || [], [data]);
 
-  const PieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-    if (percent < 0.05) return null;
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    return (
-      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-medium">
-        {(percent * 100).toFixed(0)}%
-      </text>
-    );
-  };
+  const totalStatusCount = useMemo(
+    () => paymentStatus.reduce((sum, ps) => sum + (Number(ps.count) || 0), 0),
+    [paymentStatus]
+  );
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-16">
         <Spin size="large" />
@@ -69,133 +109,168 @@ const RentalBreakdownCharts = ({ data, loading }) => {
     );
   }
 
-  const equipment = data?.equipment || [];
-  const trends = data?.trends || [];
-  const paymentStatus = data?.paymentStatus || [];
+  const isRevenueMetric = metric === 'revenue';
 
   return (
-    <div className="space-y-6">
-      {/* Equipment Popularity */}
+    <div className="space-y-5">
+      {/* Equipment popularity — ranked bars, one metric at a time */}
       <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Equipment Popularity</h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className={SECTION_TITLE}>Equipment Popularity</h3>
           {equipment.length > 0 && (
             <Segmented
               size="small"
-              value={equipmentView}
-              onChange={setEquipmentView}
+              value={metric}
+              onChange={setMetric}
               options={[
-                { label: 'Bar', value: 'bar' },
-                { label: 'Pie', value: 'pie' }
+                { label: 'Rentals', value: 'rentals' },
+                { label: 'Revenue', value: 'revenue' }
               ]}
             />
           )}
         </div>
         {equipment.length === 0 ? (
           <Empty description="No rental data in this period" />
-        ) : equipmentView === 'bar' ? (
-          <ResponsiveContainer width="100%" height={Math.max(280, equipment.length * 45)}>
-            <BarChart data={equipment} layout="vertical" margin={{ left: 20, right: 30, top: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis type="number" tick={{ fontSize: 12, fill: '#64748b' }} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={160}
-                tick={{ fontSize: 12, fill: '#334155' }}
-                tickFormatter={(v) => v.length > 22 ? v.slice(0, 20) + '…' : v}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Bar dataKey="rentals" name="Rentals" fill="#f97316" radius={[0, 6, 6, 0]} barSize={20} />
-            </BarChart>
-          </ResponsiveContainer>
         ) : (
-          <div className="flex flex-col items-center gap-4 lg:flex-row lg:justify-center">
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart>
-                <Pie
-                  data={equipment}
-                  dataKey="revenue"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={120}
-                  innerRadius={50}
-                  label={PieLabel}
-                  labelLine={false}
-                >
-                  {equipment.map((_, i) => (
-                    <Cell key={`cell-${equipment[i]?.serviceId}`} fill={EQUIPMENT_COLORS[i % EQUIPMENT_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip type="currency" />} />
-                <Legend
-                  formatter={(value) => <span className="text-xs text-slate-600">{value}</span>}
-                  wrapperStyle={{ fontSize: 12 }}
+          <>
+            <ResponsiveContainer width="100%" height={Math.max(260, equipment.length * 42)}>
+              <BarChart data={equipment} layout="vertical" margin={{ left: 8, right: 52, top: 0, bottom: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={190}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: '#475569' }}
+                  tickFormatter={(v) => v.length > 32 ? v.slice(0, 30) + '…' : v}
                 />
-              </PieChart>
+                <Tooltip content={<EquipmentTooltip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
+                <Bar dataKey={metric} fill={ACCENT} radius={[0, 4, 4, 0]} barSize={16}>
+                  <LabelList
+                    dataKey={metric}
+                    position="right"
+                    fill="#64748b"
+                    fontSize={11}
+                    formatter={(v) => isRevenueMetric ? compactCurrency(v) : v}
+                  />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
-          </div>
-        )}
-        {equipment.length > 0 && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {equipment.slice(0, 6).map((eq, i) => (
-              <div key={eq.serviceId} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white" style={{ backgroundColor: EQUIPMENT_COLORS[i % EQUIPMENT_COLORS.length] }}>
-                  {i + 1}
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {equipment.slice(0, 6).map((eq, i) => (
+                <div
+                  key={eq.serviceId}
+                  className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 transition-colors hover:border-orange-200 hover:bg-orange-50/40"
+                >
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-orange-600 font-duotone-bold text-sm text-white">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">{eq.name}</p>
+                    <p className="text-xs text-slate-500 tabular-nums">
+                      {eq.rentals} rentals · {formatCurrency(eq.revenue)}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-800">{eq.name}</p>
-                  <p className="text-xs text-slate-500">{eq.rentals} rentals · {formatCurrency(eq.revenue)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 
-      {/* Revenue Trend */}
+      {/* Revenue trend — monthly, real buckets only */}
       {trends.length > 1 && (
         <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Revenue Trend</h3>
+          <h3 className={`${SECTION_TITLE} mb-4`}>Revenue Trend</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={trends} margin={{ left: 20, right: 30, top: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(v) => formatCurrency(v)} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Line type="monotone" dataKey="revenue" name="Revenue" stroke={TREND_COLOR} strokeWidth={2} dot={{ fill: TREND_COLOR, r: 4 }} />
-            </LineChart>
+            <AreaChart data={trends} margin={{ left: 4, right: 16, top: 8, bottom: 0 }}>
+              <defs>
+                <linearGradient id="rentalTrendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={ACCENT} stopOpacity={0.25} />
+                  <stop offset="100%" stopColor={ACCENT} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#64748b' }}
+                tickFormatter={monthTick}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                width={52}
+                tick={{ fontSize: 12, fill: '#64748b' }}
+                tickFormatter={compactCurrency}
+              />
+              <Tooltip content={<TrendTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '3 3' }} />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke={ACCENT_DEEP}
+                strokeWidth={2}
+                fill="url(#rentalTrendFill)"
+                dot={false}
+                activeDot={{ r: 4, fill: ACCENT_DEEP, stroke: '#fff', strokeWidth: 2 }}
+              />
+            </AreaChart>
           </ResponsiveContainer>
         </Card>
       )}
 
-      {/* Payment Status Breakdown */}
+      {/* Payment status — share band + detail table */}
       {paymentStatus.length > 0 && (
         <Card className="rounded-3xl border border-slate-200/70 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">Payment Status</h3>
+          <h3 className={`${SECTION_TITLE} mb-4`}>Payment Status</h3>
+
+          {totalStatusCount > 0 && (
+            <div className="mb-5">
+              <div className="flex h-3 gap-[3px] overflow-hidden rounded-full">
+                {paymentStatus.map((ps) => (
+                  <div
+                    key={ps.status}
+                    className="rounded-full"
+                    style={{
+                      width: `${((Number(ps.count) || 0) / totalStatusCount) * 100}%`,
+                      minWidth: 6,
+                      backgroundColor: statusColor(ps.status)
+                    }}
+                    title={`${statusLabel(ps.status)}: ${ps.count}`}
+                  />
+                ))}
+              </div>
+              <p className={`mt-2 ${MICRO_LABEL}`}>Share of rentals by payment status</p>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                  <th className="py-2 pr-4">Status</th>
-                  <th className="py-2 pr-4 text-right">Count</th>
-                  <th className="py-2 text-right">Revenue</th>
+                <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-400">
+                  <th className="py-2 pr-4 font-semibold">Status</th>
+                  <th className="py-2 pr-4 text-right font-semibold">Count</th>
+                  <th className="py-2 pr-4 text-right font-semibold">Share</th>
+                  <th className="py-2 text-right font-semibold">Revenue</th>
                 </tr>
               </thead>
               <tbody>
                 {paymentStatus.map((ps) => (
-                  <tr key={ps.status} className="border-b border-slate-100">
-                    <td className="py-2 pr-4">
+                  <tr key={ps.status} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2.5 pr-4">
                       <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[ps.status] || '#94a3b8' }} />
-                        <span className="font-medium capitalize text-slate-800">{statusLabel(ps.status)}</span>
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: statusColor(ps.status) }} />
+                        <span className="font-medium text-slate-800">{statusLabel(ps.status)}</span>
                       </div>
                     </td>
-                    <td className="py-2 pr-4 text-right text-slate-600">{ps.count}</td>
-                    <td className="py-2 text-right font-medium text-orange-600">{formatCurrency(ps.revenue)}</td>
+                    <td className="py-2.5 pr-4 text-right text-slate-600 tabular-nums">{ps.count}</td>
+                    <td className="py-2.5 pr-4 text-right text-slate-400 tabular-nums">
+                      {totalStatusCount > 0 ? `${(((Number(ps.count) || 0) / totalStatusCount) * 100).toFixed(1)}%` : '—'}
+                    </td>
+                    <td className="py-2.5 text-right font-semibold text-slate-800 tabular-nums">{formatCurrency(ps.revenue)}</td>
                   </tr>
                 ))}
               </tbody>

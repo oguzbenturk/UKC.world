@@ -1,223 +1,136 @@
 import { useMemo } from 'react';
-import { Card, Row, Col, Statistic, Tag, Progress, Alert } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, ToolOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, CheckCircleFilled } from '@ant-design/icons';
 import { formatCurrency } from '@/shared/utils/formatters';
 
+const MICRO_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400';
+
 /**
- * RentalAnalytics - Specialized analytics for rental revenue
+ * Composition band: full-width segmented bar whose parts sum to a whole
+ * (settled vs outstanding; net vs commission). Identity is carried by the
+ * labeled legend chips underneath, never by color alone.
  */
-const RentalAnalytics = ({ summaryData, chartData = [] }) => {
-  const rentalMetrics = useMemo(() => {
+const Band = ({ label, note, segments }) => {
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  if (total <= 0) return null;
+  const visible = segments.filter(s => s.value > 0);
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <p className={MICRO_LABEL}>{label}</p>
+        {note && <p className="text-xs font-medium text-slate-500 tabular-nums">{note}</p>}
+      </div>
+      <div className="flex h-3 gap-[3px] overflow-hidden rounded-full">
+        {visible.map(s => (
+          <div
+            key={s.key}
+            className="rounded-full transition-all duration-300"
+            style={{ width: `${(s.value / total) * 100}%`, minWidth: 6, backgroundColor: s.color }}
+          />
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+        {visible.map(s => (
+          <span key={s.key} className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
+            {s.label}
+            <span className="font-semibold text-slate-800 tabular-nums">{formatCurrency(s.value)}</span>
+            <span className="text-slate-400 tabular-nums">{((s.value / total) * 100).toFixed(1)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * RentalAnalytics — where the rental money stands: collection state and the
+ * net/commission split of recognised revenue. All figures come from
+ * /finances/summary (serviceType=rentals); nothing is derived client-side
+ * beyond subtraction.
+ */
+const RentalAnalytics = ({ summaryData }) => {
+  const metrics = useMemo(() => {
     if (!summaryData) return null;
 
-    // API returns nested structure: { revenue: {...}, netRevenue: {...}, balances: {...} }
     const revenue = summaryData.revenue || {};
-
     const rentalRevenue = Number(revenue.rental_revenue || 0);
     const rentalCount = Number(revenue.rental_count || 0);
     // Rental-SPECIFIC outstanding: net price of the counted rentals still marked
-    // unpaid/pending_payment (revenue.rental_outstanding, computed server-side). Rentals
-    // are paid up-front like a service, so this is ~0 in practice. Previously this showed
-    // the account-wide total_customer_debt (lesson/membership debt included) — wrong here.
-    const outstandingBalance = Number(revenue.rental_outstanding || 0);
-    // Collected = the settled portion of rental revenue (revenue recognised minus what's owed).
-    const collectedPayments = Math.max(rentalRevenue - outstandingBalance, 0);
-    const avgRentalValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
-    const collectionRate = rentalRevenue > 0 ? (collectedPayments / rentalRevenue) * 100 : 100;
-    const overdueAmount = outstandingBalance;
+    // unpaid / pending_payment / failed (revenue.rental_outstanding, computed
+    // server-side). Rentals are paid up-front like a service, so this is ~0 in practice.
+    const outstanding = Number(revenue.rental_outstanding || 0);
+    const collected = Math.max(rentalRevenue - outstanding, 0);
+    const collectionRate = rentalRevenue > 0 ? (collected / rentalRevenue) * 100 : 100;
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
-    const managerCommissionRate = rentalRevenue > 0 ? (managerCommission / rentalRevenue) * 100 : 0;
+    const commissionRate = rentalRevenue > 0 ? (managerCommission / rentalRevenue) * 100 : 0;
     const netRevenue = rentalRevenue - managerCommission;
+    const netMargin = rentalRevenue > 0 ? (netRevenue / rentalRevenue) * 100 : 0;
 
-    return {
-      totalRentals: rentalCount,
-      rentalRevenue,
-      outstandingBalance,
-      collectedPayments,
-      avgRentalValue,
-      collectionRate,
-      overdueAmount,
-      managerCommission,
-      managerCommissionRate,
-      netRevenue
-    };
+    return { rentalRevenue, rentalCount, outstanding, collected, collectionRate, managerCommission, commissionRate, netRevenue, netMargin };
   }, [summaryData]);
 
-  // chartData = monthly buckets from /finances/rental-breakdown ({ month, rentals, revenue }).
-  // The tag sits under "Total Rentals", so compare rental COUNTS of the first vs last
-  // month in the selected range; single-bucket ranges (e.g. "This Month") read as stable.
-  const trendData = useMemo(() => {
-    if (chartData.length < 2) return { direction: 'stable', change: 0 };
-
-    const first = Number(chartData[0]?.rentals) || 0;
-    const last = Number(chartData[chartData.length - 1]?.rentals) || 0;
-    const change = first > 0 ? ((last - first) / first) * 100 : (last > 0 ? 100 : 0);
-
-    return {
-      direction: change > 5 ? 'up' : change < -5 ? 'down' : 'stable',
-      change: Math.abs(change)
-    };
-  }, [chartData]);
-
-  if (!rentalMetrics) {
-    return (
-      <Card>
-        <p className="text-center text-slate-500">No rental data available</p>
-      </Card>
-    );
+  if (!metrics) {
+    return <p className="py-8 text-center text-sm text-slate-400">No rental data available</p>;
   }
 
+  if (metrics.rentalRevenue <= 0) {
+    return <p className="py-8 text-center text-sm text-slate-400">No rental revenue in this period</p>;
+  }
+
+  const rateChips = [
+    { key: 'collection', label: 'Collection rate', value: `${metrics.collectionRate.toFixed(1)}%`, good: metrics.collectionRate >= 90 },
+    { key: 'commission', label: 'Commission rate', value: `${metrics.commissionRate.toFixed(1)}%` },
+    { key: 'margin', label: 'Net margin', value: `${metrics.netMargin.toFixed(1)}%` },
+  ];
+
   return (
-    <div className="space-y-4">
-      {rentalMetrics.overdueAmount > 0 && (
-        <Alert
-          message="Outstanding Rental Balances"
-          description={`${formatCurrency(rentalMetrics.overdueAmount)} in rentals still marked unpaid. Consider following up with customers.`}
-          type="warning"
-          showIcon
-          icon={<ExclamationCircleOutlined />}
-        />
-      )}
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="h-full">
-            <Statistic
-              title="Total Rentals"
-              value={rentalMetrics.totalRentals}
-              prefix={<ToolOutlined />}
-              valueStyle={{ color: '#fa8c16' }}
-            />
-            <div className="mt-2 text-xs text-slate-500">
-              {trendData.direction === 'up' && <Tag color="green" icon={<ArrowUpOutlined />}>{trendData.change.toFixed(1)}% increase</Tag>}
-              {trendData.direction === 'down' && <Tag color="red" icon={<ArrowDownOutlined />}>{trendData.change.toFixed(1)}% decrease</Tag>}
-              {trendData.direction === 'stable' && <Tag>Stable</Tag>}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="h-full">
-            <Statistic
-              title="Avg Rental Value"
-              value={rentalMetrics.avgRentalValue}
-              formatter={(value) => formatCurrency(value)}
-              valueStyle={{ color: '#1890ff' }}
-            />
-            <div className="mt-2 text-xs text-slate-500">
-              Per rental transaction
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="h-full">
-            <Statistic
-              title="Collection Rate"
-              value={rentalMetrics.collectionRate}
-              precision={1}
-              suffix="%"
-              valueStyle={{ color: rentalMetrics.collectionRate >= 90 ? '#52c41a' : '#faad14' }}
-            />
-            <div className="mt-2 text-xs text-slate-500">
-              {formatCurrency(rentalMetrics.collectedPayments)} of rental revenue settled
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="h-full">
-            <Statistic
-              title="Outstanding"
-              value={rentalMetrics.outstandingBalance}
-              formatter={(value) => formatCurrency(value)}
-              valueStyle={{ color: rentalMetrics.outstandingBalance > 0 ? '#cf1322' : '#52c41a' }}
-            />
-            <div className="mt-2 text-xs text-slate-500">
-              {rentalMetrics.outstandingBalance > 0 ? 'Rentals still unpaid' : 'All settled'}
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="h-full">
-            <Statistic
-              title="Manager Commission"
-              value={rentalMetrics.managerCommission}
-              formatter={(value) => formatCurrency(value)}
-              valueStyle={{ color: '#e11d48' }}
-            />
-            <div className="mt-2 text-xs text-slate-500">
-              {rentalMetrics.managerCommissionRate.toFixed(1)}% of rental revenue
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="h-full">
-            <Statistic
-              title="Net Rental Revenue"
-              value={rentalMetrics.netRevenue}
-              formatter={(value) => formatCurrency(value)}
-              valueStyle={{ color: '#52c41a' }}
-            />
-            <div className="mt-2 text-xs text-slate-500">
-              After manager commission
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      <Card title="Rental Performance Insights" className="rounded-lg">
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12}>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Revenue Collected</span>
-                <span className="text-sm font-semibold text-emerald-600">
-                  {formatCurrency(rentalMetrics.collectedPayments)}
-                </span>
-              </div>
-              <Progress 
-                percent={rentalMetrics.collectionRate} 
-                strokeColor="#10b981"
-                showInfo={true}
-                format={(percent) => `${percent?.toFixed(1)}%`}
-              />
-            </div>
-          </Col>
-
-          <Col xs={24} md={12}>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Outstanding Balance</span>
-                <span className="text-sm font-semibold text-rose-600">
-                  {formatCurrency(rentalMetrics.outstandingBalance)}
-                </span>
-              </div>
-              <Progress 
-                percent={rentalMetrics.outstandingBalance > 0 ? ((rentalMetrics.outstandingBalance / rentalMetrics.rentalRevenue) * 100) : 0}
-                strokeColor="#ef4444"
-                showInfo={true}
-                format={(percent) => `${percent?.toFixed(1)}%`}
-              />
-            </div>
-          </Col>
-        </Row>
-
-        <div className="mt-4 rounded-lg bg-orange-50 p-4">
-          <div className="flex items-start gap-3">
-            <ToolOutlined className="text-lg text-orange-600 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-orange-900">Equipment Utilization</h4>
-              <p className="mt-1 text-xs text-orange-700">
-                {rentalMetrics.totalRentals} rentals processed with an average value of <strong>{formatCurrency(rentalMetrics.avgRentalValue)}</strong>. 
-                Collection rate: <strong>{rentalMetrics.collectionRate.toFixed(1)}%</strong>
-              </p>
-            </div>
+    <div className="space-y-6">
+      {metrics.outstanding > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <ExclamationCircleOutlined className="mt-0.5 text-amber-500" />
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Outstanding rental balances</p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              {formatCurrency(metrics.outstanding)} in rentals still marked unpaid. Consider following up with these customers.
+            </p>
           </div>
         </div>
-      </Card>
+      )}
+
+      <Band
+        label="Collection"
+        note={metrics.outstanding <= 0 ? (
+          <span className="inline-flex items-center gap-1 text-emerald-600">
+            <CheckCircleFilled /> All settled
+          </span>
+        ) : `${metrics.collectionRate.toFixed(1)}% collected`}
+        segments={[
+          { key: 'collected', label: 'Settled', value: metrics.collected, color: '#10b981' },
+          { key: 'outstanding', label: 'Outstanding', value: metrics.outstanding, color: '#ef4444' },
+        ]}
+      />
+
+      <Band
+        label="Revenue split"
+        note={`${metrics.rentalCount.toLocaleString()} rentals`}
+        segments={[
+          { key: 'net', label: 'Net revenue', value: metrics.netRevenue, color: '#f97316' },
+          { key: 'commission', label: 'Manager commission', value: metrics.managerCommission, color: '#94a3b8' },
+        ]}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {rateChips.map(chip => (
+          <div key={chip.key} className="rounded-2xl border border-slate-200/70 bg-slate-50/60 px-4 py-3">
+            <p className={MICRO_LABEL}>{chip.label}</p>
+            <p className={`mt-1.5 font-duotone-medium-condensed text-2xl leading-none tabular-nums ${
+              chip.good === undefined ? 'text-slate-900' : chip.good ? 'text-emerald-600' : 'text-amber-600'
+            }`}>
+              {chip.value}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
