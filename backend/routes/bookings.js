@@ -557,7 +557,7 @@ const resolveServiceType = (serviceRow) => {
         await client.query(
           `UPDATE booking_participants
               SET package_hours_used = $1, cash_hours_used = $2,
-                  payment_status = CASE WHEN $2 > 0 THEN 'partial' WHEN $1 > 0 THEN 'package' ELSE payment_status END,
+                  payment_status = CASE WHEN $2::numeric > 0 THEN 'partial' WHEN $1::numeric > 0 THEN 'package' ELSE payment_status END,
                   updated_at = NOW()
             WHERE id = $3`,
           [newPkg, newCash, pid]
@@ -703,7 +703,7 @@ const resolveServiceType = (serviceRow) => {
         await client.query(
           `UPDATE booking_participants
               SET package_hours_used = $1, cash_hours_used = $2,
-                  payment_status = CASE WHEN $2 > 0 THEN 'partial' WHEN $1 > 0 THEN 'package' ELSE payment_status END,
+                  payment_status = CASE WHEN $2::numeric > 0 THEN 'partial' WHEN $1::numeric > 0 THEN 'package' ELSE payment_status END,
                   updated_at = NOW()
             WHERE id = $3`,
           [res.newPkg, res.newCash, p.id]
