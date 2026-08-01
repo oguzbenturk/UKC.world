@@ -1,38 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, Empty, Spin, Segmented } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { formatCurrency } from '@/shared/utils/formatters';
-import apiClient from '@/shared/services/apiClient';
 
 const EQUIPMENT_COLORS = ['#f97316', '#ea580c', '#fb923c', '#fdba74', '#c2410c', '#9a3412', '#f59e0b', '#d97706', '#b45309', '#92400e'];
 const TREND_COLOR = '#f97316';
-const STATUS_COLORS = { paid: '#10b981', pending: '#f59e0b', unpaid: '#ef4444', partial: '#6366f1', refunded: '#8b5cf6' };
+// Actual rentals.payment_status values: paid / unpaid / pending_payment (card awaiting
+// confirmation) / package (package-funded, €0) / failed (gateway init failed).
+const STATUS_COLORS = {
+  paid: '#10b981',
+  unpaid: '#ef4444',
+  pending_payment: '#f59e0b',
+  package: '#6366f1',
+  failed: '#dc2626',
+  refunded: '#8b5cf6'
+};
+const STATUS_LABELS = {
+  paid: 'Paid',
+  unpaid: 'Unpaid',
+  pending_payment: 'Pending payment',
+  package: 'Package-funded',
+  failed: 'Payment failed',
+  refunded: 'Refunded'
+};
+const statusLabel = (status) => STATUS_LABELS[status] || (status ? status.replace(/_/g, ' ') : 'Unknown');
 
-const RentalBreakdownCharts = ({ dateRange }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+// Presentational: data is fetched once by FinanceRentals and shared with RentalAnalytics.
+const RentalBreakdownCharts = ({ data, loading }) => {
   const [equipmentView, setEquipmentView] = useState('bar');
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get('/finances/rental-breakdown', {
-        params: { startDate: dateRange.startDate, endDate: dateRange.endDate }
-      });
-      setData(response.data);
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (dateRange?.startDate && dateRange?.endDate) {
-      loadData();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
 
   const CustomTooltip = ({ active, payload, label, type }) => {
     if (!active || !payload?.length) return null;
@@ -196,7 +191,7 @@ const RentalBreakdownCharts = ({ dateRange }) => {
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: STATUS_COLORS[ps.status] || '#94a3b8' }} />
-                        <span className="font-medium capitalize text-slate-800">{ps.status || 'Unknown'}</span>
+                        <span className="font-medium capitalize text-slate-800">{statusLabel(ps.status)}</span>
                       </div>
                     </td>
                     <td className="py-2 pr-4 text-right text-slate-600">{ps.count}</td>

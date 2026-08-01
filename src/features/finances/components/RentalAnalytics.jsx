@@ -12,18 +12,18 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
 
     // API returns nested structure: { revenue: {...}, netRevenue: {...}, balances: {...} }
     const revenue = summaryData.revenue || {};
-    const balances = summaryData.balances || {};
 
     const rentalRevenue = Number(revenue.rental_revenue || 0);
     const rentalCount = Number(revenue.rental_count || 0);
-    // NOTE: these balances are ACCOUNT-WIDE customer debt/credit (across all services),
-    // not rental-specific — the /summary balances block isn't scoped by serviceType.
-    const outstandingBalance = Number(balances.total_customer_debt || 0);
-    const collectedPayments = Number(balances.total_customer_credit || 0);
+    // Rental-SPECIFIC outstanding: net price of the counted rentals still marked
+    // unpaid/pending_payment (revenue.rental_outstanding, computed server-side). Rentals
+    // are paid up-front like a service, so this is ~0 in practice. Previously this showed
+    // the account-wide total_customer_debt (lesson/membership debt included) — wrong here.
+    const outstandingBalance = Number(revenue.rental_outstanding || 0);
+    // Collected = the settled portion of rental revenue (revenue recognised minus what's owed).
+    const collectedPayments = Math.max(rentalRevenue - outstandingBalance, 0);
     const avgRentalValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
-    // Real account-wide credit ratio instead of a hardcoded 100% that was always shown.
-    const accountTotal = collectedPayments + outstandingBalance;
-    const collectionRate = accountTotal > 0 ? (collectedPayments / accountTotal) * 100 : 0;
+    const collectionRate = rentalRevenue > 0 ? (collectedPayments / rentalRevenue) * 100 : 100;
     const overdueAmount = outstandingBalance;
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
     const managerCommissionRate = rentalRevenue > 0 ? (managerCommission / rentalRevenue) * 100 : 0;
@@ -43,13 +43,16 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
     };
   }, [summaryData]);
 
+  // chartData = monthly buckets from /finances/rental-breakdown ({ month, rentals, revenue }).
+  // The tag sits under "Total Rentals", so compare rental COUNTS of the first vs last
+  // month in the selected range; single-bucket ranges (e.g. "This Month") read as stable.
   const trendData = useMemo(() => {
-    if (!chartData.length) return { direction: 'stable', change: 0 };
-    
-    const first = chartData[0]?.revenue || 0;
-    const last = chartData[chartData.length - 1]?.revenue || 0;
-    const change = first > 0 ? ((last - first) / first) * 100 : 0;
-    
+    if (chartData.length < 2) return { direction: 'stable', change: 0 };
+
+    const first = Number(chartData[0]?.rentals) || 0;
+    const last = Number(chartData[chartData.length - 1]?.rentals) || 0;
+    const change = first > 0 ? ((last - first) / first) * 100 : (last > 0 ? 100 : 0);
+
     return {
       direction: change > 5 ? 'up' : change < -5 ? 'down' : 'stable',
       change: Math.abs(change)
@@ -68,8 +71,8 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
     <div className="space-y-4">
       {rentalMetrics.overdueAmount > 0 && (
         <Alert
-          message="Outstanding Customer Balances"
-          description={`${formatCurrency(rentalMetrics.overdueAmount)} owed across all services (account-wide, not rental-only). Consider following up with customers.`}
+          message="Outstanding Rental Balances"
+          description={`${formatCurrency(rentalMetrics.overdueAmount)} in rentals still marked unpaid. Consider following up with customers.`}
           type="warning"
           showIcon
           icon={<ExclamationCircleOutlined />}
@@ -110,14 +113,14 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="h-full">
             <Statistic
-              title="Collection Rate (all svc)"
+              title="Collection Rate"
               value={rentalMetrics.collectionRate}
               precision={1}
               suffix="%"
               valueStyle={{ color: rentalMetrics.collectionRate >= 90 ? '#52c41a' : '#faad14' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {formatCurrency(rentalMetrics.collectedPayments)} customer credit (account-wide)
+              {formatCurrency(rentalMetrics.collectedPayments)} of rental revenue settled
             </div>
           </Card>
         </Col>
@@ -125,13 +128,13 @@ const RentalAnalytics = ({ summaryData, chartData = [] }) => {
         <Col xs={24} sm={12} lg={6}>
           <Card className="h-full">
             <Statistic
-              title="Outstanding (all svc)"
+              title="Outstanding"
               value={rentalMetrics.outstandingBalance}
               formatter={(value) => formatCurrency(value)}
               valueStyle={{ color: rentalMetrics.outstandingBalance > 0 ? '#cf1322' : '#52c41a' }}
             />
             <div className="mt-2 text-xs text-slate-500">
-              {rentalMetrics.outstandingBalance > 0 ? 'Account-wide customer debt' : 'All settled'}
+              {rentalMetrics.outstandingBalance > 0 ? 'Rentals still unpaid' : 'All settled'}
             </div>
           </Card>
         </Col>

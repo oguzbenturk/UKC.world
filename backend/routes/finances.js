@@ -2384,9 +2384,22 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
 
       // 2. Rental revenue (net of rental discounts — total_price is gross; discounts
       //    live in the separate discounts table, matching dashboardSummaryService).
+      //    rental_outstanding is the rental-SPECIFIC unpaid total: the net price of the
+      //    counted rentals whose payment_status is 'unpaid' (pay-later), 'pending_payment'
+      //    (card awaiting webhook) or 'failed' (gateway init failed — rental kept, never
+      //    paid). This replaces the account-wide total_customer_debt that the rentals page
+      //    used to (mis)label "Outstanding" — rentals are paid up-front like a service, so
+      //    this is ~0 in practice. It is additive: rental_revenue/rental_count are unchanged.
+      //    Status allow-list = every real state except 'cancelled' and 'pending' (customer
+      //    self-request awaiting approval). The DB CHECK constraint permits active/upcoming/
+      //    completed/overdue/cancelled/pending — the old filter listed 'returned'/'closed'
+      //    (values that cannot exist) and silently dropped overdue + upcoming rentals.
       pool.query(`
         SELECT COALESCE(SUM(GREATEST(COALESCE(rentals.total_price, 0) - rt_disc.amt, 0)), 0) AS rental_revenue,
-          COUNT(*) AS rental_count
+          COUNT(*) AS rental_count,
+          COALESCE(SUM(CASE WHEN rentals.payment_status IN ('unpaid', 'pending_payment', 'failed')
+                            THEN GREATEST(COALESCE(rentals.total_price, 0) - rt_disc.amt, 0)
+                            ELSE 0 END), 0) AS rental_outstanding
         FROM rentals
         ${discountSumLateral('rt_disc', 'rental', 'rentals.id')}
         WHERE (
@@ -2399,7 +2412,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
             )
           )
         )
-        AND status IN ('completed','returned','closed','active')
+        AND status IN ('active','upcoming','completed','overdue')
       `, [dateStart, dateEnd]),
 
       // 3. Net revenue (accrual or cash)
@@ -2571,6 +2584,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
     const lessonRevenue = Number(lessonFinance?.totals?.revenue) || 0;
     const rentalRevenue = parseFloat(rentalResult.rows[0].rental_revenue) || 0;
     const rentalCount = parseInt(rentalResult.rows[0].rental_count) || 0;
+    const rentalOutstanding = parseFloat(rentalResult.rows[0].rental_outstanding) || 0;
     const instructorCommission = Number(lessonFinance?.totals?.commission) || 0;
     const walletLessonCharges = parseFloat(walletChargesResult.rows[0]?.lesson_charges) || 0;
     const walletRentalCharges = parseFloat(walletChargesResult.rows[0]?.rental_charges) || 0;
@@ -2627,6 +2641,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         total_refunds: walletResult.rows[0].total_refunds,
         total_transactions: walletResult.rows[0].total_transactions,
         rental_count: rentalCount,
+        rental_outstanding: rentalOutstanding,
         shop_order_count: shopOrderCount,
         membership_count: membershipCount
       }]
@@ -2790,7 +2805,9 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
     const dateStart = startDate || '1900-01-01';
     const dateEnd = endDate || '2100-01-01';
 
-    // Date filter for rentals (same logic as /finances/summary)
+    // Date filter for rentals (same logic as /finances/summary — keep the status
+    // allow-list in sync with the /summary rental query so the charts reconcile
+    // with the headline cards; see the comment there for why these four statuses).
     const rentalDateFilter = `
       (
         (r.rental_date IS NOT NULL AND r.rental_date >= $1::date AND r.rental_date <= $2::date)
@@ -2802,7 +2819,7 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
           )
         )
       )
-      AND r.status IN ('completed','returned','closed','active')
+      AND r.status IN ('active','upcoming','completed','overdue')
     `;
 
     // Equipment popularity: expand equipment_ids JSONB array and join to services

@@ -37,6 +37,7 @@ const FinanceRentals = () => {
   });
   const [activeQuickRange, setActiveQuickRange] = useState('thisMonth');
   const [summaryData, setSummaryData] = useState(null);
+  const [breakdownData, setBreakdownData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -45,13 +46,18 @@ const FinanceRentals = () => {
 
   const loadData = async () => {
     setLoading(true);
+    // Single fetch shared by the analytics cards (trend tag) and the breakdown charts.
+    // Independent catches: a breakdown failure must not blank the headline stats.
+    const params = { startDate: dateRange.startDate, endDate: dateRange.endDate };
     try {
-      const response = await apiClient.get('/finances/summary', {
-        params: { startDate: dateRange.startDate, endDate: dateRange.endDate, serviceType: 'rentals', mode: 'accrual' }
-      });
-      setSummaryData(response.data);
-    } catch (error) {
-      console.error('Error loading rental finance data:', error);
+      await Promise.all([
+        apiClient.get('/finances/summary', { params: { ...params, serviceType: 'rentals', mode: 'accrual' } })
+          .then((response) => setSummaryData(response.data))
+          .catch((error) => console.error('Error loading rental finance data:', error)),
+        apiClient.get('/finances/rental-breakdown', { params })
+          .then((response) => setBreakdownData(response.data))
+          .catch((error) => console.error('Error loading rental breakdown data:', error)),
+      ]);
     } finally {
       setLoading(false);
     }
@@ -96,10 +102,11 @@ const FinanceRentals = () => {
       ];
     }
     const revenue = summaryData.revenue || {};
-    const balances = summaryData.balances || {};
     const rentalRevenue = Number(revenue.rental_revenue || 0);
     const rentalCount = Number(revenue.rental_count || 0);
-    const debt = Number(balances.total_customer_debt || 0);
+    // Rental-SPECIFIC outstanding (net price of rentals still marked unpaid/pending_payment),
+    // not the old account-wide total_customer_debt which mixed in lesson/membership debt.
+    const debt = Number(revenue.rental_outstanding || 0);
     const avgValue = rentalCount > 0 ? rentalRevenue / rentalCount : 0;
     const managerCommission = Number(summaryData.managerCommission?.total || 0);
     const netRevenue = rentalRevenue - managerCommission;
@@ -111,7 +118,7 @@ const FinanceRentals = () => {
       { key: 'net', label: t('manager:financePages.rentals.stats.netRentalRevenue'), value: formatCurrency(netRevenue), accent: 'indigo' },
       { key: 'debt', label: t('manager:financePages.rentals.stats.outstanding'), value: formatCurrency(debt), accent: debt > 0 ? 'amber' : 'slate' },
     ];
-  }, [summaryData]);
+  }, [summaryData, t]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-6">
@@ -193,11 +200,11 @@ const FinanceRentals = () => {
         <h3 className="mb-4 text-lg font-semibold text-slate-900">{t('manager:financePages.rentals.analyticsTitle')}</h3>
         <RentalAnalytics
           summaryData={summaryData}
-          chartData={[]}
+          chartData={breakdownData?.trends || []}
         />
       </Card>
 
-      <RentalBreakdownCharts dateRange={dateRange} />
+      <RentalBreakdownCharts data={breakdownData} loading={loading} />
     </div>
   );
 };

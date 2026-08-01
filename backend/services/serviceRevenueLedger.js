@@ -2,7 +2,11 @@ import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 
 const COMPLETED_BOOKING_STATUSES = ['completed', 'done', 'checked_out'];
-const COMPLETED_RENTAL_STATUSES = ['completed', 'returned', 'closed', 'active', 'done'];
+// Revenue-bearing rental statuses. The rentals.status CHECK constraint only permits
+// active/upcoming/completed/overdue/cancelled/pending — the old list carried impossible
+// values ('returned','closed','done') and missed overdue/upcoming rentals entirely.
+// Keep in sync with the /finances/summary + /rental-breakdown allow-list.
+const COMPLETED_RENTAL_STATUSES = ['completed', 'active', 'overdue', 'upcoming'];
 const COMPLETED_ACCOMMODATION_STATUSES = ['completed', 'checked_out', 'closed', 'active', 'confirmed'];
 
 const SERVICE_TYPES = ['booking', 'rental', 'accommodation'];

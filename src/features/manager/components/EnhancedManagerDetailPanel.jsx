@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Drawer, Tag, Spin, Avatar, Typography, Tooltip, Form, Switch,
@@ -151,6 +151,41 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
       setLoading(false);
     }
   }, [manager?.id, earningsDateRange]);
+
+  // ── Per-row paid/pending reconciliation ──────────────────────────
+  // manager_commissions.status is born 'pending' and the app NEVER flips it to 'paid'
+  // (the Pay button only writes a lump-sum ledger payment via createStaffPayment — it
+  // does not touch individual commission rows). So every row would render "pending" even
+  // when the manager has been fully paid. The AGGREGATE summary IS correct, so we derive
+  // each row's effective status from it: the settled budget is (totalEarned − pending) —
+  // i.e. the portion of earnings covered by registered payments/deductions. We walk the
+  // non-cancelled rows oldest-first and mark them paid until that budget is used up, so
+  // the per-row tags always reconcile with the (correct) headline Pending figure — when
+  // Pending is 0, all non-cancelled rows show green. This is a display-only, best-effort
+  // (oldest-first) allocation — no data is written, and the source `status` is untouched.
+  const paidCommissionIds = useMemo(() => {
+    const ids = new Set();
+    const totalEarned = parseFloat(summary?.totalEarned ?? summary?.total_earned ?? 0);
+    const pendingAmt = parseFloat(summary?.pending?.amount ?? summary?.pendingAmount ?? 0);
+    const settledBudget = Math.max(totalEarned - pendingAmt, 0);
+    if (!(settledBudget > 0) || !Array.isArray(commissions) || commissions.length === 0) return ids;
+    const rows = commissions
+      .filter(c => (c.status ?? c.commissionStatus) !== 'cancelled')
+      .map(c => ({
+        id: c.id ?? c.commissionId,
+        amount: parseFloat(c.commission_amount ?? c.commissionAmount ?? 0) || 0,
+        date: c.source_date || c.sourceDate || c.created_at || c.createdAt || null,
+      }))
+      .filter(r => r.id != null)
+      .sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
+    let remaining = settledBudget + 0.01; // epsilon so a fully-covered row isn't left pending by float dust
+    for (const r of rows) {
+      if (r.amount <= 0) { ids.add(r.id); continue; } // zero-value rows: treat as settled, consume nothing
+      if (remaining >= r.amount) { ids.add(r.id); remaining -= r.amount; }
+      else break; // boundary row only partially covered → leave it and everything newer as pending
+    }
+    return ids;
+  }, [commissions, summary]);
 
   // Responsive
   useEffect(() => {
@@ -553,8 +588,18 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
     render: (_, r) => { const amt = r.source_amount || r.sourceAmount; return amt ? formatCurrency(amt, 'EUR') : '—'; },
   };
   const colStatus = {
-    title: t('manager:detailPanel.history.columns.status'), dataIndex: 'status', key: 'status', width: 80,
-    render: val => { const info = STATUS_TAG[val] || STATUS_TAG.pending; return <Tag color={info.color} icon={info.icon} bordered={false} className="capitalize rounded-full m-0 text-[11px]">{val}</Tag>; },
+    title: t('manager:detailPanel.history.columns.status'), key: 'status', width: 80,
+    // Effective status: cancelled stays cancelled; otherwise reconcile against the correct
+    // aggregate (paidCommissionIds) instead of trusting the never-updated raw `status` column.
+    render: (_, r) => {
+      const rawStatus = r.status ?? r.commissionStatus ?? 'pending';
+      const rowId = r.id ?? r.commissionId;
+      const effectiveStatus = rawStatus === 'cancelled'
+        ? 'cancelled'
+        : (paidCommissionIds.has(rowId) ? 'paid' : 'pending');
+      const info = STATUS_TAG[effectiveStatus] || STATUS_TAG.pending;
+      return <Tag color={info.color} icon={info.icon} bordered={false} className="capitalize rounded-full m-0 text-[11px]">{effectiveStatus}</Tag>;
+    },
   };
   const colDate = (label = t('manager:detailPanel.history.columns.date')) => ({
     title: label, key: 'date', width: 90,
@@ -801,7 +846,16 @@ const EnhancedManagerDetailPanel = ({ manager, isOpen, onClose, onUpdate = () =>
   // ─── History Section ───────────────────────────────────────────
   const filteredCommissions = commissions.filter(c => {
     if (historySourceType && (c.source_type || c.sourceType) !== historySourceType) return false;
-    if (historyStatus && c.status !== historyStatus) return false;
+    if (historyStatus) {
+      // Match against the reconciled/effective status (same logic as the Status column),
+      // not the raw never-updated `status` — otherwise filtering "Paid" would show nothing.
+      const rawStatus = c.status ?? c.commissionStatus ?? 'pending';
+      const rowId = c.id ?? c.commissionId;
+      const effectiveStatus = rawStatus === 'cancelled'
+        ? 'cancelled'
+        : (paidCommissionIds.has(rowId) ? 'paid' : 'pending');
+      if (effectiveStatus !== historyStatus) return false;
+    }
     if (historySearch) {
       const q = historySearch.toLowerCase();
       const searchable = [
