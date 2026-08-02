@@ -1550,38 +1550,60 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         </div>
                         {!isInstructor && (
                           <div className="text-right">
-                            <p className="text-xl font-bold text-slate-900 mb-0.5">
-                              {(() => {
-                                const packageInfo = getPackageDisplayInfo();
-                                const price = packageInfo && packageInfo.totalPrice != null
-                                  ? packageInfo.totalPrice
-                                  : getDisplayPrice();
-                                return (
-                                  <span className={packageInfo ? 'text-green-600' : ''}>
-                                    {`${currencySymbol}${price.toFixed(2)}`}
-                                  </span>
-                                );
-                              })()}
-                            </p>
-                            <p className="text-xs text-slate-500 font-medium">
-                              {(() => {
-                                const packageInfo = getPackageDisplayInfo();
-                                if (packageInfo) {
-                                  return packageInfo.subtitle;
-                                }
-                                return t('common:bookings.detail.total');
-                              })()}
-                            </p>
                             {(() => {
                               const packageInfo = getPackageDisplayInfo();
-                              if (packageInfo && packageInfo.pricePerHour != null) {
+                              // Fully package-funded: the anchor number is what the customer
+                              // OWES (€0.00), with the lesson's package value struck through —
+                              // showing the bare value here read as an outstanding price.
+                              if (packageInfo) {
                                 return (
-                                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                                    {`${currencySymbol}${packageInfo.pricePerHour.toFixed(2)} / hour`}
-                                  </p>
+                                  <>
+                                    <p className="text-xl font-bold text-green-600 mb-0.5">
+                                      {`${currencySymbol}0.00`}
+                                      {packageInfo.totalPrice != null && (
+                                        <span className="ml-1.5 align-middle text-sm font-semibold text-slate-400 line-through">
+                                          {`${currencySymbol}${packageInfo.totalPrice.toFixed(2)}`}
+                                        </span>
+                                      )}
+                                    </p>
+                                    <p className="text-xs font-semibold text-green-700">✓ {packageInfo.subtitle}</p>
+                                    {packageInfo.pricePerHour != null && (
+                                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                        {`${currencySymbol}${packageInfo.pricePerHour.toFixed(2)} / hour`}
+                                      </p>
+                                    )}
+                                  </>
                                 );
                               }
-                              return null;
+                              // Package + cash split: price shows only the CASH part still
+                              // owed; say explicitly how many hours the package covered.
+                              if (booking.payment_status === 'partial') {
+                                const pkgH = parseFloat(booking.package_hours_used) || 0;
+                                const cashH = parseFloat(booking.cash_hours_used) || 0;
+                                return (
+                                  <>
+                                    <p className="text-xl font-bold text-slate-900 mb-0.5">
+                                      {`${currencySymbol}${getDisplayPrice().toFixed(2)}`}
+                                    </p>
+                                    {pkgH > 0 && (
+                                      <p className="text-xs font-semibold text-green-700">
+                                        ✓ {pkgH}h covered by package
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-slate-500 font-medium">
+                                      {cashH > 0 ? `${cashH}h cash` : t('common:bookings.detail.total')}
+                                    </p>
+                                  </>
+                                );
+                              }
+                              return (
+                                <>
+                                  <p className="text-xl font-bold text-slate-900 mb-0.5">
+                                    {`${currencySymbol}${getDisplayPrice().toFixed(2)}`}
+                                  </p>
+                                  <p className="text-xs text-slate-500 font-medium">{t('common:bookings.detail.total')}</p>
+                                </>
+                              );
                             })()}
                           </div>
                         )}
