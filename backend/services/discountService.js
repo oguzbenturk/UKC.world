@@ -109,6 +109,32 @@ export const SUPPORTED_ENTITY_TYPES = Object.keys(ENTITY_CONFIG);
 
 const isSupported = (entityType) => Object.hasOwn(ENTITY_CONFIG, entityType);
 
+// Charge-type wallet rows that make up a booking's NET cash charge (mirrors
+// bookingFundingService.CHARGE_TX_TYPES — kept local because bookingFundingService
+// imports this module, so importing back would be circular).
+const BOOKING_CHARGE_TX_TYPES = ['booking_charge', 'charge', 'booking_charge_adjustment'];
+
+// Cash lessons debit the wallet AT CREATION ("Individual lesson charge"), and a
+// package+cash spillover ('partial') settles its cash leg the same way — so a
+// booking can carry a real gross wallet debit while payment_status is still
+// 'pending'/'unpaid'/'partial'. The status-only isPaid guard then skips the
+// compensating discount_adjustment credit and the discount becomes display-only:
+// the lesson/bill show the net price but the wallet balance (what the customer
+// owes) stays gross. Treat a booking as "paid" for discount purposes whenever
+// its charge rows net to a positive wallet debit for this customer. (A booking
+// settled purely outside the wallet nets ≤ 0 here and correctly stays unpaid.)
+async function bookingHasWalletCharge(client, bookingId, userId) {
+  if (!bookingId || !userId) return false;
+  const { rows } = await client.query(
+    `SELECT COALESCE(SUM(available_delta), 0) AS net
+       FROM wallet_transactions
+      WHERE booking_id = $1::uuid AND user_id = $2::uuid AND status = 'completed'
+        AND transaction_type = ANY($3)`,
+    [String(bookingId), String(userId), BOOKING_CHARGE_TX_TYPES]
+  );
+  return -(Number(rows[0]?.net) || 0) > 0.005; // negative net = charged
+}
+
 // Reads the original price + currency + owning customer for one entity.
 // Throws if the row doesn't exist.
 //
@@ -147,7 +173,8 @@ export async function getEntitySnapshot(client, entityType, entityId, participan
       originalPrice: Number(rows[0].original_price) || 0,
       currency: rows[0].currency || null,
       customerId: rows[0].customer_id,
-      isPaid: !!rows[0].is_paid,
+      isPaid: !!rows[0].is_paid
+        || await bookingHasWalletCharge(client, entityId, rows[0].customer_id),
     };
   }
 
@@ -170,11 +197,15 @@ export async function getEntitySnapshot(client, entityType, entityId, participan
     err.status = 404;
     throw err;
   }
+  let isPaid = !!rows[0].is_paid;
+  if (!isPaid && entityType === 'booking') {
+    isPaid = await bookingHasWalletCharge(client, entityId, rows[0].customer_id);
+  }
   return {
     originalPrice: Number(rows[0].original_price) || 0,
     currency: rows[0].currency || null,
     customerId: rows[0].customer_id,
-    isPaid: !!rows[0].is_paid,
+    isPaid,
   };
 }
 
