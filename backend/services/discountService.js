@@ -360,8 +360,69 @@ export async function reverseOpenDiscountCreditsForEntity(client, entityType, en
 // only the manager side cascaded, so a per-booking discount left
 // instructor_earnings.lesson_amount stale until the next package edit or
 // manual fix — paying instructors more than the post-discount lesson value.
+// Owner's pricing rule: overflow hours on a package-funded lesson are billed
+// at the package's discount-net per-hour rate. When the PACKAGE's discount
+// changes, that rate changes — so the cash leg of every live 'partial'
+// booking assigned to the package is repriced: bookings.final_amount/amount
+// move to cash_hours × new rate, the wallet charge is settled to the new
+// target, and any percent-based booking discounts rebase against the new
+// price. Cancelled/deleted bookings are left alone.
+async function repriceCashOverflowForPackage(client, packageId, createdBy = null) {
+  const { rows: partials } = await client.query(
+    `SELECT * FROM bookings
+      WHERE deleted_at IS NULL
+        AND payment_status = 'partial'
+        AND customer_package_id = $1::uuid
+        AND COALESCE(cash_hours_used, 0) > 0.0001
+        AND LOWER(COALESCE(status, '')) NOT IN ('cancelled', 'canceled', 'no_show', 'no-show')`,
+    [String(packageId)]
+  );
+  if (!partials.length) return 0;
+
+  const newRate = await BookingUpdateCascadeService.computeEffectivePackageHourlyRate(client, packageId);
+  if (!(newRate > 0)) return 0;
+
+  // Dynamic import mirrors bookingFundingService's own dynamic import of this
+  // module — a static import in both directions would be circular.
+  const { settleStudentCashTo } = await import('./bookingFundingService.js');
+
+  let repriced = 0;
+  for (const b of partials) {
+    const cashHours = parseFloat(b.cash_hours_used) || 0;
+    const newFinal = Number(new Decimal(cashHours).mul(newRate).toDecimalPlaces(2));
+    const oldFinal = parseFloat(b.final_amount) || 0;
+    if (Math.abs(newFinal - oldFinal) < 0.005) continue;
+
+    await client.query(
+      `UPDATE bookings SET final_amount = $1, amount = $1, updated_at = NOW() WHERE id = $2`,
+      [newFinal, b.id]
+    );
+    await settleStudentCashTo(client, {
+      bookingId: b.id,
+      userId: b.student_user_id,
+      currency: b.currency || 'EUR',
+      targetCharge: newFinal,
+      actorId: createdBy,
+      reason: 'package discount changed — overflow repriced',
+    });
+    await recomputeBookingDiscountsForPriceEdit(client, {
+      booking: { ...b, final_amount: newFinal, amount: newFinal },
+      createdBy,
+    });
+    await recomputeManagerCommissionForEntity(client, WALLET_ENTITY_TYPE.BOOKING, b.id);
+    logger.info('Partial booking overflow repriced after package discount change', {
+      bookingId: b.id, packageId: String(packageId), cashHours, oldFinal, newFinal, newRate,
+    });
+    repriced += 1;
+  }
+  return repriced;
+}
+
 async function cascadeRecomputeForDiscountChange(client, entityType, entityId) {
   if (entityType === WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE) {
+    // Reprice overflow cash legs FIRST so commission/earnings recomputes below
+    // read the corrected booking amounts.
+    await repriceCashOverflowForPackage(client, entityId);
     await recomputeManagerCommissionsForPackage(client, entityId);
     await BookingUpdateCascadeService.recomputeEarningsForPackageBookings(client, entityId);
   } else {

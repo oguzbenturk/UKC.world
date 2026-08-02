@@ -31,7 +31,7 @@ import { cacheMiddleware } from '../middlewares/cache.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
 import { applyDiscount } from '../services/discountService.js';
-import { switchBookingFunding } from '../services/bookingFundingService.js';
+import { switchBookingFunding, overflowRatePerHour } from '../services/bookingFundingService.js';
 
 const router = express.Router();
 
@@ -585,11 +585,19 @@ const resolveServiceType = (serviceRow) => {
     const newCash = Math.max(0, parseFloat((newD - newPkg).toFixed(2)));
 
     // Cash-leg settlement (same machinery as the legacy single path).
+    // New-cash fallback order: booking's own realized cash rate → the assigned
+    // package's discount-net hourly rate (owner rule: overflow = package
+    // pricing) → service hourly rate.
     const oldFinal = parseFloat(pre.final_amount) || 0;
     const recordedCash = parseFloat(pre.cash_hours_used);
     let perHourCash = (Number.isFinite(recordedCash) && recordedCash > 0 && oldFinal > 0)
       ? oldFinal / recordedCash
-      : serviceHourly;
+      : 0;
+    if (!(perHourCash > 0) && pre.customer_package_id) {
+      try {
+        perHourCash = await BookingUpdateCascadeService.computeEffectivePackageHourlyRate(client, pre.customer_package_id);
+      } catch { /* fall through to service rate */ }
+    }
     if (!(perHourCash > 0)) perHourCash = serviceHourly;
 
     let oldCashLeg = pre.payment_status === 'partial' ? oldFinal : 0;
@@ -734,9 +742,16 @@ const resolveServiceType = (serviceRow) => {
     const oldFinal = parseFloat(pre.final_amount) || 0;
     const recordedPkg = parseFloat(pre.package_hours_used);
     const recordedCash = parseFloat(pre.cash_hours_used);
+    // Same fallback order as the ledger path: realized cash rate → assigned
+    // package's discount-net hourly rate → service hourly rate.
     let perHourCash = (Number.isFinite(recordedCash) && recordedCash > 0 && oldFinal > 0)
       ? oldFinal / recordedCash
-      : serviceHourly;
+      : 0;
+    if (!(perHourCash > 0) && pre.customer_package_id) {
+      try {
+        perHourCash = await BookingUpdateCascadeService.computeEffectivePackageHourlyRate(client, pre.customer_package_id);
+      } catch { /* fall through to service rate */ }
+    }
     if (!(perHourCash > 0)) perHourCash = serviceHourly;
 
     // Resolve how many hours the booking currently draws from the package.
@@ -2358,12 +2373,13 @@ router.post('/',
 
       if (spilloverResult.cashHours > 0.0001) {
         // Pool couldn't fully cover the lesson → partial: overflow hours billed
-        // as cash at the service's per-hour rate.
+        // at the drawn package's discount-net per-hour rate (owner rule: extra
+        // usage continues at package pricing), service rate as fallback only.
         const serviceHourly = serviceDurationHours > 0
           ? (servicePrice || 0) / serviceDurationHours
           : (servicePrice || 0);
         finalPaymentStatus = 'partial';
-        finalAmount = parseFloat((spilloverResult.cashHours * serviceHourly).toFixed(2));
+        finalAmount = parseFloat((spilloverResult.cashHours * overflowRatePerHour(spilloverResult, serviceHourly)).toFixed(2));
       } else {
         // Fully package-funded. Lesson value = Σ(hours × frozen per-hour rate).
         finalPaymentStatus = 'package';
@@ -3728,8 +3744,9 @@ router.post('/group',
         if (spill.draws.length > 0) {
           const usedFromPackage = spill.packageHoursTotal;
           const cashHours = spill.cashHours;
-          // Overflow hours billed at the service's per-hour rate.
-          const cashPortion = parseFloat((cashHours * serviceHourlyRate).toFixed(2));
+          // Overflow hours billed at the drawn package's discount-net per-hour
+          // rate (owner rule), service rate as fallback only.
+          const cashPortion = parseFloat((cashHours * overflowRatePerHour(spill, serviceHourlyRate)).toFixed(2));
 
           processedParticipant.customerPackageId = spill.primaryPackageId;
           // Recorded to the ledger once the participant row exists (gives us its id).

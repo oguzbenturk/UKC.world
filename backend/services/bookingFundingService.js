@@ -65,7 +65,7 @@ const CHARGE_TX_TYPES = ['booking_charge', 'charge', 'booking_charge_adjustment'
  * construction: it reads the current charge and only posts the difference, so a
  * re-run that finds the target already met posts nothing.
  */
-async function settleStudentCashTo(client, { bookingId, userId, currency, targetCharge, actorId, reason, externalPaidAmount = 0 }) {
+export async function settleStudentCashTo(client, { bookingId, userId, currency, targetCharge, actorId, reason, externalPaidAmount = 0 }) {
   if (!userId) return null;
   const { rows } = await client.query(
     `SELECT COALESCE(SUM(available_delta), 0) AS net
@@ -163,6 +163,18 @@ async function recomputeAfterSwitch(client, bookingId, actorId = null, participa
     fresh, { _custom_commission_changed: true }, { client, strict: true }
   );
   return discRows.length;
+}
+
+// Owner's pricing rule: hours that spill past the customer's package(s) are
+// "extra usage" of the package deal, billed at the drawn package's own
+// discount-net per-hour rate (spill.draws[].ratePerHour, frozen at draw time)
+// — NOT the walk-in service rate. The last package in the FIFO chain is the
+// one the customer ran past, so its rate prices the overflow. Falls back to
+// the service hourly rate only when the draw carries no usable rate.
+export function overflowRatePerHour(spill, serviceHourly) {
+  const lastDraw = spill?.draws?.[spill.draws.length - 1];
+  const rate = Number(lastDraw?.ratePerHour);
+  return Number.isFinite(rate) && rate > 0 ? rate : serviceHourly;
 }
 
 async function buildResult(client, bookingId, summary) {
@@ -271,7 +283,7 @@ async function switchParticipantToPackage(client, ctx) {
   let participantAmount;
   if (cashHours > 0.0001) {
     participantStatus = 'partial';
-    participantAmount = parseFloat((cashHours * serviceHourly).toFixed(2));
+    participantAmount = parseFloat((cashHours * overflowRatePerHour(spill, serviceHourly)).toFixed(2));
   } else {
     participantStatus = 'package';
     participantAmount = 0;
@@ -428,7 +440,7 @@ async function switchToPackage(client, ctx) {
   if (cashHours > 0.0001) {
     // Pool couldn't cover the full lesson → keep the overflow as a cash leg.
     paymentStatus = 'partial';
-    finalAmount = parseFloat((cashHours * serviceHourly).toFixed(2));
+    finalAmount = parseFloat((cashHours * overflowRatePerHour(spill, serviceHourly)).toFixed(2));
     targetCharge = finalAmount;
   } else {
     paymentStatus = 'package';
