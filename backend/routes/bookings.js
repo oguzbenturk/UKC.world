@@ -1139,13 +1139,19 @@ router.get('/',
         creator.email as created_by_email,
         updater.name as updated_by_name,
         updater.email as updated_by_email,
-        CASE 
-          WHEN t.id IS NOT NULL THEN 'Individual Payment'
+        CASE
+          -- Current funding status FIRST: a lesson that was cash-charged and later
+          -- switched onto a package keeps its old transactions row forever, so the
+          -- t.id branch must not outrank payment_status ('package' lessons were
+          -- stuck displaying "Individual Payment" after a funding switch).
           WHEN b.payment_status = 'package' AND cp.package_name IS NOT NULL THEN cp.package_name
           WHEN b.payment_status = 'package' THEN 'Package Hours'
+          WHEN b.payment_status = 'partial' AND cp.package_name IS NOT NULL THEN CONCAT(cp.package_name, ' + cash')
+          WHEN b.payment_status = 'partial' THEN 'Package Hours + cash'
+          WHEN t.id IS NOT NULL THEN 'Individual Payment'
           WHEN b.payment_status = 'paid' AND b.amount > 0 THEN 'Individual Payment'
           WHEN b.payment_status = 'paid' AND (b.amount = 0 OR b.amount IS NULL) THEN 'Package Hours'
-          WHEN s.balance >= COALESCE(b.final_amount, b.amount, 0) AND COALESCE(b.final_amount, b.amount, 0) > 0 THEN 
+          WHEN s.balance >= COALESCE(b.final_amount, b.amount, 0) AND COALESCE(b.final_amount, b.amount, 0) > 0 THEN
             CONCAT('€-', COALESCE(b.final_amount, b.amount, 0))
           ELSE 'Paid'
         END as payment_method_display,

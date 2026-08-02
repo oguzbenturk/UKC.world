@@ -939,17 +939,25 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     return Number.isFinite(pay) ? pay : null;
   }, [customerId]);
 
-  // Whether this customer's slot in the booking was paid via a package. For
-  // solo bookings we can read it off the booking row; for group bookings each
-  // participant has their own payment_status / customer_package_id, so we
-  // have to look at the participant entry.
+  // Whether this customer's slot in the booking is FULLY covered by a package.
+  // For solo bookings we read the booking row; for group bookings each
+  // participant has their own payment_status / customer_package_id.
+  // NOTE: customer_package_id alone is NOT proof of package funding — it
+  // survives as a stale pointer after a package→cash switch, and 'partial'
+  // lessons keep it while still owing a real cash part. The pointer only
+  // counts when the row carries no cash value (legacy package lessons with
+  // payment_status 'paid' and a zero amount).
   const isCustomerSlotPackage = useCallback((r) => {
     const participants = Array.isArray(r?.participants) ? r.participants : [];
     if (customerId && participants.length > 1) {
       const mine = participants.find(p => p && p.userId === customerId);
-      if (mine) return mine.paymentStatus === 'package' || !!mine.customerPackageId;
+      if (mine) {
+        return mine.paymentStatus === 'package'
+          || (!!mine.customerPackageId && !(Number(mine.paymentAmount) > 0));
+      }
     }
-    return r?.payment_status === 'package' || !!r?.customer_package_id;
+    return r?.payment_status === 'package'
+      || (!!r?.customer_package_id && !(Number(r?.final_amount ?? r?.amount ?? 0) > 0));
   }, [customerId]);
 
   // ─── Column definitions ───────────────────────────────────────

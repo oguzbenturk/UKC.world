@@ -1494,9 +1494,11 @@ router.get('/:id/student-details', authenticateJWT, authorizeRoles(['admin', 'ma
              i.first_name as instructor_first_name, 
              i.last_name as instructor_last_name,
              cp.package_name as customer_package_name,
-             CASE 
+             CASE
                WHEN b.payment_status = 'package' AND cp.package_name IS NOT NULL THEN cp.package_name
                WHEN b.payment_status = 'package' THEN 'Package Hours'
+               WHEN b.payment_status = 'partial' AND cp.package_name IS NOT NULL THEN CONCAT(cp.package_name, ' + cash')
+               WHEN b.payment_status = 'partial' THEN 'Package Hours + cash'
                WHEN b.payment_status = 'paid' AND b.amount > 0 THEN 'Individual Payment'
                ELSE 'Paid'
              END as payment_method_display
