@@ -54,6 +54,36 @@ export default function BookingFundingModal({ open, onClose, booking, participan
 
   const duration = Number(booking?.duration) || 0;
 
+  // Live preview of the draw plan, mirroring the backend's order: the selected
+  // package first, then the rest oldest-first, any remainder as a cash co-pay.
+  // Shown BEFORE confirming so a cross-package spill (e.g. a 1h lesson taking
+  // the last 0.5h from TWO packages) is never a surprise — without this, staff
+  // watched multiple packages hit 0 with no explanation of where hours went.
+  const splitPreview = useMemo(() => {
+    if (mode !== 'package' || !(duration > 0) || !eligible.length) return null;
+    const byOldest = [...eligible].sort((a, b) =>
+      new Date(a.purchaseDate || a.purchase_date || a.createdAt || 0)
+      - new Date(b.purchaseDate || b.purchase_date || b.createdAt || 0));
+    const selected = selectedPackageId ? byOldest.find((p) => p.id === selectedPackageId) : null;
+    const order = selected ? [selected, ...byOldest.filter((p) => p.id !== selectedPackageId)] : byOldest;
+    let need = duration;
+    const draws = [];
+    for (const p of order) {
+      if (need <= 0.0001) break;
+      const rem = Number(p.remainingHours ?? p.remaining_hours ?? 0);
+      if (rem <= 0.0001) continue;
+      const take = Math.min(rem, need);
+      draws.push({
+        id: p.id,
+        name: p.packageName || p.package_name || p.lessonType || 'Package',
+        take,
+        rem,
+      });
+      need = Number((need - take).toFixed(2));
+    }
+    return { draws, cashHours: need > 0.0001 ? need : 0 };
+  }, [mode, duration, eligible, selectedPackageId]);
+
   const handleConfirm = async () => {
     setError(null);
     setSubmitting(true);
@@ -131,6 +161,34 @@ export default function BookingFundingModal({ open, onClose, booking, participan
                 Leave empty to let the system draw from the customer's compatible packages
                 oldest-first (spilling across packages if needed).
               </p>
+
+              {splitPreview && splitPreview.draws.length > 0 && (
+                <Alert
+                  className="mt-3"
+                  type={splitPreview.draws.length > 1 || splitPreview.cashHours > 0 ? 'warning' : 'info'}
+                  showIcon
+                  message={
+                    splitPreview.draws.length > 1
+                      ? 'This lesson will be split across packages'
+                      : 'Hours to be deducted'
+                  }
+                  description={
+                    <ul className="m-0 list-disc pl-4 text-xs">
+                      {splitPreview.draws.map((d) => (
+                        <li key={d.id}>
+                          <strong>{d.take}h</strong> from {d.name}{' '}
+                          <span className="text-slate-400">
+                            ({d.rem}h → {Number((d.rem - d.take).toFixed(2))}h left{d.rem - d.take <= 0.0001 ? ', fully used up' : ''})
+                          </span>
+                        </li>
+                      ))}
+                      {splitPreview.cashHours > 0 && (
+                        <li><strong>{splitPreview.cashHours}h</strong> stays as a cash co-pay (no package can cover it)</li>
+                      )}
+                    </ul>
+                  }
+                />
+              )}
             </div>
           ) : (
             <Alert

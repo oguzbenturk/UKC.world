@@ -2041,7 +2041,16 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
         onClose={() => { setShowFundingModal(false); setFundingParticipant(null); }}
         onDone={(result) => {
           try {
-            const label = result?.mode === 'cash' ? 'Lesson switched to cash' : 'Lesson assigned to package';
+            // Spell out the actual draw plan (the backend reports per-package
+            // draws) — a cross-package spill must be visible, not silent.
+            const draws = Array.isArray(result?.draws) ? result.draws : [];
+            const cashH = Number(result?.cashHours) || 0;
+            let label = result?.mode === 'cash' ? 'Lesson switched to cash' : 'Lesson assigned to package';
+            if (result?.mode !== 'cash' && draws.length) {
+              const parts = draws.map((d) => `${d.hours}h from ${d.packageName || 'package'}`);
+              if (cashH > 0) parts.push(`${cashH}h cash co-pay`);
+              label = `Lesson funded: ${parts.join(' + ')}`;
+            }
             showSuccess?.(label);
           } catch { /* ignore */ }
           // A funding switch consumes/restores package hours; broadcast so any
