@@ -840,21 +840,34 @@ export async function getStudentOverview(studentId, options = {}) {
             }
 
             if (hasBookingParticipants) {
-              transactionJoins.push('LEFT JOIN booking_participants bp ON bp.booking_id = wt.booking_id');
+              // Scoped to THIS student: the join only decorates the row with the
+              // viewer's own participant record. Joining on booking_id alone
+              // fanned out one copy per participant and made the selected
+              // participant_user_id an arbitrary co-participant under DISTINCT ON.
+              transactionJoins.push('LEFT JOIN booking_participants bp ON bp.booking_id = wt.booking_id AND bp.user_id = $1');
             }
 
-            const transactionWhereParts = ['(wt.user_id = $1)'];
-            transactionWhereParts.push('(COALESCE(b.student_user_id, b.customer_user_id) = $1)');
-            if (canJoinRentals) {
-              transactionWhereParts.push('(r.user_id = $1)');
-            }
-            if (hasBookingParticipants) {
-              transactionWhereParts.push('(bp.user_id = $1)');
-            }
-
-            const transactionPredicate = transactionWhereParts
-              .map((clause) => `(${clause})`)
-              .join(' OR ');
+            // The student's OWN wallet rows, and nothing else.
+            //
+            // This used to also OR in `b.student_user_id = $1`, `r.user_id = $1`
+            // and `bp.user_id = $1`, which matched on the *booking/rental* rather
+            // than on the wallet. On a shared (semi-private / group) lesson every
+            // participant has their own wallet rows against the same booking_id,
+            // so those branches pulled in the CO-PARTICIPANT's charges and credits:
+            // 200 foreign rows across 47 students (~€17.9k of other people's money)
+            // were visible in prod. Two consequences, both fixed here:
+            //   1. Privacy — a customer could read another customer's ledger.
+            //   2. Money   — computeTransactionAggregates() sums these rows for the
+            //      headline Total Paid / balance, so the other person's charges
+            //      inflated the viewer's totals, and the booking_charge_adjustment
+            //      fold below (see 'Fold every booking_charge_adjustment') added
+            //      every participant's credit to each charge — a €260 2-person
+            //      lesson edited to €200 showed -70 instead of -100, exactly like
+            //      the admin-side bug fixed in walletService.fetchTransactions.
+            // A charge recorded against someone else's wallet never moved this
+            // student's balance, so dropping it is correct for a wallet view.
+            // Verified on prod: 0 rows a student genuinely owns are lost.
+            const transactionPredicate = 'wt.user_id = $1';
 
             // Exclude cancelled transactions and ghost "pending" credit-card records
             // (no real balance impact) — identical to the canonical walletService filter.
@@ -1254,7 +1267,11 @@ export async function getStudentOverview(studentId, options = {}) {
       transactionEntries.push(entry);
     }
 
-    // Fold every booking_charge_adjustment into its parent booking_charge row
+    // Fold every booking_charge_adjustment into its parent booking_charge row.
+    // Correct ONLY because transactionPredicate restricts the row set to this
+    // student's own wallet (see above) — these sums are keyed on bookingId alone,
+    // so if foreign rows ever come back, a shared booking's per-participant
+    // credits would all fold into each charge and understate it (the -70 bug).
     // (mirrors the canonical admin path walletService.fetchTransactions:1161-1200)
     // so a lesson that was re-funded onto a package nets to a single 0 line
     // instead of leaving BOTH the original "-X charge" AND a separate "+X refund"
