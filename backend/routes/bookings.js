@@ -5081,7 +5081,19 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
           if (svc.length) {
             const sp = parseFloat(svc[0].price) || 0;
             const sd = parseFloat(svc[0].duration) || 0;
-            const hourly = sd > 0 ? sp / sd : sp;
+            const serviceHourly = sd > 0 ? sp / sd : sp;
+            // Derive the hourly rate from THIS booking's own booked price, not
+            // the service catalogue rate — a manual price edit must survive
+            // checkout. A 2h lesson repriced to €120 is €60/h, so checking out
+            // at 1.5h bills €90; the old service-rate math ignored the edit and
+            // charged 1.5 × the catalogue rate (€95/h → €142.50) instead.
+            // For a never-edited booking amount === serviceHourly × oldDuration,
+            // so this is byte-for-byte the previous behaviour. Falls back to the
+            // service rate only when there is no usable booked price to scale.
+            const bookedGross = parseFloat(currentBooking.amount);
+            const hourly = (Number.isFinite(bookedGross) && bookedGross > 0 && oldDuration > 0)
+              ? bookedGross / oldDuration
+              : serviceHourly;
             if (hourly > 0) {
               const newGross = parseFloat((hourly * newDuration).toFixed(2));
               const disc = parseFloat(currentBooking.discount_amount) || 0;

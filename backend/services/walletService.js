@@ -1178,6 +1178,13 @@ export async function fetchTransactions(userId, {
          WHERE a.transaction_type = 'booking_charge_adjustment'
            AND a.status = 'completed'
            AND a.booking_id = wallet_transactions.booking_id
+           -- SAME WALLET ONLY. A group / semi-private booking writes ONE
+           -- adjustment row per participant, so summing by booking_id alone
+           -- folded EVERY participant's credit into EACH participant's charge:
+           -- a €260 2-person lesson edited to €200 posts +€30 to both wallets,
+           -- and each -€130 charge displayed as -€70 (-130 + 60) instead of
+           -- -€100. Scoping to the row's own user makes the fold per-wallet.
+           AND a.user_id = wallet_transactions.user_id
       ) adj ON wallet_transactions.transaction_type = 'booking_charge'
            AND wallet_transactions.booking_id IS NOT NULL
       LEFT JOIN LATERAL (
@@ -1185,11 +1192,16 @@ export async function fetchTransactions(userId, {
         -- card/bank-transfer-paid lesson refunded onto a package produces a
         -- booking_charge_adjustment with NO sibling booking_charge — that orphan
         -- refund must stay visible rather than being dropped as folded noise.
+        -- user_id-scoped for the same reason as the adj fold above: on a
+        -- shared booking, participant A having a charge row must NOT mark
+        -- participant B's adjustment as "folded" — B's credit would be dropped
+        -- from the list without ever being folded into a charge of B's own.
         SELECT EXISTS (
           SELECT 1 FROM wallet_transactions pc
            WHERE pc.transaction_type = 'booking_charge'
              AND pc.status = 'completed'
              AND pc.booking_id = wallet_transactions.booking_id
+             AND pc.user_id = wallet_transactions.user_id
         ) AS has_parent_charge
       ) parent ON wallet_transactions.transaction_type = 'booking_charge_adjustment'
               AND wallet_transactions.booking_id IS NOT NULL
