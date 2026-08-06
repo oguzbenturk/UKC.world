@@ -146,6 +146,16 @@ applyDisableLoginEnvPrecedence(__dirname);
 const app = express();
 const server = createServer(app);
 
+// Node 20 caps a whole request (headers + body) at server.requestTimeout = 5 min
+// by default and then destroys the socket with a bare connection reset. That is
+// below what a legitimate large upload can need — UKC.Care warranty claims allow
+// 500 MB per video and 1.5 GB per claim in one multipart POST. nginx in front is
+// configured to wait up to 600s for such a body (infrastructure/nginx.conf,
+// `location /api/`), so match it here; otherwise Node silently wins the race and
+// the browser sees an unexplained disconnect instead of a real API response.
+// headersTimeout stays at its 60s default — only the body is allowed to be slow.
+server.requestTimeout = 600_000;
+
 // Configure trust proxy for Docker/nginx setup
 app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
 

@@ -21,6 +21,7 @@ import {
   useStaffUpload
 } from '../hooks/useWarranty';
 import { staffMediaUrl, staffMediaArchiveUrl } from '../services/warrantyApi';
+import { uploadErrorMessage } from '../constants';
 
 const { TextArea } = Input;
 
@@ -119,7 +120,7 @@ export default function WarrantyStaffPage() {
       setProgress(0);
       message.success(t('public:warranty.staff.uploadDone', 'Files uploaded.'));
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Upload failed');
+      message.error(uploadErrorMessage(err, t, 'Upload failed'), 8);
     }
   };
 

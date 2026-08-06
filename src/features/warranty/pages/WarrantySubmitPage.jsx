@@ -13,6 +13,7 @@ import {
 import WarrantyBrandShell from '../components/WarrantyBrandShell';
 import WarrantyFileUploader from '../components/WarrantyFileUploader';
 import { useSubmitWarrantyClaim } from '../hooks/useWarranty';
+import { uploadErrorMessage } from '../constants';
 
 const { TextArea } = Input;
 
@@ -198,8 +199,11 @@ export default function WarrantySubmitPage() {
       message.success(t('public:warranty.submit.successToast', 'Claim submitted'));
       navigate(`/care/track/${result.customer_token}?new=1`);
     } catch (err) {
-      const apiError = err?.response?.data?.error;
-      message.error(apiError || t('public:warranty.submit.errorGeneric', 'Could not submit your claim. Please try again.'));
+      message.error(
+        uploadErrorMessage(err, t,
+          t('public:warranty.submit.errorGeneric', 'Could not submit your claim. Please try again.')),
+        8
+      );
     }
   };
 

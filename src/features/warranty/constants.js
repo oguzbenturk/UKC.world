@@ -85,3 +85,60 @@ export function formatBytes(bytes) {
   const fixed = value >= 100 ? 0 : value >= 10 ? 1 : 2;
   return `${value.toFixed(fixed)} ${units[i]}`;
 }
+
+/**
+ * Turn an upload failure into something a human can act on.
+ *
+ * Every warranty upload surface used to do `err?.response?.data?.error || generic`,
+ * which silently collapses to the generic message whenever the response body is
+ * NOT the API's JSON — and that is exactly what happens on the failures that
+ * matter most for video uploads:
+ *   • 413 from nginx  → an HTML error page, no `.error` field
+ *   • request never completed (dropped mobile uplink, axios timeout) → no response at all
+ * Both used to read as "Could not submit your claim. Please try again.", which
+ * told the customer nothing and sent them into an endless retry loop.
+ */
+export function uploadErrorMessage(err, t, fallback) {
+  const generic = fallback
+    || t('public:warranty.upload.errorGeneric', 'Upload failed. Please try again.');
+
+  const res = err?.response;
+
+  if (!res) {
+    const timedOut = err?.code === 'ECONNABORTED'
+      || /timeout/i.test(err?.message || '');
+    return timedOut
+      ? t('public:warranty.upload.errorTimeout',
+          'The upload timed out. Large videos need a stable connection — try again on Wi-Fi, or attach a shorter clip.')
+      : t('public:warranty.upload.errorNetwork',
+          'The connection dropped while uploading. Please check your internet and try again.');
+  }
+
+  // The API answers with structured JSON — always prefer its precise message.
+  const data = res.data;
+  if (data && typeof data === 'object' && (data.error || data.message)) {
+    return data.error || data.message;
+  }
+
+  switch (res.status) {
+    case 413:
+      return t('public:warranty.upload.errorTooLarge',
+        'The files are too large to upload. Videos may be up to {{video}} MB each and photos up to {{photo}} MB.',
+        {
+          video: Math.round(MAX_VIDEO_SIZE / 1024 / 1024),
+          photo: Math.round(MAX_PHOTO_SIZE / 1024 / 1024)
+        });
+    case 415:
+      return t('public:warranty.upload.errorType',
+        'One of the files is a type we cannot accept. Photos: JPG, PNG, WEBP, HEIC. Videos: MP4, MOV, WEBM.');
+    case 429:
+      return t('public:warranty.upload.errorRateLimit',
+        'Too many attempts from this connection. Please wait a while and try again.');
+    default:
+      if (res.status >= 500) {
+        return t('public:warranty.upload.errorServer',
+          'Our server could not accept the upload. Please try again in a moment.');
+      }
+      return generic;
+  }
+}

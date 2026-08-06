@@ -32,6 +32,7 @@ import {
   useAdminSetClaimNumber
 } from '../hooks/useWarranty';
 import { customerMediaUrl, downloadAdminMediaArchive, openAdminMedia } from '../services/warrantyApi';
+import { uploadErrorMessage } from '../constants';
 
 const { TextArea } = Input;
 
@@ -131,7 +132,7 @@ function ClaimBody({ data, claimId, onClose }) {
       setUploadProgress(0);
       message.success(t('admin:warranty.media.uploaded', 'Files uploaded.'));
     } catch (err) {
-      message.error(err?.response?.data?.error || 'Upload failed');
+      message.error(uploadErrorMessage(err, t, 'Upload failed'), 8);
     }
   };
 

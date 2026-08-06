@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import WarrantyFileUploader from './WarrantyFileUploader';
 import { useAdminCreateClaim } from '../hooks/useWarranty';
+import { uploadErrorMessage } from '../constants';
 
 const { TextArea } = Input;
 
@@ -59,8 +60,11 @@ export default function AdminWarrantyCreateModal({ open, onClose, onCreated }) {
       onCreated?.(claim);
       onClose?.();
     } catch (err) {
-      const apiError = err?.response?.data?.error;
-      message.error(apiError || t('admin:warranty.create.errorGeneric', 'Could not create the claim.'));
+      message.error(
+        uploadErrorMessage(err, t,
+          t('admin:warranty.create.errorGeneric', 'Could not create the claim.')),
+        8
+      );
     }
   };
 
