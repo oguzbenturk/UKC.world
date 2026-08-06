@@ -47,12 +47,26 @@ Paylaşılan volume: `uploads_data` (backend `/app/uploads` yazar, frontend `/va
 Container nginx 8080 (HTTP) / 8443 (HTTPS) dinler; **public 80/443'ü host üzerindeki ayrı nginx terminate eder** (asla durdurma — bkz. Tuzaklar).
 
 - **`ukc.plannivo.com` (uygulama):** HTTP→HTTPS redirect; HTTPS root `/usr/share/nginx/html` (SPA, `try_files $uri $uri/ /index.html`).
-  - `/api/` → `http://backend:4000` (WebSocket upgrade, X-Forwarded, 86400s timeout).
+  - `/api/` → `http://backend:4000` (WebSocket upgrade, X-Forwarded, 86400s timeout, `proxy_request_buffering off` + `proxy_send_timeout 600s` büyük yüklemeler için).
   - `/socket.io/` → backend (upgrade, buffering kapalı) — [[Notifications_System]] realtime.
   - `/uploads/warranty/` → backend (korumalı; auth bypass'ı önler, bkz. [[Warranty_Repairs]]); `/uploads/` doğrudan `/var/www/uploads`'tan, fallback backend.
   - `/assets/` 1 yıl immutable cache; `index.html` cache'siz.
 - **`plannivo.com` + `www` (landing):** ayrı root `/usr/share/nginx/plannivo-landing`; ACME challenge + ZeroSSL PKI-validation yolları. Bkz. [[Outsider_Marketing]].
-- **`security-headers.conf`** — HSTS (preload), X-Frame DENY, nosniff, ve GTM/Google Ads izinli sıkı CSP. TLSv1.2/1.3, HTTP/2, client_max_body_size 10MB.
+- **`security-headers.conf`** — HSTS (preload), X-Frame DENY, nosniff, ve GTM/Google Ads izinli sıkı CSP. TLSv1.2/1.3, HTTP/2. (Bu dosyada `client_max_body_size` **yoktur** — aşağıdaki zincire bak.)
+
+### ⚠️ Yükleme boyutu zinciri — 3 katman, en küçüğü kazanır
+
+Bir upload'ın gerçek tavanı **üç ayrı yerde** tanımlıdır ve en düşüğü belirleyicidir:
+
+| Katman | Yer | Değer |
+|--------|-----|-------|
+| 1. Host nginx | `/etc/nginx/sites-enabled/ukc.plannivo.com` (**repoda YOK**, sunucuda elle düzenlenir; yedek `/root/ukc.plannivo.com.nginx.bak-*`) | `client_max_body_size 1600m` |
+| 2. Container nginx | `infrastructure/nginx.conf` (prod'da bind-mount, imaja gömülü değil → `push-all` ile anında geçer) | `client_max_body_size 1600m` |
+| 3. Route multer | `backend/routes/upload.js`, `users.js`, `services/warrantyMediaService.js` | route başına gerçek limit (avatar 30MB, chat 25MB, garanti video 500MB / talep başına 1.5GB) |
+
+nginx katmanları uygulamanın vaat ettiği en büyük limitin **üstünde** kalmalı; altına düşerse nginx kendi **HTML** 413'ünü döndürür, istek Express'e hiç ulaşmaz ve istemci JSON `error` alanı olmadığı için jenerik/anlamsız bir hata görür (2026-08-06 garanti-video olayı, bkz. [[Warranty_Repairs]]). Gerçek limit her zaman multer'da tutulur — nginx sadece "görünmez kapıcı" olmamalı.
+
+Ayrıca **Node 20** tek bir isteği `server.requestTimeout` = 5 dk varsayılanıyla keser; `backend/server.js` bunu 600s'e çıkarır (nginx `proxy_send_timeout` ile eşleşsin diye). Host katmanı request buffering'i **açık** tutar, böylece yavaş mobil uplink'i host emer ve Node gövdeyi loopback hızında alır.
 
 ## Dağıtım akışı (`scripts/push-all.js`)
 
