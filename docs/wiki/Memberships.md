@@ -34,7 +34,7 @@ Bir müşterinin **aktif** (`status='active'`, süresi geçmemiş) üyeliği olm
 - `PUT /:id`, `DELETE /:id` (soft, `is_active=false`).
 - `GET /admin/purchases` — tüm satın alımlar; `computed_status` (cancelled / expired / status) CASE ile hesaplanır.
 - `POST /admin/purchases` — **resepsiyon/elle satış**. Çoğu üyelik buradan satılır. "Daily" (duration_days=1) teklifler tarih aralığına göre per-day çarpılır (`priceMultiplier`, beach/storage oranı korunur). Storage kutusu: staff belirli kutu seçebilir (dolu olsa bile PAYLAŞIM) veya otomatik. `pg_advisory_xact_lock('storage_unit_assign')` ile eşzamanlı otomatik-atama yarışı serileştirilir.
-- `POST /admin/purchases/:id/cancel` ve `DELETE /admin/purchases/:id` — **membership delete control** (managers+: `admin, manager, developer, owner`). Soft-cancel veya hard-delete; tam finansal geri sarma (idempotent cüzdan iadesi, kutu serbest, bekleyen banka makbuzu 'rejected', bekleyen manager komisyonu iptal).
+- `POST /admin/purchases/:id/cancel` ve `DELETE /admin/purchases/:id` — **membership delete control** (`admin, manager, developer, owner, front_desk, receptionist` — resepsiyon 2026-08-12'de eklendi; frontend eşleniği `MemberPurchasesSection.jsx MEMBERSHIP_MANAGE_ROLES`). Soft-cancel veya hard-delete; tam finansal geri sarma (idempotent cüzdan iadesi, kutu serbest, bekleyen banka makbuzu 'rejected', bekleyen manager komisyonu iptal).
 - `GET /admin/pending-payments` + `PATCH /admin/pending-payments/:id/action` — banka transferi makbuz onay/red akışı.
 
 ### Servisler

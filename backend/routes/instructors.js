@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
@@ -25,6 +26,43 @@ async function getCachedGlobalSettings() {
 
 const router = express.Router();
 
+// ── Staff-only commission fields on the PUBLIC list ─────────────────────────
+// GET / is public (guest team browsing) so it carries no auth middleware. That
+// meant `req.user` was ALWAYS undefined here and the commission block in the
+// response mapper below never emitted anything — every staff caller received
+// instructors with `commission_rate: undefined`.
+//
+// That silently broke the booking edit modal, which reads `commission_rate` to
+// restore an instructor's default rate: both its "Reset" button and its
+// zero-recovery guard evaluated `commission_rate || 0` and therefore wrote a
+// permanent €0 per-booking commission override (5 lessons lost their earnings
+// entirely this way). Mirrors the optionalAuth pattern in /services + /products:
+// decode a Bearer token IF present, never reject a guest.
+//
+// Visibility is limited to the same staff set that may modify a booking —
+// instructors must not see each other's rates.
+const COMMISSION_VISIBLE_ROLES = new Set([
+  'admin', 'super_admin', 'owner', 'developer', 'manager', 'receptionist', 'front_desk',
+]);
+
+const optionalAuth = (req, _res, next) => {
+  const token = (req.headers.authorization || '').split(' ')[1];
+  req.user = null;
+  if (token) {
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    } catch {
+      req.user = null;
+    }
+  }
+  next();
+};
+
+const callerCanSeeCommission = (req) =>
+  !!(req.user && COMMISSION_VISIBLE_ROLES.has(
+    String(req.user.role || '').toLowerCase().replace(/[-\s]+/g, '_').trim(),
+  ));
+
 // Rate limiter for public API endpoints (guests)
 const publicApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -34,8 +72,14 @@ const publicApiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// GET all instructors - Public endpoint for guest browsing
-router.get('/', publicApiLimiter, cacheMiddleware(300), async (req, res) => {
+// GET all instructors - Public endpoint for guest browsing.
+// optionalAuth runs BEFORE cacheMiddleware so the cache key can vary by
+// privilege: without that, one guest response would be replayed to staff for
+// the next 5 minutes (stripping commission_rate again) and, worse, a staff
+// response could be served to guests.
+router.get('/', publicApiLimiter, optionalAuth, cacheMiddleware(300, (req) =>
+  `api:instructors:list:${req.query.context || 'all'}:${callerCanSeeCommission(req) ? 'staff' : 'public'}`
+), async (req, res) => {
   try {
     const { context } = req.query;
 
@@ -118,7 +162,7 @@ router.get('/', publicApiLimiter, cacheMiddleware(300), async (req, res) => {
       created_at: visibleFields.includes('experience') ? row.created_at : null,
       booking_link_enabled: globalSettings.booking_link_enabled,
       visible_fields: visibleFields,
-      ...(req.user ? {
+      ...(callerCanSeeCommission(req) ? {
         commission_rate: row.commission_rate,
         commission_type: row.commission_type,
         self_student_commission_rate: row.self_student_commission_rate

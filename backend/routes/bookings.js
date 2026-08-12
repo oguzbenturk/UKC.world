@@ -4951,6 +4951,12 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         ? parseFloat(pccRes.rows[0].commission_value)
         : null;
     }
+    // What the override actually became after the write block below (null = no
+    // override row). Compared against the pre-edit value to decide whether the
+    // earnings cascade needs to re-run — comparing against the raw request value
+    // instead would re-fire the cascade on every save that merely echoes back the
+    // instructor's default.
+    let postEditCustomCommissionValue = preEditCustomCommissionValue;
 
     // Keep `final_amount` in sync with `amount` whenever the caller updates the
     // price. The display layer reads `final_amount` first, so leaving it stale
@@ -5386,41 +5392,75 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       }
     }
 
-    // Handle custom commission rate if provided
+    // Handle custom commission rate if provided.
+    //
+    // A row here is a per-booking OVERRIDE that outranks every other rate source
+    // (service rate -> category rate -> instructor default), so it must only be
+    // written when the caller genuinely wants a different number. The edit modal
+    // used to ship this field on EVERY save — including price/notes/duration-only
+    // edits — which froze 230 bookings at a copy of their instructor's then-current
+    // default (they would not follow a later rate change) and, when the submitted
+    // value came through as 0, permanently zeroed the instructor's earnings.
     if (instructor_commission !== undefined && instructor_user_id) {
-      // First, delete any existing custom commission for this booking
-      await client.query('DELETE FROM booking_custom_commissions WHERE booking_id = $1', [booking.id]);
-      
-      // If commission is provided and different from default, insert custom commission
-      // Only proceed if we have a service_id
-      if (instructor_commission !== null && instructor_commission !== '' && booking.service_id) {
-        const commissionId = uuidv4();
-        
-        // Resolve the commission type: use explicitly provided type, or look up from instructor's settings
-        let resolvedCommissionType = instructor_commission_type;
-        if (!resolvedCommissionType) {
-          const typeResult = await client.query(`
-            SELECT COALESCE(
-              isc.commission_type,
-              icr.rate_type,
-              idc.commission_type,
-              'fixed'
-            ) as commission_type
-            FROM users u
-            LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = u.id AND isc.service_id = $2
-            LEFT JOIN instructor_category_rates icr ON icr.instructor_id = u.id 
-              AND icr.lesson_category = (SELECT lesson_category_tag FROM services WHERE id = $2)
-            LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
-            WHERE u.id = $1
-          `, [instructor_user_id, booking.service_id]);
-          resolvedCommissionType = typeResult.rows[0]?.commission_type || 'fixed';
-        }
-        
+      // Resolve what this booking WOULD pay with no override, using the same
+      // priority (and the same semi-private-supervision category mapping) as the
+      // read path, so "equals the default" means exactly that.
+      const defaultRateResult = await client.query(`
+        SELECT
+          COALESCE(isc.commission_type, icr.rate_type, idc.commission_type, 'fixed') AS commission_type,
+          COALESCE(isc.commission_value, icr.rate_value, idc.commission_value) AS commission_value
+        FROM users u
+        LEFT JOIN services srv ON srv.id = $2
+        LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = u.id AND isc.service_id = $2
+        LEFT JOIN instructor_category_rates icr ON icr.instructor_id = u.id
+          AND icr.lesson_category = (
+            CASE
+              WHEN srv.lesson_category_tag = 'supervision' AND COALESCE($3::int, 1) > 1
+                THEN 'semi-private-supervision'
+              ELSE srv.lesson_category_tag
+            END
+          )
+        LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
+        WHERE u.id = $1
+      `, [instructor_user_id, booking.service_id, booking.group_size]);
+
+      const defaultType = defaultRateResult.rows[0]?.commission_type || 'fixed';
+      const defaultValue = defaultRateResult.rows[0]?.commission_value;
+
+      const resolvedCommissionType = instructor_commission_type || defaultType;
+      const submittedValue =
+        instructor_commission === null || instructor_commission === ''
+          ? null
+          : Number(instructor_commission);
+
+      // Blank / null / unparseable, or identical to the resolved default: this is
+      // not an override — drop any existing row so the booking tracks the
+      // instructor's live rate again.
+      const isNoOverride =
+        submittedValue === null ||
+        !Number.isFinite(submittedValue) ||
+        !booking.service_id ||
+        (defaultValue !== null &&
+          defaultValue !== undefined &&
+          resolvedCommissionType === defaultType &&
+          Number(defaultValue) === submittedValue);
+
+      if (isNoOverride) {
+        await client.query('DELETE FROM booking_custom_commissions WHERE booking_id = $1', [booking.id]);
+        postEditCustomCommissionValue = null;
+      } else {
+        postEditCustomCommissionValue = submittedValue;
         await client.query(`
-          INSERT INTO booking_custom_commissions 
+          INSERT INTO booking_custom_commissions
           (id, booking_id, instructor_id, service_id, commission_type, commission_value, created_at, updated_at)
           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        `, [commissionId, booking.id, instructor_user_id, booking.service_id, resolvedCommissionType, instructor_commission]);
+          ON CONFLICT (booking_id) DO UPDATE
+            SET instructor_id    = EXCLUDED.instructor_id,
+                service_id       = EXCLUDED.service_id,
+                commission_type  = EXCLUDED.commission_type,
+                commission_value = EXCLUDED.commission_value,
+                updated_at       = NOW()
+        `, [uuidv4(), booking.id, instructor_user_id, booking.service_id, resolvedCommissionType, submittedValue]);
       }
     }    // Update equipment associations if provided
     if (equipment_ids) {
@@ -5541,9 +5581,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     // a real commission change is detected and triggers the earnings recompute.
     if (instructor_commission !== undefined) {
       const oldCommissionValue = preEditCustomCommissionValue;
-      const newCommissionValue = instructor_commission !== null && instructor_commission !== ''
-        ? parseFloat(instructor_commission)
-        : null;
+      const newCommissionValue = postEditCustomCommissionValue;
       if (oldCommissionValue !== newCommissionValue) {
         cascadeChanges._custom_commission_changed = true;
         cascadeChanges.instructor_commission = newCommissionValue;

@@ -1159,7 +1159,7 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheI
 /**
  * Delete a rental
  */
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(RENTAL_CACHE_PATTERNS), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(RENTAL_CACHE_PATTERNS), async (req, res) => {
   const client = await pool.connect();
 
   try {

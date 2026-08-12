@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Empty, Tag, Button, Spin, Modal, Avatar, Space } from 'antd';
-import { EyeOutlined, CloseCircleOutlined, ShoppingCartOutlined, EditOutlined } from '@ant-design/icons';
+import { EyeOutlined, CloseCircleOutlined, ShoppingCartOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { message } from '@/shared/utils/antdStatic';
 import apiClient from '@/shared/services/apiClient';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -43,10 +43,13 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
 
   // Staff who may edit line-item prices (mirrors the backend admin/manager guard).
   const PRICE_EDIT_ROLES = new Set(['admin', 'manager', 'owner', 'developer']);
+  // Staff who may permanently delete an order (mirrors the backend DELETE /shop-orders/:id guard).
+  const ORDER_DELETE_ROLES = new Set(['admin', 'manager', 'owner', 'developer', 'front_desk', 'receptionist']);
 
   // Use admin endpoint for staff; use /my-orders for the user viewing their own profile
   const isAdminView = currentUser && ADMIN_ROLES.has(currentUser.role);
   const canEditPrices = currentUser && PRICE_EDIT_ROLES.has(currentUser.role);
+  const canDeleteOrders = currentUser && ORDER_DELETE_ROLES.has(currentUser.role);
   const isSelfView = currentUser?.id === userId;
 
   const fetchOrders = async (page = 1) => {
@@ -103,6 +106,34 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
       } catch { /* keep current view */ }
     }
     fetchOrders(pagination.current);
+  };
+
+  // Permanent delete — backend restores stock (non-cancelled/refunded orders) and
+  // refunds any completed wallet payment, then removes the order everywhere.
+  const handleDeleteOrder = (order) => {
+    const stockWillRestore = !['cancelled', 'refunded'].includes(order.status);
+    Modal.confirm({
+      title: `Delete order ${order.order_number || order.id}?`,
+      icon: <ExclamationCircleOutlined />,
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      content: stockWillRestore
+        ? 'This permanently removes the order and its items. Stock is restored and any wallet payment is refunded. This cannot be undone.'
+        : 'This permanently removes the order and its items. Any wallet payment is refunded. This cannot be undone.',
+      onOk: async () => {
+        try {
+          await apiClient.delete(`/shop-orders/${order.id}`);
+          message.success('Order deleted');
+          if (selectedOrder?.id === order.id) {
+            setDetailVisible(false);
+            setSelectedOrder(null);
+          }
+          fetchOrders(pagination.current);
+        } catch (err) {
+          message.error(err.response?.data?.error || 'Failed to delete order');
+        }
+      }
+    });
   };
 
   const columns = [
@@ -182,6 +213,19 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
                   });
                 }}
               >Discount</Button>
+            )}
+            {canDeleteOrders && (
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                title="Delete order"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteOrder(record);
+                }}
+              />
             )}
           </Space>
         )
@@ -381,7 +425,10 @@ const CustomerShopHistory = ({ userId, discountsByEntity, onApplyDiscount }) => 
                 </div>
               )}
 
-              <div className="flex justify-end pt-1">
+              <div className="flex justify-between items-center pt-1">
+                {canDeleteOrders ? (
+                  <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteOrder(selectedOrder)}>Delete order</Button>
+                ) : <span />}
                 <Button size="small" onClick={() => setDetailVisible(false)}>Close</Button>
               </div>
             </div>

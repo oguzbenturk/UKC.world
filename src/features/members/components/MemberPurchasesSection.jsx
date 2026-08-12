@@ -8,10 +8,10 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 
 // Roles allowed to delete a membership — kept in sync with the backend cancel endpoint
-// (authorizeRoles(['admin','manager','developer','owner'])). Some callers hardcode
-// isAdminView={true} (e.g. CustomerProfilePage), so gate the destructive action on the
-// viewer's real role too, not just the prop.
-const MEMBERSHIP_MANAGE_ROLES = ['admin', 'manager', 'developer', 'owner'];
+// (authorizeRoles(['admin','manager','developer','owner','front_desk','receptionist'])).
+// Some callers hardcode isAdminView={true} (e.g. CustomerProfilePage), so gate the
+// destructive action on the viewer's real role too, not just the prop.
+const MEMBERSHIP_MANAGE_ROLES = ['admin', 'manager', 'developer', 'owner', 'front_desk', 'receptionist'];
 
 const { Text, Title } = Typography;
 
@@ -149,7 +149,7 @@ const MemberPurchasesSection = ({
   };
 
   const canDiscount = isAdminView && !readOnly && typeof onApplyDiscount === 'function';
-  // Only managers/admins (matching the backend cancel endpoint) can delete a membership —
+  // Only staff roles matching the backend cancel endpoint can delete a membership —
   // and only in an admin/staff view, never a customer's own read-only view.
   const canManageMemberships = MEMBERSHIP_MANAGE_ROLES.includes((currentUser?.role || '').toLowerCase());
   const canActions = isAdminView && !readOnly && canManageMemberships;

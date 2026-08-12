@@ -28,6 +28,12 @@ Frontend Shell, kullanıcı hangi rolde olursa olsun uygulamanın "iskeletini" k
 - Mount **i18n hazır olana kadar bekler** (`i18nReady`), ama 5 sn'lik `I18N_FALLBACK_TIMEOUT_MS` ile sınırlıdır — çeviri yüklenmese bile uygulama açılır.
 - Dev'de service worker kaydını engeller; `errorRecoveryManager` ve `mobileKeyboardScroll` global yardımcılarını import eder.
 
+### PWA — kurulabilir uygulama (`public/manifest.json`, service worker YOK)
+- `index.html` → `<link rel="manifest" href="/manifest.json">` + `mobile-web-app-capable`/`apple-mobile-web-app-*` meta'ları: uygulama Android/Chrome'da "Install", iOS Safari'de "Add to Home Screen" ile **standalone** (tarayıcı çubuğu olmadan) açılır.
+- İkon seti `public/icons/`: `icon-192/512.png` (any), `icon-maskable-192/512.png` (Android dairesel kırpma için güvenli alanlı), `apple-touch-icon.png` (180×180 opak PNG — iOS SVG touch-icon'u yok sayar). Hepsi `public/logo.svg` içindeki Duotone "D" ambleminden `#4b4f54` zemin üzerine üretildi.
+- **Bilinçli karar: service worker yok.** Offline cache katmanı eklenmedi — sık deploy + hash'li chunk'lar ile eski SW cache'i "bayat sürüm" kazalarına yol açar (bkz. `lazyWithRetry` geçmişi). `main.jsx` dev'de SW kaydını zaten engelliyor; prod'da da kayıt yapılmaz. İleride web push gerekirse SW ayrı bir iş olarak ele alınmalı.
+- nginx notu: manifest `application/json` olarak servis edilir (`.webmanifest` uzantısı stok mime.types'ta olmadığı için bilinçli olarak `manifest.json` adı seçildi); `/icons/*.png` konteyner nginx'in statik cache bloğuna girer (1y immutable — ikon değişirse dosya adı değiştirilmeli).
+
 ### Kök bileşen — `src/App.jsx`
 `App()` tüm context provider'larını iç içe sarar (sıra önemli, alttakiler üsttekilere bağımlı):
 

@@ -12,14 +12,47 @@
     <!-- End Google Tag Manager -->
 
     <!-- App Version - Auto-updated by push-all.js on deployment -->
-    <meta name="app-version" content="0.1.372" />
+    <meta name="app-version" content="0.1.373" />
     <!-- Cache control meta tags -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
   <!-- Real icons for crawlers/browsers (bundled copy of DPSLOGOS/DPC-transparant-white.svg) -->
   <link rel="icon" type="image/svg+xml" href="/logo.svg">
-  <link rel="apple-touch-icon" href="/logo.svg">
+  <!-- iOS ignores SVG touch icons — must be an opaque PNG -->
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <!-- PWA: installable app (manifest only, no service worker by design) -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="UKC." />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <!-- iOS launch screens. Generated alongside the icons by scripts/generate-pwa-assets.mjs --
+       re-run that script rather than hand-editing this block. -->
+  <link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-320x568@2x-portrait.png"><!-- iPhone SE (1st gen) -->
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-375x667@2x-portrait.png"><!-- iPhone SE 2/3, 8, 7, 6s -->
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-414x736@3x-portrait.png"><!-- iPhone 8 Plus, 7 Plus -->
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-375x812@3x-portrait.png"><!-- iPhone X, XS, 11 Pro, 12/13 mini -->
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-414x896@2x-portrait.png"><!-- iPhone XR, 11 -->
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-414x896@3x-portrait.png"><!-- iPhone XS Max, 11 Pro Max -->
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-390x844@3x-portrait.png"><!-- iPhone 12, 12 Pro, 13, 13 Pro, 14 -->
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-428x926@3x-portrait.png"><!-- iPhone 12/13 Pro Max, 14 Plus -->
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-393x852@3x-portrait.png"><!-- iPhone 14 Pro, 15, 15 Pro, 16 -->
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-430x932@3x-portrait.png"><!-- iPhone 14 Pro Max, 15 Plus/Pro Max, 16 Plus -->
+  <link rel="apple-touch-startup-image" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-402x874@3x-portrait.png"><!-- iPhone 16 Pro -->
+  <link rel="apple-touch-startup-image" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="/splash/splash-440x956@3x-portrait.png"><!-- iPhone 16 Pro Max -->
+  <link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-768x1024@2x-portrait.png"><!-- iPad 9.7", mini -->
+  <link rel="apple-touch-startup-image" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/splash/splash-768x1024@2x-landscape.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-810x1080@2x-portrait.png"><!-- iPad 10.2" -->
+  <link rel="apple-touch-startup-image" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/splash/splash-810x1080@2x-landscape.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-820x1180@2x-portrait.png"><!-- iPad Air 10.9" -->
+  <link rel="apple-touch-startup-image" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/splash/splash-820x1180@2x-landscape.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-834x1112@2x-portrait.png"><!-- iPad Pro 10.5", Air 10.5" -->
+  <link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/splash/splash-834x1112@2x-landscape.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-834x1194@2x-portrait.png"><!-- iPad Pro 11" -->
+  <link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/splash/splash-834x1194@2x-landscape.png">
+  <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/splash/splash-1024x1366@2x-portrait.png"><!-- iPad Pro 12.9" -->
+  <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/splash/splash-1024x1366@2x-landscape.png">
   <!-- Mobile-safe viewport: allow drawing into safe areas (notch) and resize content when keyboard shows -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>UKC. | Duotone Pro Center Urla</title>

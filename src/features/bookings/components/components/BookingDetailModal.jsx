@@ -142,6 +142,13 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     instructor_id: null
   });
   
+  // Did the user actually touch the commission field in THIS edit session?
+  // The save payload only carries `instructor_commission` when this is true.
+  // Sending it unconditionally froze a per-booking commission override on every
+  // save — even a notes- or price-only edit — and any moment the field held 0
+  // that override permanently zeroed the instructor's earnings for the lesson.
+  const [commissionTouched, setCommissionTouched] = useState(false);
+
   const [services, setServices] = useState([]);
   const [instructors, setInstructors] = useState([]);
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -250,6 +257,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
       });
     }
     setIsEditing(false);
+    setCommissionTouched(false);
     setIsDeleting(false);
     setIsProcessing(false);
     setIsCheckingOut(false);
@@ -357,19 +365,26 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     }
   }, [booking, services, instructors]);
 
-  // Update commission when instructor changes (but not price)
+  // Update commission when instructor changes (but not price).
+  //
+  // `commission_rate` is only present for staff callers of /api/instructors; when
+  // it is missing this must leave the field alone. The old `|| 0` fallback turned
+  // an unknown default into a hard zero, and because the field renders blank at 0
+  // nothing on screen showed that the instructor's rate had been wiped.
+  // A deliberate 0 typed by the user (commissionTouched) is likewise left alone.
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditing || commissionTouched) return;
 
     const selectedInstructor = instructors.find(i => i.id === editForm.instructor_id);
-    if (selectedInstructor && editForm.instructor_commission === 0) {
+    const defaultRate = Number(selectedInstructor?.commission_rate);
+    if (Number.isFinite(defaultRate) && defaultRate > 0 && Number(editForm.instructor_commission) === 0) {
       setEditForm(prev => ({
         ...prev,
-        instructor_commission: selectedInstructor.commission_rate || 0,
-        instructor_commission_type: selectedInstructor.commission_type || 'fixed'
+        instructor_commission: defaultRate,
+        instructor_commission_type: selectedInstructor.commission_type || prev.instructor_commission_type || 'fixed'
       }));
     }
-  }, [editForm.instructor_id, editForm.instructor_commission, instructors, isEditing]);
+  }, [editForm.instructor_id, editForm.instructor_commission, instructors, isEditing, commissionTouched]);
 
   // Handle check-in status change
   const handleUpdateStatus = async (status) => {
@@ -622,13 +637,26 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
         instructor_user_id: instructor_id
       };
 
+      // Only send the commission when the user actually edited it. Any value we
+      // send becomes a permanent per-booking override that outranks the
+      // instructor's configured rate, so an untouched field must stay out of the
+      // payload entirely rather than silently freezing (or zeroing) the rate.
+      if (!commissionTouched) {
+        delete finalPayload.instructor_commission;
+        delete finalPayload.instructor_commission_type;
+      }
+
       await updateBooking(booking.id, finalPayload);
 
       showSuccess(t('common:bookings.detail.updateSuccess'));
 
-      Object.assign(booking, finalPayload, {
-        commission_type: finalPayload.instructor_commission_type
-      });
+      Object.assign(
+        booking,
+        finalPayload,
+        // Only mirror the commission back onto the local booking when we sent it;
+        // otherwise this would blank out the resolved rate the row already carries.
+        commissionTouched ? { commission_type: finalPayload.instructor_commission_type } : {}
+      );
 
       setEditForm(prev => ({
         ...prev,
@@ -636,6 +664,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
         price: numericAmount,
         instructor_id
       }));
+      setCommissionTouched(false);
 
       window.dispatchEvent(new CustomEvent('booking-updated', {
         detail: { bookingId: booking.id, updatedBooking: { ...booking } }
@@ -1273,9 +1302,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                     max={isPercentage ? "100" : undefined}
                                     step={isPercentage ? "1" : "0.01"}
                                     className="w-full h-10 pl-3 pr-10 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-900 tabular-nums focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
-                                    value={editForm.instructor_commission === 0 ? '' : editForm.instructor_commission}
+                                    value={editForm.instructor_commission ?? ''}
                                     onChange={(e) => {
                                       const value = e.target.value;
+                                      setCommissionTouched(true);
                                       if (value === '') {
                                         handleEditFormChange('instructor_commission', '');
                                       } else {
@@ -1286,13 +1316,19 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                       }
                                     }}
                                     onBlur={(e) => {
-                                      const value = e.target.value;
-                                      if (value === '') {
-                                        handleEditFormChange('instructor_commission', 0);
+                                      // Left blank = "no override, use the instructor's rate".
+                                      // It must NOT collapse to 0 — that used to write a €0
+                                      // override and wipe the lesson's earnings.
+                                      if (e.target.value === '') {
+                                        handleEditFormChange('instructor_commission', '');
                                       }
                                     }}
                                     disabled={isProcessing}
-                                    placeholder="0"
+                                    placeholder={
+                                      Number.isFinite(Number(selectedInstructor?.commission_rate))
+                                        ? String(selectedInstructor.commission_rate)
+                                        : t('common:bookings.detail.useDefaultRate', 'Default rate')
+                                    }
                                   />
                                   <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-sm font-semibold pointer-events-none">
                                     {isPercentage ? '%' : currencySymbol}
@@ -1302,9 +1338,14 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                   type="button"
                                   className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-[11px] font-semibold uppercase tracking-wider text-slate-600 hover:text-sky-600 hover:border-sky-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                   onClick={() => {
-                                    if (selectedInstructor) {
-                                      handleEditFormChange('instructor_commission', selectedInstructor.commission_rate || 0);
-                                    }
+                                    // Clearing the field IS the reset: an empty value tells the
+                                    // backend to drop any per-booking override so the lesson
+                                    // tracks the instructor's live rate. The old version wrote
+                                    // `commission_rate || 0` — and since /api/instructors never
+                                    // returned commission_rate, "Reset" silently set the
+                                    // commission to €0 and destroyed the lesson's earnings.
+                                    setCommissionTouched(true);
+                                    handleEditFormChange('instructor_commission', '');
                                   }}
                                   disabled={isProcessing || !editForm.instructor_id}
                                   title={t('common:bookings.detail.resetToDefault')}
@@ -1325,7 +1366,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                             <button
                               type="button"
                               className="h-10 px-4 rounded-lg text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-                              onClick={() => setIsEditing(false)}
+                              onClick={() => { setCommissionTouched(false); setIsEditing(false); }}
                               disabled={isProcessing}
                             >
                               {t('common:bookings.detail.cancel')}
@@ -1820,7 +1861,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                         <button
                           type="button"
                           className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 disabled:bg-gray-400 transition-colors"
-                          onClick={() => setIsEditing(true)}
+                          onClick={() => { setCommissionTouched(false); setIsEditing(true); }}
                           disabled={isProcessing}
                         >
                           <PencilSquareIcon className="h-3.5 w-3.5 mr-1" />

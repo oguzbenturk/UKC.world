@@ -1025,7 +1025,7 @@ router.put(
  * predicate). Manager commission, if any pending one exists, is cancelled after commit.
  * Body: { reason?, refundWallet=true }.
  */
-router.post('/admin/purchases/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager', 'developer', 'owner']), async (req, res) => {
+router.post('/admin/purchases/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager', 'developer', 'owner', 'front_desk', 'receptionist']), async (req, res) => {
   const { id } = req.params;
   const { reason = null, refundWallet = true } = req.body || {};
   const client = await pool.connect();
@@ -1135,7 +1135,7 @@ router.post('/admin/purchases/:id/cancel', authenticateJWT, authorizeRoles(['adm
  * ON DELETE SET NULL; refund wallet_transactions reference the id only via metadata.
  * Body: { reason?, refundWallet=true }.
  */
-router.delete('/admin/purchases/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'developer', 'owner']), async (req, res) => {
+router.delete('/admin/purchases/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'developer', 'owner', 'front_desk', 'receptionist']), async (req, res) => {
   const { id } = req.params;
   const { reason = null, refundWallet = true } = req.body || {};
   const client = await pool.connect();

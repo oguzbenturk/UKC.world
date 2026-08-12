@@ -1769,7 +1769,7 @@ router.post('/:id/cancel', authenticateJWT, cacheInvalidationMiddleware(['api:sh
 // Admin: Permanently delete an order (and restore stock for non-final states).
 // Child rows (items, status history, messages) cascade-delete via FK.
 // Bank transfer receipts SET NULL (preserved for audit).
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), cacheInvalidationMiddleware(['api:shop:orders:*', 'api:shop:stats:*']), async (req, res) => {
   const client = await pool.connect();
 
   try {
