@@ -18,12 +18,20 @@
 // Re-run after any brand change:
 //   node scripts/generate-pwa-assets.mjs
 //
-// HEADS UP when you do: nginx serves every .png under `expires 1y, immutable`
-// (infrastructure/nginx.conf), and these filenames carry no content hash. A
-// device that already cached icon-512.png will keep the OLD artwork for a year.
-// So if the mark ever changes, either rename the files (and update
-// public/manifest.json + index.html) or append a ?v=N query to their URLs.
-// The manifest itself is capped at max-age=3600, so it always picks up quickly.
+// HEADS UP when you do: nginx serves every .png/.svg under `expires 1y,
+// immutable` (infrastructure/nginx.conf), and these filenames carry no content
+// hash. A device that already cached icon-512.png keeps the OLD artwork for a
+// YEAR — this bit us for real between v0.1.373 and v0.1.374, an hour apart.
+//
+// So the icon URLs carry a manual cache-busting token. Every regeneration that
+// CHANGES the artwork must bump it, in both places:
+//   public/manifest.json  -> "src": "/icons/….png?v=N"   (icons + shortcuts)
+//   index.html            -> apple-touch-icon href
+// Currently at v=2. The manifest itself is capped at max-age=3600, so a bumped
+// token reaches devices within the hour.
+//
+// public/splash/* deliberately carries NO token: those 24 files are ~740 KB and
+// have not changed since they were introduced. Give them one only if they do.
 
 import { chromium } from 'playwright';
 import fs from 'node:fs';
