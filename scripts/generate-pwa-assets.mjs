@@ -50,7 +50,7 @@ function heroiconPaths(name) {
   return [...src.matchAll(/d:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
-const wordmarkHtml = (targetRatio) => `<!doctype html><html><head><meta charset="utf-8"><style>
+const wordmarkHtml = ({ ratio, bg = BG, ink = INK, hideDot = false }) => `<!doctype html><html><head><meta charset="utf-8"><style>
   @font-face {
     font-family: 'Gotham Bold';
     src: url(data:font/woff2;base64,${fontB64}) format('woff2');
@@ -58,13 +58,13 @@ const wordmarkHtml = (targetRatio) => `<!doctype html><html><head><meta charset=
   }
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
   body {
-    background: ${BG};
+    background: ${bg};
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
   #mark {
     display: inline-flex; align-items: baseline; white-space: nowrap;
-    font-family: 'Gotham Bold'; font-weight: 700; color: ${INK};
+    font-family: 'Gotham Bold'; font-weight: 700; color: ${ink};
     font-size: 100px;
     -webkit-font-smoothing: antialiased;
     text-rendering: geometricPrecision;
@@ -77,15 +77,21 @@ const wordmarkHtml = (targetRatio) => `<!doctype html><html><head><meta charset=
     background: ${DOT};
     width: 0.26em; height: 0.26em;
     position: relative; top: -0.02em; margin-left: 0.03em;
+    /* visibility (not display) keeps the dot in the layout, so the letters stay
+       exactly where they sit in the full lockup while it is hidden. */
+    ${hideDot ? 'visibility: hidden;' : ''}
   }
 </style></head><body>
   <div id="mark"><span id="ukc">UKC</span><span id="dot"></span></div>
-  <script>window.__ratio = ${targetRatio};</script>
+  <script>window.__ratio = ${ratio};</script>
 </body></html>`;
 
+// Shortcut glyphs are transparent like the app icon. They are drawn in emerald
+// rather than white so they stay legible on a light launcher sheet as well as a
+// dark one — the one brand colour that needs no theme switch.
 const glyphHtml = (paths) => `<!doctype html><html><head><meta charset="utf-8"><style>
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-  body { background: ${BG}; display: flex; align-items: center; justify-content: center; }
+  body { background: transparent; display: flex; align-items: center; justify-content: center; }
   svg { width: 62%; height: 62%; }
 </style></head><body>
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -97,25 +103,68 @@ const glyphHtml = (paths) => `<!doctype html><html><head><meta charset="utf-8"><
 // Fit the wordmark to `ratio` of the shorter edge by measuring its real rendered
 // width once, then solving for the font-size. Measuring beats hardcoding a size:
 // it stays correct if the font or the tracking ever changes.
-async function shootWordmark(page, { width, height, ratio, out }) {
+async function layout(page, { width, height, ...htmlOpts }) {
   await page.setViewportSize({ width, height });
-  await page.setContent(wordmarkHtml(ratio), { waitUntil: 'load' });
-  await page.evaluate(async () => {
+  await page.setContent(wordmarkHtml(htmlOpts), { waitUntil: 'load' });
+  // Returns the dot's circle geometry in viewport coordinates, so the adaptive
+  // SVG can redraw it as a real <circle> at exactly the position the CSS lockup
+  // put it — no second raster, and it stays crisp at any size.
+  return page.evaluate(async () => {
     await document.fonts.ready;
     const mark = document.getElementById('mark');
     const target = Math.min(window.innerWidth, window.innerHeight) * window.__ratio;
     const natural = mark.getBoundingClientRect().width;
     mark.style.fontSize = `${(100 * target) / natural}px`;
+    const d = document.getElementById('dot').getBoundingClientRect();
+    return { cx: d.x + d.width / 2, cy: d.y + d.height / 2, r: d.width / 2 };
   });
-  await page.screenshot({ path: out, type: 'png' });
+}
+
+async function shootWordmark(page, { width, height, ratio, out, bg = BG, ink = INK, hideDot = false }) {
+  await layout(page, { width, height, ratio, bg, ink, hideDot });
+  // omitBackground only yields real alpha when the page itself paints none.
+  await page.screenshot({ path: out, type: 'png', omitBackground: bg === 'transparent' });
   return out;
 }
 
 async function shootGlyph(page, { size, paths, out }) {
   await page.setViewportSize({ width: size, height: size });
   await page.setContent(glyphHtml(paths), { waitUntil: 'load' });
-  await page.screenshot({ path: out, type: 'png' });
+  await page.screenshot({ path: out, type: 'png', omitBackground: true });
   return out;
+}
+
+// The adaptive icon. Gotham has to stay pixel-true, but there is no way to get
+// real glyph outlines out of the browser — so instead of tracing the letters,
+// the rendered glyphs become a luminance MASK and the SVG paints through it
+// with a fill that flips on prefers-color-scheme. Perfect Gotham, one colour
+// token, no font embedded. The dot is redrawn as a real <circle> from the
+// measured layout, so it stays sharp at any size and never needs recolouring
+// (emerald reads on both light and dark).
+async function buildAdaptiveSvg(page, { size, ratio }) {
+  const dot = await layout(page, {
+    width: size, height: size, ratio,
+    bg: '#000000', ink: '#ffffff', hideDot: true,
+  });
+  const mask = await page.screenshot({ type: 'png' });
+  const n = (v) => Number(v.toFixed(2));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+  <!-- Generated by scripts/generate-pwa-assets.mjs — do not hand-edit. -->
+  <style>
+    /* Chromium rasterises a manifest icon ONCE, at install time, using the
+       colour scheme in effect then. It will not repaint when the user later
+       switches theme, so an installed icon keeps whichever variant it was
+       installed with. That is a platform limit, not a bug in this file. */
+    .ink { fill: ${BG}; }
+    @media (prefers-color-scheme: dark) { .ink { fill: ${INK}; } }
+  </style>
+  <mask id="wordmark">
+    <image href="data:image/png;base64,${mask.toString('base64')}" x="0" y="0" width="${size}" height="${size}"/>
+  </mask>
+  <rect class="ink" x="0" y="0" width="${size}" height="${size}" mask="url(#wordmark)"/>
+  <circle cx="${n(dot.cx)}" cy="${n(dot.cy)}" r="${n(dot.r)}" fill="${DOT}"/>
+</svg>
+`;
 }
 
 // [cssWidth, cssHeight, devicePixelRatio, label] — iOS only accepts a startup
@@ -153,21 +202,32 @@ const written = [];
 
 try {
   // ── App icons ────────────────────────────────────────────────────────────
-  // "any" is shown as-is in docks/taskbars, so it runs edge-to-edge. "maskable"
-  // is cropped to a platform shape (Android circle/squircle), so the lockup is
-  // pulled into the safe zone — the inner 80% — at a smaller ratio.
+  // The adaptive SVG leads the manifest: transparent, with the wordmark ink
+  // flipping on the viewer's colour scheme.
+  const svgPath = path.join(ICONS_DIR, 'icon-adaptive.svg');
+  fs.writeFileSync(svgPath, await buildAdaptiveSvg(page, { size: 512, ratio: 0.66 }));
+  written.push(svgPath);
+
   for (const size of [192, 512]) {
+    // Raster fallback for anything that ignores SVG manifest icons (Android
+    // among them). A PNG can only carry ONE ink colour, and white is the safer
+    // bet: docks, taskbars and app switchers are dark far more often than light.
     written.push(await shootWordmark(page, {
-      width: size, height: size, ratio: 0.66,
+      width: size, height: size, ratio: 0.66, bg: 'transparent',
       out: path.join(ICONS_DIR, `icon-${size}.png`),
     }));
+    // Maskable MUST stay opaque. The platform crops it to a circle/squircle and
+    // expects the background to fill the frame — alpha here punches holes in it.
+    // It is also cropped to the inner 80%, hence the smaller ratio.
     written.push(await shootWordmark(page, {
       width: size, height: size, ratio: 0.50,
       out: path.join(ICONS_DIR, `icon-maskable-${size}.png`),
     }));
   }
 
-  // iOS rounds this itself — ship it square and fully opaque.
+  // apple-touch-icon MUST stay opaque: iOS composites any alpha onto BLACK, so
+  // a transparent one lands on the home screen as a black box. iOS applies its
+  // own rounding, so ship it square.
   written.push(await shootWordmark(page, {
     width: 180, height: 180, ratio: 0.64,
     out: path.join(ICONS_DIR, 'apple-touch-icon.png'),
