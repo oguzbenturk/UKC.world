@@ -314,7 +314,12 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
     if (discountsResult.status === 'fulfilled' && Array.isArray(discountsResult.value)) {
       setDiscounts(discountsResult.value);
     }
-  }, [customerId, buildAuthHeaders]);
+    // The modal's data just changed (delete/edit/payment/…) — the customers
+    // list behind it shows a per-row balance and would otherwise keep the
+    // stale pre-action value until the next tab-focus refetch ("deleted from
+    // Financial History but still counted in the customer's balance").
+    onUpdate();
+  }, [customerId, buildAuthHeaders, onUpdate]);
 
   // Lightweight refresh: only re-fetch the discount list. Used after
   // ApplyDiscountModal saves so we don't bounce every other dataset.
