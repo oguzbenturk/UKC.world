@@ -30,7 +30,7 @@ import socketService from '../services/socketService.js';
 import { cacheMiddleware } from '../middlewares/cache.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { parseHHMM, getWorkingHours } from '../utils/timeUtils.js';
-import { applyDiscount } from '../services/discountService.js';
+import { applyDiscount, getEntitySnapshot } from '../services/discountService.js';
 import { switchBookingFunding, overflowRatePerHour } from '../services/bookingFundingService.js';
 
 const router = express.Router();
@@ -40,9 +40,38 @@ const router = express.Router();
 // paid + commission/earnings recompute) so a staff discount entered in a create
 // form is applied at booking time instead of as a separate step afterwards.
 // Runs inside the create transaction; a bad percent rolls the whole booking back.
+//
+// `custom_total` (currency units) takes precedence over `discount_percent`:
+// it is the staff-entered exact TARGET price for this booking's wallet charge
+// (drawer "Custom total" control). The discount amount is derived here from
+// the price the SERVER actually stored — not from the client's preview — so
+// the customer ends up charged exactly the target even if the preview and the
+// server-side recompute ever diverge. A target at/above the stored price means
+// "no discount". This is a DIFFERENT field from the legacy `discount_amount`
+// body param, which POST / bakes straight into the bookings row.
 async function applyCreationDiscountForBooking(client, booking, req, actorId) {
   const pct = parseFloat(req.body?.discount_percent);
-  if (!(pct > 0) || !booking?.id || !booking?.student_user_id) return;
+  const customTotal = parseFloat(req.body?.custom_total);
+  const useCustomTotal = Number.isFinite(customTotal) && customTotal >= 0;
+  if ((!useCustomTotal && !(pct > 0)) || !booking?.id || !booking?.student_user_id) return;
+
+  if (useCustomTotal) {
+    const snapshot = await getEntitySnapshot(client, 'booking', booking.id);
+    // Cents math keeps the derived amount exact (no float drift).
+    const amountCents = Math.round(snapshot.originalPrice * 100) - Math.round(customTotal * 100);
+    if (amountCents <= 0) return; // target >= stored price → nothing to discount
+    await applyDiscount(client, {
+      customerId: booking.student_user_id,
+      entityType: 'booking',
+      entityId: booking.id,
+      percent: null,
+      amountOverride: amountCents / 100,
+      reason: req.body?.discount_reason || 'Custom total set at booking creation',
+      createdBy: actorId,
+    });
+    return;
+  }
+
   await applyDiscount(client, {
     customerId: booking.student_user_id,
     entityType: 'booking',

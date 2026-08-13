@@ -509,7 +509,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       // Load recent customers from localStorage
       try {
         const stored = JSON.parse(localStorage.getItem('plannivo_recent_customers') || '[]');
-        setRecentCustomers(Array.isArray(stored) ? stored.slice(0, 5) : []);
+        // Drop malformed entries (a past bug saved participants with blank names)
+        setRecentCustomers(Array.isArray(stored) ? stored.filter(r => r?.id && r?.name).slice(0, 5) : []);
       } catch { setRecentCustomers([]); }
     } else {
       resetFormData();
@@ -697,7 +698,10 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   }, [refreshData]);
 
   // ── Customer selection (Select dropdown) ─────────────────────
-  const handleCustomerChange = useCallback((selectedIdsRaw) => {
+  // `extraPool` lets callers supply user records not present in customerPool
+  // (e.g. the localStorage "Recent" chips, whose users may be outside the
+  // preloaded slice and the active search results).
+  const handleCustomerChange = useCallback((selectedIdsRaw, extraPool = []) => {
     // Rescue mode: SINGLE payer only — extra people on the boat go in the
     // Passengers field. With 2+ participants the submit would route to
     // POST /bookings/group, which has no rescue pricing (member 50% discount
@@ -710,7 +714,8 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
     const kept = current.filter(p => selectedIds.includes(p.userId));
     const existingIds = new Set(kept.map(p => p.userId));
     const added = selectedIds.filter(id => !existingIds.has(id)).map(id => {
-      const user = customerPool.find(u => u.id === id);
+      const user = customerPool.find(u => u.id === id)
+        || (Array.isArray(extraPool) ? extraPool.find(u => u?.id === id) : null);
       return {
         userId: id,
         userName: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || '',
@@ -1143,6 +1148,37 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
           .reduce((s, pkg) => s + Number(pkg.remaining_hours || pkg.remainingHours || 0), 0);
       }
 
+      // Custom-total override (single-participant bookings only): split the
+      // staff-entered target across lessons in cents, proportional to each
+      // lesson's wallet cost (largest-remainder rounding keeps the sum exact).
+      // Each booking is sent its own target; the backend derives the exact
+      // discount from the price IT stores, so the charge lands on the target
+      // even if preview and server pricing ever diverge.
+      // (lessonBreakdown is declared later in the component; safe to read here
+      // because this callback runs post-render, and every input it derives
+      // from is already in this callback's dependency list.)
+      const customTotalNum = Number(formData.customTotal);
+      const useCustomTotal = (formData.participants?.length || 1) <= 1
+        && formData.customTotal !== null && formData.customTotal !== undefined && formData.customTotal !== ''
+        && Number.isFinite(customTotalNum);
+      let lessonTargets = null;
+      if (useCustomTotal && lessonBreakdown.lessons.length === lessons.length) {
+        const costsC = lessons.map((_, i) => Math.round((lessonBreakdown.lessons[i]?.lessonWalletCost || 0) * 100));
+        const totalC = costsC.reduce((a, b) => a + b, 0);
+        const targetC = Math.min(Math.max(Math.round(customTotalNum * 100), 0), totalC);
+        const discountC = totalC - targetC;
+        if (discountC > 0 && totalC > 0) {
+          const raw = costsC.map(c => (discountC * c) / totalC);
+          const alloc = raw.map(Math.floor);
+          let rem = discountC - alloc.reduce((a, b) => a + b, 0);
+          raw
+            .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+            .sort((a, b) => b.frac - a.frac)
+            .forEach(({ i }) => { if (rem > 0) { alloc[i] += 1; rem -= 1; } });
+          lessonTargets = costsC.map((c, i) => (c - alloc[i]) / 100);
+        }
+      }
+
       for (let i = 0; i < lessons.length; i++) {
         const lesson = lessons[i];
         const lessonStart = lesson.startTime;
@@ -1235,8 +1271,11 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             customerPackageId: usePackage ? pkgId : null,
             isGroupBooking: false,
             participants: formData.participants || [],
-            // Staff discount applied at booking time (backend → discounts table, same as drawer)
-            ...(formData.discountPercent > 0 ? { discount_percent: Number(formData.discountPercent) } : {}),
+            // Staff price adjustments (backend → discounts table, same as drawer).
+            // A custom total takes precedence over the % discount.
+            ...(lessonTargets
+              ? { custom_total: lessonTargets[i] }
+              : (formData.discountPercent > 0 ? { discount_percent: Number(formData.discountPercent) } : {})),
             // Rescue boat: passengers on the trip (only set for rescue services)
             ...(formData.passengers != null && formData.passengers !== '' ? { passengers: Number(formData.passengers) } : {})
           };
@@ -1274,8 +1313,10 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       // Save participants to recent customers in localStorage
       try {
         const prev = JSON.parse(localStorage.getItem('plannivo_recent_customers') || '[]');
-        const currentIds = (formData.participants || []).map(p => ({ id: p.userId, name: p.userName }));
-        const merged = [...currentIds, ...prev.filter(r => !currentIds.some(c => c.id === r.id))].slice(0, 5);
+        const currentIds = (formData.participants || [])
+          .filter(p => p.userId && p.userName)
+          .map(p => ({ id: p.userId, name: p.userName }));
+        const merged = [...currentIds, ...(Array.isArray(prev) ? prev : []).filter(r => r?.id && r?.name && !currentIds.some(c => c.id === r.id))].slice(0, 5);
         localStorage.setItem('plannivo_recent_customers', JSON.stringify(merged));
       } catch { /* ignore */ }
 
@@ -1425,9 +1466,17 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   // Wallet-side total cost for the whole booking series
   const effectiveTotal = lessonBreakdown.grandTotal;
 
-  // Live discount preview — mirrors the staff discount applied at booking time
-  const discountPct = Math.min(Math.max(Number(formData.discountPercent) || 0, 0), 100);
-  const discountAmount = effectiveTotal * (discountPct / 100);
+  // Live discount preview — mirrors the staff discount applied at booking time.
+  // A staff "Custom total" (exact target price, single-participant bookings
+  // only) takes precedence over the percent discount; the UI keeps the two
+  // mutually exclusive.
+  const canCustomTotal = (formData.participants?.length || 1) <= 1 && effectiveTotal > 0;
+  const hasCustomTotal = canCustomTotal
+    && formData.customTotal !== null && formData.customTotal !== undefined && formData.customTotal !== ''
+    && Number.isFinite(Number(formData.customTotal));
+  const customTotal = hasCustomTotal ? Math.min(Math.max(Number(formData.customTotal), 0), effectiveTotal) : null;
+  const discountPct = hasCustomTotal ? 0 : Math.min(Math.max(Number(formData.discountPercent) || 0, 0), 100);
+  const discountAmount = hasCustomTotal ? (effectiveTotal - customTotal) : effectiveTotal * (discountPct / 100);
   const discountedTotal = effectiveTotal - discountAmount;
 
   // Per-participant single-lesson cost (used by the "wallet payer" badge in review)
@@ -1584,7 +1633,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                     showSearch
                     placeholder="Search or select customers…"
                     value={(formData.participants || []).map(p => p.userId)}
-                    onChange={handleCustomerChange}
+                    onChange={(ids) => handleCustomerChange(ids)}
                     onSearch={setCustomerSearchQuery}
                     filterOption={false}
                     loading={customerSearching}
@@ -1622,7 +1671,10 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                           type="button"
                           onClick={() => {
                             const currentIds = (formData.participants || []).map(p => p.userId);
-                            if (!currentIds.includes(rc.id)) handleCustomerChange([...currentIds, rc.id]);
+                            // Pass the stored record as a lookup fallback — recent
+                            // customers are often outside the preloaded customer pool,
+                            // which used to add a blank (nameless) participant.
+                            if (!currentIds.includes(rc.id)) handleCustomerChange([...currentIds, rc.id], [{ id: rc.id, name: rc.name }]);
                           }}
                           className="px-2 py-0.5 text-[11px] rounded-md border border-slate-200 text-slate-500 hover:border-blue-300 hover:bg-blue-50 transition-colors"
                         >{rc.name}</button>
@@ -2162,10 +2214,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                   <span className="text-emerald-600 font-medium">−{formatPrice(discountAmount)}</span>
                 </div>
               )}
+              {hasCustomTotal && discountAmount > 0 && (
+                <div className="py-1.5 flex justify-between items-center -mx-5 px-5 text-sm">
+                  <span className="text-emerald-600">Custom price adjustment</span>
+                  <span className="text-emerald-600 font-medium">−{formatPrice(discountAmount)}</span>
+                </div>
+              )}
               <div className="py-3 flex justify-between items-center bg-slate-50 -mx-5 px-5 rounded-lg mt-2">
                 <span className="text-slate-600 font-semibold">Total (wallet)</span>
                 <span className="text-lg font-bold text-slate-900">
-                  {discountPct > 0 && (
+                  {discountAmount > 0 && (
                     <span className="text-sm font-normal text-slate-400 line-through mr-1.5">{formatPrice(effectiveTotal)}</span>
                   )}
                   {formatPrice(discountedTotal)}
@@ -2183,18 +2241,42 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                   step={1}
                   precision={2}
                   value={formData.discountPercent ?? null}
-                  onChange={(v) => updateFormData({ discountPercent: v })}
+                  onChange={(v) => updateFormData({ discountPercent: v, ...(v > 0 ? { customTotal: null } : {}) })}
                   addonAfter="%"
                   placeholder="0"
                   style={{ width: 130 }}
                 />
-                {formData.discountPercent > 0 && (
+                {discountPct > 0 && (
                   <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">
                     −{formData.discountPercent}% applied
                   </span>
                 )}
               </div>
             </div>
+
+            {/* Custom total — staff sets the exact price to charge (e.g. 190 → 120).
+                Single-participant bookings only; overrides the % discount. */}
+            {canCustomTotal && (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <label className="text-sm font-medium text-slate-600">Custom total</label>
+                  <div className="text-[11px] text-slate-400">Charge a set price instead of {formatPrice(effectiveTotal)}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <InputNumber
+                    min={0}
+                    max={effectiveTotal}
+                    step={5}
+                    precision={2}
+                    value={formData.customTotal ?? null}
+                    onChange={(v) => updateFormData({ customTotal: v, ...(v !== null && v !== undefined ? { discountPercent: null } : {}) })}
+                    addonAfter={businessCurrency}
+                    placeholder={Number(effectiveTotal).toFixed(2)}
+                    style={{ width: 150 }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Rescue boat: passengers on the trip (only for rescue services) */}
             {(() => {

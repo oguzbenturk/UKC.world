@@ -1083,6 +1083,10 @@ function CalendarProvider({ children }) {
         allowNegativeBalance: bookingData.allowNegativeBalance === true, // Allow wallet to go negative if explicitly enabled
         // Staff discount applied at booking time (backend applies via discounts table)
         ...(bookingData.discount_percent > 0 ? { discount_percent: Number(bookingData.discount_percent) } : {}),
+        // Custom total: exact staff-entered target price for this booking's
+        // wallet charge (backend derives the exact discount from its own price).
+        // 0 is a valid target (free), so only strip null/undefined/''.
+        ...(bookingData.custom_total != null && bookingData.custom_total !== '' ? { custom_total: Number(bookingData.custom_total) } : {}),
         // Rescue boat: number of passengers on the trip (NULL for normal lessons)
         ...(bookingData.passengers != null && bookingData.passengers !== '' ? { passengers: Number(bookingData.passengers) } : {})
       };

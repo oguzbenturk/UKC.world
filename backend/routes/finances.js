@@ -1276,6 +1276,64 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
       }
     };
 
+    // ── Deleted-booking footprint cleanup ──────────────────────────────────
+    // When this row belongs to a booking that has already been (soft-)deleted,
+    // cancel the REST of that booking's completed wallet rows for this user
+    // too. DELETE /bookings/:id posts an offsetting `booking_deleted_refund`
+    // credit (refundBookingNetChargesPerUser); cancelling only the original
+    // charge here would leave that refund as phantom credit that every
+    // completed-only recompute below keeps counting forever — while Financial
+    // History hides BOTH rows (cancelled-status filter + orphaned-booking
+    // filter), so the customer's balance stays wrong with nothing visible to
+    // explain it. Cancelling the whole footprint makes the booking's ledger
+    // net to zero again. (Same incident family as 2026-06-10 Erkan Özgen /
+    // 2026-05-30 Rifat Doğan double-undo bugs.)
+    const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v));
+    const txMetadata = transaction.metadata && typeof transaction.metadata === 'object' ? transaction.metadata : {};
+    const linkedBookingIds = [...new Set([
+      transaction.booking_id,
+      transaction.related_entity_type === 'booking' ? transaction.related_entity_id : null,
+      txMetadata.bookingId,
+      ...(Array.isArray(txMetadata.bookingIds) ? txMetadata.bookingIds : [])
+    ].filter((v) => v && isUuid(v)).map(String))];
+    const footprintCurrencies = new Set();
+    if (linkedBookingIds.length > 0) {
+      const { rows: liveBookings } = await client.query(
+        `SELECT id FROM bookings WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+        [linkedBookingIds]
+      );
+      const liveIds = new Set(liveBookings.map((r) => String(r.id)));
+      const deletedBookingIds = linkedBookingIds.filter((bid) => !liveIds.has(bid));
+      if (deletedBookingIds.length > 0) {
+        const footprintMetadata = {
+          ...cancellationMetadata,
+          cancellationOrigin: 'finances_transaction_delete_booking_footprint',
+          cancelledWithTransactionId: id
+        };
+        const { rows: cancelledSiblings } = await client.query(
+          `UPDATE wallet_transactions
+              SET status = 'cancelled',
+                  metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+                  updated_at = NOW()
+            WHERE user_id = $2
+              AND status = 'completed'
+              AND (booking_id = ANY($3::uuid[])
+                   OR (related_entity_type = 'booking' AND related_entity_id = ANY($3::uuid[])))
+            RETURNING id, transaction_type, amount, currency`,
+          [JSON.stringify(footprintMetadata), transaction.user_id, deletedBookingIds]
+        );
+        cancelledSiblings.forEach((row) => footprintCurrencies.add(row.currency || transaction.currency || 'EUR'));
+        if (cancelledSiblings.length > 0) {
+          logger.info('Cancelled deleted-booking wallet footprint alongside transaction delete', {
+            transactionId: id,
+            userId: transaction.user_id,
+            bookingIds: deletedBookingIds,
+            cancelledSiblings: cancelledSiblings.map((r) => ({ id: r.id, type: r.transaction_type, amount: r.amount }))
+          });
+        }
+      }
+    }
+
     // CRITICAL: hardDelete mode permanently deletes without creating reversal transactions
     // Use this to clean up corrupted wallet history (e.g., pay_later refund chains)
     if (hardDelete) {
@@ -1341,12 +1399,31 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
         });
       }
       
+      // Settle any additional currency touched by the deleted-booking
+      // footprint cleanup (the recompute above only covered txCurrency).
+      if ([...footprintCurrencies].some((c) => c !== txCurrency)) {
+        await client.query(`SELECT set_config('wallet.allow_negative', 'true', false)`);
+      }
+      for (const currency of footprintCurrencies) {
+        if (currency === txCurrency) continue;
+        await client.query(
+          `UPDATE wallet_balances
+              SET available_amount = COALESCE((
+                    SELECT SUM(available_delta) FROM wallet_transactions
+                     WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                  ), 0),
+                  updated_at = NOW()
+            WHERE user_id = $1 AND currency = $2`,
+          [transaction.user_id, currency]
+        );
+      }
+
       logger.info('Transaction hard-deleted (no reversal created)', {
         transactionId: id,
         userId: transaction.user_id,
         amount: originalAmount
       });
-    } else if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0) {
+    } else if (Math.abs(availableDelta) > 0 || Math.abs(pendingDelta) > 0 || Math.abs(nonWithdrawableDelta) > 0 || footprintCurrencies.size > 0) {
       // NO reversal row. Marking the original status='cancelled' already removes
       // its delta from every completed-only SUM — that IS the complete undo. The
       // old cancel + reversal pair left the LEDGER itself wrong (original excluded
@@ -1354,29 +1431,33 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
       // phantom credit that survived every recompute, because the recompute
       // faithfully summed a double-undone ledger (incident 2026-06-10, Erkan
       // Özgen; same family as 2026-05-30 Rifat Doğan). Re-derive the cache from
-      // the completed rows so cache == SUM(completed deltas).
+      // the completed rows so cache == SUM(completed deltas). Covers the deleted
+      // transaction's currency plus any currency touched by the deleted-booking
+      // footprint cleanup above.
       const txCurrency = transaction.currency || 'EUR';
       await client.query(
         `SELECT set_config('wallet.allow_negative', 'true', false)`
       );
-      await client.query(
-        `UPDATE wallet_balances
-            SET available_amount = COALESCE((
-                  SELECT SUM(available_delta) FROM wallet_transactions
-                   WHERE user_id = $1 AND currency = $2 AND status = 'completed'
-                ), 0),
-                pending_amount = COALESCE((
-                  SELECT SUM(pending_delta) FROM wallet_transactions
-                   WHERE user_id = $1 AND currency = $2 AND status = 'completed'
-                ), 0),
-                non_withdrawable_amount = COALESCE((
-                  SELECT SUM(non_withdrawable_delta) FROM wallet_transactions
-                   WHERE user_id = $1 AND currency = $2 AND status = 'completed'
-                ), 0),
-                updated_at = NOW()
-          WHERE user_id = $1 AND currency = $2`,
-        [transaction.user_id, txCurrency]
-      );
+      for (const currency of new Set([txCurrency, ...footprintCurrencies])) {
+        await client.query(
+          `UPDATE wallet_balances
+              SET available_amount = COALESCE((
+                    SELECT SUM(available_delta) FROM wallet_transactions
+                     WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                  ), 0),
+                  pending_amount = COALESCE((
+                    SELECT SUM(pending_delta) FROM wallet_transactions
+                     WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                  ), 0),
+                  non_withdrawable_amount = COALESCE((
+                    SELECT SUM(non_withdrawable_delta) FROM wallet_transactions
+                     WHERE user_id = $1 AND currency = $2 AND status = 'completed'
+                  ), 0),
+                  updated_at = NOW()
+            WHERE user_id = $1 AND currency = $2`,
+          [transaction.user_id, currency]
+        );
+      }
     }
 
     await client.query('COMMIT');

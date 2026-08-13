@@ -462,11 +462,22 @@ export async function applyDiscount(client, {
   // customer free wallet money — callers pass true to suppress it while still
   // recording the discounts-table row.
   skipWalletCredit = false,
+  // Exact discount amount in currency units. When provided, `amount` is stored
+  // exactly as given and `percent` is derived for display only — the 2dp percent
+  // column can drift a cent from a staff-entered target price (e.g. "make this
+  // 190 booking cost 120" needs exactly 70.00 off, not 36.84% of 190 = 69.996).
+  amountOverride = null,
 }) {
   if (!customerId) throw Object.assign(new Error('customer_id required'), { status: 400 });
   if (!isSupported(entityType)) throw Object.assign(new Error(`Unsupported entity_type: ${entityType}`), { status: 400 });
-  const pct = Number(percent);
-  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+  const hasAmountOverride = amountOverride !== null && amountOverride !== undefined && amountOverride !== '';
+  let pct = Number(percent);
+  if (hasAmountOverride) {
+    const amt = Number(amountOverride);
+    if (!Number.isFinite(amt) || amt < 0) {
+      throw Object.assign(new Error('discount amount must be a number >= 0'), { status: 400 });
+    }
+  } else if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
     throw Object.assign(new Error('percent must be between 0 and 100'), { status: 400 });
   }
   if (participantUserId && entityType !== 'booking') {
@@ -476,6 +487,19 @@ export async function applyDiscount(client, {
   const snapshot = await getEntitySnapshot(client, entityType, entityId, participantUserId);
   if (snapshot.customerId !== customerId) {
     throw Object.assign(new Error('Entity does not belong to this customer'), { status: 403 });
+  }
+
+  if (hasAmountOverride) {
+    const exact = Number(new Decimal(Number(amountOverride)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toString());
+    if (exact > snapshot.originalPrice) {
+      throw Object.assign(
+        new Error(`discount amount (${exact}) cannot exceed the entity price (${snapshot.originalPrice})`),
+        { status: 400 }
+      );
+    }
+    pct = snapshot.originalPrice > 0
+      ? Math.min(100, Number(new Decimal(exact).div(snapshot.originalPrice).mul(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toString()))
+      : 0;
   }
 
   // Find any existing discount row + its open wallet credit so we can reverse
@@ -492,9 +516,13 @@ export async function applyDiscount(client, {
   const existingId = existing.rows[0]?.id || null;
   const openCredit = existingId ? await findOpenDiscountAdjustment(client, existingId) : null;
 
-  // Zero percent means "no discount" — delete any existing row instead of
+  const amount = hasAmountOverride
+    ? Number(new Decimal(Number(amountOverride)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toString())
+    : computeDiscountAmount(snapshot.originalPrice, pct);
+
+  // Zero discount means "no discount" — delete any existing row instead of
   // storing a no-op. Reverse the wallet credit first so balances stay correct.
-  if (pct === 0) {
+  if (hasAmountOverride ? amount === 0 : pct === 0) {
     if (openCredit) {
       await reverseDiscountAdjustment(client, openCredit, {
         reason: 'Discount removed',
@@ -512,8 +540,6 @@ export async function applyDiscount(client, {
     await cascadeRecomputeForDiscountChange(client, entityType, entityId);
     return { deleted: del.rowCount > 0, snapshot };
   }
-
-  const amount = computeDiscountAmount(snapshot.originalPrice, pct);
 
   // If the percent (and therefore amount) changed, reverse the old credit so
   // we can post a fresh credit reflecting the new amount. Reversing first +
