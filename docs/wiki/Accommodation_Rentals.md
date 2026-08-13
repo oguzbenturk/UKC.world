@@ -112,7 +112,9 @@ Her ikisi de finansal kayıtları [[Finances_Wallet]] cüzdan defterine, indirim
 
 ### Kiralama iade & silme
 - **`PATCH /:id/cancel`**: `payment_status='paid'` ve paket-dışı ise `getEntityNetCharges` ile **orijinal para biriminde, yalnız hâlâ açık olan tutar** iade edilir (`idempotencyKey: rental-refund:<id>:<currency>` → tekrar iptal çift iade yapmaz). Paket ise gün geri yüklenir.
-- **`forceDeleteRental` (DELETE /:id)**: iade `rental_refund` CREDIT olarak `allowNegative: true` ile yazılır.
+- **`forceDeleteRental` (DELETE /:id)**: iade `rental_refund` CREDIT olarak `allowNegative: true` ile yazılır — tutar **cüzdanın bu kiralama için gerçekte kaybettiği net miktardır** (`SUM(available_delta)` completed satırlardan), `total_price` DEĞİL. Nakit/kart "instant_paid" kiralamalarda (charge+payment satırları delta 0) ve paket-fonlu kiralamalarda cüzdan net borçlanmamıştır → iade YAZILMAZ; indirimli cüzdan-fonlu kiralamada net tutar (brüt − indirim kredisi) iade edilir.
+
+> **Tuzak/incident — hayalet iade kredisi (Mehmet Yılmazer, 2026-08-12/13):** Eski davranış silmede koşulsuz `total_price` iade ediyordu. Nakit ödenmiş kiralama (flow-through, delta 0) yeniden-oluşturma sırasında iki kez silinince +€156 hayalet kredi oluştu; müşteri bakiyesi €75.85 fazla gösterdi. **Veri onarımı** prod'da yapıldı (yedek: `wallet_tx_repair_backup_20260813` tablosu), **kod çözümü:** iade tutarı = cüzdanın net borcu (yukarıdaki kural). Booking tarafındaki eşleniği için bkz. [[Finances_Wallet]] (v0.1.376 footprint-cancel).
 
 > **Tuzak/incident — rental delete 500 (Yağız Çolak):** İadeyi (CREDIT) negatif-bakiye guard'ı reddediyordu. Cüzdanı zaten negatif olan müşteride (örn. kiralama ücreti bakiyeyi −78.08'e itmiş), +78 iadesi bakiyeyi hâlâ sıfırın altında bıraktığı için "Insufficient wallet balance" fırlatıyor, tüm silme rollback olup HTTP 500 veriyordu. **Çözüm:** `rentalCleanupService.js` içinde iade transaction'ında `allowNegative: true`. İade bir CREDIT olduğu için bakiyeyi yalnız yükseltir; asla "yetersiz bakiye" ile reddedilmemeli. (Detaylı kayıt: bkz. [[Finances_Wallet]].)
 

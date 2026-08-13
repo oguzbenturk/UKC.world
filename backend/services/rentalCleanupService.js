@@ -147,15 +147,36 @@ export async function forceDeleteRental({
 
   const totalPrice = Math.abs(toNumber(rentalRow.total_price) ?? 0);
 
+  // Refund what the WALLET actually lost on this rental, not the nominal
+  // price. Cash/card "instant_paid" rentals record charge + payment rows with
+  // zero available_delta (the money never entered the wallet) and
+  // package-funded rentals may have no wallet rows at all — refunding
+  // total_price for those manufactures phantom credit (2026-08-12 Mehmet
+  // Yılmazer: deleting a cash-paid rental twice during re-creation credited
+  // +€156 for €78 of real cash). A discounted wallet-funded rental also nets
+  // less than total_price (charge −78 / discount +7.8 → wallet only down 70.2).
+  const { rows: footprintRows } = await client.query(
+    `SELECT COALESCE(SUM(available_delta), 0) AS net_delta
+       FROM wallet_transactions
+      WHERE user_id = $1
+        AND status = 'completed'
+        AND currency = $2
+        AND (rental_id = $3::uuid
+             OR (related_entity_type = 'rental' AND related_entity_id = $3::uuid))`,
+    [rentalRow.user_id, rentalRow.currency || 'EUR', rentalId]
+  );
+  const walletNetDelta = toNumber(footprintRows[0]?.net_delta) ?? 0;
+  const walletNetDebit = walletNetDelta < 0 ? Math.abs(walletNetDelta) : 0;
+
   let walletTransaction = null;
   let walletSummary = null;
 
-  if (issueRefund && totalPrice > 0) {
+  if (issueRefund && walletNetDebit > 0) {
     try {
       walletTransaction = await recordLegacyTransaction({
         client,
         userId: rentalRow.user_id,
-        amount: totalPrice,
+        amount: walletNetDebit,
         transactionType: 'rental_refund',
         status: 'completed',
         direction: 'credit',
@@ -171,7 +192,8 @@ export async function forceDeleteRental({
         metadata: {
           rentalId,
           source: 'rentals:force-delete',
-          originalAmount: totalPrice
+          originalAmount: totalPrice,
+          walletNetDebit
         },
         entityType: 'rental',
         relatedEntityType: 'rental',
@@ -187,6 +209,12 @@ export async function forceDeleteRental({
       });
       throw walletError;
     }
+  } else if (issueRefund && totalPrice > 0) {
+    logger.info('Skipping rental delete refund: wallet was not net-debited for this rental', {
+      rentalId,
+      totalPrice,
+      walletNetDelta
+    });
   } else if (!issueRefund && totalPrice > 0) {
     logger.info('Skipping automatic rental refund because refund handled by parent operation', {
       rentalId,
@@ -238,8 +266,9 @@ export async function forceDeleteRental({
     },
     refundDetails: {
       originalAmount: totalPrice,
-      refundAmount: issueRefund ? totalPrice : 0,
-      refundIssued: issueRefund && totalPrice > 0
+      walletNetDebit,
+      refundAmount: walletTransaction ? walletNetDebit : 0,
+      refundIssued: Boolean(walletTransaction)
     },
     walletTransaction,
     walletSummary
