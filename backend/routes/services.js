@@ -1916,13 +1916,23 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
         const paymentLabel = normalizedPaymentMethod === 'credit_card' ? 'Credit Card'
           : normalizedPaymentMethod === 'pay_later' ? 'Pay Later'
           : normalizedPaymentMethod === 'cash' ? 'Cash' : normalizedPaymentMethod;
+        // Bank transfer is a PROMISE to pay, not a payment: the money only lands when
+        // an admin approves the receipt (which may be a partial deposit). Post the full
+        // price as a REAL receivable so the customer's balance shows what they owe —
+        // same model as the staff-created package path below. The approval then posts a
+        // real credit for each amount actually received, and the balance nets to zero.
+        // Every other method is collected in full outside the wallet at purchase time
+        // (card via Iyzico, cash at the desk), so those stay balance-neutral.
+        const isReceivable = normalizedPaymentMethod === 'bank_transfer';
         await recordTransaction({
           userId,
           amount: -Math.abs(packagePrice),
           transactionType: 'package_purchase',
           status: normalizedPaymentMethod === 'credit_card' ? 'pending' : (normalizedPaymentMethod === 'pay_later' ? 'pending' : 'completed'),
           direction: 'debit',
-          availableDelta: 0, // Don't affect wallet balance — payment is external
+          // Receivable → real debit (balance goes negative until paid).
+          // Externally-paid → zero delta, the wallet never moves.
+          ...(isReceivable ? { allowNegative: true } : { availableDelta: 0 }),
           description: `Package Purchase (${paymentLabel}): ${pkg.name}`,
           currency: priceCurrency,
           paymentMethod: normalizedPaymentMethod,
@@ -1934,7 +1944,8 @@ router.post('/packages/purchase', authenticateJWT, authorize(['admin', 'manager'
             purchasePrice: packagePrice,
             priceCurrency: priceCurrency,
             source: 'services:packages:self-purchase',
-            paymentMethod: normalizedPaymentMethod
+            paymentMethod: normalizedPaymentMethod,
+            receivable: isReceivable
           },
           entityType: 'customer_package',
           relatedEntityType: 'customer_package',

@@ -15,7 +15,7 @@ Kurallar `wiki_schema.md`'de tanımlıdır. İki operasyon vardır:
 - **INGEST** — Kodu (veya son değişiklikleri) tara, mimariyi anla, `/docs/wiki` içine bağlı düğümler yaz ve bu `[[Index]]`'i güncelle.
 - **QUERY** — Yeni bir mimari plan/özellik istendiğinde, **önce buraya gel**, ilgili düğümleri oku, sonra plan çıkar.
 
-> Son INGEST: 2026-06-30 · **32 düğüm** + bu index · Tüm wiki-linkleri çözülüyor (sarkan node linki yok). Kapsam: tüm frontend feature'ları, ~73 route, ~90 servis, bağımsız çalışan scriptler/cron, test paketi, paylaşılan katman ve ayrı alt-projeler (landing sitesi, catalog-sync) dahil — "eksiksiz beyin".
+> Son INGEST: 2026-08-30 (banka-havalesi alacak modeli — [[Finances_Wallet]] + 5 domain düğümü) · önceki tam tarama 2026-06-30 · **32 düğüm** + bu index · Tüm wiki-linkleri çözülüyor (sarkan node linki yok). Kapsam: tüm frontend feature'ları, ~73 route, ~90 servis, bağımsız çalışan scriptler/cron, test paketi, paylaşılan katman ve ayrı alt-projeler (landing sitesi, catalog-sync) dahil — "eksiksiz beyin".
 
 ---
 

@@ -839,6 +839,31 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
         UPDATE shop_orders SET payment_status = 'waiting_payment' WHERE id = $1
       `, [order.id]);
 
+      // Bank transfer is a promise to pay: post the FULL order total as a real
+      // receivable so the balance shows what is owed, and let each approved receipt
+      // credit against it. Previously nothing was charged here and the approval wrote
+      // a zero-delta pair for the RECEIPT amount, so a deposit order booked only the
+      // deposit as revenue and the remainder existed nowhere but the receipt's note.
+      if (userId && finalAmount > 0) {
+        await recordTransaction({
+          client,
+          userId,
+          amount: -finalAmount,
+          currency: 'EUR',
+          transactionType: 'shop_order_charge',
+          direction: 'debit',
+          availableDelta: -finalAmount,
+          status: 'completed',
+          paymentMethod: 'bank_transfer',
+          description: `${itemSummary} - Order #${order.order_number}`,
+          relatedEntityType: 'shop_order',
+          // No relatedEntityId — related_entity_id is UUID and shop_orders.id is SERIAL int.
+          metadata: { orderId: order.id, orderNumber: order.order_number, source: 'shop_order_bank_transfer', paymentPending: true },
+          createdBy: req.user.id,
+          allowNegative: true,
+        });
+      }
+
       await client.query(`
         INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
         VALUES ($1, 'pending', 'pending', $2, $3)

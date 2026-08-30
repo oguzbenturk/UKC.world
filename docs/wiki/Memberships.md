@@ -82,3 +82,5 @@ Bir müşterinin **aktif** (`status='active'`, süresi geçmemiş) üyeliği olm
 - **Daily (per-day) fiyatlama** sadece elle/admin satışta tarih aralığıyla çarpılır; backend fiyatı tarihlerden yeniden hesaplar (istemciye güvenmez), beach/storage oranı korunur.
 - **Custom-role nav görünmezliği:** sidebar "Memberships" dropdown'ı ([[Frontend_Shell]]) custom-role nav'da değil — `ADMIN_ROLES` 403. `/memberships/active` = `AdminMembersPage defaultStatus="active"`.
 - **Komisyon prod'da deploy DEĞİL:** migration 280 + beach-fee komisyon mantığı LOCAL; owner bundle'lar 50-53 üzerinde beach porsiyonunu Membership Settings'ten ayarlamalı.
+- **Havale üyeliği artık cüzdana gerçek borç yazar (2026-08-30).** Satın alma anında tam fiyat `membership_charge` alacağı (`member_purchase` tag + `metadata.memberPurchaseId`); onay yalnızca dekont tutarını **tag'siz** `bank_transfer_payment` kredisi olarak yazar (eski `deposit`+`payment` sıfır-delta çifti kaldırıldı) ve kısmi ödemede `payment_status='partial'` bırakır; red, `getEntityNetCharges` ile alacağı iade eder. Ayrıntı: [[Finances_Wallet]].
+

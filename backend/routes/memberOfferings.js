@@ -279,6 +279,35 @@ router.post(
       } else if (paymentMethod === 'credit_card' || paymentMethod === 'card') {
         paymentStatus = 'pending_payment';
       } else if (paymentMethod === 'bank_transfer' || paymentMethod === 'transfer') {
+        // Bank transfer is a promise to pay, not a payment — the money only lands when an
+        // admin approves the receipt, and that receipt may be a partial deposit. Post the
+        // FULL price as a real receivable (same "pay at center" model as cash/pay_later
+        // above); each approved receipt then credits against it, so a 20% deposit leaves
+        // the remaining 80% visible on the balance instead of only in the receipt note.
+        const btPrice = parseFloat(offering.price);
+        if (btPrice > 0) {
+          const btTx = await recordTransaction({
+            client,
+            userId,
+            amount: -btPrice,
+            currency: offering.currency || 'EUR',
+            transactionType: 'membership_charge',
+            direction: 'debit',
+            availableDelta: -btPrice,
+            paymentMethod: 'bank_transfer',
+            description: `Purchase (Bank Transfer): ${offering.name}`,
+            // member_purchases.id is SERIAL int and related_entity_id is UUID, so the id is
+            // stamped into metadata right after the INSERT below (getEntityNetCharges reads it).
+            relatedEntityType: 'member_purchase',
+            metadata: {
+              offeringId,
+              offeringName: offering.name,
+              paymentPending: true
+            },
+            allowNegative: true
+          });
+          walletDebitTxId = btTx?.id || null;
+        }
         paymentStatus = 'pending';
       } else {
         paymentStatus = 'pending';
@@ -1676,35 +1705,71 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
       }
       approvedPurchase = mpRes.rows[0];
 
-      // Activate the membership
+      // A deposit is a PARTIAL payment — only mark the membership fully paid when the
+      // receipt actually covers the price, otherwise the remainder is invisible to every
+      // "unpaid" view.
+      const offeringPrice = parseFloat(approvedPurchase.offering_price ?? 0) || 0;
+      const fullyPaid = offeringPrice > 0 ? paymentAmount >= offeringPrice - 0.01 : true;
       await client.query(
-        `UPDATE member_purchases SET status = 'active', payment_status = 'completed', updated_at = NOW() WHERE id = $1`,
-        [receipt.member_purchase_id]
+        `UPDATE member_purchases SET status = 'active', payment_status = $2, updated_at = NOW() WHERE id = $1`,
+        [receipt.member_purchase_id, fullyPaid ? 'completed' : 'partial']
       );
 
-      // Record wallet transactions for audit trail (credit then debit)
+      // The sale was already charged to the ledger when the membership was created
+      // (membership_charge receivable), so this only records the money that just arrived —
+      // exactly what a staff "Add Funds" entry does, but attributed to the student who paid
+      // and the admin who approved. Memberships created before that charge existed get the
+      // old balance-neutral pair so their history still shows charge + payment.
+      const { rows: existingChargeRows } = await client.query(
+        `SELECT id, available_delta
+           FROM wallet_transactions
+          WHERE related_entity_type = 'member_purchase'
+            AND metadata->>'memberPurchaseId' = $1
+            AND status = 'completed'
+            AND direction = 'debit'
+          ORDER BY created_at
+          LIMIT 1`,
+        [String(receipt.member_purchase_id)]
+      );
+      const existingCharge = existingChargeRows[0] || null;
+      const chargeIsReceivable = existingCharge ? parseFloat(existingCharge.available_delta) < 0 : false;
+
+      if (!existingCharge) {
+        await recordTransaction({
+          client,
+          userId: receipt.user_id,
+          amount: -paymentAmount,
+          currency: paymentCurrency,
+          transactionType: 'membership_charge',
+          direction: 'debit',
+          availableDelta: 0,
+          description: `Membership payment applied`,
+          relatedEntityType: 'member_purchase',
+          metadata: { memberPurchaseId: receipt.member_purchase_id, receiptId: receipt.id }
+        });
+      }
+
+      // Not tagged to the membership: getEntityNetCharges sums available_delta per entity,
+      // so a member_purchase-tagged credit would cancel the charge and a later cancellation
+      // would refund the customer nothing.
       await recordTransaction({
         client,
         userId: receipt.user_id,
         amount: paymentAmount,
         currency: paymentCurrency,
-        transactionType: 'deposit',
+        transactionType: 'bank_transfer_payment',
         direction: 'credit',
-        availableDelta: 0,
-        description: `Bank transfer received: Membership payment`,
-        metadata: { memberPurchaseId: receipt.member_purchase_id, receiptId: receipt.id }
-      });
-
-      await recordTransaction({
-        client,
-        userId: receipt.user_id,
-        amount: -paymentAmount,
-        currency: paymentCurrency,
-        transactionType: 'payment',
-        direction: 'debit',
-        availableDelta: 0,
-        description: `Membership payment applied`,
-        metadata: { memberPurchaseId: receipt.member_purchase_id, receiptId: receipt.id }
+        ...(chargeIsReceivable ? {} : { availableDelta: 0 }),
+        paymentMethod: 'bank_transfer',
+        description: `Bank Transfer Payment Received (student): Membership`,
+        createdBy: req.user.id,
+        metadata: {
+          memberPurchaseId: receipt.member_purchase_id,
+          receiptId: receipt.id,
+          source: 'membership:bank_transfer_approval',
+          paidBy: receipt.user_id,
+          approvedBy: req.user.id,
+        }
       });
 
       // Send notification
@@ -1725,6 +1790,29 @@ router.patch('/admin/pending-payments/:id/action', authenticateJWT, authorizeRol
         `UPDATE member_purchases SET status = 'cancelled', payment_status = 'failed', notes = CONCAT(COALESCE(notes, ''), ' | Payment Rejected'), updated_at = NOW() WHERE id = $1`,
         [receipt.member_purchase_id]
       );
+
+      // The membership is cancelled, so the receivable posted when it was created must not
+      // outlive it — otherwise a rejected transfer leaves the customer owing for a membership
+      // they don't have. Mirrors the cancel route's refund (net charge, per currency).
+      const rejectedNetCharges = await getEntityNetCharges({ client, memberPurchaseId: receipt.member_purchase_id });
+      for (const rc of rejectedNetCharges) {
+        if (!(rc.amount > 0)) continue;
+        await recordTransaction({
+          client,
+          userId: receipt.user_id,
+          amount: rc.amount,
+          currency: rc.currency,
+          transactionType: 'refund',
+          direction: 'credit',
+          availableDelta: rc.amount,
+          description: `Membership charge reversed: bank transfer rejected`,
+          createdBy: req.user.id,
+          relatedEntityType: 'member_purchase_refund',
+          metadata: { memberPurchaseId: Number(receipt.member_purchase_id), receiptId: receipt.id, reason: 'payment_rejected' },
+          idempotencyKey: `member-purchase-refund:${receipt.member_purchase_id}:${rc.currency}`,
+          allowNegative: true,
+        });
+      }
 
       cancelCommission('membership', receipt.member_purchase_id, 'payment_rejected').catch(() => {});
 

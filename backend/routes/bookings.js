@@ -1797,41 +1797,69 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
         );
         logger.info('Standalone booking confirmed via bank transfer approval', { bookingId: receipt.booking_id, receiptId: id });
 
-        // Record wallet ledger entries so the payment appears in financial history
-        // Insert debit first, then credit — credit gets the later timestamp and appears
-        // first in the DESC-sorted financial history (payment received → then charged)
+        // The lesson was already charged to the ledger when it was booked (booking_charge
+        // receivable), so this only records the money that just arrived. Bookings made
+        // before that charge existed get the old balance-neutral pair so their history
+        // still shows charge + payment.
         if (paymentAmount > 0) {
           try {
-            await recordWalletTransaction({
-              userId: receipt.user_id,
-              amount: -paymentAmount,
-              transactionType: 'booking_charge',
-              status: 'completed',
-              direction: 'debit',
-              availableDelta: 0,
-              description: `Lesson Booking Charge (Bank Transfer)`,
-              currency: paymentCurrency,
-              paymentMethod: 'bank_transfer',
-              relatedEntityType: 'booking',
-              relatedEntityId: receipt.booking_id,
-              createdBy: req.user?.id,
-              metadata: { receiptId: id, source: 'bank_transfer_approval' },
-              client,
-            });
+            const { rows: existingBookingCharges } = await client.query(
+              `SELECT available_delta
+                 FROM wallet_transactions
+                WHERE booking_id = $1
+                  AND transaction_type = 'booking_charge'
+                  AND status = 'completed'
+                  AND user_id = $2
+                ORDER BY created_at
+                LIMIT 1`,
+              [receipt.booking_id, receipt.user_id]
+            );
+            const existingBookingCharge = existingBookingCharges[0] || null;
+            const bookingChargeIsReceivable = existingBookingCharge
+              ? parseFloat(existingBookingCharge.available_delta) < 0
+              : false;
+
+            if (!existingBookingCharge) {
+              await recordWalletTransaction({
+                userId: receipt.user_id,
+                amount: -paymentAmount,
+                transactionType: 'booking_charge',
+                status: 'completed',
+                direction: 'debit',
+                availableDelta: 0,
+                description: `Lesson Booking Charge (Bank Transfer)`,
+                currency: paymentCurrency,
+                paymentMethod: 'bank_transfer',
+                relatedEntityType: 'booking',
+                relatedEntityId: receipt.booking_id,
+                createdBy: req.user?.id,
+                metadata: { receiptId: id, source: 'bank_transfer_approval' },
+                client,
+              });
+            }
+            // Untagged from the booking: a booking-tagged credit would cancel the charge in
+            // getEntityNetCharges, and cancelling the lesson would then refund nothing.
             await recordWalletTransaction({
               userId: receipt.user_id,
               amount: paymentAmount,
               transactionType: 'bank_transfer_payment',
               status: 'completed',
               direction: 'credit',
-              availableDelta: 0,
-              description: `Bank Transfer Payment Received (Lesson)`,
+              ...(bookingChargeIsReceivable ? {} : { availableDelta: 0 }),
+              description: `Bank Transfer Payment Received (student): Lesson`,
               currency: paymentCurrency,
               paymentMethod: 'bank_transfer',
-              relatedEntityType: 'booking',
-              relatedEntityId: receipt.booking_id,
               createdBy: req.user?.id,
-              metadata: { receiptId: id, source: 'bank_transfer_approval' },
+              metadata: {
+                receiptId: id,
+                // NOT `bookingId`: recordTransaction copies that key into the booking_id
+                // column, which would pull this credit back into getEntityNetCharges and
+                // cancel the charge it is supposed to settle.
+                bookingRef: receipt.booking_id,
+                source: 'bank_transfer_approval',
+                paidBy: receipt.user_id,
+                approvedBy: req.user?.id || null,
+              },
               client,
             });
           } catch (ledgerErr) {
@@ -1874,41 +1902,77 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
         );
         const pkgName = pkgInfo.rows[0]?.package_name || 'Package';
 
-        // Record wallet ledger entries: debit first, then credit
-        // Credit gets the later timestamp → appears first in DESC-sorted history
-        // So users see: "Payment Received" then "Package Charge" (logical order)
+        // Record the wallet ledger entry for the money that just arrived.
+        //
+        // The purchase itself was ALREADY charged to the ledger when the student
+        // bought the package (services.js, source 'services:packages:self-purchase'),
+        // so writing a second package_purchase debit here double-counted the sale in
+        // the finance reports and — because the receipt may be a partial deposit — it
+        // charged the deposit amount instead of the price. Only write a charge when no
+        // charge exists (defensive: receipts created by an older/other path).
+        //
+        // The payment credit mirrors what an admin's manual "Add Funds" entry does, so
+        // a student-paid bank transfer and a staff-recorded payment land in the wallet
+        // the same way; metadata records that the student paid it and which admin
+        // approved it. It is deliberately NOT tagged to the package: getEntityNetCharges
+        // sums available_delta per entity, so a package-tagged credit would cancel out
+        // the charge and a later package deletion would refund the customer nothing.
         if (paymentAmount > 0) {
           try {
-            await recordWalletTransaction({
-              userId: receipt.user_id,
-              amount: -paymentAmount,
-              transactionType: 'package_purchase',
-              status: 'completed',
-              direction: 'debit',
-              availableDelta: 0,
-              description: `Package Purchase (Bank Transfer): ${pkgName}`,
-              currency: paymentCurrency,
-              paymentMethod: 'bank_transfer',
-              relatedEntityType: 'customer_package',
-              relatedEntityId: receipt.customer_package_id,
-              createdBy: req.user?.id,
-              metadata: { receiptId: id, packageName: pkgName, source: 'bank_transfer_approval' },
-              client,
-            });
+            const { rows: existingCharges } = await client.query(
+              `SELECT available_delta
+                 FROM wallet_transactions
+                WHERE related_entity_type = 'customer_package'
+                  AND related_entity_id = $1
+                  AND transaction_type = 'package_purchase'
+                  AND status = 'completed'
+                ORDER BY created_at
+                LIMIT 1`,
+              [receipt.customer_package_id]
+            );
+            const existingCharge = existingCharges[0] || null;
+            if (!existingCharge) {
+              await recordWalletTransaction({
+                userId: receipt.user_id,
+                amount: -paymentAmount,
+                transactionType: 'package_purchase',
+                status: 'completed',
+                direction: 'debit',
+                availableDelta: 0,
+                description: `Package Purchase (Bank Transfer): ${pkgName}`,
+                currency: paymentCurrency,
+                paymentMethod: 'bank_transfer',
+                relatedEntityType: 'customer_package',
+                relatedEntityId: receipt.customer_package_id,
+                createdBy: req.user?.id,
+                metadata: { receiptId: id, packageName: pkgName, source: 'bank_transfer_approval' },
+                client,
+              });
+            }
+            // Credit the balance only when the charge it settles actually debited the
+            // balance; against a legacy zero-delta charge the pair stays balance-neutral.
+            const chargeIsReceivable = existingCharge
+              ? parseFloat(existingCharge.available_delta) < 0
+              : false;
             await recordWalletTransaction({
               userId: receipt.user_id,
               amount: paymentAmount,
               transactionType: 'bank_transfer_payment',
               status: 'completed',
               direction: 'credit',
-              availableDelta: 0,
-              description: `Bank Transfer Payment Received: ${pkgName}`,
+              ...(chargeIsReceivable ? {} : { availableDelta: 0 }),
+              description: `Bank Transfer Payment Received (student): ${pkgName}`,
               currency: paymentCurrency,
               paymentMethod: 'bank_transfer',
-              relatedEntityType: 'customer_package',
-              relatedEntityId: receipt.customer_package_id,
               createdBy: req.user?.id,
-              metadata: { receiptId: id, packageName: pkgName, source: 'bank_transfer_approval' },
+              metadata: {
+                receiptId: id,
+                packageId: receipt.customer_package_id,
+                packageName: pkgName,
+                source: 'bank_transfer_approval',
+                paidBy: receipt.user_id,
+                approvedBy: req.user?.id || null,
+              },
               client,
             });
           } catch (ledgerErr) {
@@ -1939,40 +2003,70 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
         );
         logger.info('Shop order confirmed via bank transfer approval', { shopOrderId: receipt.shop_order_id, receiptId: id });
 
+        // The order was already charged to the ledger when it was placed
+        // (shop_order_charge receivable), so this only records the money that arrived.
+        // NOTE: both legs used to pass relatedEntityId = the SERIAL order id into a
+        // UUID column, so every insert threw and was swallowed by the catch below —
+        // approved shop transfers reached the ledger not at all. The id belongs in
+        // metadata.orderId (the convention the order-creation path already follows).
         if (paymentAmount > 0) {
           try {
-            await recordWalletTransaction({
-              userId: receipt.user_id,
-              amount: -paymentAmount,
-              transactionType: 'payment',
-              status: 'completed',
-              direction: 'debit',
-              availableDelta: 0,
-              description: isDeposit
-                ? `Shop Deposit (Bank Transfer): Order #${receipt.so_order_number}`
-                : `Shop Order Payment (Bank Transfer): Order #${receipt.so_order_number}`,
-              currency: paymentCurrency,
-              paymentMethod: 'bank_transfer',
-              relatedEntityType: 'shop_order',
-              relatedEntityId: String(receipt.shop_order_id),
-              createdBy: req.user?.id,
-              metadata: { receiptId: id, source: 'bank_transfer_approval' },
-              client,
-            });
+            const { rows: existingShopCharges } = await client.query(
+              `SELECT available_delta
+                 FROM wallet_transactions
+                WHERE related_entity_type = 'shop_order'
+                  AND metadata->>'orderId' = $1
+                  AND status = 'completed'
+                  AND direction = 'debit'
+                ORDER BY created_at
+                LIMIT 1`,
+              [String(receipt.shop_order_id)]
+            );
+            const existingShopCharge = existingShopCharges[0] || null;
+            const shopChargeIsReceivable = existingShopCharge
+              ? parseFloat(existingShopCharge.available_delta) < 0
+              : false;
+
+            if (!existingShopCharge) {
+              await recordWalletTransaction({
+                userId: receipt.user_id,
+                amount: -paymentAmount,
+                transactionType: 'shop_order_charge',
+                status: 'completed',
+                direction: 'debit',
+                availableDelta: 0,
+                description: isDeposit
+                  ? `Shop Deposit (Bank Transfer): Order #${receipt.so_order_number}`
+                  : `Shop Order Payment (Bank Transfer): Order #${receipt.so_order_number}`,
+                currency: paymentCurrency,
+                paymentMethod: 'bank_transfer',
+                relatedEntityType: 'shop_order',
+                createdBy: req.user?.id,
+                metadata: { receiptId: id, orderId: receipt.shop_order_id, orderNumber: receipt.so_order_number, source: 'bank_transfer_approval' },
+                client,
+              });
+            }
+            // Untagged from the order: a shop_order-tagged credit would cancel the charge
+            // in getEntityNetCharges and a later order refund would return nothing.
             await recordWalletTransaction({
               userId: receipt.user_id,
               amount: paymentAmount,
               transactionType: 'bank_transfer_payment',
               status: 'completed',
               direction: 'credit',
-              availableDelta: 0,
-              description: 'Bank Transfer Payment Received (Shop)',
+              ...(shopChargeIsReceivable ? {} : { availableDelta: 0 }),
+              description: `Bank Transfer Payment Received (customer): Order #${receipt.so_order_number}`,
               currency: paymentCurrency,
               paymentMethod: 'bank_transfer',
-              relatedEntityType: 'shop_order',
-              relatedEntityId: String(receipt.shop_order_id),
               createdBy: req.user?.id,
-              metadata: { receiptId: id, source: 'bank_transfer_approval' },
+              metadata: {
+                receiptId: id,
+                orderId: receipt.shop_order_id,
+                orderNumber: receipt.so_order_number,
+                source: 'bank_transfer_approval',
+                paidBy: receipt.user_id,
+                approvedBy: req.user?.id || null,
+              },
               client,
             });
           } catch (ledgerErr) {
@@ -2001,6 +2095,14 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
             WHERE source_type = 'booking' AND source_id = $1 AND status = 'pending'`,
           [String(receipt.booking_id)]
         );
+        // The lesson is cancelled, so the receivable posted when it was booked must not
+        // outlive it — otherwise a rejected transfer leaves the student owing for a lesson
+        // that will never happen. Idempotent and a no-op for balance-neutral bookings.
+        await refundBookingNetChargesPerUser(client, { id: receipt.booking_id }, {
+          transactionType: 'booking_cancelled_refund',
+          reason: 'bank_transfer_rejected',
+          actorId: req.user?.id || null,
+        });
       } else if (receipt.customer_package_id) {
         await client.query(
           `UPDATE customer_packages SET status = 'expired', notes = CONCAT(notes, ' | Payment Rejected') WHERE id = $1`,
@@ -2032,6 +2134,35 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
             [String(b.id)]
           );
         }
+        // Release the package receivable — the package is expired, so the customer must
+        // not keep owing for it. Tagged to the package so getEntityNetCharges nets it and
+        // a retry can't refund twice.
+        const pkgNets = await getEntityNetCharges({
+          client,
+          relatedEntityType: 'customer_package',
+          relatedEntityId: receipt.customer_package_id,
+        });
+        for (const pn of pkgNets) {
+          if (!(pn.amount > 0)) continue;
+          await recordWalletTransaction({
+            client,
+            userId: receipt.user_id,
+            amount: pn.amount,
+            availableDelta: pn.amount,
+            transactionType: 'package_refund',
+            status: 'completed',
+            direction: 'credit',
+            currency: pn.currency,
+            description: 'Package charge reversed: bank transfer rejected',
+            entityType: 'customer_package',
+            relatedEntityType: 'customer_package',
+            relatedEntityId: receipt.customer_package_id,
+            createdBy: req.user?.id,
+            metadata: { receiptId: id, packageId: receipt.customer_package_id, reason: 'bank_transfer_rejected' },
+            idempotencyKey: `bank-transfer-rejected:package:${receipt.customer_package_id}:${pn.currency}`,
+            allowNegative: true,
+          });
+        }
       } else if (receipt.shop_order_id) {
         // Restore stock and cancel the order on rejection
         const orderItemsRes = await client.query(
@@ -2053,6 +2184,29 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
            VALUES ($1, 'pending', 'cancelled', $2, $3)`,
           [receipt.shop_order_id, req.user?.id, `Bank transfer rejected by admin: ${reviewerNotes || 'No notes'}`]
         );
+        // Release the order receivable so a rejected transfer doesn't leave the customer
+        // owing for a cancelled order. Tagged as a shop_order_refund so getEntityNetCharges
+        // nets it (no double refund on retry).
+        const orderNets = await getEntityNetCharges({ client, shopOrderId: receipt.shop_order_id });
+        for (const on of orderNets) {
+          if (!(on.amount > 0)) continue;
+          await recordWalletTransaction({
+            client,
+            userId: receipt.user_id,
+            amount: on.amount,
+            availableDelta: on.amount,
+            transactionType: 'refund',
+            status: 'completed',
+            direction: 'credit',
+            currency: on.currency,
+            description: `Order charge reversed: bank transfer rejected (Order #${receipt.so_order_number})`,
+            relatedEntityType: 'shop_order_refund',
+            createdBy: req.user?.id,
+            metadata: { receiptId: id, orderId: receipt.shop_order_id, reason: 'bank_transfer_rejected' },
+            idempotencyKey: `bank-transfer-rejected:shop-order:${receipt.shop_order_id}:${on.currency}`,
+            allowNegative: true,
+          });
+        }
         logger.info('Shop order cancelled due to bank transfer rejection', { shopOrderId: receipt.shop_order_id, receiptId: id });
       }
 
@@ -2749,10 +2903,35 @@ router.post('/',
         // Credit card: don't charge wallet — Iyzico handles the payment
         finalPaymentStatus = 'pending_payment';
       } else if (requestedPaymentMethod === 'bank_transfer') {
-        // Bank transfer: don't charge wallet — manual admin approval handles the payment
-        // Set to 'waiting_payment' to ensure the lesson doesn't appear on the confirmed calendar
+        // Bank transfer: the money only lands when an admin approves the receipt, so the
+        // lesson is not paid yet — but the customer owes it. Post the FULL price as a real
+        // receivable so the balance shows the debt; the approval then credits whatever was
+        // actually received, and a deposit leaves the remainder visible instead of living
+        // only in the receipt's note. Status stays 'waiting_payment' so the lesson doesn't
+        // reach the confirmed calendar.
         finalPaymentStatus = 'waiting_payment';
         finalNotes = (finalNotes ? finalNotes + ' | ' : '') + `Bank Transfer requested | Bank Account ID: ${req.body.bank_account_id || 'Not specified'}`;
+        if (netChargeable > 0) {
+          pendingTransactions.push({
+            userId: student_user_id,
+            amount: -Math.abs(netChargeable),
+            type: 'booking_charge',
+            description: `Individual lesson charge (Bank Transfer): ${date} ${start_hour}:00 (${bookingDuration}h)`,
+            status: 'completed',
+            currency: walletTransactionCurrency,
+            // The receivable is the whole point here, so it must be allowed to go negative
+            // even when the booker isn't staff.
+            allowNegative: true,
+            metadata: {
+              paymentMethod: 'bank_transfer',
+              bookingDate: date,
+              startHour: start_hour,
+              durationHours: bookingDuration,
+              source: 'booking:create:bank_transfer',
+              paymentPending: true
+            }
+          });
+        }
       } else if (netChargeable > 0) {
         pendingTransactions.push({
           userId: student_user_id,
@@ -2922,7 +3101,9 @@ router.post('/',
           relatedEntityType: 'booking',
           relatedEntityId: booking.id,
           createdBy: actorId,
-          allowNegative: allowNegativeBalance, // Staff can book even if customer has no balance
+          // Staff can book even if the customer has no balance; a receivable (bank
+          // transfer) opts in explicitly since going negative IS the point.
+          allowNegative: tx.allowNegative ?? allowNegativeBalance,
           client
         });
       } catch (walletError) {

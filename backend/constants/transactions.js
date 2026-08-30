@@ -90,6 +90,11 @@ export const PAYMENT_METHOD = Object.freeze({
   PAY_LATER: 'pay_later',
   CREDIT_CARD: 'credit_card',
   CASH: 'cash',
+  // Bank transfer is a PROMISE to pay: the sale posts the full price as a real
+  // receivable (negative balance) and each admin-approved receipt posts a credit
+  // against it, so a part-paid "deposit now, rest on arrival" sale shows the
+  // remainder on the customer's balance instead of only in a note.
+  BANK_TRANSFER: 'bank_transfer',
   PACKAGE_PRICE_ADJUSTMENT: 'package_price_adjustment',
 });
 

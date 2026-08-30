@@ -122,3 +122,5 @@ Ant Design tabanlı admin/manager paneli; `deleted_bookings_backup` mantığın�
 - **`filterActiveBookings`** rental rezervasyonlarını ders takviminden hariç tutar (kategori/tür/ad "rental"/"equipment" içerirse) — rental'lar [[Accommodation_Rentals]] takviminde.
 - **CalendarContext cache** çok katmanlı (in-memory TTL + localStorage timestamp + `recentBookingsRef`); değişiklikten sonra `eventBus.emit('bookings:changed')` çağırmak çoğu UI yüzeyinin senkron kalması için gerekir.
 - Sürükle-bırak takas başarısızsa retry mantığı 429/5xx için var; başka hatalar kullanıcıya gösterilir ve `refreshCounter` ile tam yenileme zorlanır.
+- **Havale dersi artık cüzdana gerçek borç yazar (2026-08-30).** `POST /bookings` `bank_transfer` dalı eskiden HİÇ defter satırı yazmıyordu; artık ders fiyatı `booking_charge` alacağı olarak (`allowNegative:true`) yazılır, dekont onayı yalnızca gelen tutarı **tag'siz gerçek kredi** olarak ekler (kopya charge yazmaz), dekont reddi `refundBookingNetChargesPerUser` ile alacağı geri alır. Deposit'te bakiye kalan tutarı borç gösterir. Ayrıntı: [[Finances_Wallet]].
+

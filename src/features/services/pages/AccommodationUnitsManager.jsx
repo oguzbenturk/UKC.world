@@ -313,7 +313,7 @@ function AccommodationUnitsManager() {
   const BookingCard = ({ booking }) => {
     const unit = units.find(u => u.id === booking.unit_id);
     const colors = { pending: 'orange', confirmed: 'blue', completed: 'green', cancelled: 'red' };
-    const paymentColors = { paid: 'green', refunded: 'blue', unpaid: 'default' };
+    const paymentColors = { paid: 'green', partial: 'orange', refunded: 'blue', unpaid: 'default' };
     
     return (
       <Card className="rounded-2xl border border-slate-200 shadow-sm mb-3" styles={{ body: { padding: 12 } }}>
@@ -587,7 +587,7 @@ function AccommodationUnitsManager() {
       key: 'payment_status',
       render: (_, record) => {
         const ps = record.payment_status || 'unpaid';
-        const colors = { paid: 'green', refunded: 'blue', unpaid: 'default' };
+        const colors = { paid: 'green', partial: 'orange', refunded: 'blue', unpaid: 'default' };
         return <Tag icon={<WalletOutlined />} color={colors[ps] || 'default'}>{ps}</Tag>;
       },
     },

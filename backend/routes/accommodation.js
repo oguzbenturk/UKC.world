@@ -4,7 +4,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { v4 as uuidv4 } from 'uuid';
-import { lockFundsForBooking, releaseLockedFunds, getBalance, recordLegacyTransaction } from '../services/walletService.js';
+import { lockFundsForBooking, releaseLockedFunds, getBalance, recordLegacyTransaction, getEntityNetCharges } from '../services/walletService.js';
 import { initiateDeposit } from '../services/paymentGateways/iyzicoGateway.js';
 import { logger } from '../middlewares/errorHandler.js';
 import CurrencyService from '../services/currencyService.js';
@@ -26,6 +26,51 @@ import {
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 
 const router = Router();
+
+/**
+ * Hand back whatever a guest still owes on an accommodation booking.
+ *
+ * pay_later and bank_transfer bookings carry a REAL `accommodation_charge` debit
+ * (the receivable), so cancelling or rejecting one must reverse it — otherwise the
+ * guest keeps a debt for a booking that no longer exists. Wallet-paid bookings hold
+ * locked funds instead and are released by the caller's `releaseLockedFunds` path;
+ * their net here is already zero, so this is a no-op for them.
+ *
+ * Idempotent: `getEntityNetCharges` only returns wallets still in the red for this
+ * booking, so a second call writes nothing.
+ */
+async function refundAccommodationNetCharges(client, { bookingId, reason, description, createdBy }) {
+	const nets = await getEntityNetCharges({
+		client,
+		relatedEntityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
+		relatedEntityId: bookingId,
+		byUser: true,
+	});
+	for (const net of nets) {
+		const amount = Math.abs(parseFloat(net.amount) || 0);
+		if (amount <= 0) continue;
+		await recordLegacyTransaction({
+			client,
+			userId: net.userId,
+			amount,
+			transactionType: TRANSACTION_TYPE.ACCOMMODATION_CHARGE_ADJUSTMENT,
+			status: WALLET_TX_STATUS.COMPLETED,
+			direction: TX_DIRECTION.CREDIT,
+			currency: net.currency,
+			description,
+			metadata: {
+				accommodationBookingId: bookingId,
+				reason,
+				source: 'accommodation:refund_net_charges',
+			},
+			entityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
+			relatedEntityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
+			relatedEntityId: bookingId,
+			createdBy: createdBy || null,
+			allowNegative: true,
+		});
+	}
+}
 
 // ============================================================================
 // ACCOMMODATION UNITS (ROOMS) CRUD
@@ -468,8 +513,11 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 		
 		const booking = rows[0];
 		
-		// Refund wallet if payment was made
-		if (booking.payment_status === PAYMENT_STATUS.PAID && booking.guest_id) {
+		// Refund wallet if payment was made. Locked funds only exist for WALLET bookings —
+		// pay_later / bank_transfer owe on the ledger instead and are settled by
+		// refundAccommodationNetCharges below. Releasing a lock they never held would
+		// credit money out of thin air (and double up with that reversal).
+		if (booking.payment_status === PAYMENT_STATUS.PAID && booking.guest_id && booking.payment_method === PAYMENT_METHOD.WALLET) {
 			const refundAmount = parseFloat(booking.payment_amount || booking.total_price);
 			if (refundAmount > 0) {
 				try {
@@ -494,7 +542,21 @@ router.patch('/bookings/:id/cancel', authenticateJWT, authorizeRoles(['admin', '
 				}
 			}
 		}
-		
+
+		// pay_later / bank_transfer bookings owe money on the ledger rather than holding
+		// locked funds, so the branch above never touched them: a cancelled booking left
+		// the guest owing for a stay that no longer exists. Reverse whatever is still open.
+		try {
+			await refundAccommodationNetCharges(client, {
+				bookingId: booking.id,
+				reason: 'booking_cancelled',
+				description: `Accommodation charge reversed: booking cancelled`,
+				createdBy: req.user?.id,
+			});
+		} catch (reverseErr) {
+			logger.error('[ACCOMMODATION] Failed to reverse outstanding charge on cancel:', reverseErr);
+		}
+
 		await client.query('COMMIT');
 
 		cancelCommission('accommodation', booking.id, 'booking_cancelled').catch(() => {});
@@ -673,8 +735,13 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 			[bookingId, unit_id, guest_id, check_in_date, check_out_date, guests_count, total_price, notes || null, req.user.id, paymentStatus, payment_method, walletTxId]
 		);
 
-		// pay_later: record an accommodation_charge so the guest's wallet reflects what they owe
-		if (payment_method === 'pay_later' && total_price > 0) {
+		// pay_later and bank_transfer: record an accommodation_charge so the guest's
+		// wallet reflects what they owe. Bank transfer here is always a DEPOSIT — the
+		// guest pays part now and the rest on arrival — so the receivable is the FULL
+		// price and the approved receipt posts a credit against it; the balance is then
+		// the remainder due. Without this the approved deposit produced no ledger row at
+		// all: money received that never reached Financial History or accommodation revenue.
+		if ((payment_method === PAYMENT_METHOD.PAY_LATER || payment_method === PAYMENT_METHOD.BANK_TRANSFER) && total_price > 0) {
 			try {
 				const tx = await recordLegacyTransaction({
 					client,
@@ -691,7 +758,7 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 						checkInDate: check_in_date,
 						checkOutDate: check_out_date,
 						nights,
-						source: 'accommodation:create:pay_later'
+						source: `accommodation:create:${payment_method}`
 					},
 					entityType: 'accommodation_booking',
 					relatedEntityType: 'accommodation_booking',
@@ -1065,7 +1132,9 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 			const unitLabel = unitData.name || 'Unit';
 			const oldFmt = `€${oldTotal.toFixed(2)}`;
 			const newFmt = `€${Number(newTotal).toFixed(2)}`;
-			if (current.payment_method === PAYMENT_METHOD.PAY_LATER) {
+			// pay_later and bank_transfer both carry a real accommodation_charge debit,
+			// so a price edit has to move the balance by the same delta for either.
+			if (current.payment_method === PAYMENT_METHOD.PAY_LATER || current.payment_method === PAYMENT_METHOD.BANK_TRANSFER) {
 				await recordLegacyTransaction({
 					client,
 					userId: current.guest_id,
@@ -1079,7 +1148,7 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 						accommodationBookingId: id,
 						previousTotal: oldTotal,
 						newTotal,
-						source: 'accommodation:edit:pay_later',
+						source: `accommodation:edit:${current.payment_method}`,
 					},
 					entityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
 					relatedEntityType: WALLET_ENTITY_TYPE.ACCOMMODATION_BOOKING,
@@ -1127,6 +1196,7 @@ router.patch('/bookings/:id', authenticateJWT, authorizeRoles(['admin', 'manager
 
 // Delete a booking by ID (admin, manager, front_desk)
 router.delete('/bookings/:id', authenticateJWT, cacheInvalidationMiddleware(accomCachePatterns), async (req, res) => {
+	const client = await pool.connect();
 	try {
 		const { id } = req.params;
 		// Normalize role and determine staff
@@ -1136,20 +1206,36 @@ router.delete('/bookings/:id', authenticateJWT, cacheInvalidationMiddleware(acco
 			userRole === 'manager' ||
 			userRole.startsWith('front_desk')
 		);
-		const { rows } = await pool.query(
+		await client.query('BEGIN');
+		const { rows } = await client.query(
 			`DELETE FROM accommodation_bookings WHERE id = $1 AND ($2 = TRUE OR created_by = $3) RETURNING *`,
 			[id, isStaff, req.user.id]
 		);
 		if (rows.length === 0) {
+			await client.query('ROLLBACK');
 			return res.status(404).json({ error: 'Booking not found or not authorized to delete' });
 		}
+
+		// The booking row is gone but its ledger rows are not: without this the guest
+		// keeps owing (pay_later / bank_transfer) for a stay that no longer exists.
+		await refundAccommodationNetCharges(client, {
+			bookingId: rows[0].id,
+			reason: 'booking_deleted',
+			description: 'Accommodation charge reversed: booking deleted',
+			createdBy: req.user?.id,
+		});
+
+		await client.query('COMMIT');
 
 		cancelCommission('accommodation', rows[0].id, 'booking_deleted').catch(() => {});
 
 		res.json({ success: true, deleted: rows[0] });
 	} catch (err) {
+		await client.query('ROLLBACK').catch(() => {});
 		logger.error('[ACCOMMODATION DELETE] error', err);
 		res.status(500).json({ error: 'Failed to delete booking' });
+	} finally {
+		client.release();
 	}
 });
 
@@ -1206,7 +1292,11 @@ router.patch('/admin/pending-deposits/:id/action', authenticateJWT, authorizeRol
 		await client.query('BEGIN');
 
 		const receiptRes = await client.query(
-			'SELECT * FROM bank_transfer_receipts WHERE id = $1 FOR UPDATE',
+			`SELECT r.*, ab.total_price, ab.payment_method AS booking_payment_method
+			   FROM bank_transfer_receipts r
+			   LEFT JOIN accommodation_bookings ab ON ab.id = r.accommodation_booking_id
+			  WHERE r.id = $1
+			  FOR UPDATE OF r`,
 			[id]
 		);
 
@@ -1239,12 +1329,66 @@ router.patch('/admin/pending-deposits/:id/action', authenticateJWT, authorizeRol
 		);
 
 		if (action === 'approve') {
+			// A deposit is a PARTIAL payment: the booking is confirmed, but it is only
+			// fully paid when the receipt covers the whole price. Marking it 'paid'
+			// regardless hid the remainder from every "unpaid" view.
+			const depositAmount = parseFloat(receipt.amount) || 0;
+			const bookingTotal = parseFloat(receipt.total_price ?? 0) || 0;
+			const fullyPaid = bookingTotal > 0 ? depositAmount >= bookingTotal - 0.01 : true;
 			await client.query(
 				`UPDATE accommodation_bookings
-				 SET payment_status = 'paid', status = 'confirmed', updated_at = NOW()
+				 SET payment_status = $2, status = 'confirmed', updated_at = NOW()
 				 WHERE id = $1`,
-				[receipt.accommodation_booking_id]
+				[receipt.accommodation_booking_id, fullyPaid ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.PARTIAL]
 			);
+
+			// Credit the money that just arrived against the receivable posted when the
+			// booking was created. Deliberately NOT tagged to the booking: getEntityNetCharges
+			// sums available_delta per entity, so a booking-tagged credit would cancel the
+			// charge and a later cancellation would refund the guest nothing.
+			if (depositAmount > 0) {
+				try {
+					// Only move the balance when there is a receivable to settle. Bookings made
+					// before the charge above existed have no ledger row at all, so a real credit
+					// there would be free money; those get a balance-neutral record instead.
+					const { rows: existingCharges } = await client.query(
+						`SELECT available_delta
+						   FROM wallet_transactions
+						  WHERE related_entity_type = 'accommodation_booking'
+						    AND related_entity_id = $1
+						    AND transaction_type = 'accommodation_charge'
+						    AND status = 'completed'
+						  ORDER BY created_at
+						  LIMIT 1`,
+						[receipt.accommodation_booking_id]
+					);
+					const chargeIsReceivable = existingCharges[0]
+						? parseFloat(existingCharges[0].available_delta) < 0
+						: false;
+					await recordLegacyTransaction({
+						client,
+						userId: receipt.user_id,
+						amount: depositAmount,
+						transactionType: 'bank_transfer_payment',
+						status: WALLET_TX_STATUS.COMPLETED,
+						direction: TX_DIRECTION.CREDIT,
+						...(chargeIsReceivable ? {} : { availableDelta: 0 }),
+						currency: receipt.currency || 'EUR',
+						paymentMethod: PAYMENT_METHOD.BANK_TRANSFER,
+						description: `Bank Transfer Payment Received (guest): Accommodation deposit`,
+						metadata: {
+							receiptId: id,
+							accommodationBookingId: receipt.accommodation_booking_id,
+							source: 'accommodation:bank_transfer_approval',
+							paidBy: receipt.user_id,
+							approvedBy: req.user?.id || null,
+						},
+						createdBy: req.user?.id,
+					});
+				} catch (ledgerErr) {
+					logger.warn('[ACCOMMODATION] Failed to record bank transfer payment credit', { receiptId: id, error: ledgerErr.message });
+				}
+			}
 
 			// Send approval notification to guest
 			try {
@@ -1275,6 +1419,16 @@ router.patch('/admin/pending-deposits/:id/action', authenticateJWT, authorizeRol
 				 WHERE id = $1`,
 				[receipt.accommodation_booking_id]
 			);
+
+			// The booking is cancelled, so the receivable posted at creation must not
+			// outlive it — otherwise a rejected deposit leaves the guest owing for a
+			// booking that no longer exists.
+			await refundAccommodationNetCharges(client, {
+				bookingId: receipt.accommodation_booking_id,
+				reason: 'deposit_rejected',
+				description: 'Accommodation charge reversed: deposit rejected',
+				createdBy: req.user?.id,
+			});
 
 			try {
 				const bookingRes = await client.query(

@@ -78,3 +78,5 @@ Müşteri tarafındaki paket yönetimi UI'si (`CustomerPackageManager`) → bkz.
 - **İade çift-sayımı:** İndirimli bir paket silinirken önce açık `discount` satırları `deleteDiscount` ile ters çevrilmeli; aksi halde tam `purchase_price` iadesi + duran indirim kredisi = müşteriye phantom bakiye (proje hafızası: `membership_discount_overrefund_fix`).
 - **Spillover kill switch:** `PACKAGE_SPILLOVER_ENABLED=false` ortam değişkeni tüm tüketimi ilk eşleşen paketle sınırlar — defter altyapısı yine de yazılır.
 - **`backend/db/migrations/` AUTHORITATIVE'dir** (`backend/migrations/` DEĞİL). İlgili migrasyonlar: 278 (defter), 279 (original_rate), 281 (rescue_boat + member_discount_percent).
+- **Havale paketi artık cüzdana gerçek borç yazar (2026-08-30).** Öğrenci self-purchase'ında `bank_transfer` tam fiyatı `package_purchase` alacağı olarak yazar (kart/nakit hâlâ sıfır-delta: para satın alma anında dışarıda tahsil edilir); dekont onayı ikinci bir charge yazmaz, yalnızca gelen tutarı tag'siz kredi olarak ekler. Diederik Visser incident'i ve onarım scripti: [[Finances_Wallet]].
+
