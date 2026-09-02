@@ -321,6 +321,59 @@ router.get(
   },
 );
 
+// ── GET /customers/by-phone — Resolve a caller by phone number ───────────────
+// Used by the Front Desk agent workflow to identify an inbound WhatsApp /
+// Telegram / phone contact. Digits-only comparison on BOTH sides so stored
+// formats like "+90 507 138 91 96" still match an inbound "905071389196".
+// Matches on the last 9 digits (local number without country code / leading 0).
+// MUST stay above `/customers/:id` or Express will treat "by-phone" as an id.
+router.get('/customers/by-phone', requireRole(['admin', 'manager']), async (req, res) => {
+  try {
+    const digits = String(req.query.phone || '').replace(/\D/g, '');
+    if (digits.length < 7) {
+      return res.status(400).json({ error: 'phone must contain at least 7 digits' });
+    }
+
+    const suffix = digits.slice(-9);
+    const { rows } = await pool.query(
+      `SELECT u.id,
+              COALESCE(u.name, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,''))) AS name,
+              u.email, u.phone, r.name AS role
+       FROM users u
+       JOIN roles r ON r.id = u.role_id
+       WHERE u.deleted_at IS NULL
+         AND u.phone IS NOT NULL
+         AND regexp_replace(u.phone, '[^0-9]', '', 'g') LIKE $1
+       ORDER BY u.updated_at DESC NULLS LAST
+       LIMIT 2`,
+      [`%${suffix}`],
+    );
+
+    if (!rows.length) return res.json({ found: false });
+
+    // Ambiguous match (two different people share a suffix) — treat as unknown
+    // rather than risk handing one customer's data to another.
+    if (rows.length > 1) {
+      logger.warn('Agent /customers/by-phone: ambiguous match', { suffix });
+      return res.json({ found: false, ambiguous: true });
+    }
+
+    const u = rows[0];
+    const ROLE_ALIASES = { customer: 'student', super_admin: 'admin' };
+    res.json({
+      found: true,
+      customerId: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: ROLE_ALIASES[u.role] || u.role,
+    });
+  } catch (err) {
+    logger.error('Agent /customers/by-phone error', err);
+    res.status(500).json({ error: 'Failed to resolve phone' });
+  }
+});
+
 // ── GET /customers/:id — Customer profile (admin, manager, instructor scoped) ─
 router.get('/customers/:id', async (req, res) => {
   try {

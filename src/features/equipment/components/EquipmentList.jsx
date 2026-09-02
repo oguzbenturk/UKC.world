@@ -15,7 +15,10 @@ function EquipmentList({ equipment, onEquipmentSelect, onEditEquipment }) {
     'harness',
     'control bar',
     'wetsuit',
-    'safety gear'
+    'safety gear',
+    'wing/foil',
+    'footwear',
+    'accessory'
   ];
 
   const filteredEquipment = equipment.filter(item => {

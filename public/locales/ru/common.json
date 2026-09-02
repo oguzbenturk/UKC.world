@@ -475,7 +475,29 @@
     "retiredShort": "спис.",
     "serialNumber": "Серийный",
     "location": "Расположение",
-    "sizesLabel": "Размеры"
+    "sizesLabel": "Размеры",
+    "viewList": "List",
+    "viewCards": "Cards",
+    "viewStocktake": "Stock-take",
+    "viewPlanning": "Season plan",
+    "stocktakeProgress": "Count progress",
+    "checkAllShown": "Check all shown",
+    "resetCount": "Reset count",
+    "resetCountTitle": "Reset this count?",
+    "resetCountDesc": "All ticks will be cleared.",
+    "printList": "Print list",
+    "exportCsv": "Export CSV",
+    "stocktakeHint": "{{count}} items not counted yet.",
+    "assetCode": "Asset code",
+    "planUsable": "Usable",
+    "planWatch": "Watch (fair)",
+    "planReplace": "Replace (poor)",
+    "planGaps": "Size gaps",
+    "planningHint": "Usable = gear in new/excellent/good condition. \"Replace\" counts worn-out (poor) units; a size is flagged as a gap only when every unit in it is worn out.",
+    "planBuy": "Next season",
+    "planBuyCount": "Buy {{count}}",
+    "planOk": "OK",
+    "planGapTag": "Gap"
   },
   "auth": {
     "signedIn": "Вход выполнен успешно!",
@@ -794,7 +816,11 @@
     "dateLabel": "Дата прогноза",
     "loading": "Загрузка прогноза…",
     "error": "Не удалось загрузить данные о ветре. Попробуйте снова.",
-    "unit": { "knots": "уз", "kmh": "км/ч", "ms": "м/с" },
+    "unit": {
+      "knots": "уз",
+      "kmh": "км/ч",
+      "ms": "м/с"
+    },
     "spots": {
       "alacati": "Алачаты",
       "pirlanta": "Пляж Пырланта",
@@ -819,8 +845,15 @@
       "avg": "Средний",
       "hourly": "Почасовой прогноз"
     },
-    "grid": { "sky": "Небо", "rating": "Оценка", "model": "Модель прогноза" },
-    "models": { "mix": "UKC Микс", "accuracyTip": "Ср. ошибка к пляжной станции, 14 дней" },
+    "grid": {
+      "sky": "Небо",
+      "rating": "Оценка",
+      "model": "Модель прогноза"
+    },
+    "models": {
+      "mix": "UKC Микс",
+      "accuracyTip": "Ср. ошибка к пляжной станции, 14 дней"
+    },
     "sources": {
       "a": "ECMWF",
       "b": "GFS",
@@ -875,22 +908,46 @@
       "scaleTitle": "Шкала ветра · что катаемо",
       "decoderTitle": "Как читать таблицу",
       "bands": {
-        "flat":     "Штиль",
-        "light":    "Слабый",
+        "flat": "Штиль",
+        "light": "Слабый",
         "beginner": "Новичок",
-        "ideal":    "Идеал",
-        "strong":   "Сильный",
-        "expert":   "Только эксперт"
+        "ideal": "Идеал",
+        "strong": "Сильный",
+        "expert": "Только эксперт"
       },
       "columns": {
-        "date":  { "abbr": "Дата",  "label": "День и час (местн.)" },
-        "wspd":  { "abbr": "WSPD",  "label": "Средняя скорость ветра" },
-        "gust":  { "abbr": "GUST",  "label": "Сила порывов — выше = сложнее" },
-        "wdirn": { "abbr": "WDIRN", "label": "Откуда дует ветер (С, Ю, В, З…)" },
-        "wdeg":  { "abbr": "WDEG",  "label": "Направление в градусах (0–360°)" },
-        "tmp":   { "abbr": "TMP",   "label": "Температура воздуха (°C)" },
-        "slp":   { "abbr": "SLP",   "label": "Давление на уровне моря (гПа)" },
-        "hcld":  { "abbr": "HCLD",  "label": "Высокая облачность (%)" }
+        "date": {
+          "abbr": "Дата",
+          "label": "День и час (местн.)"
+        },
+        "wspd": {
+          "abbr": "WSPD",
+          "label": "Средняя скорость ветра"
+        },
+        "gust": {
+          "abbr": "GUST",
+          "label": "Сила порывов — выше = сложнее"
+        },
+        "wdirn": {
+          "abbr": "WDIRN",
+          "label": "Откуда дует ветер (С, Ю, В, З…)"
+        },
+        "wdeg": {
+          "abbr": "WDEG",
+          "label": "Направление в градусах (0–360°)"
+        },
+        "tmp": {
+          "abbr": "TMP",
+          "label": "Температура воздуха (°C)"
+        },
+        "slp": {
+          "abbr": "SLP",
+          "label": "Давление на уровне моря (гПа)"
+        },
+        "hcld": {
+          "abbr": "HCLD",
+          "label": "Высокая облачность (%)"
+        }
       }
     },
     "summary": {

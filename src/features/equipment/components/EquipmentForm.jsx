@@ -31,7 +31,10 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
     'harness',
     'control bar',
     'wetsuit',
-    'safety gear'
+    'safety gear',
+    'wing/foil',
+    'footwear',
+    'accessory'
   ];
 
   const getSizeOptions = (type) => {
@@ -42,7 +45,14 @@ function EquipmentForm({ equipment, isNew, onSubmit, onCancel }) {
         return ['132x39', '135x40', '138x41', '141x42', '144x43'];
       case 'harness':
       case 'wetsuit':
-        return ['XS', 'S', 'M', 'L', 'XL'];
+      case 'safety gear':
+        return ['KIDS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+      case 'control bar':
+        return ['19', '22', '24', '26', '27'];
+      case 'wing/foil':
+        return ['3m', '4m', '5m', '6m', '7m'];
+      case 'footwear':
+        return ['30-31', '32-33', '34-35', '36-37', '38-39', '40-41', '42-43', '44-45', '46-47'];
       default:
         return [];
     }

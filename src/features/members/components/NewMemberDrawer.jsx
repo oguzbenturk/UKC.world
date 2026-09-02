@@ -176,7 +176,16 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
   const [paidMethod, setPaidMethod] = useState('cash');
   // Membership start date — defaults to today; staff can back/forward-date it.
   // Drives purchased_at and (with the plan's duration) the expiry on the backend.
-  const [startDate, setStartDate] = useState(() => dayjs());
+  //
+  // ALWAYS held at start-of-day. The backend counts calendar days from the
+  // YYYY-MM-DD strings we send, but dayjs .diff() works on milliseconds and
+  // truncates, so a start date still carrying "now"'s clock time made the
+  // preview drop a day: 25 Aug (default, 08:00) → 4 Sep (picked, 00:00) is
+  // 9.67 days → 9 + 1 = "10 days" on screen while the backend charged 11.
+  // The same two dates then read 11 as soon as staff opened the start picker
+  // (antd zeroes the time on anything picked), which is exactly the reported
+  // "same days, different count".
+  const [startDate, setStartDate] = useState(() => dayjs().startOf('day'));
   // End date — only used for "Daily" offerings (duration_days === 1), which are billed
   // as a per-day rate. The inclusive span start..end multiplies the price on the backend.
   const [endDate, setEndDate] = useState(null);
@@ -186,15 +195,20 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
 
   // Inclusive day span + per-customer charge (display only — the backend re-derives the
   // authoritative price from the dates). Non-daily offerings fall back to the flat price.
-  const beachDays = isDaily && startDate && endDate ? endDate.diff(startDate, 'day') + 1 : null;
+  // startOf('day') on both sides so the span is a whole number of calendar days and
+  // matches the backend's YYYY-MM-DD arithmetic exactly, whatever the clock says.
+  const beachDays = isDaily && startDate && endDate
+    ? endDate.startOf('day').diff(startDate.startOf('day'), 'day') + 1
+    : null;
   const perCustomer = isDaily && beachDays != null
     ? Number(selectedOffering?.price || 0) * beachDays
     : Number(selectedOffering?.price || 0);
 
   // Moving the start date past the end date drags the end date along with it.
   const handleStartDateChange = (next) => {
-    setStartDate(next);
-    setEndDate((prev) => (prev && next && prev.isBefore(next, 'day') ? next : prev));
+    const normalized = next ? next.startOf('day') : next;
+    setStartDate(normalized);
+    setEndDate((prev) => (prev && normalized && prev.isBefore(normalized, 'day') ? normalized : prev));
   };
 
   useEffect(() => {
@@ -244,7 +258,7 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
     setSelectedUnit(null); setUnits([]); setUnitsLoading(false);
     setDiscountPercent(null);
     setPaidNow(false); setPaidMethod('cash');
-    setStartDate(dayjs());
+    setStartDate(dayjs().startOf('day'));
     setEndDate(null);
   };
 
@@ -531,7 +545,7 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
               />
               <DatePicker
                 value={endDate}
-                onChange={setEndDate}
+                onChange={(d) => setEndDate(d ? d.startOf('day') : d)}
                 allowClear={false}
                 format="DD MMM YYYY"
                 className="flex-1"
@@ -552,7 +566,7 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
             <SectionHeader label="Start Date" />
             <DatePicker
               value={startDate}
-              onChange={setStartDate}
+              onChange={(d) => setStartDate(d ? d.startOf('day') : d)}
               allowClear={false}
               format="DD MMM YYYY"
               className="w-full"

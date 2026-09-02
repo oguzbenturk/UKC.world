@@ -471,7 +471,29 @@
     "retiredShort": "ausg.",
     "serialNumber": "Seriennr.",
     "location": "Standort",
-    "sizesLabel": "Größen"
+    "sizesLabel": "Größen",
+    "viewList": "List",
+    "viewCards": "Cards",
+    "viewStocktake": "Stock-take",
+    "viewPlanning": "Season plan",
+    "stocktakeProgress": "Count progress",
+    "checkAllShown": "Check all shown",
+    "resetCount": "Reset count",
+    "resetCountTitle": "Reset this count?",
+    "resetCountDesc": "All ticks will be cleared.",
+    "printList": "Print list",
+    "exportCsv": "Export CSV",
+    "stocktakeHint": "{{count}} items not counted yet.",
+    "assetCode": "Asset code",
+    "planUsable": "Usable",
+    "planWatch": "Watch (fair)",
+    "planReplace": "Replace (poor)",
+    "planGaps": "Size gaps",
+    "planningHint": "Usable = gear in new/excellent/good condition. \"Replace\" counts worn-out (poor) units; a size is flagged as a gap only when every unit in it is worn out.",
+    "planBuy": "Next season",
+    "planBuyCount": "Buy {{count}}",
+    "planOk": "OK",
+    "planGapTag": "Gap"
   },
   "auth": {
     "signedIn": "Erfolgreich angemeldet!",
@@ -819,8 +841,15 @@
       "avg": "Durchschnitt",
       "hourly": "Stündliche Vorhersage"
     },
-    "grid": { "sky": "Himmel", "rating": "Bewertung", "model": "Vorhersagemodell" },
-    "models": { "mix": "UKC-Mix", "accuracyTip": "Durchschn. Fehler ggü. Strandstation, letzte 14 Tage" },
+    "grid": {
+      "sky": "Himmel",
+      "rating": "Bewertung",
+      "model": "Vorhersagemodell"
+    },
+    "models": {
+      "mix": "UKC-Mix",
+      "accuracyTip": "Durchschn. Fehler ggü. Strandstation, letzte 14 Tage"
+    },
     "history": {
       "title": "Windverlauf",
       "recent": "Letzte {{range}}",

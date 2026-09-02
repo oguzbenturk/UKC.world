@@ -475,7 +475,29 @@
     "retiredShort": "retr.",
     "serialNumber": "Série",
     "location": "Emplacement",
-    "sizesLabel": "Tailles"
+    "sizesLabel": "Tailles",
+    "viewList": "List",
+    "viewCards": "Cards",
+    "viewStocktake": "Stock-take",
+    "viewPlanning": "Season plan",
+    "stocktakeProgress": "Count progress",
+    "checkAllShown": "Check all shown",
+    "resetCount": "Reset count",
+    "resetCountTitle": "Reset this count?",
+    "resetCountDesc": "All ticks will be cleared.",
+    "printList": "Print list",
+    "exportCsv": "Export CSV",
+    "stocktakeHint": "{{count}} items not counted yet.",
+    "assetCode": "Asset code",
+    "planUsable": "Usable",
+    "planWatch": "Watch (fair)",
+    "planReplace": "Replace (poor)",
+    "planGaps": "Size gaps",
+    "planningHint": "Usable = gear in new/excellent/good condition. \"Replace\" counts worn-out (poor) units; a size is flagged as a gap only when every unit in it is worn out.",
+    "planBuy": "Next season",
+    "planBuyCount": "Buy {{count}}",
+    "planOk": "OK",
+    "planGapTag": "Gap"
   },
   "auth": {
     "signedIn": "Connexion réussie !",
@@ -794,7 +816,11 @@
     "dateLabel": "Date de prévision",
     "loading": "Chargement de la prévision…",
     "error": "Impossible de charger les données de vent. Veuillez réessayer.",
-    "unit": { "knots": "nd", "kmh": "km/h", "ms": "m/s" },
+    "unit": {
+      "knots": "nd",
+      "kmh": "km/h",
+      "ms": "m/s"
+    },
     "spots": {
       "alacati": "Alaçatı",
       "pirlanta": "Plage Pırlanta Kitesurf",
@@ -819,8 +845,15 @@
       "avg": "Moyen",
       "hourly": "Prévision horaire"
     },
-    "grid": { "sky": "Ciel", "rating": "Note", "model": "Modèle de prévision" },
-    "models": { "mix": "Mix UKC", "accuracyTip": "Erreur moy. vs station de plage, 14 derniers jours" },
+    "grid": {
+      "sky": "Ciel",
+      "rating": "Note",
+      "model": "Modèle de prévision"
+    },
+    "models": {
+      "mix": "Mix UKC",
+      "accuracyTip": "Erreur moy. vs station de plage, 14 derniers jours"
+    },
     "sources": {
       "a": "ECMWF",
       "b": "GFS",
@@ -875,22 +908,46 @@
       "scaleTitle": "Échelle de vent · navigable ?",
       "decoderTitle": "Comment lire ce tableau",
       "bands": {
-        "flat":     "Plat",
-        "light":    "Trop léger",
+        "flat": "Plat",
+        "light": "Trop léger",
         "beginner": "Débutant",
-        "ideal":    "Idéal",
-        "strong":   "Fort",
-        "expert":   "Expert seul"
+        "ideal": "Idéal",
+        "strong": "Fort",
+        "expert": "Expert seul"
       },
       "columns": {
-        "date":  { "abbr": "Date",  "label": "Jour et heure (locales)" },
-        "wspd":  { "abbr": "WSPD",  "label": "Vitesse moyenne du vent" },
-        "gust":  { "abbr": "GUST",  "label": "Force des rafales — plus c'est haut, plus c'est difficile" },
-        "wdirn": { "abbr": "WDIRN", "label": "D'où vient le vent (N, S, E, O…)" },
-        "wdeg":  { "abbr": "WDEG",  "label": "Direction en degrés (0–360°)" },
-        "tmp":   { "abbr": "TMP",   "label": "Température de l'air (°C)" },
-        "slp":   { "abbr": "SLP",   "label": "Pression au niveau de la mer (hPa)" },
-        "hcld":  { "abbr": "HCLD",  "label": "Nuages hauts (%)" }
+        "date": {
+          "abbr": "Date",
+          "label": "Jour et heure (locales)"
+        },
+        "wspd": {
+          "abbr": "WSPD",
+          "label": "Vitesse moyenne du vent"
+        },
+        "gust": {
+          "abbr": "GUST",
+          "label": "Force des rafales — plus c'est haut, plus c'est difficile"
+        },
+        "wdirn": {
+          "abbr": "WDIRN",
+          "label": "D'où vient le vent (N, S, E, O…)"
+        },
+        "wdeg": {
+          "abbr": "WDEG",
+          "label": "Direction en degrés (0–360°)"
+        },
+        "tmp": {
+          "abbr": "TMP",
+          "label": "Température de l'air (°C)"
+        },
+        "slp": {
+          "abbr": "SLP",
+          "label": "Pression au niveau de la mer (hPa)"
+        },
+        "hcld": {
+          "abbr": "HCLD",
+          "label": "Nuages hauts (%)"
+        }
       }
     },
     "summary": {

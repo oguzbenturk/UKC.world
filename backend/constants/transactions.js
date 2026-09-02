@@ -40,6 +40,12 @@ export const TRANSACTION_TYPE = Object.freeze({
   ACCOMMODATION_CHARGE_ADJUSTMENT: 'accommodation_charge_adjustment',
   BOOKING_CHARGE_ADJUSTMENT: 'booking_charge_adjustment',
   DISCOUNT_ADJUSTMENT: 'discount_adjustment',
+  // Posted when a booking is DELETED while a participant still holds a net
+  // CREDIT on it (discount credit larger than their own charge, or an orphaned
+  // price-edit credit). Zeroes the deleted booking's wallet footprint. The
+  // _reversal suffix keeps it out of revenue stats, which already exclude
+  // right(transaction_type, 9) = '_reversal'.
+  BOOKING_DELETED_CREDIT_REVERSAL: 'booking_deleted_credit_reversal',
 });
 
 // Canonical entity-type strings shared by wallet_transactions.entity_type,

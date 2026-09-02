@@ -341,7 +341,7 @@ const MemberOfferings = () => {
   const [iyzicoPaymentUrl, setIyzicoPaymentUrl] = useState(null);
   const [showIyzicoModal, setShowIyzicoModal] = useState(false);
   const [pendingPurchaseId, setPendingPurchaseId] = useState(null);
-  const [startDate, setStartDate] = useState(dayjs());
+  const [startDate, setStartDate] = useState(() => dayjs().startOf('day'));
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [depositMethod, setDepositMethod] = useState('bank_transfer');
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
@@ -525,7 +525,12 @@ const MemberOfferings = () => {
     }
     // For grouped offerings use the selected variant; for standalone use the offering itself
     const offering = purchaseModal.selectedVariant || purchaseModal.offering;
-    const dateStr = startDate ? startDate.toISOString() : undefined;
+    // Send the calendar date, not an instant. The backend does `new Date(startDate)`
+    // and stores it as purchased_at, so an ISO timestamp of local midnight
+    // (UTC+3 → 21:00 the PREVIOUS day in UTC) back-dated every membership by one
+    // day. A plain YYYY-MM-DD parses to UTC midnight of the day staff actually
+    // picked — and matches what NewMemberDrawer sends.
+    const dateStr = startDate ? startDate.format('YYYY-MM-DD') : undefined;
     const isDeposit = paymentMethod === 'deposit';
     const actualMethod = isDeposit ? depositMethod : paymentMethod;
     const depositPct = isDeposit ? 20 : undefined;

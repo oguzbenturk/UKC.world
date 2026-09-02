@@ -478,7 +478,29 @@
     "retiredShort": "emekli",
     "serialNumber": "Seri No",
     "location": "Konum",
-    "sizesLabel": "Boyutlar"
+    "sizesLabel": "Boyutlar",
+    "viewList": "Liste",
+    "viewCards": "Kartlar",
+    "viewStocktake": "Sayım",
+    "viewPlanning": "Sezon planı",
+    "stocktakeProgress": "Sayım ilerlemesi",
+    "checkAllShown": "Görünenleri işaretle",
+    "resetCount": "Sayımı sıfırla",
+    "resetCountTitle": "Sayım sıfırlansın mı?",
+    "resetCountDesc": "Tüm işaretler temizlenecek.",
+    "printList": "Listeyi yazdır",
+    "exportCsv": "CSV indir",
+    "stocktakeHint": "{{count}} ekipman henüz sayılmadı.",
+    "assetCode": "Demirbaş kodu",
+    "planUsable": "Kullanılabilir",
+    "planWatch": "Takipte (orta)",
+    "planReplace": "Değişmeli (kötü)",
+    "planGaps": "Eksik beden",
+    "planningHint": "Kullanılabilir = yeni/mükemmel/iyi durumdaki ekipman. \"Değişmeli\" yıpranmış (kötü) olanlardır; bir beden yalnızca TÜM ekipmanı yıprandığında eksik olarak işaretlenir.",
+    "planBuy": "Gelecek sezon",
+    "planBuyCount": "{{count}} adet al",
+    "planOk": "Yeterli",
+    "planGapTag": "Eksik"
   },
   "auth": {
     "signedIn": "Başarıyla giriş yapıldı!",
@@ -871,8 +893,15 @@
       "avg": "Ortalama",
       "hourly": "Saatlik tahmin"
     },
-    "grid": { "sky": "Gökyüzü", "rating": "Puan", "model": "Tahmin modeli" },
-    "models": { "mix": "UKC Karışım", "accuracyTip": "Sahil istasyonuna göre ort. hata, son 14 gün" },
+    "grid": {
+      "sky": "Gökyüzü",
+      "rating": "Puan",
+      "model": "Tahmin modeli"
+    },
+    "models": {
+      "mix": "UKC Karışım",
+      "accuracyTip": "Sahil istasyonuna göre ort. hata, son 14 gün"
+    },
     "history": {
       "title": "Rüzgar geçmişi",
       "recent": "Son {{range}}",

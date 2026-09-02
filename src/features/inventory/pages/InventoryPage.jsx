@@ -24,6 +24,9 @@ import {
   Popconfirm,
   Upload,
   Collapse,
+  Checkbox,
+  Progress,
+  Alert,
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -42,6 +45,10 @@ import {
   StopOutlined,
   UploadOutlined,
   LoadingOutlined,
+  PrinterOutlined,
+  DownloadOutlined,
+  AuditOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useData } from '@/shared/hooks/useData';
@@ -58,8 +65,56 @@ const equipmentTypes = [
   { value: 'control bar', label: 'Control Bar' },
   { value: 'wetsuit', label: 'Wetsuit' },
   { value: 'safety gear', label: 'Safety Gear' },
+  { value: 'wing/foil', label: 'Wing / Foil' },
+  { value: 'footwear', label: 'Footwear' },
+  { value: 'accessory', label: 'Accessory' },
   { value: 'other', label: 'Other' },
 ];
+
+// Gear counted as usable for the season. 'fair' still works but is on its way out,
+// so the planning view tracks it separately; 'poor' is what needs replacing.
+const USABLE_CONDITIONS = new Set(['new', 'excellent', 'good']);
+const WATCH_CONDITIONS = new Set(['fair']);
+const REPLACE_CONDITIONS = new Set(['poor']);
+
+// Ticks from an in-progress count, so a refresh mid-container doesn't lose the walk.
+const STOCKTAKE_KEY = 'ukc:inventory:stocktake';
+
+const readStoredChecks = () => {
+  try {
+    const raw = localStorage.getItem(STOCKTAKE_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
+// Planning groups gear by the size a customer actually asks for. Kites, harnesses,
+// wetsuits and shoes already have such a size; boards do not — each is stored as its
+// own dimension string (136cm, 136x40cm, 138x41.5cm), so grouping on it raw makes
+// every single board its own "size" and every worn board looks like a missing size.
+// Boards are therefore bucketed into the length bands a school actually plans around,
+// and directionals (feet-inch sizes) are counted separately.
+const boardBand = (size) => {
+  const raw = String(size || '').trim();
+  if (!raw) return '—';
+  if (raw.includes("'")) return `Surf ${raw}`;
+  const length = parseInt(raw, 10);
+  if (!Number.isFinite(length)) return raw;
+  if (length <= 134) return '≤134 cm (small)';
+  if (length <= 140) return '135–140 cm (medium)';
+  if (length <= 145) return '141–145 cm (large)';
+  return '146+ cm (XL)';
+};
+
+const planningSize = (item) => {
+  const size = (item.size && String(item.size).trim()) || '—';
+  return item.type === 'board' ? boardBand(size) : size;
+};
 
 const brandOptions = [
   { value: 'Core', label: 'Core' },
@@ -77,6 +132,15 @@ const brandOptions = [
   { value: 'Mystic', label: 'Mystic' },
   { value: 'ION', label: 'ION' },
   { value: 'Manera', label: 'Manera' },
+  { value: 'Liquid Force', label: 'Liquid Force' },
+  { value: 'Fanatic', label: 'Fanatic' },
+  { value: 'Neil Pryde', label: 'Neil Pryde' },
+  { value: 'Prolimit', label: 'Prolimit' },
+  { value: 'Jobe', label: 'Jobe' },
+  { value: 'Tribord', label: 'Tribord' },
+  { value: "O'Neill", label: "O'Neill" },
+  { value: 'Olaian', label: 'Olaian' },
+  { value: 'Oxelo', label: 'Oxelo' },
   { value: 'Other', label: 'Other' },
 ];
 
@@ -110,7 +174,14 @@ const getSizeOptions = (type) => {
       return ['132x39', '135x40', '138x41', '141x42', '144x43'];
     case 'harness':
     case 'wetsuit':
-      return ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    case 'safety gear':
+      return ['KIDS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    case 'control bar':
+      return ['19', '22', '24', '26', '27'];
+    case 'wing/foil':
+      return ['3m', '4m', '5m', '6m', '7m'];
+    case 'footwear':
+      return ['30-31', '32-33', '34-35', '36-37', '38-39', '40-41', '42-43', '44-45', '46-47'];
     default:
       return [];
   }
@@ -132,6 +203,7 @@ const InventoryPage = () => {
   const [saving, setSaving] = useState(false);
   const [imageUrl, setImageUrl] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
+  const [checkedIds, setCheckedIds] = useState(readStoredChecks);
   const [form] = Form.useForm();
 
   const getStatusConfig = (status) => ({
@@ -152,30 +224,45 @@ const InventoryPage = () => {
     user?.permissions?.['equipment:write'] === true;
   const watchType = Form.useWatch('type', form);
 
+  // GET /equipment returns raw DB rows (snake_case): the status lives in `availability`
+  // and the asset code in `serial_number`. This page read `status`/`serialNumber`, which
+  // are never present — so every stat card read 0, the status filter matched nothing, the
+  // status tag fell back to "Available" for ALL gear (hiding items in maintenance) and
+  // searching by asset code found nothing. Normalise the shape once, here, and let every
+  // memo below work off it.
+  const normalizedEquipment = useMemo(() => {
+    if (!equipment) return [];
+    return equipment.map((item) => ({
+      ...item,
+      status: item.status || item.availability || 'available',
+      serialNumber: item.serialNumber || item.serial_number || '',
+      imageUrl: item.imageUrl || item.image_url || null,
+      condition: (item.condition || '').toLowerCase(),
+    }));
+  }, [equipment]);
+
   // Filter equipment
   const filteredEquipment = useMemo(() => {
-    if (!equipment) return [];
-    return equipment.filter(item => {
-      const matchesSearch = !searchTerm || 
-        item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.trim().toLowerCase();
+    return normalizedEquipment.filter(item => {
+      const matchesSearch = !term ||
+        item.name?.toLowerCase().includes(term) ||
+        item.brand?.toLowerCase().includes(term) ||
+        item.size?.toLowerCase().includes(term) ||
+        item.serialNumber?.toLowerCase().includes(term);
       const matchesType = !filterType || item.type === filterType;
       const matchesStatus = !filterStatus || item.status === filterStatus;
       return matchesSearch && matchesType && matchesStatus;
     });
-  }, [equipment, searchTerm, filterType, filterStatus]);
+  }, [normalizedEquipment, searchTerm, filterType, filterStatus]);
 
   // Statistics
-  const stats = useMemo(() => {
-    if (!equipment) return { total: 0, available: 0, inUse: 0, maintenance: 0 };
-    return {
-      total: equipment.length,
-      available: equipment.filter(e => e.status === 'available').length,
-      inUse: equipment.filter(e => e.status === 'in-use').length,
-      maintenance: equipment.filter(e => e.status === 'maintenance').length,
-    };
-  }, [equipment]);
+  const stats = useMemo(() => ({
+    total: normalizedEquipment.length,
+    available: normalizedEquipment.filter(e => e.status === 'available').length,
+    inUse: normalizedEquipment.filter(e => e.status === 'in-use').length,
+    maintenance: normalizedEquipment.filter(e => e.status === 'maintenance').length,
+  }), [normalizedEquipment]);
 
   // Group equipment by model (type + brand + name). Sizes are aggregated into a size
   // breakdown so 6 Mystic Marshalls across sizes M/L/XL collapse into a single row.
@@ -266,6 +353,126 @@ const InventoryPage = () => {
       </Space>
     );
   };
+
+  // ── Stock-take ─────────────────────────────────────────────────────────────
+  // A flat, code-ordered checklist for walking the container with a phone. Ticks are
+  // kept per browser (localStorage) so a count survives a refresh or an accidental
+  // back-navigation; "Finish" clears them for the next count.
+  const stocktakeRows = useMemo(
+    () => [...filteredEquipment].sort((a, b) => (a.serialNumber || 'zzz').localeCompare(b.serialNumber || 'zzz')),
+    [filteredEquipment]
+  );
+
+  const toggleCheck = (id) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem(STOCKTAKE_KEY, JSON.stringify([...next])); } catch { /* private mode */ }
+      return next;
+    });
+  };
+
+  const setChecksFor = (ids, checked) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+      try { localStorage.setItem(STOCKTAKE_KEY, JSON.stringify([...next])); } catch { /* private mode */ }
+      return next;
+    });
+  };
+
+  const stocktakeStats = useMemo(() => {
+    const found = stocktakeRows.filter((r) => checkedIds.has(r.id)).length;
+    return { found, missing: stocktakeRows.length - found, total: stocktakeRows.length };
+  }, [stocktakeRows, checkedIds]);
+
+  const exportStocktakeCsv = () => {
+    const header = ['Code', 'Type', 'Item', 'Brand', 'Size', 'Condition', 'Status', 'Counted'];
+    const lines = stocktakeRows.map((r) => [
+      r.serialNumber, r.type, r.name, r.brand, r.size, r.condition, r.status,
+      checkedIds.has(r.id) ? 'FOUND' : 'NOT FOUND',
+    ].map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
+    // BOM so Excel opens Turkish characters correctly.
+    const blob = new Blob(['﻿' + [header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stocktake-${dayjs().format('YYYY-MM-DD')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printStocktake = () => {
+    const rows = stocktakeRows.map((r) => `
+      <tr>
+        <td class="box"></td>
+        <td><b>${escapeHtml(r.serialNumber)}</b></td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.brand)}</td>
+        <td>${escapeHtml(r.size)}</td>
+        <td>${escapeHtml(r.condition)}</td>
+      </tr>`).join('');
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Stock-take ${dayjs().format('YYYY-MM-DD')}</title>
+      <style>
+        body{font-family:system-ui,sans-serif;margin:24px;color:#111}
+        h1{font-size:18px;margin:0 0 4px} p{margin:0 0 16px;color:#555;font-size:12px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #bbb;padding:4px 6px;text-align:left}
+        th{background:#f3f4f6}
+        td.box{width:22px;height:22px}
+        tr{break-inside:avoid}
+      </style></head><body>
+      <h1>Equipment stock-take — ${dayjs().format('DD MMM YYYY')}</h1>
+      <p>${stocktakeRows.length} items${filterType ? ` · type: ${filterType}` : ''}. Tick each item you physically find.</p>
+      <table><thead><tr><th></th><th>Code</th><th>Item</th><th>Brand</th><th>Size</th><th>Condition</th></tr></thead>
+      <tbody>${rows}</tbody></table></body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
+  // ── Next-season planning ───────────────────────────────────────────────────
+  // One row per type+size: what you own, what is still good, what is worn out.
+  // "Buy" = the units in poor condition (like-for-like replacement); a size with no
+  // usable unit left is flagged as a gap even if nothing is worn out yet.
+  const planningRows = useMemo(() => {
+    const map = new Map();
+    for (const item of normalizedEquipment) {
+      const type = item.type || 'other';
+      const size = planningSize(item);
+      const key = `${type}|${size}`;
+      let row = map.get(key);
+      if (!row) {
+        row = { key, type, size, total: 0, usable: 0, watch: 0, replace: 0, maintenance: 0 };
+        map.set(key, row);
+      }
+      row.total++;
+      if (item.status === 'maintenance') row.maintenance++;
+      if (REPLACE_CONDITIONS.has(item.condition)) row.replace++;
+      else if (WATCH_CONDITIONS.has(item.condition)) row.watch++;
+      else if (USABLE_CONDITIONS.has(item.condition)) row.usable++;
+    }
+    // A gap means nothing serviceable is left in that size — every unit is worn out.
+    // Counting a size as a gap while a 'fair' unit still works would cry wolf on every
+    // ageing item and bury the sizes that genuinely cannot be handed to a customer.
+    return Array.from(map.values())
+      .map((r) => ({ ...r, buy: r.replace, gap: r.usable + r.watch === 0 && r.total > 0 }))
+      .sort((a, b) =>
+        (b.gap - a.gap) || (b.buy - a.buy) || a.type.localeCompare(b.type) || a.size.localeCompare(b.size)
+      );
+  }, [normalizedEquipment]);
+
+  const planningTotals = useMemo(() => planningRows.reduce(
+    (acc, r) => ({
+      usable: acc.usable + r.usable,
+      watch: acc.watch + r.watch,
+      replace: acc.replace + r.replace,
+      gaps: acc.gaps + (r.gap ? 1 : 0),
+    }),
+    { usable: 0, watch: 0, replace: 0, gaps: 0 }
+  ), [planningRows]);
 
   const SizeBreakdown = ({ sizes }) => {
     const entries = Object.entries(sizes || {});
@@ -705,8 +912,10 @@ const InventoryPage = () => {
               value={viewMode}
               onChange={setViewMode}
               options={[
-                { value: 'table', icon: <UnorderedListOutlined /> },
-                { value: 'cards', icon: <AppstoreOutlined /> },
+                { value: 'table', icon: <UnorderedListOutlined />, title: t('common:inventory.viewList') },
+                { value: 'cards', icon: <AppstoreOutlined />, title: t('common:inventory.viewCards') },
+                { value: 'stocktake', icon: <AuditOutlined />, title: t('common:inventory.viewStocktake') },
+                { value: 'planning', icon: <ShoppingCartOutlined />, title: t('common:inventory.viewPlanning') },
               ]}
             />
           </Col>
@@ -728,6 +937,169 @@ const InventoryPage = () => {
           </div>
         ) : sectionedEquipment.length === 0 ? (
           <Empty description={t('common:inventory.noEquipment')} />
+        ) : viewMode === 'stocktake' ? (
+          <div className="space-y-4">
+            <Row gutter={[16, 16]} align="middle">
+              <Col xs={24} md={10}>
+                <Text strong>{t('common:inventory.stocktakeProgress')}</Text>
+                <Progress
+                  percent={stocktakeStats.total ? Math.round((stocktakeStats.found / stocktakeStats.total) * 100) : 0}
+                  format={() => `${stocktakeStats.found} / ${stocktakeStats.total}`}
+                  status={stocktakeStats.found === stocktakeStats.total && stocktakeStats.total > 0 ? 'success' : 'active'}
+                />
+              </Col>
+              <Col xs={24} md={14}>
+                <Space wrap>
+                  <Button onClick={() => setChecksFor(stocktakeRows.map((r) => r.id), true)}>
+                    {t('common:inventory.checkAllShown')}
+                  </Button>
+                  <Popconfirm
+                    title={t('common:inventory.resetCountTitle')}
+                    description={t('common:inventory.resetCountDesc')}
+                    onConfirm={() => setChecksFor(stocktakeRows.map((r) => r.id), false)}
+                  >
+                    <Button>{t('common:inventory.resetCount')}</Button>
+                  </Popconfirm>
+                  <Button icon={<PrinterOutlined />} onClick={printStocktake}>
+                    {t('common:inventory.printList')}
+                  </Button>
+                  <Button icon={<DownloadOutlined />} onClick={exportStocktakeCsv}>
+                    {t('common:inventory.exportCsv')}
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+            {stocktakeStats.missing > 0 && (
+              <Alert
+                type="info"
+                showIcon
+                message={t('common:inventory.stocktakeHint', { count: stocktakeStats.missing })}
+              />
+            )}
+            <Table
+              size="small"
+              rowKey="id"
+              dataSource={stocktakeRows}
+              pagination={{ pageSize: 50, showSizeChanger: true }}
+              rowClassName={(r) => (checkedIds.has(r.id) ? 'bg-green-50' : '')}
+              onRow={(r) => ({ onClick: () => toggleCheck(r.id) })}
+              columns={[
+                {
+                  title: '',
+                  key: 'check',
+                  width: 48,
+                  render: (_, r) => <Checkbox checked={checkedIds.has(r.id)} onChange={() => toggleCheck(r.id)} />,
+                },
+                {
+                  title: t('common:inventory.assetCode'),
+                  dataIndex: 'serialNumber',
+                  key: 'code',
+                  width: 110,
+                  render: (code) => <Text code strong>{code || '—'}</Text>,
+                  sorter: (a, b) => (a.serialNumber || '').localeCompare(b.serialNumber || ''),
+                },
+                { title: t('common:inventory.equipmentName'), dataIndex: 'name', key: 'name' },
+                { title: t('common:inventory.brand'), dataIndex: 'brand', key: 'brand', responsive: ['md'] },
+                { title: t('common:inventory.size'), dataIndex: 'size', key: 'size', width: 110 },
+                {
+                  title: t('common:inventory.condition'),
+                  dataIndex: 'condition',
+                  key: 'condition',
+                  width: 110,
+                  render: (c) => (
+                    <Tag color={c === 'poor' ? 'error' : c === 'fair' ? 'warning' : 'success'}>{c || '—'}</Tag>
+                  ),
+                },
+                {
+                  title: t('common:inventory.statusField'),
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 130,
+                  render: (status) => {
+                    const config = getStatusConfig(status);
+                    return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
+                  },
+                },
+              ]}
+            />
+          </div>
+        ) : viewMode === 'planning' ? (
+          <div className="space-y-4">
+            <Row gutter={[16, 16]}>
+              <Col xs={12} md={6}>
+                <Card className="rounded-2xl">
+                  <Statistic title={t('common:inventory.planUsable')} value={planningTotals.usable} valueStyle={{ color: '#52c41a' }} />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card className="rounded-2xl">
+                  <Statistic title={t('common:inventory.planWatch')} value={planningTotals.watch} valueStyle={{ color: '#faad14' }} />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card className="rounded-2xl">
+                  <Statistic title={t('common:inventory.planReplace')} value={planningTotals.replace} valueStyle={{ color: '#ff4d4f' }} />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card className="rounded-2xl">
+                  <Statistic title={t('common:inventory.planGaps')} value={planningTotals.gaps} valueStyle={{ color: '#ff4d4f' }} />
+                </Card>
+              </Col>
+            </Row>
+            <Alert type="info" showIcon message={t('common:inventory.planningHint')} />
+            <Table
+              size="small"
+              rowKey="key"
+              dataSource={planningRows}
+              pagination={false}
+              scroll={{ x: 720 }}
+              columns={[
+                {
+                  title: t('common:inventory.equipmentType'),
+                  dataIndex: 'type',
+                  key: 'type',
+                  render: (type) => equipmentTypes.find((e) => e.value === type)?.label || type,
+                },
+                { title: t('common:inventory.size'), dataIndex: 'size', key: 'size', width: 110 },
+                { title: t('common:inventory.totalItems'), dataIndex: 'total', key: 'total', width: 80 },
+                {
+                  title: t('common:inventory.planUsable'),
+                  dataIndex: 'usable',
+                  key: 'usable',
+                  width: 100,
+                  render: (v, r) => <Text type={r.gap ? 'danger' : undefined} strong={r.gap}>{v}</Text>,
+                },
+                { title: t('common:inventory.planWatch'), dataIndex: 'watch', key: 'watch', width: 100 },
+                {
+                  title: t('common:inventory.maintenance'),
+                  dataIndex: 'maintenance',
+                  key: 'maintenance',
+                  width: 110,
+                  render: (v) => (v > 0 ? <Tag color="warning" icon={<ToolOutlined />}>{v}</Tag> : <Text type="secondary">0</Text>),
+                },
+                {
+                  title: t('common:inventory.planReplace'),
+                  dataIndex: 'replace',
+                  key: 'replace',
+                  width: 110,
+                  render: (v) => (v > 0 ? <Tag color="error">{v}</Tag> : <Text type="secondary">0</Text>),
+                },
+                {
+                  title: t('common:inventory.planBuy'),
+                  dataIndex: 'buy',
+                  key: 'buy',
+                  width: 120,
+                  sorter: (a, b) => a.buy - b.buy,
+                  render: (v, r) => {
+                    if (r.gap) return <Tag color="error">{t('common:inventory.planGapTag')}</Tag>;
+                    if (v > 0) return <Tag color="warning">{t('common:inventory.planBuyCount', { count: v })}</Tag>;
+                    return <Tag color="success">{t('common:inventory.planOk')}</Tag>;
+                  },
+                },
+              ]}
+            />
+          </div>
         ) : (
           <Collapse
             defaultActiveKey={sectionedEquipment.map((s) => s.key)}

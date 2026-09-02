@@ -1171,6 +1171,15 @@ export async function fetchTransactions(userId, {
                  wallet_transactions.metadata->>'orderId',
                  wallet_transactions.metadata->>'memberPurchaseId'
                )
+           -- SAME WALLET ONLY. A group booking can carry one discounts row per
+           -- participant, but each discount CREDIT lands in exactly one wallet.
+           -- Summing every row here netted EVERY participant's charge by the
+           -- WHOLE group's discount: a €525 3-person lesson with a €188 group
+           -- discount showed all three students their -€175 charge as +€13.
+           -- Scope to the wallet that actually received the credit —
+           -- participant_user_id when the row is per-payer, else the discount's
+           -- own customer (never NULL). Mirrors the adj fold's user scoping.
+           AND COALESCE(d.participant_user_id, d.customer_id) = wallet_transactions.user_id
       ) disc ON true
       LEFT JOIN LATERAL (
         SELECT SUM(a.amount) AS total_adjustment

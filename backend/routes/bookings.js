@@ -55,31 +55,119 @@ async function applyCreationDiscountForBooking(client, booking, req, actorId) {
   const useCustomTotal = Number.isFinite(customTotal) && customTotal >= 0;
   if ((!useCustomTotal && !(pct > 0)) || !booking?.id || !booking?.student_user_id) return;
 
-  if (useCustomTotal) {
-    const snapshot = await getEntitySnapshot(client, 'booking', booking.id);
-    // Cents math keeps the derived amount exact (no float drift).
-    const amountCents = Math.round(snapshot.originalPrice * 100) - Math.round(customTotal * 100);
-    if (amountCents <= 0) return; // target >= stored price → nothing to discount
+  const reason = req.body?.discount_reason
+    || (useCustomTotal ? 'Custom total set at booking creation' : 'Discount applied at booking creation');
+
+  // A multi-participant booking charges each person their OWN share
+  // (booking_participants.payment_amount) to their OWN wallet, so a discount
+  // entered against the GROUP total has to be split the same way. Writing a
+  // single group-sized row against the primary student credited the whole
+  // reduction to that one wallet and left every other participant paying full
+  // price: a €525 3-person lesson set to a €337 custom total posted +€188 to the
+  // primary (taking their -€175 charge to a +€13 CREDIT) and €0 to the other two.
+  const { rows: participantRows } = await client.query(
+    `SELECT user_id, payment_amount
+       FROM booking_participants
+      WHERE booking_id = $1::uuid
+      ORDER BY is_primary DESC NULLS LAST, created_at`,
+    [booking.id]
+  );
+  const shares = participantRows
+    .filter((p) => p.user_id)
+    .map((p) => ({ userId: p.user_id, share: parseFloat(p.payment_amount) || 0 }));
+
+  // Solo booking — or a create route that records no participant rows at all —
+  // keeps the original single-row behaviour.
+  if (shares.length <= 1) {
+    if (useCustomTotal) {
+      const snapshot = await getEntitySnapshot(client, 'booking', booking.id);
+      // Cents math keeps the derived amount exact (no float drift).
+      const amountCents = Math.round(snapshot.originalPrice * 100) - Math.round(customTotal * 100);
+      if (amountCents <= 0) return; // target >= stored price → nothing to discount
+      await applyDiscount(client, {
+        customerId: booking.student_user_id,
+        entityType: 'booking',
+        entityId: booking.id,
+        percent: null,
+        amountOverride: amountCents / 100,
+        reason,
+        createdBy: actorId,
+      });
+      return;
+    }
+
     await applyDiscount(client, {
       customerId: booking.student_user_id,
       entityType: 'booking',
       entityId: booking.id,
-      percent: null,
-      amountOverride: amountCents / 100,
-      reason: req.body?.discount_reason || 'Custom total set at booking creation',
+      percent: pct,
+      reason,
       createdBy: actorId,
     });
     return;
   }
 
-  await applyDiscount(client, {
-    customerId: booking.student_user_id,
-    entityType: 'booking',
-    entityId: booking.id,
-    percent: pct,
-    reason: req.body?.discount_reason || 'Discount applied at booking creation',
-    createdBy: actorId,
-  });
+  // ── Multi-participant: one discount row per payer ─────────────────────────
+  // A percentage applies identically to every share, so each participant simply
+  // gets the same percent against their own payment_amount (getEntitySnapshot
+  // resolves the per-participant price when participantUserId is passed).
+  if (!useCustomTotal) {
+    for (const { userId } of shares) {
+      await applyDiscount(client, {
+        customerId: userId,
+        entityType: 'booking',
+        entityId: booking.id,
+        percent: pct,
+        participantUserId: userId,
+        reason,
+        createdBy: actorId,
+      });
+    }
+    return;
+  }
+
+  // A custom TOTAL is a group-level target price, so the reduction is split
+  // pro-rata across the shares. All of it is done in integer cents and the
+  // rounding remainder is handed out one cent at a time, so the per-person
+  // discounts sum EXACTLY to the group reduction with no drift.
+  const snapshot = await getEntitySnapshot(client, 'booking', booking.id);
+  const totalCents = Math.round(snapshot.originalPrice * 100) - Math.round(customTotal * 100);
+  if (totalCents <= 0) return; // target >= stored price → nothing to discount
+
+  const shareCents = shares.map((s) => Math.round(s.share * 100));
+  const sumShareCents = shareCents.reduce((a, b) => a + b, 0);
+  // Degenerate case (every share recorded as 0): fall back to an even split.
+  const weights = sumShareCents > 0 ? shareCents : shares.map(() => 1);
+  const weightSum = weights.reduce((a, b) => a + b, 0);
+  const ceilings = sumShareCents > 0 ? shareCents : shares.map(() => totalCents);
+
+  const perParticipantCents = weights.map((w) => Math.floor((totalCents * w) / weightSum));
+  let remainder = totalCents - perParticipantCents.reduce((a, b) => a + b, 0);
+  // Skip anyone already discounted down to €0 — applyDiscount rejects a discount
+  // larger than the entity price, and the leftover cents belong on a payer who
+  // still has room for them.
+  for (let i = 0; remainder > 0 && i < perParticipantCents.length * 2; i += 1) {
+    const idx = i % perParticipantCents.length;
+    if (perParticipantCents[idx] < ceilings[idx]) {
+      perParticipantCents[idx] += 1;
+      remainder -= 1;
+    }
+  }
+
+  for (let i = 0; i < shares.length; i += 1) {
+    const cents = Math.min(perParticipantCents[i], ceilings[i]);
+    if (cents <= 0) continue;
+    await applyDiscount(client, {
+      customerId: shares[i].userId,
+      entityType: 'booking',
+      entityId: booking.id,
+      percent: null,
+      amountOverride: cents / 100,
+      participantUserId: shares[i].userId,
+      reason,
+      createdBy: actorId,
+    });
+  }
 }
 
 // If the booking's student is personally linked to its instructor (self-student),
@@ -464,6 +552,54 @@ const resolveServiceType = (serviceRow) => {
       totalRefunded += Math.abs(n.amount);
     }
     return totalRefunded;
+  }
+
+  // A DELETED booking must leave a ZERO wallet footprint for every participant.
+  // getEntityNetCharges only reports payers who still OWE (HAVING sum < 0), so a
+  // participant left holding a net CREDIT on the booking was silently skipped and
+  // kept money for a lesson that no longer exists. Two ways that happens, both
+  // seen in production:
+  //   • a discount credit larger than that wallet's own charge (a group-sized
+  //     discount posted to the primary student — see applyCreationDiscountForBooking),
+  //   • an orphaned checkout/price-edit credit whose charge row was hard-deleted.
+  // Post the offsetting debit so deleting a booking always nets it out. Runs AFTER
+  // the refund pass (which can only move a negative net up to zero, never above).
+  async function zeroOutBookingNetCreditsPerUser(client, booking, { reason = 'booking_deleted', actorId = null } = {}) {
+    const { rows } = await client.query(
+      `SELECT user_id, currency, COALESCE(SUM(available_delta), 0) AS net
+         FROM wallet_transactions
+        WHERE status = 'completed'
+          AND booking_id = $1::uuid
+        GROUP BY user_id, currency
+        HAVING COALESCE(SUM(available_delta), 0) > 0.005`,
+      [booking.id]
+    );
+    let totalReversed = 0;
+    for (const row of rows) {
+      const amount = Math.abs(Number(row.net));
+      if (!(amount > 0)) continue;
+      await recordWalletTransaction({
+        client,
+        userId: row.user_id,
+        amount: -amount,
+        availableDelta: -amount,
+        transactionType: 'booking_deleted_credit_reversal',
+        status: 'completed',
+        direction: 'debit',
+        currency: row.currency || 'EUR',
+        description: 'Reversal: leftover credit on deleted booking',
+        entityType: 'booking',
+        relatedEntityType: 'booking',
+        relatedEntityId: booking.id,
+        bookingId: booking.id,
+        idempotencyKey: `${reason}-credit-reversal:${booking.id}:${row.user_id}:${row.currency}`,
+        metadata: { reason, bookingId: booking.id },
+        createdBy: actorId,
+        allowNegative: true,
+      });
+      totalReversed += amount;
+    }
+    return totalReversed;
   }
 
   // Helper: drop the instructor_earnings snapshot for a booking that is no
@@ -6741,6 +6877,12 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
       if (balanceRefunded > 0) {
         refundType = totalHoursRestored > 0 ? 'package_hours_and_cash_refunded' : 'balance_refund';
       }
+      // Anyone left holding a net CREDIT on the now-deleted booking keeps money
+      // for a lesson that no longer exists — zero them out too.
+      await zeroOutBookingNetCreditsPerUser(client, booking, {
+        reason: 'booking_deleted',
+        actorId: deletingUserId,
+      });
     } catch (walletError) {
       logger?.error?.('Failed to record wallet refund for booking helper delete', {
         bookingId, studentId, error: walletError?.message,
@@ -6858,6 +7000,12 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'rece
                 if (balanceRefunded > 0) {
                   refundType = totalHoursRestored > 0 ? 'package_hours_and_cash_refunded' : 'balance_refund';
                 }
+                // Anyone left holding a net CREDIT on the now-deleted booking keeps
+                // money for a lesson that no longer exists — zero them out too.
+                await zeroOutBookingNetCreditsPerUser(client, booking, {
+                  reason: 'booking_deleted',
+                  actorId: deletingUserId,
+                });
             } catch (walletError) {
                 logger.error('Failed to record wallet refund for booking deletion', {
                   bookingId, studentId, error: walletError?.message,
