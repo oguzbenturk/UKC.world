@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
+import { APP_VERSION } from '@/shared/constants/version';
 
 export const SUPPORTED_LANGUAGES = ['en', 'tr', 'fr', 'ru', 'es', 'de'];
 export const DEFAULT_LANGUAGE = 'en';
@@ -21,7 +22,10 @@ export const i18nReady = i18n
       escapeValue: false,
     },
     backend: {
-      loadPath: '/locales/{{lng}}/{{ns}}.json',
+      // The version query busts browser/proxy caches of the JSON on every deploy;
+      // otherwise a release that adds keys shows raw "namespace.key" text until the
+      // cached file expires.
+      loadPath: `/locales/{{lng}}/{{ns}}.json?v=${APP_VERSION}`,
     },
     detection: {
       order: ['localStorage', 'navigator'],

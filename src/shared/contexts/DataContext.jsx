@@ -398,6 +398,12 @@ export function SafeDataProvider({ children }) {
     }
   };
 
+  // Local patch for a single equipment row (e.g. a status toggle) so the inventory
+  // page can update optimistically without refetching every dataset.
+  const patchEquipment = (id, patch) => {
+    setEquipment((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
   const value = useMemo(() => ({
     students: usersWithStudentRole,
     usersWithStudentRole,
@@ -414,6 +420,7 @@ export function SafeDataProvider({ children }) {
     updateInstructor,
     deleteInstructor,
     fetchInstructorById,
+    patchEquipment,
     refreshData: fetchData,
     loadPaymentsData,
     loadDashboardSummary,
@@ -422,7 +429,7 @@ export function SafeDataProvider({ children }) {
     usersWithStudentRole, instructors, equipment, bookings, services,
     rentals, payments, dashboardSummary, loading, error,
     addInstructor, updateInstructor, deleteInstructor, fetchInstructorById,
-    fetchData, loadPaymentsData, loadDashboardSummary, apiClient,
+    patchEquipment, fetchData, loadPaymentsData, loadDashboardSummary, apiClient,
   ]);
 
   return (

@@ -1,18 +1,23 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    // Strip the namespace and append interpolated count/names so assertions can
+    // Strip the namespace and append interpolated values so assertions can
     // target a key without pulling the locale files in.
     t: (key, opts) => {
       const base = key.replace(/^common:/, '');
       if (opts?.count !== undefined) return `${base}:${opts.count}`;
       if (opts?.names !== undefined) return `${base}:${opts.names}`;
+      if (opts?.units !== undefined) return `${base}:${opts.units}/${opts.models}`;
+      if (opts?.total !== undefined) return `${base}:${opts.total}`;
+      if (opts?.code !== undefined) return `${base}:${opts.code}`;
       return base;
     },
+    i18n: { language: 'en' },
   }),
 }));
 
@@ -39,8 +44,9 @@ const equipment = [
 ];
 
 const refreshData = vi.fn();
+const patchEquipment = vi.fn();
 vi.mock('@/shared/hooks/useData', () => ({
-  useData: () => ({ equipment, loading: false, error: null, refreshData }),
+  useData: () => ({ equipment, loading: false, error: null, refreshData, patchEquipment }),
 }));
 
 vi.mock('@/shared/services/apiClient', () => ({
@@ -52,6 +58,8 @@ vi.mock('@/shared/utils/antdStatic', () => ({
 }));
 
 import InventoryPage from '@/features/inventory/pages/InventoryPage';
+import apiClient from '@/shared/services/apiClient';
+import { message } from '@/shared/utils/antdStatic';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -73,17 +81,39 @@ beforeEach(() => {
   });
 });
 
-const kiteSection = () => {
-  // The kites collapse panel is the one whose header names the section.
-  const header = screen.getAllByText('Kite').find((el) => el.closest('.ant-collapse-header'));
-  return within(header.closest('.ant-collapse-item'));
+// Filters live in the URL, so the page needs a router.
+const renderPage = (route = '/inventory') =>
+  render(
+    <MemoryRouter initialEntries={[route]}>
+      <InventoryPage />
+    </MemoryRouter>
+  );
+
+// Sections start collapsed; open the one named by the type and scope queries to it.
+const sectionFor = (typeKey) => {
+  const label = screen.getAllByText(`inventory.types.${typeKey}`).find((el) => el.closest('.ant-collapse-header'));
+  const item = label.closest('.ant-collapse-item');
+  if (!item.classList.contains('ant-collapse-item-active')) fireEvent.click(label.closest('.ant-collapse-header'));
+  return within(item);
 };
+const kiteSection = () => sectionFor('kite');
+
+const sizeChips = (scope = screen) => scope.getAllByTestId('size-chip').map((el) => el.textContent);
+const columnHeaders = (scope = screen) => scope.getAllByRole('columnheader').map((th) => th.textContent);
+const monoRowIn = (scope) => scope.getByText('Mono').closest('tr');
 
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('InventoryPage grouping and size grid', () => {
+  test('sections start collapsed', () => {
+    renderPage();
+    expect(document.querySelectorAll('.ant-collapse-item')).toHaveLength(3);
+    expect(document.querySelector('.ant-collapse-item-active')).toBeNull();
+    expect(screen.queryByText('Mono')).not.toBeInTheDocument();
+  });
+
   test('folds every "Mono" spelling into one row and lists the spellings', () => {
-    render(<InventoryPage />);
+    renderPage();
 
     const kites = kiteSection();
     // One model row for Mono, one for Evo SLS; none of the year-suffixed spellings
@@ -97,18 +127,27 @@ describe('InventoryPage grouping and size grid', () => {
     expect(kites.getByText('inventory.modelsCount:2')).toBeInTheDocument();
   });
 
-  test('grid has one column per size in numeric order with column totals', () => {
-    render(<InventoryPage />);
+  test('each model row lists only its own sizes, in numeric order, with counts', () => {
+    renderPage();
 
-    const headers = kiteSection()
-      .getAllByRole('columnheader')
-      .map((th) => th.textContent);
+    const kites = kiteSection();
+    expect(sizeChips(within(monoRowIn(kites)))).toEqual(['5m1', '7m1', '9m2', '11m1']);
+    expect(sizeChips(within(kites.getByText('Evo SLS').closest('tr')))).toEqual(['9m1']);
+  });
+
+  test('the size matrix view has one column per size with column totals', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByTitle('inventory.viewMatrix'));
+
+    const headers = columnHeaders(kiteSection());
     // Model | 5m | 7m | 9m | 11m | Total | Status | Actions, sizes carry their totals.
     expect(headers.slice(1, 5)).toEqual(['5m1', '7m1', '9m3', '11m1']);
+    expect(localStorage.setItem).toHaveBeenCalledWith('ukc:inventory:view', '"matrix"');
   });
 
   test('turning off merge shows the exact entered names again', () => {
-    render(<InventoryPage />);
+    renderPage();
 
     fireEvent.click(screen.getByRole('switch'));
 
@@ -121,34 +160,26 @@ describe('InventoryPage grouping and size grid', () => {
   });
 
   test('brand-only wetsuit spellings and case-different sizes merge', () => {
-    render(<InventoryPage />);
+    renderPage();
 
-    const header = screen.getAllByText('Wetsuit').find((el) => el.closest('.ant-collapse-header'));
-    const wetsuits = within(header.closest('.ant-collapse-item'));
+    const wetsuits = sectionFor('wetsuit');
     expect(wetsuits.getByText('inventory.modelsCount:1')).toBeInTheDocument();
-    const headers = wetsuits.getAllByRole('columnheader').map((th) => th.textContent);
-    expect(headers.slice(1, 4)).toEqual(['S1', 'M1', 'XL1']);
+    expect(sizeChips(wetsuits)).toEqual(['S1', 'M1', 'XL1']);
   });
 
   test('boards are bucketed into length bands', () => {
-    render(<InventoryPage />);
+    renderPage();
 
-    const header = screen.getAllByText('Board').find((el) => el.closest('.ant-collapse-header'));
-    const boards = within(header.closest('.ant-collapse-item'));
-    const headers = boards.getAllByRole('columnheader').map((th) => th.textContent);
-    expect(headers[1]).toBe('135–140 cm (medium)1');
-    expect(headers[2]).toBe('146+ cm (XL)1');
+    expect(sizeChips(sectionFor('board'))).toEqual(['inventory.bands.medium1', 'inventory.bands.xl1']);
   });
 
-  test('clicking a size cell opens the drawer narrowed to that size', () => {
-    render(<InventoryPage />);
+  test('clicking a size chip opens the drawer narrowed to that size', () => {
+    renderPage();
 
     const kites = kiteSection();
-    // The 9m cell of the Mono row holds 2 units (one in maintenance); the third 9m
+    // The 9m chip of the Mono row holds 2 units (one in maintenance); the third 9m
     // kite is the Evo SLS in its own row.
-    const monoRow = kites.getByText('Mono').closest('tr');
-    const cell = within(monoRow).getByText('2');
-    fireEvent.click(cell);
+    fireEvent.click(within(monoRowIn(kites)).getByText('9m'));
 
     const drawer = within(document.querySelector('.ant-drawer'));
     expect(drawer.getByText('inventory.size: 9m')).toBeInTheDocument();
@@ -160,9 +191,9 @@ describe('InventoryPage grouping and size grid', () => {
   });
 
   test('category chips filter to one type and render it flat', () => {
-    render(<InventoryPage />);
+    renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Wetsuit/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^inventory\.types\.wetsuit/ }));
 
     expect(document.querySelector('.ant-collapse')).toBeNull();
     // All three spellings appear once, so the shortest ("Tribord") labels the row;
@@ -170,5 +201,101 @@ describe('InventoryPage grouping and size grid', () => {
     expect(screen.getAllByText('Tribord').length).toBeGreaterThan(0);
     expect(screen.getByText('inventory.spellingsCount:3')).toBeInTheDocument();
     expect(screen.queryByText('Mono')).not.toBeInTheDocument();
+  });
+});
+
+describe('InventoryPage filters', () => {
+  test('a size chip narrows the grid to that size', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /^inventory\.types\.kite/ }));
+    // The size rail appears for the selected type, ordered numerically.
+    const rail = ['5m', '7m', '9m', '11m'].map((s) => screen.getByRole('button', { name: new RegExp(`^${s}`) }));
+    expect(rail).toHaveLength(4);
+
+    fireEvent.click(rail[1]);
+
+    expect(rail[1]).toHaveAttribute('aria-pressed', 'true');
+    // Only the Mono row remains (Evo SLS has no 7m) and it shows only its 7m.
+    expect(sizeChips()).toEqual(['7m1']);
+    expect(screen.queryByText('Evo SLS')).not.toBeInTheDocument();
+    expect(screen.getByText(/inventory\.resultSummary:1\/1/)).toBeInTheDocument();
+  });
+
+  test('filters in the URL are applied on load', () => {
+    renderPage('/inventory?type=wetsuit&size=M');
+
+    expect(document.querySelector('.ant-collapse')).toBeNull();
+    expect(sizeChips()).toEqual(['M1']);
+    expect(screen.getByText(/inventory\.resultSummary:1\/1/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^M/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('the maintenance stat chip toggles the status filter', () => {
+    renderPage();
+
+    const chip = screen.getByRole('button', { name: /inventory\.statMaintenance/ });
+    fireEvent.click(chip);
+
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/inventory\.resultSummary:1\/1/)).toBeInTheDocument();
+    expect(screen.queryByText('inventory.types.wetsuit')).not.toBeInTheDocument();
+
+    fireEvent.click(chip);
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    // 11 units in 4 models: Mono, Evo SLS, Tribord, Board Gonzales.
+    expect(screen.getByText('inventory.resultSummary:11/4')).toBeInTheDocument();
+  });
+
+  test('quick status toggle PUTs only the availability and patches the list', async () => {
+    apiClient.put.mockResolvedValue({ data: {} });
+    renderPage();
+
+    fireEvent.click(within(monoRowIn(kiteSection())).getByText('9m'));
+    const drawer = within(document.querySelector('.ant-drawer'));
+
+    // K-001 is available, K-002 already in maintenance: only one "send" button.
+    fireEvent.click(drawer.getByRole('button', { name: 'inventory.markMaintenance' }));
+
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/equipment/1', { availability: 'maintenance' }));
+    expect(patchEquipment).toHaveBeenCalledWith(1, { availability: 'maintenance' });
+    await waitFor(() => expect(message.success).toHaveBeenCalledWith('inventory.movedToMaintenance:K-001'));
+  });
+
+  test('a failed status change is rolled back', async () => {
+    apiClient.put.mockRejectedValue(new Error('boom'));
+    renderPage();
+
+    fireEvent.click(within(monoRowIn(kiteSection())).getByText('9m'));
+    const drawer = within(document.querySelector('.ant-drawer'));
+    fireEvent.click(drawer.getByRole('button', { name: 'inventory.markMaintenance' }));
+
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith('inventory.failStatus'));
+    expect(patchEquipment).toHaveBeenLastCalledWith(1, { availability: 'available' });
+  });
+});
+
+describe('InventoryPage season plan', () => {
+  test('rows are per model and size and click through to the filtered grid', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByText('inventory.viewPlanning'));
+
+    // Mono has four sizes, Evo SLS one, Tribord three, Gonzales two: 10 rows
+    // (`.ant-table-row` skips the hidden measurement row a scrollable table adds).
+    const rows = document.querySelectorAll('.ant-tabs-tabpane-active tbody tr.ant-table-row');
+    expect(rows).toHaveLength(10);
+    expect(within(rows[0].closest('table')).getAllByText('Mono').length).toBeGreaterThan(0);
+
+    // The worn-out XL Tribord is the only gap and sorts first.
+    expect(within(rows[0]).getByText('inventory.planGapTag')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('Tribord')).toBeInTheDocument();
+
+    fireEvent.click(rows[0]);
+
+    // Back on the inventory tab, filtered to that model (brand-only → by brand) and size.
+    expect(screen.getByRole('button', { name: /^inventory\.types\.wetsuit/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(sizeChips()).toEqual(['XL1']);
+    expect(screen.getByText(/inventory\.resultSummary:1\/1/)).toBeInTheDocument();
   });
 });
