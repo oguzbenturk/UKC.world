@@ -500,7 +500,19 @@
     "planBuy": "Gelecek sezon",
     "planBuyCount": "{{count}} adet al",
     "planOk": "Yeterli",
-    "planGapTag": "Eksik"
+    "planGapTag": "Eksik",
+    "viewGrid": "Beden tablosu",
+    "allTypes": "Tümü",
+    "mergeVariants": "Model yıllarını birleştir",
+    "mergeVariantsHint": "\"Mono\", \"Mono 22\" ve \"Mono 24 Kite\" tek model olarak gösterilir. Kapatırsanız girilen isme göre ayrı ayrı listelenir.",
+    "enteredAs": "Girilen isimler: {{names}}",
+    "spellingsCount": "{{count}} isim",
+    "enteredName": "Girilen isim",
+    "modelsCount": "{{count}} model",
+    "modelCol": "Model",
+    "totalCol": "Toplam",
+    "gridLegend": "Hücre rengi o bedendeki en kötü durumu gösterir. Birimleri görmek için sayıya tıklayın.",
+    "showAllSizes": "Tüm bedenleri göster"
   },
   "auth": {
     "signedIn": "Başarıyla giriş yapıldı!",

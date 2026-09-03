@@ -497,7 +497,19 @@
     "planBuy": "Next season",
     "planBuyCount": "Buy {{count}}",
     "planOk": "OK",
-    "planGapTag": "Gap"
+    "planGapTag": "Gap",
+    "viewGrid": "Сетка размеров",
+    "allTypes": "Все",
+    "mergeVariants": "Объединять модельные годы",
+    "mergeVariantsHint": "Показывать «Mono», «Mono 22» и «Mono 24 Kite» как одну модель. Выключите, чтобы группировать по точному введённому названию.",
+    "enteredAs": "Введено как: {{names}}",
+    "spellingsCount": "{{count}} названий",
+    "enteredName": "Введённое название",
+    "modelsCount": "{{count}} моделей",
+    "modelCol": "Модель",
+    "totalCol": "Всего",
+    "gridLegend": "Цвет ячейки = худший статус в этом размере. Нажмите на число, чтобы увидеть эти единицы.",
+    "showAllSizes": "Показать все размеры"
   },
   "auth": {
     "signedIn": "Вход выполнен успешно!",

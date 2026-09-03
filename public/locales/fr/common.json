@@ -497,7 +497,19 @@
     "planBuy": "Next season",
     "planBuyCount": "Buy {{count}}",
     "planOk": "OK",
-    "planGapTag": "Gap"
+    "planGapTag": "Gap",
+    "viewGrid": "Grille des tailles",
+    "allTypes": "Tous",
+    "mergeVariants": "Fusionner les millésimes",
+    "mergeVariantsHint": "Afficher « Mono », « Mono 22 » et « Mono 24 Kite » comme un seul modèle. Désactivez pour grouper selon le nom exact saisi.",
+    "enteredAs": "Saisi sous : {{names}}",
+    "spellingsCount": "{{count}} noms",
+    "enteredName": "Nom saisi",
+    "modelsCount": "{{count}} modèles",
+    "modelCol": "Modèle",
+    "totalCol": "Total",
+    "gridLegend": "Couleur de la cellule = pire statut dans cette taille. Cliquez sur un nombre pour voir ces unités.",
+    "showAllSizes": "Afficher toutes les tailles"
   },
   "auth": {
     "signedIn": "Connexion réussie !",

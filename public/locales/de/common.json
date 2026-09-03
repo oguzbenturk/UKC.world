@@ -493,7 +493,19 @@
     "planBuy": "Next season",
     "planBuyCount": "Buy {{count}}",
     "planOk": "OK",
-    "planGapTag": "Gap"
+    "planGapTag": "Gap",
+    "viewGrid": "Größenraster",
+    "allTypes": "Alle",
+    "mergeVariants": "Modelljahre zusammenfassen",
+    "mergeVariantsHint": "\"Mono\", \"Mono 22\" und \"Mono 24 Kite\" als ein Modell anzeigen. Ausschalten, um nach dem exakt eingegebenen Namen zu gruppieren.",
+    "enteredAs": "Eingegeben als: {{names}}",
+    "spellingsCount": "{{count}} Namen",
+    "enteredName": "Eingegebener Name",
+    "modelsCount": "{{count}} Modelle",
+    "modelCol": "Modell",
+    "totalCol": "Gesamt",
+    "gridLegend": "Zellenfarbe = schlechtester Status in dieser Größe. Auf eine Zahl klicken, um die Einheiten zu sehen.",
+    "showAllSizes": "Alle Größen anzeigen"
   },
   "auth": {
     "signedIn": "Erfolgreich angemeldet!",

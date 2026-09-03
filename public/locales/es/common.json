@@ -497,7 +497,19 @@
     "planBuy": "Next season",
     "planBuyCount": "Buy {{count}}",
     "planOk": "OK",
-    "planGapTag": "Gap"
+    "planGapTag": "Gap",
+    "viewGrid": "Tabla de tallas",
+    "allTypes": "Todos",
+    "mergeVariants": "Unir años de modelo",
+    "mergeVariantsHint": "Mostrar \"Mono\", \"Mono 22\" y \"Mono 24 Kite\" como un solo modelo. Desactívalo para agrupar por el nombre exacto introducido.",
+    "enteredAs": "Introducido como: {{names}}",
+    "spellingsCount": "{{count}} nombres",
+    "enteredName": "Nombre introducido",
+    "modelsCount": "{{count}} modelos",
+    "modelCol": "Modelo",
+    "totalCol": "Total",
+    "gridLegend": "Color de la celda = peor estado en esa talla. Haz clic en un número para ver esas unidades.",
+    "showAllSizes": "Mostrar todas las tallas"
   },
   "auth": {
     "signedIn": "¡Sesión iniciada correctamente!",

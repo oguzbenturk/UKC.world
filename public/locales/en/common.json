@@ -496,7 +496,19 @@
     "planBuy": "Next season",
     "planBuyCount": "Buy {{count}}",
     "planOk": "OK",
-    "planGapTag": "Gap"
+    "planGapTag": "Gap",
+    "viewGrid": "Size grid",
+    "allTypes": "All",
+    "mergeVariants": "Merge model years",
+    "mergeVariantsHint": "Show \"Mono\", \"Mono 22\" and \"Mono 24 Kite\" as one model. Turn off to group by the exact name entered.",
+    "enteredAs": "Entered as: {{names}}",
+    "spellingsCount": "{{count}} names",
+    "enteredName": "Entered name",
+    "modelsCount": "{{count}} models",
+    "modelCol": "Model",
+    "totalCol": "Total",
+    "gridLegend": "Cell colour = worst status in that size. Click a number to see those units.",
+    "showAllSizes": "Show all sizes"
   },
   "auth": {
     "signedIn": "Successfully signed in!",

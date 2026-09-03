@@ -27,6 +27,7 @@ import {
   Checkbox,
   Progress,
   Alert,
+  Switch,
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -49,6 +50,7 @@ import {
   DownloadOutlined,
   AuditOutlined,
   ShoppingCartOutlined,
+  TableOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useData } from '@/shared/hooks/useData';
@@ -187,11 +189,122 @@ const getSizeOptions = (type) => {
   }
 };
 
+// ── Model-family grouping ────────────────────────────────────────────────────
+// Staff enter one model under several spellings — "Mono", "Mono 22", "Mono 22 Kite",
+// "Mono 24"; "Tribord", "Tribord Wetsuit", "Wetsuit Tribord" — so grouping on the raw
+// name scatters a single model over five rows. The family name drops the brand, the
+// type's own noun and year/size numbers, which folds those spellings into one "Mono"
+// row. The original spelling stays on each unit and is shown as its entered name.
+const TYPE_NOISE_WORDS = {
+  kite: ['kite', 'kites', 'uçurtma'],
+  wetsuit: ['wetsuit', 'wetsuits', 'suit', 'mono'],
+  board: ['board', 'boards', 'tahta'],
+  'control bar': ['bar', 'bars'],
+  harness: ['harness', 'harnesses', 'trapez'],
+  footwear: ['ayakkabı', 'shoe', 'shoes', 'boot', 'boots', 'bot'],
+  'wing/foil': ['wing', 'wings', 'kanat', 'foil'],
+};
+const BRAND_ALIASES = {
+  'liquid force': ['lf'],
+  'neil pryde': ['np'],
+  duotone: ['dtk', 'dt'],
+  "o'neill": ['oneill'],
+};
+// "22" / "2024" (a model year) and "15.5" / "9m" (a size typed into the name).
+const YEAR_OR_SIZE_TOKEN = /^(?:(?:19|20)\d{2}|\d{1,2}(?:[.,]\d+)?m|\d{2}(?:[.,]\d+)?)$/;
+
+const normalizeWords = (s) => String(s || '').toLowerCase().replace(/[’`´]/g, "'").replace(/[(),]/g, ' ');
+
+const familyName = (item) => {
+  const type = (item.type || '').trim().toLowerCase();
+  const brand = (item.brand || '').trim().toLowerCase();
+  const noise = new Set(TYPE_NOISE_WORDS[type] || []);
+  const brandTokens = new Set(
+    brand === 'other'
+      ? []
+      : [...normalizeWords(brand).split(/\s+/), ...(BRAND_ALIASES[brand] || [])].filter(Boolean)
+  );
+  return normalizeWords(item.name)
+    .split(/\s+/)
+    .filter((tok) => tok && !noise.has(tok) && !brandTokens.has(tok) && !YEAR_OR_SIZE_TOKEN.test(tok))
+    .join(' ');
+};
+
+const byCountThenName = (a, b) => b.count - a.count || String(a.name || '').localeCompare(String(b.name || ''));
+
+// ── Size grid ────────────────────────────────────────────────────────────────
+const APPAREL_ORDER = ['KIDS', 'ÇOCUK', 'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+
+// Boards use the planning bands (every board has its own dimension string); apparel
+// sizes are upper-cased so "xl" and "XL" land in the same column.
+const gridSize = (item) => {
+  if (item.type === 'board') return boardBand(item.size);
+  const raw = (item.size && String(item.size).trim()) || '—';
+  const upper = raw.toUpperCase();
+  return APPAREL_ORDER.includes(upper) ? upper : raw;
+};
+
+const leadingNumber = (s) => parseFloat(String(s).replace(/^[≤<>]/, '').replace(',', '.'));
+
+const compareSizes = (a, b) => {
+  if (a === b) return 0;
+  if (a === '—') return 1;
+  if (b === '—') return -1;
+  const ia = APPAREL_ORDER.indexOf(a.toUpperCase());
+  const ib = APPAREL_ORDER.indexOf(b.toUpperCase());
+  if (ia !== -1 || ib !== -1) return ia === -1 ? 1 : ib === -1 ? -1 : ia - ib;
+  const na = leadingNumber(a);
+  const nb = leadingNumber(b);
+  const aNum = Number.isFinite(na);
+  const bNum = Number.isFinite(nb);
+  if (aNum && bNum && na !== nb) return na - nb;
+  if (aNum !== bNum) return aNum ? -1 : 1;
+  return a.localeCompare(b, undefined, { numeric: true });
+};
+
+// The worst status in a cell decides its colour, so a size with one kite in the
+// workshop reads orange even when the other three are on the beach.
+const cellColor = (c) =>
+  c.maintenance_count > 0 ? 'warning'
+    : c.in_use_count > 0 ? 'processing'
+    : c.available_count > 0 ? 'success'
+    : 'default';
+
+const emptyCounts = () => ({ count: 0, available_count: 0, in_use_count: 0, maintenance_count: 0, retired_count: 0 });
+const tallyStatus = (target, status) => {
+  target.count++;
+  if (status === 'available') target.available_count++;
+  else if (status === 'in-use') target.in_use_count++;
+  else if (status === 'maintenance') target.maintenance_count++;
+  else if (status === 'retired') target.retired_count++;
+};
+
+const VIEW_MODES = ['grid', 'table', 'cards', 'stocktake', 'planning'];
+const VIEW_KEY = 'ukc:inventory:view';
+const MERGE_KEY = 'ukc:inventory:mergeVariants';
+const readStoredPref = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+};
+const writeStoredPref = (key, value) => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
+};
+
 const InventoryPage = () => {
   const { t } = useTranslation(['common']);
   const { user } = useAuth();
   const { equipment, loading, error, refreshData } = useData();
-  const [viewMode, setViewMode] = useState('table');
+  const [viewMode, setViewMode] = useState(() => {
+    const stored = readStoredPref(VIEW_KEY, 'grid');
+    return VIEW_MODES.includes(stored) ? stored : 'grid';
+  });
+  const [mergeVariants, setMergeVariants] = useState(() => readStoredPref(MERGE_KEY, true) !== false);
+  const changeViewMode = (mode) => { setViewMode(mode); writeStoredPref(VIEW_KEY, mode); };
+  const changeMergeVariants = (on) => { setMergeVariants(on); writeStoredPref(MERGE_KEY, on); };
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
@@ -241,8 +354,9 @@ const InventoryPage = () => {
     }));
   }, [equipment]);
 
-  // Filter equipment
-  const filteredEquipment = useMemo(() => {
+  // Filter equipment. Search + status are applied first so the category rail can count
+  // per type against them; the selected type is applied last.
+  const searchStatusFiltered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return normalizedEquipment.filter(item => {
       const matchesSearch = !term ||
@@ -250,11 +364,37 @@ const InventoryPage = () => {
         item.brand?.toLowerCase().includes(term) ||
         item.size?.toLowerCase().includes(term) ||
         item.serialNumber?.toLowerCase().includes(term);
-      const matchesType = !filterType || item.type === filterType;
       const matchesStatus = !filterStatus || item.status === filterStatus;
-      return matchesSearch && matchesType && matchesStatus;
+      return matchesSearch && matchesStatus;
     });
-  }, [normalizedEquipment, searchTerm, filterType, filterStatus]);
+  }, [normalizedEquipment, searchTerm, filterStatus]);
+
+  const filteredEquipment = useMemo(
+    () => (filterType ? searchStatusFiltered.filter((item) => item.type === filterType) : searchStatusFiltered),
+    [searchStatusFiltered, filterType]
+  );
+
+  const typeCounts = useMemo(() => {
+    const counts = {};
+    for (const item of searchStatusFiltered) {
+      const ty = (item.type || '').toLowerCase().trim() || 'other';
+      counts[ty] = (counts[ty] || 0) + 1;
+    }
+    return counts;
+  }, [searchStatusFiltered]);
+
+  // Chips for the category rail, in the canonical type order, then any unknown types.
+  // The active type stays visible even when the search leaves it empty, so the user
+  // can see why the page is blank and switch away.
+  const typeRail = useMemo(() => {
+    const known = equipmentTypes
+      .filter((tDef) => typeCounts[tDef.value] || tDef.value === filterType)
+      .map((tDef) => ({ value: tDef.value, label: tDef.label, count: typeCounts[tDef.value] || 0 }));
+    const unknown = Object.keys(typeCounts)
+      .filter((k) => !equipmentTypes.some((tDef) => tDef.value === k))
+      .map((k) => ({ value: k, label: k.charAt(0).toUpperCase() + k.slice(1), count: typeCounts[k] }));
+    return [...known, ...unknown];
+  }, [typeCounts, filterType]);
 
   // Statistics
   const stats = useMemo(() => ({
@@ -264,9 +404,10 @@ const InventoryPage = () => {
     maintenance: normalizedEquipment.filter(e => e.status === 'maintenance').length,
   }), [normalizedEquipment]);
 
-  // Group equipment by model (type + brand + name). Sizes are aggregated into a size
-  // breakdown so 6 Mystic Marshalls across sizes M/L/XL collapse into a single row.
-  // Items missing brand or name remain ungrouped (isSolo).
+  // Group equipment by model. With "merge model years" on (default) the key is the
+  // family name, so "Mono" / "Mono 22" / "Mono 24 Kite" collapse into one row; off, it
+  // is the exact name entered. Sizes are aggregated into a size breakdown and into
+  // per-size cells for the grid. Items missing brand or name remain ungrouped (isSolo).
   const groupedEquipment = useMemo(() => {
     const groups = new Map();
     for (const u of filteredEquipment) {
@@ -274,7 +415,8 @@ const InventoryPage = () => {
       const n = u.name?.trim().toLowerCase();
       const ty = u.type?.trim().toLowerCase();
       const isSolo = !b || !n;
-      const key = isSolo ? `__solo__:${u.id}` : `${ty}|${b}|${n}`;
+      const family = mergeVariants ? familyName(u) : n;
+      const key = isSolo ? `__solo__:${u.id}` : `${ty}|${b}|${family}`;
       let g = groups.get(key);
       if (!g) {
         g = {
@@ -283,28 +425,37 @@ const InventoryPage = () => {
           brand: u.brand,
           name: u.name,
           type: u.type,
-          image_url: u.image_url || u.imageUrl,
+          image_url: null,
           units: [],
-          count: 0,
           sizes: {},
-          available_count: 0,
-          in_use_count: 0,
-          maintenance_count: 0,
-          retired_count: 0,
+          cells: {},
+          nameCounts: {},
+          variants: [],
+          ...emptyCounts(),
         };
         groups.set(key, g);
       }
       g.units.push(u);
-      g.count++;
+      g.image_url = g.image_url || u.image_url || u.imageUrl || null;
       const sz = (u.size && String(u.size).trim()) || '—';
       g.sizes[sz] = (g.sizes[sz] || 0) + 1;
-      if (u.status === 'available') g.available_count++;
-      else if (u.status === 'in-use') g.in_use_count++;
-      else if (u.status === 'maintenance') g.maintenance_count++;
-      else if (u.status === 'retired') g.retired_count++;
+      const gs = gridSize(u);
+      const cell = g.cells[gs] || (g.cells[gs] = { size: gs, ...emptyCounts() });
+      const orig = (u.name || '').trim();
+      g.nameCounts[orig] = (g.nameCounts[orig] || 0) + 1;
+      tallyStatus(g, u.status);
+      tallyStatus(cell, u.status);
+    }
+    for (const g of groups.values()) {
+      // The most-typed spelling labels the row (shortest on a tie); every spelling is
+      // kept so nobody loses track of what "Mono 24" was entered as.
+      const names = Object.entries(g.nameCounts)
+        .sort((a, b) => b[1] - a[1] || a[0].length - b[0].length || a[0].localeCompare(b[0]));
+      g.name = names[0]?.[0] || g.name;
+      g.variants = names.map(([name]) => name);
     }
     return Array.from(groups.values());
-  }, [filteredEquipment]);
+  }, [filteredEquipment, mergeVariants]);
 
   // Section the grouped models by equipment type, preserving the order of equipmentTypes.
   const sectionedEquipment = useMemo(() => {
@@ -317,23 +468,26 @@ const InventoryPage = () => {
     const ordered = [];
     for (const tDef of equipmentTypes) {
       if (byType.has(tDef.value)) {
-        const groups = byType.get(tDef.value);
+        const groups = byType.get(tDef.value).sort(byCountThenName);
         ordered.push({
           key: tDef.value,
           label: tDef.label,
           groups,
           unitCount: groups.reduce((acc, g) => acc + g.count, 0),
+          modelCount: groups.length,
         });
         byType.delete(tDef.value);
       }
     }
     // Trailing unknown types
     for (const [key, groups] of byType) {
+      groups.sort(byCountThenName);
       ordered.push({
         key,
         label: key.charAt(0).toUpperCase() + key.slice(1),
         groups,
         unitCount: groups.reduce((acc, g) => acc + g.count, 0),
+        modelCount: groups.length,
       });
     }
     return ordered;
@@ -493,9 +647,23 @@ const InventoryPage = () => {
     setDetailDrawerOpen(true);
   };
 
-  const handleViewGroup = (group) => {
+  // Clicking a grid cell opens the group narrowed to that size; the counts are rebuilt
+  // for the slice so the drawer header matches the cell. `base` keeps the full group
+  // so the size chip in the drawer title can be cleared.
+  const sliceGroup = (group, size) => {
+    const units = group.units.filter((u) => gridSize(u) === size);
+    const sliced = { ...group, base: group, units, sizes: {}, sizeFilter: size, ...emptyCounts() };
+    for (const u of units) {
+      const sz = (u.size && String(u.size).trim()) || '—';
+      sliced.sizes[sz] = (sliced.sizes[sz] || 0) + 1;
+      tallyStatus(sliced, u.status);
+    }
+    return sliced;
+  };
+
+  const handleViewGroup = (group, size = null) => {
     setSelectedItem(null);
-    setSelectedGroup(group);
+    setSelectedGroup(size ? sliceGroup(group, size) : group);
     setDetailDrawerOpen(true);
   };
 
@@ -509,6 +677,8 @@ const InventoryPage = () => {
       type: group.type,
       name: group.name,
       brand: group.brand,
+      // Boards are bucketed into length bands in the grid, which is not a real size.
+      size: group.sizeFilter && group.sizeFilter !== '—' && group.type !== 'board' ? group.sizeFilter : undefined,
     });
     setFormModalOpen(true);
   };
@@ -665,33 +835,52 @@ const InventoryPage = () => {
     },
   ];
 
+  // Only worth a column when the group actually merged different spellings.
+  const enteredNameColumn = {
+    title: t('common:inventory.enteredName'),
+    dataIndex: 'name',
+    key: 'enteredName',
+    render: (n) => <Text type="secondary">{n}</Text>,
+  };
+  const unitColumnsFor = (group) => (group?.variants?.length > 1 ? [enteredNameColumn, ...unitSubColumns] : unitSubColumns);
+
+  const VariantsHint = ({ group }) => {
+    if (!group.variants || group.variants.length <= 1) return null;
+    return (
+      <Tooltip title={t('common:inventory.enteredAs', { names: group.variants.join(' · ') })}>
+        <Tag bordered={false} className="m-0 px-1.5 text-[11px] leading-4 cursor-help">
+          {t('common:inventory.spellingsCount', { count: group.variants.length })}
+        </Tag>
+      </Tooltip>
+    );
+  };
+
+  const GroupIdentity = ({ group }) => (
+    <div className="flex items-center gap-3 min-w-0">
+      {group.image_url ? (
+        <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden">
+          <img src={group.image_url} alt={group.name} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="w-10 h-10 shrink-0 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">
+          {group.name?.charAt(0)?.toUpperCase() || '?'}
+        </div>
+      )}
+      <div className="min-w-0">
+        <Text strong className="block truncate">{group.name}</Text>
+        <div className="flex items-center gap-2">
+          <Text type="secondary" className="text-xs">{group.brand}</Text>
+          <VariantsHint group={group} />
+        </div>
+      </div>
+    </div>
+  );
+
   const groupColumns = [
     {
       title: t('common:inventory.title'),
       key: 'equipment',
-      render: (_, group) => (
-        <div className="flex items-center gap-3">
-          {group.image_url ? (
-            <div className="w-10 h-10 rounded-lg overflow-hidden">
-              <img
-                src={group.image_url}
-                alt={group.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">
-              {group.name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-          )}
-          <div>
-            <Text strong>{group.name}</Text>
-            <div>
-              <Text type="secondary" className="text-xs">{group.brand}</Text>
-            </div>
-          </div>
-        </div>
-      ),
+      render: (_, group) => <GroupIdentity group={group} />,
     },
     {
       title: t('common:inventory.sizesLabel'),
@@ -769,6 +958,7 @@ const InventoryPage = () => {
           <div className="text-center">
             <Text strong className="text-lg block">{group.name}</Text>
             <Text type="secondary" className="block">{group.brand}</Text>
+            <div className="mt-1 flex justify-center"><VariantsHint group={group} /></div>
             <div className="mt-2 flex justify-center">
               <SizeBreakdown sizes={group.sizes} />
             </div>
@@ -789,6 +979,193 @@ const InventoryPage = () => {
       </Col>
     );
   };
+
+  const openGroup = (g) => (g.isSolo ? handleViewDetails(g.units[0]) : handleViewGroup(g));
+
+  // ── Size grid ──────────────────────────────────────────────────────────────
+  // One row per model, one column per size, so "how many 9m Monos do we have, and
+  // are they all on the beach?" is a single glance rather than an expanded row.
+  const renderSizeGrid = (section) => {
+    const sizes = [...new Set(section.groups.flatMap((g) => Object.keys(g.cells)))].sort(compareSizes);
+    const colTotals = {};
+    for (const g of section.groups) {
+      for (const [sz, c] of Object.entries(g.cells)) colTotals[sz] = (colTotals[sz] || 0) + c.count;
+    }
+    const columns = [
+      {
+        title: t('common:inventory.modelCol'),
+        key: 'model',
+        fixed: 'left',
+        width: 240,
+        render: (_, g) => (
+          <div className="cursor-pointer" onClick={() => openGroup(g)}>
+            <GroupIdentity group={g} />
+          </div>
+        ),
+      },
+      ...sizes.map((sz) => ({
+        title: (
+          <div className="text-center leading-tight">
+            <div className="font-semibold whitespace-nowrap">{sz}</div>
+            <Text type="secondary" className="text-[11px]">{colTotals[sz]}</Text>
+          </div>
+        ),
+        key: sz,
+        align: 'center',
+        width: 76,
+        render: (_, g) => {
+          const c = g.cells[sz];
+          if (!c) return <span className="text-slate-300 select-none">·</span>;
+          return (
+            <Tooltip title={<StatusBreakdown group={c} />}>
+              <Tag
+                color={cellColor(c)}
+                className="m-0 min-w-[34px] cursor-pointer text-center font-semibold"
+                onClick={() => (g.isSolo ? handleViewDetails(g.units[0]) : handleViewGroup(g, sz))}
+              >
+                {c.count}
+              </Tag>
+            </Tooltip>
+          );
+        },
+      })),
+      {
+        title: t('common:inventory.totalCol'),
+        key: 'total',
+        align: 'center',
+        width: 80,
+        render: (_, g) => <Tag color="purple" className="m-0 font-semibold">{g.count}</Tag>,
+      },
+      {
+        title: t('common:inventory.statusField'),
+        key: 'status',
+        width: 220,
+        render: (_, g) => <StatusBreakdown group={g} />,
+      },
+      {
+        title: t('common:table.actions'),
+        key: 'actions',
+        width: 110,
+        fixed: 'right',
+        render: (_, g) => (g.isSolo ? renderUnitActions(g.units[0]) : (
+          <Space size="small">
+            <Tooltip title={t('common:inventory.viewUnits')}>
+              <Button type="text" icon={<EyeOutlined />} onClick={() => handleViewGroup(g)} />
+            </Tooltip>
+            {canManageEquipment && (
+              <Tooltip title={t('common:inventory.addUnit')}>
+                <Button type="text" icon={<PlusOutlined />} onClick={() => handleAddUnit(g)} />
+              </Tooltip>
+            )}
+          </Space>
+        )),
+      },
+    ];
+    return (
+      <Table
+        size="small"
+        columns={columns}
+        dataSource={section.groups}
+        rowKey="key"
+        pagination={false}
+        scroll={{ x: 'max-content' }}
+      />
+    );
+  };
+
+  const renderSectionBody = (section) => {
+    if (viewMode === 'grid') return renderSizeGrid(section);
+    if (viewMode === 'cards') return <Row gutter={[16, 16]}>{section.groups.map(renderGroupCard)}</Row>;
+    return (
+      <Table
+        columns={groupColumns}
+        dataSource={section.groups}
+        rowKey="key"
+        pagination={false}
+        scroll={{ x: 800 }}
+        expandable={{
+          rowExpandable: (g) => !g.isSolo,
+          expandedRowRender: (g) => (
+            <Table
+              size="small"
+              columns={unitColumnsFor(g)}
+              dataSource={g.units}
+              rowKey="id"
+              pagination={false}
+            />
+          ),
+        }}
+      />
+    );
+  };
+
+  const SectionTitle = ({ section }) => (
+    <Space wrap>
+      <Text strong>{section.label}</Text>
+      <Tag color="purple" className="m-0">
+        {section.unitCount} {section.unitCount === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
+      </Tag>
+      <Text type="secondary" className="text-xs">{t('common:inventory.modelsCount', { count: section.modelCount })}</Text>
+    </Space>
+  );
+
+  const GridLegend = () => (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      <span>{t('common:inventory.gridLegend')}</span>
+      <Tag color="success" className="m-0">{t('common:inventory.statusAvailable')}</Tag>
+      <Tag color="processing" className="m-0">{t('common:inventory.statusInUse')}</Tag>
+      <Tag color="warning" className="m-0">{t('common:inventory.statusMaintenance')}</Tag>
+      <Tag className="m-0">{t('common:inventory.statusRetired')}</Tag>
+    </div>
+  );
+
+  // A single selected category renders flat; "All" keeps one collapsible section per type.
+  const renderSections = () => (
+    <div className="space-y-4">
+      {viewMode === 'grid' && <GridLegend />}
+      {sectionedEquipment.length === 1 ? (
+        <div className="space-y-3">
+          <SectionTitle section={sectionedEquipment[0]} />
+          {renderSectionBody(sectionedEquipment[0])}
+        </div>
+      ) : (
+        <Collapse
+          defaultActiveKey={sectionedEquipment.map((s) => s.key)}
+          items={sectionedEquipment.map((section) => ({
+            key: section.key,
+            label: <SectionTitle section={section} />,
+            children: renderSectionBody(section),
+          }))}
+        />
+      )}
+    </div>
+  );
+
+  const TypeChip = ({ active, label, count, onClick }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+        active
+          ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+          : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-400 hover:text-emerald-700'
+      }`}
+    >
+      {label}
+      <span className={`rounded-full px-1.5 text-xs ${active ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
+    </button>
+  );
+
+  const segmentedOption = (value, icon, label) => ({
+    value,
+    label: (
+      <span className="flex items-center gap-1">
+        {icon}
+        <span className="hidden lg:inline">{label}</span>
+      </span>
+    ),
+    title: label,
+  });
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -870,33 +1247,22 @@ const InventoryPage = () => {
         </Col>
       </Row>
 
-      {/* Filters and View Toggle */}
+      {/* Filters, category rail and view toggle */}
       <Card className="rounded-2xl">
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={24} md={8} lg={6}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
             <Input
               placeholder={t('common:inventory.searchPlaceholder')}
               prefix={<SearchOutlined />}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               allowClear
+              className="md:max-w-xs"
             />
-          </Col>
-          <Col xs={12} sm={8} md={6} lg={4}>
-            <Select
-              placeholder={t('common:inventory.filterType')}
-              allowClear
-              style={{ width: '100%' }}
-              value={filterType}
-              onChange={setFilterType}
-              options={equipmentTypes}
-            />
-          </Col>
-          <Col xs={12} sm={8} md={6} lg={4}>
             <Select
               placeholder={t('common:inventory.filterStatus')}
               allowClear
-              style={{ width: '100%' }}
+              className="w-full md:w-44"
               value={filterStatus}
               onChange={setFilterStatus}
               options={[
@@ -906,20 +1272,44 @@ const InventoryPage = () => {
                 { value: 'retired', label: t('common:inventory.statusRetired') },
               ]}
             />
-          </Col>
-          <Col xs={24} sm={8} md={4} lg={4} className="ml-auto">
-            <Segmented
-              value={viewMode}
-              onChange={setViewMode}
-              options={[
-                { value: 'table', icon: <UnorderedListOutlined />, title: t('common:inventory.viewList') },
-                { value: 'cards', icon: <AppstoreOutlined />, title: t('common:inventory.viewCards') },
-                { value: 'stocktake', icon: <AuditOutlined />, title: t('common:inventory.viewStocktake') },
-                { value: 'planning', icon: <ShoppingCartOutlined />, title: t('common:inventory.viewPlanning') },
-              ]}
+            <Tooltip title={t('common:inventory.mergeVariantsHint')}>
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-slate-600">
+                <Switch size="small" checked={mergeVariants} onChange={changeMergeVariants} />
+                {t('common:inventory.mergeVariants')}
+              </label>
+            </Tooltip>
+            <div className="md:ml-auto">
+              <Segmented
+                value={viewMode}
+                onChange={changeViewMode}
+                options={[
+                  segmentedOption('grid', <TableOutlined />, t('common:inventory.viewGrid')),
+                  segmentedOption('table', <UnorderedListOutlined />, t('common:inventory.viewList')),
+                  segmentedOption('cards', <AppstoreOutlined />, t('common:inventory.viewCards')),
+                  segmentedOption('stocktake', <AuditOutlined />, t('common:inventory.viewStocktake')),
+                  segmentedOption('planning', <ShoppingCartOutlined />, t('common:inventory.viewPlanning')),
+                ]}
+              />
+            </div>
+          </div>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <TypeChip
+              active={!filterType}
+              label={t('common:inventory.allTypes')}
+              count={searchStatusFiltered.length}
+              onClick={() => setFilterType(null)}
             />
-          </Col>
-        </Row>
+            {typeRail.map((chip) => (
+              <TypeChip
+                key={chip.value}
+                active={filterType === chip.value}
+                label={chip.label}
+                count={chip.count}
+                onClick={() => setFilterType(filterType === chip.value ? null : chip.value)}
+              />
+            ))}
+          </div>
+        </div>
       </Card>
 
       {/* Content */}
@@ -1101,50 +1491,24 @@ const InventoryPage = () => {
             />
           </div>
         ) : (
-          <Collapse
-            defaultActiveKey={sectionedEquipment.map((s) => s.key)}
-            items={sectionedEquipment.map((section) => ({
-              key: section.key,
-              label: (
-                <Space>
-                  <Text strong>{section.label}</Text>
-                  <Tag color="purple">
-                    {section.unitCount} {section.unitCount === 1 ? t('common:inventory.unitLabel') : t('common:inventory.unitsLabel')}
-                  </Tag>
-                </Space>
-              ),
-              children:
-                viewMode === 'table' ? (
-                  <Table
-                    columns={groupColumns}
-                    dataSource={section.groups}
-                    rowKey="key"
-                    pagination={false}
-                    scroll={{ x: 800 }}
-                    expandable={{
-                      rowExpandable: (g) => !g.isSolo,
-                      expandedRowRender: (g) => (
-                        <Table
-                          size="small"
-                          columns={unitSubColumns}
-                          dataSource={g.units}
-                          rowKey="id"
-                          pagination={false}
-                        />
-                      ),
-                    }}
-                  />
-                ) : (
-                  <Row gutter={[16, 16]}>{section.groups.map(renderGroupCard)}</Row>
-                ),
-            }))}
-          />
+          renderSections()
         )}
       </Card>
 
       {/* Detail Drawer */}
       <Drawer
-        title={t('common:inventory.details')}
+        title={
+          selectedGroup?.sizeFilter ? (
+            <Space>
+              {t('common:inventory.details')}
+              <Tooltip title={t('common:inventory.showAllSizes')}>
+                <Tag color="blue" closable onClose={(e) => { e.preventDefault(); setSelectedGroup(selectedGroup.base); }}>
+                  {t('common:inventory.size')}: {selectedGroup.sizeFilter}
+                </Tag>
+              </Tooltip>
+            </Space>
+          ) : t('common:inventory.details')
+        }
         placement="right"
         width={selectedGroup ? 640 : 450}
         onClose={() => {
@@ -1211,7 +1575,7 @@ const InventoryPage = () => {
               </Text>
               <Table
                 size="small"
-                columns={unitSubColumns}
+                columns={unitColumnsFor(selectedGroup)}
                 dataSource={selectedGroup.units}
                 rowKey="id"
                 pagination={false}
