@@ -246,10 +246,18 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
   const { t } = useTranslation(['admin']);
   const { businessCurrency, setBusinessCurrency, getCurrencySymbol, getSupportedCurrencies, currencies, loading: currenciesLoading } = useCurrency();
   const [saving, setSaving] = useState(false);
+  // Draft selection. Previously the <Select> wrote straight into the global context, so
+  // merely browsing the dropdown (without saving) flipped the whole app's storage currency
+  // for the rest of the session — Add Balance, wallet totals, etc. all re-based on it.
+  const [draftCurrency, setDraftCurrency] = useState(businessCurrency || 'EUR');
   const [allowedRegistrationCurrencies, setAllowedRegistrationCurrencies] = useState([]);
   const [loadingRegCurrencies, setLoadingRegCurrencies] = useState(false);
   const { message } = App.useApp();
   const currencyCount = getSupportedCurrencies()?.length || 0;
+
+  useEffect(() => {
+    if (businessCurrency) setDraftCurrency(businessCurrency);
+  }, [businessCurrency]);
 
   // Load registration currency settings
   useEffect(() => {
@@ -275,7 +283,9 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(businessCurrency);
+      await onSave(draftCurrency);
+      // Only now does the app-wide storage currency change.
+      setBusinessCurrency(draftCurrency);
       message.success(t('admin:settings.currencySection.toast.currencyUpdated'));
     } catch (e) {
       message.error(t('admin:settings.currencySection.toast.currencyError'));
@@ -328,8 +338,8 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
           <div>
             <Text strong className="block mb-2">{t('admin:settings.currencySection.preferredCurrency')}</Text>
             <CurrencySelector
-              value={businessCurrency}
-              onChange={(val) => setBusinessCurrency(val)}
+              value={draftCurrency}
+              onChange={(val) => setDraftCurrency(val)}
               style={{ width: '100%' }}
             />
             <Text type="secondary" className="text-xs mt-1 block">
@@ -337,7 +347,7 @@ const BusinessCurrencySection = memo(function BusinessCurrencySection({ onSave }
             </Text>
           </div>
           <div className="flex justify-end sm:justify-start">
-            <Button type="primary" onClick={handleSave} loading={saving}>
+            <Button type="primary" onClick={handleSave} loading={saving} disabled={!draftCurrency || draftCurrency === businessCurrency}>
               {t('admin:settings.currencySection.savePreferredCurrency')}
             </Button>
           </div>

@@ -146,6 +146,27 @@ export const CurrencyProvider = ({ children }) => {
     }
   }, [isAuthenticated, hasAuthToken, loadBusinessCurrency, message]);
 
+  // Silent re-fetch of the active currency list + rates (no `loading` flip, no toasts).
+  // Used after an admin edits a rate in Settings and when a conversion preview opens, so
+  // the numbers shown come from the *current* currency_settings, not from whatever the
+  // provider loaded at page start.
+  const refreshRates = useCallback(async () => {
+    if (!hasAuthToken()) return;
+    try {
+      const { data } = await apiClient.get('/currencies/active');
+      if (!Array.isArray(data) || data.length === 0) return;
+      setCurrencies(data);
+      const base = data.find(c => c.base_currency) || null;
+      if (base) setBaseCurrency(base);
+      setExchangeRates(data.reduce((acc, c) => {
+        acc[c.currency_code] = c.exchange_rate;
+        return acc;
+      }, {}));
+    } catch {
+      // Keep the rates we already have; a stale preview beats a broken screen.
+    }
+  }, [hasAuthToken]);
+
   // Convert amount between currencies
   const convertCurrency = (amount, fromCurrency, toCurrency = userCurrency) => {
     if (!amount || fromCurrency === toCurrency) return amount;
@@ -267,6 +288,7 @@ export const CurrencyProvider = ({ children }) => {
     getCurrency,
     getSupportedCurrencies,
     loadCurrencies,
+    refreshRates,
     // Business-level preferred currency (used for future records defaults)
     businessCurrency,
     businessCurrencyEffectiveFrom,

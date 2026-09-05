@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/MobileCardRenderers';
 import { CalendarProvider } from '../../bookings/components/contexts/CalendarContext';
 import eventBus from '@/shared/utils/eventBus';
+import { pickCounterpartCurrency, convertWithRates, describeRate } from '@/shared/utils/currencyPreview';
 import { fetchCustomerDiscounts } from './customerBill/discountApi';
 import { indexDiscounts } from './customerBill/billAggregator';
 import { loadBillCohort } from './customerBill/billCustomerLoader';
@@ -137,7 +138,7 @@ const SECTION_DESCRIPTIONS = {
 
 const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, onUpdate = () => {}, readOnly = false }) => {
   const { user: currentUser } = useAuth();
-  const { formatCurrency: fmtCurrency, getCurrencySymbol, businessCurrency, convertCurrency, getSupportedCurrencies } = useCurrency();
+  const { formatCurrency: fmtCurrency, getCurrencySymbol, businessCurrency, convertCurrency, getSupportedCurrencies, currencies: activeCurrencies, exchangeRates, refreshRates } = useCurrency();
   const { modal } = App.useApp();
 
   // ─── State ────────────────────────────────────────────────────
@@ -214,6 +215,44 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
   const storageCurrency = businessCurrency || 'EUR';
   const walletCurrency = useMemo(() => userAccount?.currency || 'EUR', [userAccount?.currency]);
   const currencySymbol = useMemo(() => getCurrencySymbol(storageCurrency), [getCurrencySymbol, storageCurrency]);
+
+  // Add Balance conversion preview. Rates come from currency_settings (auto-fetched or
+  // manually set in Settings → Currency) via CurrencyContext.exchangeRates; the backend
+  // performs the real conversion with the same table, so this mirrors what will be stored.
+  //  - typed TRY/USD/… → shows the storage-currency amount that will be credited
+  //  - typed EUR (storage) → shows the local-currency (TRY) equivalent underneath
+  const addFundsPreview = useMemo(() => {
+    const amount = Number(addFundsAmount);
+    if (!(amount > 0)) return null;
+    const inputCurrency = addFundsCurrency || storageCurrency;
+    const activeCodes = (activeCurrencies || []).map(c => c.currency_code);
+    const counterpart = pickCounterpartCurrency({ inputCurrency, storageCurrency, walletCurrency, activeCodes });
+    if (inputCurrency !== storageCurrency) {
+      const credited = convertWithRates(exchangeRates, amount, inputCurrency, storageCurrency);
+      return {
+        isConversion: true,
+        inputCurrency,
+        credited,
+        rateLine: describeRate(exchangeRates, storageCurrency, inputCurrency),
+        missingRate: credited === null,
+      };
+    }
+    const counterpartAmount = counterpart ? convertWithRates(exchangeRates, amount, storageCurrency, counterpart) : null;
+    return {
+      isConversion: false,
+      inputCurrency,
+      counterpart,
+      counterpartAmount,
+      rateLine: counterpart ? describeRate(exchangeRates, storageCurrency, counterpart) : null,
+      missingRate: Boolean(counterpart) && counterpartAmount === null,
+    };
+  }, [addFundsAmount, addFundsCurrency, storageCurrency, walletCurrency, activeCurrencies, exchangeRates]);
+
+  // Pull the latest rates whenever the Add Balance modal opens, so a rate the admin just
+  // changed in Settings (possibly in another tab) is reflected without a page reload.
+  useEffect(() => {
+    if (showAddFundsModal) refreshRates?.();
+  }, [showAddFundsModal, refreshRates]);
 
   const fmt = useCallback((amount) => {
     const num = Number(amount) || 0;
@@ -1888,28 +1927,46 @@ const EnhancedCustomerDetailModal = ({ customer: customerProp, isOpen, onClose, 
               />
             </div>
 
-            {/* Conversion preview */}
-            {addFundsAmount > 0 && addFundsCurrency && addFundsCurrency !== storageCurrency && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />
-                <span>
-                  Will be credited as{' '}
-                  <span className="font-semibold text-gray-700">
-                    {fmtCurrency(convertCurrency(addFundsAmount, addFundsCurrency, storageCurrency), storageCurrency)}
-                  </span>
-                  {' '}to the account
-                </span>
-              </div>
-            )}
-            {addFundsAmount > 0 && (!addFundsCurrency || addFundsCurrency === storageCurrency) && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                <span>
-                  <span className="font-semibold text-gray-700">
-                    {fmtCurrency(addFundsAmount, storageCurrency)}
-                  </span>
-                  {' '}will be added to the account
-                </span>
+            {/* Conversion preview — rates from Settings → Currency (see addFundsPreview) */}
+            {addFundsPreview && (
+              <div className="mt-2 space-y-0.5 text-xs text-gray-500" data-testid="add-funds-preview">
+                <div className="flex items-center gap-1.5">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${addFundsPreview.isConversion ? 'bg-sky-400' : 'bg-emerald-400'}`} />
+                  {addFundsPreview.isConversion ? (
+                    addFundsPreview.missingRate ? (
+                      <span className="text-amber-600">
+                        No exchange rate configured for {addFundsPreview.inputCurrency} — set one in Settings → Currency.
+                      </span>
+                    ) : (
+                      <span>
+                        Will be credited as{' '}
+                        <span className="font-semibold text-gray-700">
+                          {fmtCurrency(addFundsPreview.credited, storageCurrency)}
+                        </span>
+                        {' '}to the account
+                      </span>
+                    )
+                  ) : (
+                    <span>
+                      <span className="font-semibold text-gray-700">
+                        {fmtCurrency(addFundsAmount, storageCurrency)}
+                      </span>
+                      {' '}will be added to the account
+                    </span>
+                  )}
+                </div>
+                {!addFundsPreview.isConversion && addFundsPreview.counterpart && addFundsPreview.counterpartAmount !== null && (
+                  <div className="pl-3 text-gray-400">
+                    ≈{' '}
+                    <span className="font-medium text-gray-600">
+                      {fmtCurrency(addFundsPreview.counterpartAmount, addFundsPreview.counterpart)}
+                    </span>
+                    {addFundsPreview.rateLine && <span> · {addFundsPreview.rateLine}</span>}
+                  </div>
+                )}
+                {addFundsPreview.isConversion && addFundsPreview.rateLine && (
+                  <div className="pl-3 text-gray-400">{addFundsPreview.rateLine}</div>
+                )}
               </div>
             )}
           </Form.Item>

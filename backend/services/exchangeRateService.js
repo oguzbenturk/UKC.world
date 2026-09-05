@@ -5,6 +5,20 @@ import CurrencyService from './currencyService.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { pool } from '../db.js';
 import { dispatchToStaff } from './notificationDispatcherUnified.js';
+import { cacheService } from './cacheService.js';
+
+// GET /api/currencies/active is served from Redis (1h TTL). Route-level writes invalidate it
+// via cacheInvalidationMiddleware, but the cron writes straight through the service, so it
+// must drop the cache itself — otherwise the frontend keeps converting with rates up to an
+// hour stale after every auto-update.
+const CURRENCY_CACHE_PATTERN = 'api:GET:/api/currencies*';
+const invalidateCurrencyCache = async () => {
+  try {
+    await cacheService.del(CURRENCY_CACHE_PATTERN);
+  } catch (error) {
+    logger.warn('Failed to invalidate currency cache after rate update', error);
+  }
+};
 
 // Track running state
 let isRunning = false;
@@ -148,6 +162,10 @@ class ExchangeRateService {
 
         // Small delay between API calls to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (results.updated > 0) {
+        await invalidateCurrencyCache();
       }
 
       // Send admin notification if there were failures

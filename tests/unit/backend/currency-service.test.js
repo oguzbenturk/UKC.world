@@ -620,3 +620,133 @@ describe('CurrencyService.getCurrenciesDueForUpdate', () => {
     expect(query).toContain('base_currency = false');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Manual rate override + base-currency protection
+// (2026-09-05 incident: EUR — the base — was hand-edited to 57.085 and every
+// TRY→EUR conversion came out ~57× too high.)
+// ---------------------------------------------------------------------------
+
+const makeClient = () => {
+  const client = { query: jest.fn(), release: jest.fn() };
+  return client;
+};
+
+describe('CurrencyService.setManualExchangeRate', () => {
+  test('refuses to edit the base currency', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ base_currency: true, rate_margin_percent: '0.000' }] });
+
+    await expect(CurrencyService.setManualExchangeRate('EUR', 57.085, 'admin-1'))
+      .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('base currency') });
+
+    // Nothing was written.
+    expect(mockPool.connect).not.toHaveBeenCalled();
+  });
+
+  test('404s for an unknown currency', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+    await expect(CurrencyService.setManualExchangeRate('XXX', 2))
+      .rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test('rejects non-positive rates', async () => {
+    await expect(CurrencyService.setManualExchangeRate('TRY', 0)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(CurrencyService.setManualExchangeRate('TRY', -5)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(CurrencyService.setManualExchangeRate('TRY', 'abc')).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockPool.query).not.toHaveBeenCalled();
+  });
+
+  test('stores the typed rate, back-derives raw_rate from the margin, logs it and turns auto-update off', async () => {
+    // lookup: non-base, 5% margin
+    mockPool.query.mockResolvedValueOnce({ rows: [{ base_currency: false, rate_margin_percent: '5.000' }] });
+
+    const client = makeClient();
+    client.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ exchange_rate: '56.2512', base_currency: false }] }) // current
+      .mockResolvedValueOnce({ rows: [{ currency_code: 'TRY', exchange_rate: '58.0000', auto_update_enabled: false }] }) // UPDATE
+      .mockResolvedValueOnce({}) // INSERT log
+      .mockResolvedValueOnce({}); // COMMIT
+    mockPool.connect.mockResolvedValueOnce(client);
+
+    const result = await CurrencyService.setManualExchangeRate('try', 58, 'admin-1');
+
+    expect(result.currency_code).toBe('TRY');
+    expect(result.auto_update_enabled).toBe(false);
+
+    const updateCall = client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.includes('UPDATE currency_settings'));
+    expect(updateCall).toBeDefined();
+    const [updateSql, updateParams] = updateCall;
+    expect(updateSql).toContain('auto_update_enabled = CASE WHEN $5::boolean THEN false');
+    // [newRate, rawRate, source, code, disableAutoUpdate]
+    expect(updateParams[0]).toBe(58);
+    expect(updateParams[1]).toBeCloseTo(58 / 1.05, 4); // raw = final / (1 + margin)
+    expect(updateParams[2]).toBe('manual');
+    expect(updateParams[3]).toBe('TRY');
+    expect(updateParams[4]).toBe(true);
+
+    const logCall = client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO currency_update_logs'));
+    expect(logCall).toBeDefined();
+    expect(logCall[1]).toEqual(expect.arrayContaining(['TRY', 'manual', 'admin', 'admin-1']));
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+});
+
+describe('CurrencyService.updateExchangeRateWithAudit — base currency guard', () => {
+  test('rolls back when asked to store a non-1 rate on the base currency', async () => {
+    const client = makeClient();
+    client.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ exchange_rate: '1.0000', base_currency: true }] }) // current
+      .mockResolvedValue({}); // ROLLBACK etc.
+    mockPool.connect.mockResolvedValueOnce(client);
+    mockPool.query.mockResolvedValue({ rows: [] }); // failure log insert
+
+    await expect(CurrencyService.updateExchangeRateWithAudit('EUR', 57.085, { source: 'open_er', triggeredBy: 'admin' }))
+      .rejects.toMatchObject({ statusCode: 400 });
+
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(client.query.mock.calls.some(([sql]) => typeof sql === 'string' && sql.includes('UPDATE currency_settings'))).toBe(false);
+  });
+
+  test('allows re-asserting 1.0 on the base currency', async () => {
+    const client = makeClient();
+    client.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ exchange_rate: '57.0850', base_currency: true }] })
+      .mockResolvedValueOnce({ rows: [{ currency_code: 'EUR', exchange_rate: '1.0000' }] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({});
+    mockPool.connect.mockResolvedValueOnce(client);
+
+    const result = await CurrencyService.updateExchangeRateWithAudit('EUR', 1, { source: 'manual' });
+    expect(result.exchange_rate).toBe('1.0000');
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  test('does not touch auto_update_enabled unless asked (cron path)', async () => {
+    const client = makeClient();
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ exchange_rate: '56.0000', base_currency: false }] })
+      .mockResolvedValueOnce({ rows: [{ currency_code: 'TRY', exchange_rate: '56.2512' }] })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({});
+    mockPool.connect.mockResolvedValueOnce(client);
+
+    await CurrencyService.updateExchangeRateWithAudit('TRY', 56.2512, { source: 'yahoo', triggeredBy: 'cron', rawRate: 56.2512 });
+
+    const [, params] = client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.includes('UPDATE currency_settings'));
+    expect(params[4]).toBe(false);
+  });
+});
+
+describe('CurrencyService.forceRefreshRate — base currency guard', () => {
+  test('refuses to fetch a rate for the base currency', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ base_currency: true }] });
+
+    await expect(CurrencyService.forceRefreshRate('EUR', 'admin-1')).rejects.toMatchObject({ statusCode: 400 });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});

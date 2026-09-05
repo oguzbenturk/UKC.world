@@ -115,20 +115,30 @@ router.put('/:currencyCode/rate', authenticateJWT, authorizeRoles(['admin']), ca
     const { currencyCode } = req.params;
     const { exchangeRate } = req.body;
     
-    if (!exchangeRate || exchangeRate <= 0) {
+    const numericRate = Number(exchangeRate);
+    if (!Number.isFinite(numericRate) || numericRate <= 0) {
       return res.status(400).json({ error: 'Invalid exchange rate' });
     }
-    
-    const updatedCurrency = await CurrencyService.updateExchangeRate(currencyCode, exchangeRate);
-    res.json(updatedCurrency);
+
+    // Manual override: audited, base-currency-protected, and turns auto-update off for
+    // this currency so the cron doesn't revert the admin's value (see CurrencyService).
+    const updatedCurrency = await CurrencyService.setManualExchangeRate(currencyCode, numericRate, req.user?.id);
+    res.json({
+      message: `Rate updated for ${updatedCurrency.currency_code}. Auto-update is now off for this currency so your manual rate is kept.`,
+      currency: updatedCurrency,
+      autoUpdateDisabled: true
+    });
   } catch (error) {
+    if (error.statusCode === 400 || error.statusCode === 404) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
     logger.error('Error updating exchange rate:', error);
     res.status(500).json({ error: 'Failed to update exchange rate' });
   }
 });
 
 // Toggle currency status (admin only)
-router.put('/:currencyCode/toggle', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:currencyCode/toggle', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const { isActive } = req.body;
@@ -173,7 +183,7 @@ router.post('/sync', authenticateJWT, authorizeRoles(['admin']), cacheInvalidati
 // ==========================================
 
 // Toggle auto-update for a currency (Admin only)
-router.put('/:currencyCode/auto-update', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:currencyCode/auto-update', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const { enabled } = req.body;
@@ -199,7 +209,7 @@ router.put('/:currencyCode/auto-update', authenticateJWT, authorizeRoles(['admin
 });
 
 // Set update frequency for a currency (Admin only)
-router.put('/:currencyCode/frequency', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:currencyCode/frequency', authenticateJWT, authorizeRoles(['admin']), cacheInvalidationMiddleware(CURRENCY_CACHE_PATTERNS), async (req, res) => {
   try {
     const { currencyCode } = req.params;
     const { hours } = req.body;
@@ -239,6 +249,9 @@ router.post('/:currencyCode/refresh', authenticateJWT, authorizeRoles(['admin'])
       currency: updatedCurrency
     });
   } catch (error) {
+    if (error.statusCode === 400) {
+      return res.status(400).json({ error: error.message });
+    }
     logger.error('Error refreshing rate:', error);
     res.status(500).json({ error: error.message || 'Failed to refresh rate' });
   }

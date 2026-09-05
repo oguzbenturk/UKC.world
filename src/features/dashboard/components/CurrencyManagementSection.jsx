@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import apiClient from '@/shared/services/apiClient';
 import { useToast } from '@/shared/contexts/ToastContext';
+import { useCurrency } from '@/shared/contexts/CurrencyContext';
 
 const FREQUENCY_OPTIONS = [
   { value: 1, label: '1 hour' },
@@ -48,7 +49,70 @@ const StatusBadge = memo(function StatusBadge({ status }) {
   );
 });
 
-const CurrencyRow = memo(function CurrencyRow({ 
+// "Rate (1 EUR =)" cell. Three states: base currency (read-only, fixed 1), editing, display.
+const RateCell = memo(function RateCell({ isBase, editing, editValue, onEditValueChange, onSave, onCancel, onStartEdit, saving, exchangeRate }) {
+  if (isBase) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-sm">1.0000</span>
+        <span
+          className="px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-slate-100 text-slate-500 rounded"
+          title="All other rates are expressed per 1 unit of this currency. It is fixed at 1 and cannot be edited."
+        >
+          base
+        </span>
+      </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          step="0.0001"
+          min="0.0001"
+          value={editValue}
+          onChange={(e) => onEditValueChange(e.target.value)}
+          className="w-24 px-2 py-1 text-sm border rounded focus:ring-blue-500 focus:border-blue-500"
+          autoFocus
+        />
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+          title="Save"
+        >
+          <CheckIcon className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onCancel}
+          className="p-1 text-red-600 hover:text-red-800"
+          title="Cancel"
+        >
+          <XMarkIcon className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="font-mono text-sm">
+        {exchangeRate ? Number(exchangeRate).toFixed(4) : '—'}
+      </span>
+      <button
+        onClick={onStartEdit}
+        className="p-1 text-slate-400 hover:text-slate-600"
+        title="Edit rate"
+      >
+        <PencilIcon className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+});
+
+const CurrencyRow = memo(function CurrencyRow({
   currency, 
   onToggleAutoUpdate, 
   onChangeFrequency, 
@@ -59,6 +123,10 @@ const CurrencyRow = memo(function CurrencyRow({
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(currency.exchange_rate || '');
   const [localLoading, setLocalLoading] = useState(false);
+  // The base currency is the pivot every conversion runs through; its rate is 1 by
+  // definition and must never be edited/refreshed (that is exactly how EUR ended up at
+  // 57.085 in production and every TRY→EUR figure came out ~57× too high).
+  const isBase = !!currency.base_currency;
 
   const handleSaveRate = async () => {
     const rate = parseFloat(editValue);
@@ -83,59 +151,30 @@ const CurrencyRow = memo(function CurrencyRow({
         </div>
       </td>
       <td className="px-4 py-3">
-        {editing ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              step="0.0001"
-              min="0.0001"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              className="w-24 px-2 py-1 text-sm border rounded focus:ring-blue-500 focus:border-blue-500"
-              autoFocus
-            />
-            <button
-              onClick={handleSaveRate}
-              disabled={localLoading}
-              className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
-              title="Save"
-            >
-              <CheckIcon className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleCancelEdit}
-              className="p-1 text-red-600 hover:text-red-800"
-              title="Cancel"
-            >
-              <XMarkIcon className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-sm">
-              {currency.exchange_rate ? Number(currency.exchange_rate).toFixed(4) : '—'}
-            </span>
-            <button
-              onClick={() => {
-                setEditValue(currency.exchange_rate || '');
-                setEditing(true);
-              }}
-              className="p-1 text-slate-400 hover:text-slate-600"
-              title="Edit rate"
-            >
-              <PencilIcon className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        <RateCell
+          isBase={isBase}
+          editing={editing}
+          editValue={editValue}
+          onEditValueChange={setEditValue}
+          onSave={handleSaveRate}
+          onCancel={handleCancelEdit}
+          onStartEdit={() => {
+            setEditValue(currency.exchange_rate || '');
+            setEditing(true);
+          }}
+          saving={localLoading}
+          exchangeRate={currency.exchange_rate}
+        />
       </td>
       <td className="px-4 py-3">
         <label className="relative inline-flex items-center cursor-pointer">
           <input
             type="checkbox"
             className="sr-only peer"
-            checked={currency.auto_update_enabled !== false}
+            checked={!isBase && currency.auto_update_enabled !== false}
             onChange={(e) => onToggleAutoUpdate(currency.code, e.target.checked)}
-            disabled={isLoading}
+            disabled={isLoading || isBase}
+            title={isBase ? 'The base currency is never fetched — its rate is always 1' : undefined}
           />
           <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
         </label>
@@ -164,9 +203,9 @@ const CurrencyRow = memo(function CurrencyRow({
       <td className="px-4 py-3">
         <button
           onClick={() => onRefresh(currency.code)}
-          disabled={isLoading || localLoading}
+          disabled={isLoading || localLoading || isBase}
           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
-          title="Refresh rate now"
+          title={isBase ? 'Base currency — nothing to fetch' : 'Refresh rate now'}
         >
           <ArrowPathIcon className={`w-4 h-4 ${(isLoading || localLoading) ? 'animate-spin' : ''}`} />
         </button>
@@ -406,18 +445,23 @@ const CurrencyManagementSection = memo(function CurrencyManagementSection() {
   const [logsModalOpen, setLogsModalOpen] = useState(false);
   const [selectedCurrencyForLogs, setSelectedCurrencyForLogs] = useState(null);
   const { showSuccess, showError } = useToast();
+  const { refreshRates } = useCurrency();
 
   const fetchCurrencies = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await apiClient.get('/currencies');
       setCurrencies(response.data || []);
+      // Push the fresh rates into the app-wide CurrencyContext too, so every conversion
+      // preview (Add Balance, bills, …) uses what the admin just saved — not what the
+      // provider loaded at page start.
+      refreshRates?.();
     } catch {
       showError('Failed to load currencies');
     } finally {
       setIsLoading(false);
     }
-  }, [showError]);
+  }, [showError, refreshRates]);
 
   useEffect(() => {
     fetchCurrencies();
@@ -458,8 +502,9 @@ const CurrencyManagementSection = memo(function CurrencyManagementSection() {
 
   const handleEditRate = useCallback(async (code, rate) => {
     try {
-      await apiClient.put(`/currencies/${code}/rate`, { exchangeRate: rate });
-      showSuccess(`Rate updated for ${code}`);
+      const response = await apiClient.put(`/currencies/${code}/rate`, { exchangeRate: rate });
+      // Server explains that auto-update was switched off so the manual rate sticks.
+      showSuccess(response.data?.message || `Rate updated for ${code}`);
       fetchCurrencies();
     } catch (error) {
       showError(error.response?.data?.error || 'Failed to update rate');

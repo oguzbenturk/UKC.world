@@ -472,20 +472,32 @@ class CurrencyService {
   /**
    * Update exchange rate with full audit logging
    */
-  static async updateExchangeRateWithAudit(currencyCode, newRate, { source = 'manual', triggeredBy = 'api', userId = null, rawRate = null } = {}) {
+  static async updateExchangeRateWithAudit(currencyCode, newRate, { source = 'manual', triggeredBy = 'api', userId = null, rawRate = null, disableAutoUpdate = false } = {}) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       // Get current rate
       const { rows: currentRows } = await client.query(
-        'SELECT exchange_rate FROM currency_settings WHERE currency_code = $1',
+        'SELECT exchange_rate, base_currency FROM currency_settings WHERE currency_code = $1',
         [currencyCode]
       );
+      if (!currentRows.length) {
+        throw new Error(`Currency ${currencyCode} not found`);
+      }
+      // The base currency is the pivot of every conversion (amount / fromRate * toRate),
+      // so its rate must stay exactly 1. Anything else skews EVERY conversion in the app
+      // (prod incident 2026-09-05: EUR stored as 57.085 → 500 TRY previewed as €507).
+      if (currentRows[0].base_currency && new Decimal(newRate).toDecimalPlaces(4).toNumber() !== 1) {
+        const err = new Error(`${currencyCode} is the base currency; its rate is fixed at 1.0`);
+        err.statusCode = 400;
+        throw err;
+      }
       const oldRate = currentRows[0]?.exchange_rate || null;
       const rateChangePercent = oldRate ? ((newRate - oldRate) / oldRate * 100) : null;
 
-      // Update the rate (and raw_rate if provided)
+      // Update the rate (and raw_rate if provided). A manual override also switches
+      // auto-update off for this currency so the cron doesn't silently revert it.
       const { rows: updatedRows } = await client.query(
         `UPDATE currency_settings
          SET exchange_rate = $1,
@@ -493,10 +505,11 @@ class CurrencyService {
              last_updated_at = NOW(),
              last_update_status = 'success',
              last_update_source = $3,
+             auto_update_enabled = CASE WHEN $5::boolean THEN false ELSE auto_update_enabled END,
              updated_at = NOW()
          WHERE currency_code = $4
          RETURNING *`,
-        [newRate, rawRate, source, currencyCode]
+        [newRate, rawRate, source, currencyCode, disableAutoUpdate]
       );
 
       // Log the update
@@ -531,6 +544,54 @@ class CurrencyService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Admin typed a rate by hand in Settings → Currency.
+   *
+   * - Refuses the base currency (rate is fixed at 1.0 — see updateExchangeRateWithAudit).
+   * - The typed value is what customers must see, so it becomes `exchange_rate`; `raw_rate`
+   *   is back-derived (rate / (1 + margin)) so a later margin change starts from the manual
+   *   rate instead of jumping back to the last live fetch.
+   * - Auto-update is switched OFF for this currency, otherwise the cron would overwrite the
+   *   manual value within `update_frequency_hours`. Admin can re-enable it from the toggle.
+   * - Fully audited in currency_update_logs (source 'manual', triggered_by 'admin').
+   */
+  static async setManualExchangeRate(currencyCode, newRate, userId = null) {
+    const code = String(currencyCode || '').toUpperCase();
+    const rate = new Decimal(Number(newRate));
+    if (!rate.isFinite() || rate.lte(0)) {
+      const err = new Error('Exchange rate must be a positive number');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const { rows } = await pool.query(
+      'SELECT base_currency, rate_margin_percent FROM currency_settings WHERE currency_code = $1',
+      [code]
+    );
+    if (!rows.length) {
+      const err = new Error(`Currency ${code} not found`);
+      err.statusCode = 404;
+      throw err;
+    }
+    if (rows[0].base_currency) {
+      const err = new Error(`${code} is the base currency; its rate is always 1.0 and cannot be edited`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const margin = new Decimal(rows[0].rate_margin_percent || 0);
+    const finalRate = rate.toDecimalPlaces(4).toNumber();
+    const rawRate = rate.div(new Decimal(1).add(margin.div(100))).toDecimalPlaces(4).toNumber();
+
+    return await this.updateExchangeRateWithAudit(code, finalRate, {
+      source: RATE_SOURCES.MANUAL,
+      triggeredBy: 'admin',
+      userId,
+      rawRate,
+      disableAutoUpdate: true
+    });
   }
 
   /**
@@ -678,8 +739,19 @@ class CurrencyService {
    * Force refresh rate for a currency (admin action)
    */
   static async forceRefreshRate(currencyCode, userId = null) {
+    // The base currency is never fetched: its rate is 1.0 by definition.
+    const { rows: baseRows } = await pool.query(
+      'SELECT base_currency FROM currency_settings WHERE currency_code = $1',
+      [currencyCode]
+    );
+    if (baseRows[0]?.base_currency) {
+      const err = new Error(`${currencyCode} is the base currency; its rate is always 1.0 and is never fetched`);
+      err.statusCode = 400;
+      throw err;
+    }
+
     const { rate, source, error } = await this.fetchRateWithFallback(currencyCode);
-    
+
     if (rate) {
       // Get margin percentage and apply it
       const { rows } = await pool.query(
