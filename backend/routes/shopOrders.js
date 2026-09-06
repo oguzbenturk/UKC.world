@@ -1309,7 +1309,16 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
           'total_price', oi.total_price,
           'selected_size', oi.selected_size,
           'selected_color', oi.selected_color
-        )) FROM shop_order_items oi WHERE oi.order_id = o.id) as items
+        )) FROM shop_order_items oi WHERE oi.order_id = o.id) as items,
+        -- Customer-level settlement hint. The wallet is a running tab (lessons,
+        -- rentals, shop) and top-ups are never matched to items, so for an order
+        -- charged "on account" (payment_method = wallet) the only honest "is this
+        -- paid?" signal is the customer's current balance. EUR first, then any
+        -- other non-zero currency. NULL when the customer has no non-zero balance.
+        (SELECT json_agg(json_build_object('currency', wb.currency, 'amount', wb.available_amount)
+                         ORDER BY (wb.currency <> 'EUR'), wb.currency)
+           FROM wallet_balances wb
+          WHERE wb.user_id = o.user_id AND wb.available_amount <> 0) as customer_balances
       FROM shop_orders o
       LEFT JOIN users u ON o.user_id = u.id
       ${discountSumLateral('d', 'shop_order', 'o.id')}

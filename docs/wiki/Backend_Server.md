@@ -96,7 +96,7 @@ Her başarılı durum Socket.IO ile bildirir ve `${FRONTEND_URL}/payment/callbac
 
 ## Redis ve Socket.IO
 
-- **Redis:** `backend/services/cacheService.js` üzerinden; salt-okunur Redis'e toleranslı (cache başarısızsa app cache'siz devam eder). `backend/middlewares/cache.js` route-düzeyi cache yardımcıları sağlar.
+- **Redis:** `backend/services/cacheService.js` üzerinden; salt-okunur Redis'e toleranslı (cache başarısızsa app cache'siz devam eder). `backend/middlewares/cache.js` route-düzeyi cache yardımcıları sağlar (`cacheMiddleware(ttl)` anahtar: `api:GET:<originalUrl>`; `cacheInvalidationMiddleware(patterns)` 2xx sonrası `KEYS pattern` + `DEL`). **Açılışta `api:*` temizlenir** (`server.js › initializeCache`, 2026-09-05): prod Redis AOF ile kalıcı olduğu için deploy/restart cache'i sıfırlamıyordu; migration ile düzeltilen veri TTL dolana dek eski yanıtla maskeleniyordu ([[Payments_Currency]] — EUR=57.085 olayı). Bedeli her boot sonrası kısa bir soğuk cache.
 - **Socket.IO:** `backend/services/socketService.js`; `emitToChannel(channel, event, payload)` kalıbı (`user:<id>`, `general`). Mesaj temizliği `MessageCleanupService` (5 gün) ile yapılır. Detay için [[Notifications_System]].
 
 ## Cron İşleri ve Zamanlayıcılar

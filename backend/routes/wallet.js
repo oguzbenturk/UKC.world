@@ -5,6 +5,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from '../utils/auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { logPaymentEvent, sendPaymentAlert } from '../services/alertService.js'; // Phase 3: Monitoring
 import { dispatchToStaff } from '../services/notificationDispatcherUnified.js';
 import {
@@ -719,6 +720,8 @@ router.get(
 
 router.post(
   '/admin/deposits/:id/approve',
+  // Admin shop-orders rows carry the customer's wallet balance (settlement hint).
+  cacheInvalidationMiddleware(['api:shop:orders:*']),
   authenticateJWT,
   authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
   async (req, res) => {
@@ -844,6 +847,8 @@ router.post(
   '/manual-adjust',
   authenticateJWT,
   authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
+  // Admin shop-orders rows carry the customer's wallet balance (settlement hint).
+  cacheInvalidationMiddleware(['api:shop:orders:*']),
   async (req, res) => {
     try {
       const { userId, amount, currency, transactionType, description, metadata, allowNegative } = req.body;

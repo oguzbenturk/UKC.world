@@ -6,7 +6,7 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { getInstructorEarningsData, getInstructorPayrollHistory, getAllInstructorBalances, getLessonFinanceBreakdown } from '../services/instructorFinanceService.js';
 import { resolveActorId } from '../utils/auditUtils.js';
-import { cacheMiddleware } from '../middlewares/cache.js';
+import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import {
   getWalletAccountSummary,
   recordTransaction as recordWalletTransaction,
@@ -970,7 +970,9 @@ router.get('/transactions', authenticateJWT, authorizeTransactionAccess, async (
  * POST /api/finances/transactions
  * Create a new transaction
  */
-router.post('/transactions', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+// Busts the admin shop-orders list cache: its rows carry the customer's wallet
+// balance ("Owes €X" / "Settled" on on-account orders), which this route moves.
+router.post('/transactions', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheInvalidationMiddleware(['api:shop:orders:*']), async (req, res) => {
   try {
     const {
       user_id,
@@ -1194,6 +1196,11 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
     }
 
     const cascadeResults = { packages: [], rentals: [] };
+    // Currencies of the ledger rows the package cascade cancelled (the deleted
+    // package's remaining purchase / price-adjustment charges). Merged into the
+    // footprint recompute below so wallet_balances is re-derived for them even
+    // when the row being deleted here carries a zero delta.
+    const cascadeCurrencies = new Set();
 
     if (cascadePackages.length > 0) {
       for (const packageEntry of cascadePackages) {
@@ -1219,8 +1226,14 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
           issueRefund: false,
           expectedCustomerId: transaction.user_id,
           includeWalletSummary: false,
-          usageSettlement
+          usageSettlement,
+          // The package's charge is being deleted, so the package must leave
+          // no money behind: cancel its remaining purchase / price-adjustment
+          // rows too. Without this a tier-upgrade delta outlived its deleted
+          // package as a hidden live debit (2026-09-06, Mercan KS23).
+          cancelLinkedCharges: true
         });
+        (result.cleanup?.linkedChargeCurrencies || []).forEach((c) => cascadeCurrencies.add(c));
         cascadeResults.packages.push({
           ...result,
           packageId,
@@ -1296,7 +1309,7 @@ router.delete('/transactions/:id', authenticateJWT, authorizeRoles(['admin', 'ma
       txMetadata.bookingId,
       ...(Array.isArray(txMetadata.bookingIds) ? txMetadata.bookingIds : [])
     ].filter((v) => v && isUuid(v)).map(String))];
-    const footprintCurrencies = new Set();
+    const footprintCurrencies = new Set(cascadeCurrencies);
     if (linkedBookingIds.length > 0) {
       const { rows: liveBookings } = await client.query(
         `SELECT id FROM bookings WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,

@@ -101,7 +101,11 @@ export async function forceDeleteCustomerPackage({
   forceFullRefund = false,
   expectedCustomerId = null,
   includeWalletSummary = true,
-  usageSettlement = null
+  usageSettlement = null,
+  // Cascade mode: the caller is deleting the package's charge, so cancel the
+  // package's remaining purchase / price-adjustment ledger rows as well. Must
+  // stay false in the refund path — see the block below for why.
+  cancelLinkedCharges = false
 }) {
   if (!client) {
     throw new Error('Database client is required to delete customer package');
@@ -158,6 +162,8 @@ export async function forceDeleteCustomerPackage({
     participantReferencesCleared: 0,
     bookingReferencesCleared: 0,
     accommodationBookingsCancelled: 0,
+    linkedChargesCancelled: 0,
+    linkedChargeCurrencies: [],
   };
 
   // Look up the service hourly rate BEFORE clearing references (needed for refund calculation)
@@ -201,6 +207,65 @@ export async function forceDeleteCustomerPackage({
   );
   for (const d of pkgDiscounts) {
     await deleteDiscount(client, d.id, { createdBy: actorId });
+  }
+
+  // Cascade mode (Finances → "delete transaction" → force-delete the linked
+  // package): the caller is cancelling the package's charge and expects the
+  // package to leave NO money behind. Two kinds of row used to survive that:
+  //   • `package_price_adjustment` — the ±delta of every price edit / tier
+  //     upgrade (updateCustomerPackagePrice / upgradeCustomerPackage), and
+  //   • `package_purchase` itself, when the row being deleted was one of those
+  //     adjustments rather than the purchase.
+  // Neither was cancelled here, so the delta stayed a live debit/credit tagged
+  // to a package that no longer exists — and Financial History hides
+  // package-orphaned rows (excludeOrphanedRelatedEntities), so the wallet was
+  // wrong with nothing visible on screen to explain it (2026-09-06, Mercan
+  // KS23: a −280 EUR upgrade charge outlived its deleted package; balance
+  // −279.49 instead of +0.51). Cancel-only, no reversal row (wiki
+  // Finances_Wallet: cancel + reversal = double undo).
+  //
+  // NOT in the refund path (services.js DELETE /customer-packages/:id): the
+  // `package_refund` credit below is computed from the CURRENT purchase_price,
+  // which already includes every edit delta, so those adjustment rows must
+  // stay completed to net against it — cancelling them there would refund an
+  // upgrade twice. Rows the bug already left behind:
+  // backend/scripts/repair-orphaned-package-price-adjustments.mjs
+  if (cancelLinkedCharges) {
+    const { rows: cancelledCharges } = await client.query(
+      `UPDATE wallet_transactions
+          SET status = 'cancelled',
+              metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
+              updated_at = NOW()
+        WHERE user_id = $2
+          AND related_entity_type = $3
+          AND related_entity_id = $4
+          AND status = 'completed'
+          AND transaction_type = ANY($5::text[])
+    RETURNING id, transaction_type, amount, currency`,
+      [
+        JSON.stringify({
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: actorId,
+          cancellationOrigin: 'customer_package_force_delete_linked_charge',
+          cancelledWithPackageId: packageId
+        }),
+        customerPackage.customer_id,
+        WALLET_ENTITY_TYPE.CUSTOMER_PACKAGE,
+        packageId,
+        [TRANSACTION_TYPE.PACKAGE_PURCHASE, TRANSACTION_TYPE.PACKAGE_PRICE_ADJUSTMENT]
+      ]
+    );
+    cleanup.linkedChargesCancelled = cancelledCharges.length;
+    cleanup.linkedChargeCurrencies = [...new Set(cancelledCharges.map((r) => r.currency).filter(Boolean))];
+    if (cancelledCharges.length > 0) {
+      logger.info('Cancelled package charges left behind by package force-delete', {
+        packageId,
+        customerId: customerPackage.customer_id,
+        cancelled: cancelledCharges.map((r) => ({
+          id: r.id, type: r.transaction_type, amount: r.amount, currency: r.currency
+        }))
+      });
+    }
   }
 
   const { rows: participantUpdates } = await client.query(

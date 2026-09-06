@@ -4,10 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  Card, Tag, Button, Space, Typography, Tabs,
-  Badge, Dropdown, Modal, Input, Select, DatePicker,
-  Statistic, Row, Col, Avatar, Alert,
-  Empty
+  Tag, Button, Dropdown, Modal, Input, Select, DatePicker, Avatar
 } from 'antd';
 import { message } from '@/shared/utils/antdStatic';
 import {
@@ -23,12 +20,7 @@ import {
   UserOutlined,
   WarningOutlined,
   ReloadOutlined,
-  DollarOutlined,
   InboxOutlined,
-  BankOutlined,
-  CreditCardOutlined,
-  WalletOutlined,
-  SafetyCertificateOutlined,
   FileImageOutlined,
   HistoryOutlined,
   EditOutlined,
@@ -36,73 +28,73 @@ import {
   DeleteOutlined
 } from '@ant-design/icons';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
-import { UnifiedResponsiveTable } from '@/components/ui/ResponsiveTableV2';
+import ResponsiveTable from '@/components/ui/ResponsiveTableV2';
 import apiClient from '@/shared/services/apiClient';
 import { realTimeService } from '@/shared/services/realTimeService';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { getSubcategories } from '@/shared/constants/productCategories';
 import { useProductCategories } from '@/shared/hooks/useProductCategories';
+import {
+  StatusPill,
+  PaymentPill,
+  PaymentCell,
+  OrderThumb,
+  OrdersHeader,
+  StatusTabs,
+  OrdersEmpty,
+  LowStockStrip,
+  OrderMobileCard,
+} from '../components/orders/OrderManagementUi';
+import {
+  STATUS_META,
+  getPaymentMethodInfo,
+  formatOrderDate,
+  summarizeOrderItems,
+  customerDisplay,
+} from '../components/orders/orderPresentation';
 
-const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-const OrderMobileCard = ({ record, onAction }) => (
-    <Card size="small" className="mb-2">
-      <div className="flex justify-between items-start mb-2">
-         <Space>
-           <Avatar icon={<UserOutlined />} size="small" /> 
-           <div>
-              <div className="font-medium">{record.order_number}</div>
-              <div className="text-xs text-gray-500">{record.first_name} {record.last_name}</div>
-           </div>
-         </Space>
-         <Tag color={statusConfig[record.status]?.color || 'default'}>
-            {statusConfig[record.status]?.label || record.status}
-         </Tag>
-      </div>
-      <div className="flex justify-between items-center mt-3">
-         <div>
-            <div className="text-xs text-gray-500">{new Date(record.created_at).toLocaleDateString()}</div>
-             <Tag className="mt-1" color={record.payment_status === 'completed' ? 'green' : 'gold'}>
-                {record.payment_status}
-             </Tag>
-         </div>
-         <div className="text-right">
-             <div className="text-lg font-semibold text-blue-600">
-                €{Number(record.total_amount).toFixed(2)}
-             </div>
-             <Button size="small" type="link" onClick={() => onAction('view', record)}>
-                View Details
-             </Button>
-         </div>
-      </div>
-    </Card>
-);
-
+// antd-flavoured status config (colour names + icons) still used by the detail
+// modal's history tags and the row action menu. Labels come from STATUS_META.
 const statusConfig = {
-  pending: { color: 'gold', icon: <ClockCircleOutlined />, label: 'Pending' },
-  confirmed: { color: 'blue', icon: <CheckCircleOutlined />, label: 'Confirmed' },
-  processing: { color: 'cyan', icon: <InboxOutlined />, label: 'Processing' },
-  shipped: { color: 'purple', icon: <CarOutlined />, label: 'Shipped' },
-  delivered: { color: 'green', icon: <CheckCircleOutlined />, label: 'Delivered' },
-  cancelled: { color: 'default', icon: <CloseCircleOutlined />, label: 'Cancelled' },
-  refunded: { color: 'red', icon: <CloseCircleOutlined />, label: 'Refunded' }
+  pending: { color: 'gold', icon: <ClockCircleOutlined />, label: STATUS_META.pending.label },
+  confirmed: { color: 'blue', icon: <CheckCircleOutlined />, label: STATUS_META.confirmed.label },
+  processing: { color: 'cyan', icon: <InboxOutlined />, label: STATUS_META.processing.label },
+  shipped: { color: 'purple', icon: <CarOutlined />, label: STATUS_META.shipped.label },
+  delivered: { color: 'green', icon: <CheckCircleOutlined />, label: STATUS_META.delivered.label },
+  cancelled: { color: 'default', icon: <CloseCircleOutlined />, label: STATUS_META.cancelled.label },
+  refunded: { color: 'red', icon: <CloseCircleOutlined />, label: STATUS_META.refunded.label }
 };
-
-const paymentMethodConfig = {
-  wallet: { icon: <WalletOutlined />, label: 'Wallet', color: '#16a34a' },
-  credit_card: { icon: <CreditCardOutlined />, label: 'Credit Card', color: '#0ea5e9' },
-  bank_transfer: { icon: <BankOutlined />, label: 'Bank Transfer', color: '#6366f1' },
-  deposit: { icon: <SafetyCertificateOutlined />, label: 'Deposit', color: '#d97706' },
-  wallet_hybrid: { icon: <WalletOutlined />, label: 'Wallet + Card', color: '#0d9488' },
-  cash: { icon: <DollarOutlined />, label: 'Cash', color: '#78716c' },
-};
-
-const getPaymentMethodInfo = (method) =>
-  paymentMethodConfig[method] || { icon: <DollarOutlined />, label: method?.replace(/_/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown', color: '#94a3b8' };
 
 const statusFlow = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+// Table skin (same recipe as the Instructors page): quiet uppercase header,
+// soft row dividers, hover tint, and padded mobile-card list.
+const TABLE_CLASS = [
+  '[&_.ant-table]:!bg-transparent',
+  '[&_.ant-table-thead>tr>th]:!bg-slate-50/80',
+  '[&_.ant-table-thead>tr>th]:!border-b-slate-200/60',
+  '[&_.ant-table-thead>tr>th]:!px-4',
+  '[&_.ant-table-thead>tr>th]:!py-2.5',
+  '[&_.ant-table-thead>tr>th]:!text-[10px]',
+  '[&_.ant-table-thead>tr>th]:!font-bold',
+  '[&_.ant-table-thead>tr>th]:!uppercase',
+  '[&_.ant-table-thead>tr>th]:!tracking-widest',
+  '[&_.ant-table-thead>tr>th]:!text-slate-400',
+  '[&_.ant-table-thead>tr>th::before]:!hidden',
+  '[&_.ant-table-tbody>tr>td]:!border-b-slate-100',
+  '[&_.ant-table-tbody>tr>td]:!px-4',
+  '[&_.ant-table-tbody>tr>td]:!py-2.5',
+  '[&_.ant-table-tbody>tr:hover>td]:!bg-sky-50/40',
+  '[&_.ant-table-tbody>tr:last-child>td]:!border-b-0',
+  '[&_.ant-table-placeholder>td]:!py-0',
+  '[&_.ant-pagination]:!my-3',
+  '[&_.ant-pagination]:!px-4',
+  '[&_.responsive-table-container>.space-y-3]:p-3',
+  '[&_.responsive-table-container>.space-y-3]:bg-slate-50/60',
+].join(' ');
 
 const OrderManagement = ({ embedded = false }) => {
   const { formatCurrency } = useCurrency();
@@ -132,6 +124,9 @@ const OrderManagement = ({ embedded = false }) => {
   const [statusForm, setStatusForm] = useState({ status: '', notes: '' });
   const [updating, setUpdating] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
+  // ResponsiveTable hands us its "View: Auto/Table/Cards" control so it can sit in the filter bar.
+  const [viewToggle, setViewToggle] = useState(null);
+  const [dateRange, setDateRange] = useState(null);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -276,272 +271,240 @@ const OrderManagement = ({ embedded = false }) => {
   const columns = [
     {
       title: 'Order',
-      dataIndex: 'order_number',
-      key: 'order_number',
-      width: 130,
-      render: (text, record) => (
-        <div>
-          <Text strong style={{ fontSize: 13 }}>{text}</Text>
-          <div style={{ fontSize: 11, color: '#999' }}>
-            {new Date(record.created_at).toLocaleDateString()}
+      key: 'order',
+      width: 260,
+      render: (_, record) => {
+        // The list endpoint already ships the order's line items, so the row can
+        // lead with what was bought (thumbnail + product name) and demote the
+        // order number to a secondary line.
+        const { primaryName, extraCount, thumbnail } = summarizeOrderItems(record);
+        return (
+          <div className="flex items-center gap-3">
+            <OrderThumb src={thumbnail} name={primaryName} />
+            <div className="min-w-0">
+              <p className="m-0 truncate text-[13px] font-semibold leading-tight text-slate-900">
+                {primaryName}
+                {extraCount > 0 && (
+                  <span className="ml-1 font-normal text-slate-400">+{extraCount} more</span>
+                )}
+              </p>
+              <p className="m-0 mt-0.5 text-[11px] leading-tight text-slate-400">
+                <span className="font-medium tabular-nums text-slate-500">{record.order_number}</span>
+                {' · '}
+                {formatOrderDate(record.created_at)}
+              </p>
+            </div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       title: 'Customer',
       key: 'customer',
-      width: 120,
-      ellipsis: true,
-      render: (_, record) => (
-        <Text style={{ fontSize: 13 }}>
-          {record.first_name} {record.last_name?.[0] ? record.last_name[0] + '.' : ''}
-        </Text>
-      )
-    },
-    {
-      title: 'Items',
-      dataIndex: 'item_count',
-      key: 'items',
-      align: 'center',
-      width: 60,
-      render: (count) => <Tag>{count}</Tag>
+      width: 180,
+      render: (_, record) => {
+        const { name, phone } = customerDisplay(record);
+        return (
+          <div className="min-w-0">
+            <p className="m-0 truncate text-[13px] font-medium leading-tight text-slate-800">{name}</p>
+            <p className="m-0 mt-0.5 text-[11px] leading-tight tabular-nums text-slate-400">{phone}</p>
+          </div>
+        );
+      }
     },
     {
       title: 'Total',
       dataIndex: 'total_amount',
       key: 'total',
-      width: 90,
+      align: 'right',
+      width: 110,
       render: (amount, record) => (
-        <Text strong style={{ color: '#1890ff', fontSize: 13 }}>
+        <span className="text-[13px] font-bold tabular-nums text-slate-900">
           {formatCurrency(amount, record.currency || 'EUR')}
-        </Text>
+        </span>
       )
     },
     {
       title: 'Payment',
-      dataIndex: 'payment_status',
-      key: 'payment_status',
-      width: 90,
-      render: (status) => (
-        <Tag color={status === 'completed' ? 'green' : status === 'pending' ? 'gold' : 'red'} style={{ fontSize: 11 }}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Tag>
-      )
+      key: 'payment',
+      width: 150,
+      render: (_, record) => <PaymentCell order={record} formatCurrency={formatCurrency} />
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
-      render: (status) => {
-        const config = statusConfig[status] || { color: 'default', label: status };
-        return <Tag color={config.color} style={{ fontSize: 11 }}>{config.label}</Tag>;
-      }
+      width: 120,
+      render: (status) => <StatusPill status={status} />
     },
     {
       title: '',
       key: 'actions',
       align: 'center',
-      width: 40,
+      width: 48,
       render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              { key: 'view', label: 'View Details', icon: <EyeOutlined /> },
-              { type: 'divider' },
-              { key: 'confirm', label: 'Mark Confirmed', icon: <CheckCircleOutlined />, disabled: record.status !== 'pending' },
-              { key: 'processing', label: 'Mark Processing', icon: <InboxOutlined />, disabled: !['pending', 'confirmed'].includes(record.status) },
-              { key: 'shipped', label: 'Mark Shipped', icon: <CarOutlined />, disabled: !['confirmed', 'processing'].includes(record.status) },
-              { key: 'delivered', label: 'Mark Delivered', icon: <CheckCircleOutlined />, disabled: record.status !== 'shipped' },
-              { type: 'divider' },
-              { key: 'cancel', label: 'Cancel Order', icon: <CloseCircleOutlined />, danger: true, disabled: ['delivered', 'cancelled', 'refunded'].includes(record.status) },
-              { key: 'delete', label: 'Delete Order', icon: <DeleteOutlined />, danger: true }
-            ],
-            onClick: async ({ key, domEvent }) => {
-              domEvent?.stopPropagation?.();
-              if (key === 'view') {
-                handleViewOrder(record);
-              } else if (key === 'cancel') {
-                Modal.confirm({
-                  title: 'Cancel Order?',
-                  icon: <ExclamationCircleOutlined />,
-                  content: 'This will restore stock and refund the customer if payment was made. Continue?',
-                  onOk: async () => {
-                    try {
-                      await apiClient.patch(`/shop-orders/${record.id}/status`, { status: 'cancelled', admin_notes: 'Cancelled by admin' });
-                      message.success('Order cancelled');
-                      fetchOrders();
-                      fetchLowStock();
-                    } catch (err) {
-                      message.error(err.response?.data?.error || 'Failed to cancel order');
+        // Keep the menu click from reaching the row, which would also open the details modal.
+        <div onClick={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'view', label: 'View Details', icon: <EyeOutlined /> },
+                { type: 'divider' },
+                { key: 'confirm', label: 'Mark Confirmed', icon: <CheckCircleOutlined />, disabled: record.status !== 'pending' },
+                { key: 'processing', label: 'Mark Processing', icon: <InboxOutlined />, disabled: !['pending', 'confirmed'].includes(record.status) },
+                { key: 'shipped', label: 'Mark Shipped', icon: <CarOutlined />, disabled: !['confirmed', 'processing'].includes(record.status) },
+                { key: 'delivered', label: 'Mark Delivered', icon: <CheckCircleOutlined />, disabled: record.status !== 'shipped' },
+                { type: 'divider' },
+                { key: 'cancel', label: 'Cancel Order', icon: <CloseCircleOutlined />, danger: true, disabled: ['delivered', 'cancelled', 'refunded'].includes(record.status) },
+                { key: 'delete', label: 'Delete Order', icon: <DeleteOutlined />, danger: true }
+              ],
+              onClick: async ({ key, domEvent }) => {
+                domEvent?.stopPropagation?.();
+                if (key === 'view') {
+                  handleViewOrder(record);
+                } else if (key === 'cancel') {
+                  Modal.confirm({
+                    title: 'Cancel Order?',
+                    icon: <ExclamationCircleOutlined />,
+                    content: 'This will restore stock and refund the customer if payment was made. Continue?',
+                    onOk: async () => {
+                      try {
+                        await apiClient.patch(`/shop-orders/${record.id}/status`, { status: 'cancelled', admin_notes: 'Cancelled by admin' });
+                        message.success('Order cancelled');
+                        fetchOrders();
+                        fetchLowStock();
+                      } catch (err) {
+                        message.error(err.response?.data?.error || 'Failed to cancel order');
+                      }
                     }
-                  }
-                });
-              } else if (key === 'delete') {
-                const stockWillRestore = !['cancelled', 'refunded'].includes(record.status);
-                Modal.confirm({
-                  title: `Delete order ${record.order_number}?`,
-                  icon: <ExclamationCircleOutlined />,
-                  okText: 'Delete',
-                  okButtonProps: { danger: true },
-                  content: stockWillRestore
-                    ? 'This permanently removes the order and its items, status history, and messages. Stock will be restored. This cannot be undone.'
-                    : 'This permanently removes the order and its items, status history, and messages. This cannot be undone.',
-                  onOk: async () => {
-                    try {
-                      await apiClient.delete(`/shop-orders/${record.id}`);
-                      message.success('Order deleted');
-                      fetchOrders();
-                      fetchLowStock();
-                    } catch (err) {
-                      message.error(err.response?.data?.error || 'Failed to delete order');
+                  });
+                } else if (key === 'delete') {
+                  const stockWillRestore = !['cancelled', 'refunded'].includes(record.status);
+                  Modal.confirm({
+                    title: `Delete order ${record.order_number}?`,
+                    icon: <ExclamationCircleOutlined />,
+                    okText: 'Delete',
+                    okButtonProps: { danger: true },
+                    content: stockWillRestore
+                      ? 'This permanently removes the order and its items, status history, and messages. Stock will be restored. This cannot be undone.'
+                      : 'This permanently removes the order and its items, status history, and messages. This cannot be undone.',
+                    onOk: async () => {
+                      try {
+                        await apiClient.delete(`/shop-orders/${record.id}`);
+                        message.success('Order deleted');
+                        fetchOrders();
+                        fetchLowStock();
+                      } catch (err) {
+                        message.error(err.response?.data?.error || 'Failed to delete order');
+                      }
                     }
+                  });
+                } else {
+                  try {
+                    await apiClient.patch(`/shop-orders/${record.id}/status`, { status: key });
+                    message.success(`Order marked as ${statusConfig[key]?.label || key}`);
+                    fetchOrders();
+                  } catch (err) {
+                    message.error(err.response?.data?.error || 'Failed to update status');
                   }
-                });
-              } else {
-                try {
-                  await apiClient.patch(`/shop-orders/${record.id}/status`, { status: key });
-                  message.success(`Order marked as ${statusConfig[key]?.label || key}`);
-                  fetchOrders();
-                } catch (err) {
-                  message.error(err.response?.data?.error || 'Failed to update status');
                 }
               }
-            }
-          }}
-          trigger={['click']}
-        >
-          <Button type="text" icon={<MoreOutlined />} />
-        </Dropdown>
+            }}
+            trigger={['click']}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<MoreOutlined />}
+              aria-label="Order actions"
+              className="!text-slate-400 hover:!bg-slate-100 hover:!text-slate-800"
+            />
+          </Dropdown>
+        </div>
       )
     }
   ];
 
-  const tabItems = [
-    { key: 'all', label: <span>All Orders <Badge count={stats?.total_orders || 0} showZero style={{ marginLeft: 8 }} /></span> },
-    { key: 'pending', label: <span>Pending <Badge count={stats?.pending_count || 0} showZero style={{ marginLeft: 8, backgroundColor: '#faad14' }} /></span> },
-    { key: 'confirmed', label: <span>Confirmed <Badge count={stats?.confirmed_count || 0} showZero style={{ marginLeft: 8, backgroundColor: '#1890ff' }} /></span> },
-    { key: 'processing', label: <span>Processing <Badge count={stats?.processing_count || 0} showZero style={{ marginLeft: 8, backgroundColor: '#13c2c2' }} /></span> },
-    { key: 'shipped', label: <span>Shipped <Badge count={stats?.shipped_count || 0} showZero style={{ marginLeft: 8, backgroundColor: '#722ed1' }} /></span> },
-    { key: 'delivered', label: <span>Delivered <Badge count={stats?.delivered_count || 0} showZero style={{ marginLeft: 8, backgroundColor: '#52c41a' }} /></span> }
-  ];
+  const filtersActive = Boolean(
+    searchInput ||
+    filters.category !== 'all' ||
+    filters.payment_status !== 'all' ||
+    filters.date_from ||
+    filters.date_to
+  );
+
+  const setStatus = (key) => {
+    setFilters((f) => ({ ...f, status: key }));
+    setPagination((p) => ({ ...p, current: 1 }));
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setDateRange(null);
+    setFilters((f) => ({
+      ...f,
+      category: 'all',
+      subcategory: 'all',
+      payment_status: 'all',
+      search: '',
+      date_from: null,
+      date_to: null,
+    }));
+    setPagination((p) => ({ ...p, current: 1 }));
+  };
+
+  const refreshAll = () => {
+    fetchOrders();
+    fetchLowStock();
+  };
 
   return (
-    <div style={{ padding: embedded ? 0 : 24 }}>
-      {/* Header */}
-      {!embedded ? (
-        <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Title level={3} style={{ margin: 0 }}>
-              <ShoppingCartOutlined style={{ marginRight: 12 }} />
-              Order Management
-            </Title>
-            <Text type="secondary">Manage shop orders, track status, and handle fulfillment</Text>
-          </div>
-          <Button icon={<ReloadOutlined />} onClick={fetchOrders}>
-            Refresh
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-end mb-3">
-          <Button icon={<ReloadOutlined />} size="small" onClick={fetchOrders}>Refresh</Button>
-        </div>
-      )}
-
-      {/* Stats Row */}
+    <div className={embedded ? 'p-4' : 'mx-auto max-w-[1400px] p-4 sm:p-6'}>
       {!embedded && (
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Total Revenue"
-              value={stats?.total_revenue || 0}
-              prefix={<DollarOutlined />}
-              formatter={(val) => formatCurrency(val, 'EUR')}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Pending Orders"
-              value={stats?.pending_count || 0}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="Low Stock Items"
-              value={lowStockProducts.length}
-              prefix={<WarningOutlined />}
-              valueStyle={{ color: lowStockProducts.length > 0 ? '#ff4d4f' : '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+        <OrdersHeader
+          stats={stats}
+          revenueLabel={formatCurrency(stats?.total_revenue || 0, 'EUR')}
+          lowStockCount={lowStockProducts.length}
+          activeStatus={filters.status}
+          onStatus={setStatus}
+          onRefresh={refreshAll}
+          loading={loading}
+        />
       )}
 
-      {/* Low Stock Alert */}
-      {!embedded && lowStockProducts.length > 0 && (
-        <div className="mb-4 sm:mb-6">
-          <Alert
-            message={<span className="text-sm sm:text-base font-medium">Low Stock Warning</span>}
-            description={
-              <div className="mt-2">
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {lowStockProducts.slice(0, 5).map(p => (
-                    <Tag 
-                      key={p.id} 
-                      color="red" 
-                      className="!text-xs !py-0.5 !px-2 !mb-0"
-                      style={{ fontSize: '11px', lineHeight: '18px' }}
-                    >
-                      <span className="truncate inline-block max-w-[200px] sm:max-w-none">
-                        {p.name}: {p.stock_quantity} left
-                      </span>
-                    </Tag>
-                  ))}
-                  {lowStockProducts.length > 5 && (
-                    <Tag 
-                      className="!text-xs !py-0.5 !px-2"
-                      style={{ fontSize: '11px', lineHeight: '18px' }}
-                    >
-                      +{lowStockProducts.length - 5} more
-                    </Tag>
-                  )}
-                </div>
-              </div>
-            }
-            type="warning"
-            showIcon
-            icon={<WarningOutlined className="!text-base sm:!text-lg" />}
-            className="!p-3 sm:!p-4"
-          />
+      {!embedded && <LowStockStrip products={lowStockProducts} />}
+
+      {/* Orders card */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm">
+        {/* Status rail */}
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <StatusTabs value={filters.status} stats={stats} onChange={setStatus} />
+          {embedded && (
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={refreshAll}
+              className="!text-slate-500 hover:!text-slate-800"
+            >
+              Refresh
+            </Button>
+          )}
         </div>
-      )}
 
-      {/* Main Card */}
-      <Card>
         {/* Filters */}
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2.5">
           <Input
-            placeholder="Search order #, customer..."
+            placeholder="Search order #, customer, email…"
             prefix={<SearchOutlined className="text-slate-400" />}
-            className="w-56"
-            size="small"
+            className="w-full !rounded-lg sm:w-64"
             allowClear
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
           <Select
             placeholder="Product Type"
-            className="w-40"
-            size="small"
+            className="w-44"
             showSearch
             optionFilterProp="label"
             value={filters.category}
@@ -557,8 +520,7 @@ const OrderManagement = ({ embedded = false }) => {
           {subcategoryOptions.length > 0 && (
             <Select
               placeholder="Type"
-              className="w-40"
-              size="small"
+              className="w-44"
               showSearch
               optionFilterProp="label"
               value={filters.subcategory}
@@ -575,7 +537,6 @@ const OrderManagement = ({ embedded = false }) => {
           <Select
             placeholder="Payment Status"
             className="w-36"
-            size="small"
             value={filters.payment_status}
             onChange={(value) => {
               setFilters(f => ({ ...f, payment_status: value }));
@@ -590,8 +551,10 @@ const OrderManagement = ({ embedded = false }) => {
             ]}
           />
           <RangePicker
-            size="small"
+            value={dateRange}
+            className="!rounded-lg"
             onChange={(dates) => {
+              setDateRange(dates);
               setFilters(f => ({
                 ...f,
                 date_from: dates?.[0]?.format('YYYY-MM-DD') || null,
@@ -600,48 +563,47 @@ const OrderManagement = ({ embedded = false }) => {
               setPagination(p => ({ ...p, current: 1 }));
             }}
           />
+          {filtersActive && (
+            <Button type="text" size="small" onClick={clearFilters} className="!text-slate-500 hover:!text-slate-800">
+              Clear
+            </Button>
+          )}
+          <div className="ml-auto">{viewToggle}</div>
         </div>
 
-        {/* Tabs */}
-        <Tabs
-          activeKey={filters.status}
-          onChange={(key) => {
-            setFilters(f => ({ ...f, status: key }));
-            setPagination(p => ({ ...p, current: 1 }));
-          }}
-          items={tabItems}
-          tabBarStyle={{ overflowX: 'auto' }}
-        />
-
-        {/* Orders Table */}
-        <UnifiedResponsiveTable
-          columns={columns}
-          dataSource={orders}
-          rowKey="id"
-          loading={loading}
-          size="small"
-          onRow={(record) => ({
-            onClick: () => handleViewOrder(record),
-            style: { cursor: 'pointer' },
-          })}
-          pagination={{
-            ...pagination,
-            onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize }),
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} orders`
-          }}
-          locale={{
-            emptyText: <Empty description="No orders found" />
-          }}
-          mobileCardRenderer={(props) => (
-             <OrderMobileCard 
-                {...props} 
-                onAction={(action, record) => handleViewOrder(record)} 
-             />
-          )}
-
-        />
-      </Card>
+        {/* Orders table / cards */}
+        <div className={TABLE_CLASS}>
+          <ResponsiveTable
+            columns={columns}
+            dataSource={orders}
+            rowKey="id"
+            loading={loading}
+            size="small"
+            hideViewToggle
+            onViewToggleReady={setViewToggle}
+            onRow={(record) => ({
+              onClick: () => handleViewOrder(record),
+              style: { cursor: 'pointer' },
+            })}
+            pagination={{
+              ...pagination,
+              onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize }),
+              showSizeChanger: true,
+              showTotal: (total) => `${total.toLocaleString()} orders`
+            }}
+            locale={{
+              emptyText: <OrdersEmpty filtered={filtersActive || filters.status !== 'all'} />
+            }}
+            mobileCardRenderer={(props) => (
+              <OrderMobileCard
+                {...props}
+                formatCurrency={formatCurrency}
+                onAction={(action, record) => handleViewOrder(record)}
+              />
+            )}
+          />
+        </div>
+      </div>
 
       {/* Order Detail Modal */}
       <Modal
@@ -743,18 +705,13 @@ const OrderManagement = ({ embedded = false }) => {
                 <div className="rounded-xl border border-slate-100 bg-white p-3.5">
                   <div className="flex items-center gap-2 mb-2.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${pmInfo.color}14` }}>
-                      <span className="text-[11px]" style={{ color: pmInfo.color }}>{pmInfo.icon}</span>
+                      <span className="text-[11px]" style={{ color: pmInfo.color }}><pmInfo.Icon /></span>
                     </div>
                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Payment</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[13px] font-semibold text-slate-900">{pmInfo.label}</span>
-                    <Tag
-                      color={selectedOrder.payment_status === 'completed' ? 'green' : selectedOrder.payment_status === 'pending' ? 'gold' : 'red'}
-                      className="!text-[10px] !rounded-full !border-0 !m-0 !px-2 !py-0 !leading-[18px]"
-                    >
-                      {selectedOrder.payment_status?.charAt(0).toUpperCase() + selectedOrder.payment_status?.slice(1)}
-                    </Tag>
+                    <PaymentPill order={selectedOrder} />
                   </div>
                   {selectedOrder.deposit_amount > 0 && (
                     <p className="text-[11px] text-amber-600 mt-1 font-medium">

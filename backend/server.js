@@ -198,6 +198,14 @@ const initializeCache = async () => {
     
     if (testResult) {
   logger.info('✅ Redis Cache Service initialized successfully (read/write)');
+      // Drop every cached API response left over from the previous process. Redis runs
+      // with AOF persistence and survives a deploy, so without this a migration that
+      // changes data (e.g. 290_fix_base_currency_rate) keeps being masked by the old
+      // payload until its TTL runs out — prod 2026-09-05: /api/currencies/active served
+      // EUR = 57.085 for ~40 min after the DB already said 1.0. The cache is only a
+      // warm-up, so a cold start after each boot is the cheaper failure mode.
+      await cacheService.del('api:*');
+  logger.info('🧹 Cleared cached API responses from the previous process (api:*)');
     } else {
   logger.info('✅ Redis Cache Service initialized (read-only mode)');
     }
