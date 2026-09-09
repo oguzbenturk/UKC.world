@@ -696,6 +696,7 @@
       "completedSuccessfully": "Terminé avec succès",
       "noShow": "Absent",
       "actualDuration": "Durée réelle (heures)",
+      "checkoutDurationChangeWarning": "Réservé {{booked}} h, check-out à {{actual}} h. Le cours sera recalculé au même tarif horaire et la différence ajustée sur le solde du client.",
       "completionNotes": "Notes de complétion",
       "completionNotesPlaceholder": "Ajouter des notes sur la complétion...",
       "completingLabel": "Complétion...",

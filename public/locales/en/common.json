@@ -695,6 +695,7 @@
       "completedSuccessfully": "Completed Successfully",
       "noShow": "No Show",
       "actualDuration": "Actual Duration (hours)",
+      "checkoutDurationChangeWarning": "Booked for {{booked}}h, checking out at {{actual}}h. The lesson will be re-priced at the same hourly rate and the customer's balance adjusted by the difference.",
       "completionNotes": "Completion Notes",
       "completionNotesPlaceholder": "Add any notes about the completion...",
       "completingLabel": "Completing...",

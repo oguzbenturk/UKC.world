@@ -745,8 +745,9 @@ export async function recomputeDiscountForAccommodationBooking(client, {
 // multi-participant and package early-returns — so package / group / multi-
 // participant price edits left a stale absolute discount that BOTH salaries (and
 // the displayed discount chip) subtracted. Fixed-amount discounts (no percent)
-// keep their amount. Entity-wide rows rebase against the whole-booking gross
-// value (package-derived for package/partial, else final_amount); per-participant
+// keep their amount. Entity-wide rows rebase against the booking's own gross
+// price (final_amount — for 'partial' that is the cash leg; package-derived
+// lesson value only for fully package-funded bookings); per-participant
 // rows rebase against that participant's current share (payment_amount).
 export async function recomputeBookingDiscountsForPriceEdit(client, { booking, createdBy }) {
   const bookingId = booking.id;
@@ -761,8 +762,17 @@ export async function recomputeBookingDiscountsForPriceEdit(client, { booking, c
   // Floor at 0 — a negative base (corrupt/edge data) would otherwise produce a
   // negative discount amount that trips the discounts.amount >= 0 CHECK and
   // aborts the rebase.
+  // The rebase base MUST be the same figure the percent was derived from at
+  // apply time (getEntitySnapshot → ENTITY_CONFIG.booking.priceCol, i.e. the
+  // booking's own final_amount/amount). For a 'partial' booking that is the
+  // CASH LEG only — the package hours are paid for by the package, so a
+  // custom-total discount on a €47.50 half-hour cash leg is 26.32% OF €47.50.
+  // Rebasing it against the whole lesson value (package hours + cash) turned
+  // a 1.5h→2h checkout's €25 discount into €42.55 (Maria Mordovira,
+  // 2026-09-09). Only a fully package-funded booking, whose amount the package
+  // sync keeps equal to the lesson value, rebases against the lesson value.
   let grossEntityBase = Math.max(0, Number(booking.final_amount ?? booking.amount) || 0);
-  if (booking.customer_package_id && (booking.payment_status === 'package' || booking.payment_status === 'partial')) {
+  if (booking.customer_package_id && booking.payment_status === 'package') {
     try {
       const Cascade = (await import('./bookingUpdateCascadeService.js')).default;
       grossEntityBase = await Cascade.computeLessonAmount(client, booking);

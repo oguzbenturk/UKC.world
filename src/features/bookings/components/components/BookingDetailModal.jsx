@@ -1520,6 +1520,22 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                       <p className="text-xs text-gray-600 mt-1">
                         Original duration: {Number(booking.duration) || 1} hour{(Number(booking.duration) || 1) !== 1 ? 's' : ''}
                       </p>
+                      {/* Re-price warning: checkout sends only the duration, and the
+                          backend re-prices the lesson (and the customer's wallet) when
+                          it differs from the booked duration. Make that visible BEFORE
+                          the click so a stray "+" on a settled lesson isn't a surprise. */}
+                      {Math.abs((parseFloat(checkoutForm.actualDuration) || 0) - (Number(booking.duration) || 1)) > 0.001 && (
+                        <p
+                          role="alert"
+                          data-testid="checkout-duration-warning"
+                          className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mt-2"
+                        >
+                          {t('common:bookings.detail.checkoutDurationChangeWarning', {
+                            booked: Number(booking.duration) || 1,
+                            actual: parseFloat(checkoutForm.actualDuration) || 0,
+                          })}
+                        </p>
+                      )}
                     </div>
 
                     {/* Completion Notes */}

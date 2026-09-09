@@ -692,6 +692,7 @@
       "completedSuccessfully": "Erfolgreich abgeschlossen",
       "noShow": "Nicht erschienen",
       "actualDuration": "Tatsächliche Dauer (Stunden)",
+      "checkoutDurationChangeWarning": "Gebucht für {{booked}} Std., Check-out mit {{actual}} Std. Die Stunde wird zum gleichen Stundensatz neu berechnet und die Differenz dem Kundenguthaben angerechnet.",
       "completionNotes": "Abschlussnotizen",
       "completionNotesPlaceholder": "Notizen zum Abschluss hinzufügen...",
       "completingLabel": "Abschließen...",

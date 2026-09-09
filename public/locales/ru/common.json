@@ -696,6 +696,7 @@
       "completedSuccessfully": "Успешно завершено",
       "noShow": "Неявка",
       "actualDuration": "Фактическая продолжительность (часы)",
+      "checkoutDurationChangeWarning": "Забронировано {{booked}} ч, выписка {{actual}} ч. Урок будет пересчитан по той же почасовой ставке, а разница отразится на балансе клиента.",
       "completionNotes": "Примечания к завершению",
       "completionNotesPlaceholder": "Добавьте заметки о завершении...",
       "completingLabel": "Завершение...",

@@ -696,6 +696,7 @@
       "completedSuccessfully": "Completado con éxito",
       "noShow": "No se presentó",
       "actualDuration": "Duración real (horas)",
+      "checkoutDurationChangeWarning": "Reservado {{booked}} h, salida con {{actual}} h. La clase se recalculará con la misma tarifa por hora y la diferencia se ajustará en el saldo del cliente.",
       "completionNotes": "Notas de finalización",
       "completionNotesPlaceholder": "Agregar notas sobre la finalización...",
       "completingLabel": "Completando...",

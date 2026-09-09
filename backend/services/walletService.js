@@ -1871,10 +1871,22 @@ export async function getEntityNetCharges({
   shopOrderId = null,
   memberPurchaseId = null,
   byUser = false,
+  excludeDiscounts = false,
 } = {}) {
   const runner = client || pool;
   const conditions = [];
   const params = [];
+  // `excludeDiscounts` returns the GROSS outstanding charge — the charge rows
+  // net of refunds/adjustments but WITHOUT the discount_adjustment credits (and
+  // their reversals). Callers that re-price an entity against its gross price
+  // (booking duration edits: bookings.amount is the gross cash leg, the discount
+  // lives in its own row and is rebased separately by the cascade) must settle
+  // gross-vs-gross; mixing a gross new price with a discount-net old charge
+  // double-bills the discount (Maria Mordovira, 2026-09-09: 0.5h→1h cash leg at
+  // €95/h charged +€60 instead of +€47.50 gross / +€35 net).
+  const typeFilter = excludeDiscounts
+    ? ` AND transaction_type NOT IN ('discount_adjustment', 'discount_adjustment_reversal')`
+    : '';
   if (bookingId) {
     params.push(bookingId);
     conditions.push(`booking_id = $${params.length}`);
@@ -1919,7 +1931,7 @@ export async function getEntityNetCharges({
     const { rows } = await runner.query(
       `SELECT user_id, currency, COALESCE(SUM(available_delta), 0) AS net
          FROM wallet_transactions
-        WHERE status = 'completed' AND (${conditions.join(' OR ')})
+        WHERE status = 'completed' AND (${conditions.join(' OR ')})${typeFilter}
         GROUP BY user_id, currency
         HAVING COALESCE(SUM(available_delta), 0) < 0`,
       params
@@ -1929,7 +1941,7 @@ export async function getEntityNetCharges({
   const { rows } = await runner.query(
     `SELECT currency, COALESCE(SUM(available_delta), 0) AS net
        FROM wallet_transactions
-      WHERE status = 'completed' AND (${conditions.join(' OR ')})
+      WHERE status = 'completed' AND (${conditions.join(' OR ')})${typeFilter}
       GROUP BY currency
       HAVING COALESCE(SUM(available_delta), 0) < 0`,
     params

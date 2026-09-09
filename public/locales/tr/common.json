@@ -699,6 +699,7 @@
       "completedSuccessfully": "Başarıyla Tamamlandı",
       "noShow": "Gelmedi",
       "actualDuration": "Gerçek Süre (saat)",
+      "checkoutDurationChangeWarning": "Rezervasyon {{booked}} saat, çıkış {{actual}} saat. Ders aynı saatlik ücretle yeniden fiyatlandırılır ve fark müşterinin bakiyesine yansıtılır.",
       "completionNotes": "Tamamlama Notları",
       "completionNotesPlaceholder": "Tamamlama hakkında not ekleyin...",
       "completingLabel": "Tamamlanıyor...",

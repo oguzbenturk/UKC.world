@@ -765,9 +765,17 @@ const resolveServiceType = (serviceRow) => {
     }
     if (!(perHourCash > 0)) perHourCash = serviceHourly;
 
+    // GROSS old cash leg: what the wallet was charged for this booking net of
+    // refunds, but EXCLUDING the discount credit. `newCashLeg` below is priced
+    // gross (perHourCash comes from final_amount, which never includes the
+    // discount), and the cascade rebases the discount row against the new
+    // gross price right after this. Settling a gross new leg against a
+    // discount-net old leg billed the discount twice: Maria Mordovira's 1.5h→2h
+    // checkout (0.5h→1h cash at €95/h, €12.50 custom-total discount) posted
+    // +€60 instead of +€47.50 gross (+€35 net once the discount rebased).
     let oldCashLeg = pre.payment_status === 'partial' ? oldFinal : 0;
     try {
-      const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true });
+      const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true, excludeDiscounts: true });
       const own = nets.find((n) => n.userId === booking.student_user_id &&
         (n.currency || 'EUR') === (booking.currency || 'EUR'));
       oldCashLeg = own && Number.isFinite(own.amount) ? Math.max(0, own.amount) : 0;
@@ -934,9 +942,12 @@ const resolveServiceType = (serviceRow) => {
     // the two drift apart when a price edit on a 'partial' booking skipped
     // wallet settlement, and refunding the drifted figure shortchanges the
     // customer. Falls back to the recorded amount if the ledger is unreadable.
+    // GROSS basis (excludeDiscounts): newCashLeg is priced from final_amount,
+    // which is gross, and the cascade rebases the discount row afterwards —
+    // see the same note in reconcileLedgerDurationChange above.
     let oldCashLeg = pre.payment_status === 'partial' ? oldFinal : 0;
     try {
-      const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true });
+      const nets = await getEntityNetCharges({ client, bookingId: booking.id, byUser: true, excludeDiscounts: true });
       const own = nets.find((n) => n.userId === booking.student_user_id &&
         (n.currency || 'EUR') === (booking.currency || 'EUR'));
       // No net row = nothing outstanding on the wallet (already refunded, or

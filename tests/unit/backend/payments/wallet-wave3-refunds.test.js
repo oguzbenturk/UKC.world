@@ -177,3 +177,42 @@ describe('refund idempotency (retried cancel cannot double-refund)', () => {
     expect((await getBalance(userId, 'EUR')).available).toBe(100); // 100 -40 +40, refunded once
   });
 });
+
+// Duration re-price on a discounted partial booking (Maria Mordovira,
+// 2026-09-09): the reconcile prices the NEW cash leg gross and the cascade
+// rebases the discount row afterwards, so it must read the OLD cash leg gross
+// too — i.e. without the discount credit (or its reversal) in the net.
+describe('getEntityNetCharges({ excludeDiscounts })', () => {
+  test('excludes discount_adjustment credits and reversals from the outstanding net', async () => {
+    const userId = await createTestUser();
+    const bookingId = randomUUID();
+
+    await recordTransaction({
+      userId, amount: -47.5, currency: 'EUR', transactionType: 'booking_charge',
+      bookingId, relatedEntityType: 'booking', relatedEntityId: bookingId, allowNegative: true,
+    });
+    await recordTransaction({
+      userId, amount: 12.5, currency: 'EUR', transactionType: 'discount_adjustment', direction: 'credit',
+      bookingId, relatedEntityType: 'booking', relatedEntityId: bookingId, allowNegative: true,
+    });
+    await recordTransaction({
+      userId, amount: -12.5, currency: 'EUR', transactionType: 'discount_adjustment_reversal', direction: 'debit',
+      bookingId, relatedEntityType: 'booking', relatedEntityId: bookingId, allowNegative: true,
+    });
+    await recordTransaction({
+      userId, amount: 25, currency: 'EUR', transactionType: 'discount_adjustment', direction: 'credit',
+      bookingId, relatedEntityType: 'booking', relatedEntityId: bookingId, allowNegative: true,
+    });
+
+    // Default: discount-net (what a refund-on-delete should hand back).
+    const net = await getEntityNetCharges({ bookingId, byUser: true });
+    expect(net).toEqual([{ userId, currency: 'EUR', amount: 22.5 }]);
+
+    // Gross: the charge rows only — the figure a gross re-price settles against.
+    const gross = await getEntityNetCharges({ bookingId, byUser: true, excludeDiscounts: true });
+    expect(gross).toEqual([{ userId, currency: 'EUR', amount: 47.5 }]);
+
+    const grossNoUser = await getEntityNetCharges({ bookingId, excludeDiscounts: true });
+    expect(grossNoUser).toEqual([{ currency: 'EUR', amount: 47.5 }]);
+  });
+});
