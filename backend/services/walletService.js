@@ -1469,10 +1469,22 @@ export async function recordTransaction({
       : 0;
     const shouldUpdateLastPayment = totalSpentDelta > 0;
 
-    if (!allowNegative && nextAvailable < -0.0001) {
+    // The insufficient-balance guard only protects against a transaction that
+    // moves the available balance DOWN below zero. A credit / zero-delta row on a
+    // wallet that is already negative (customer owes money after pay-later
+    // lessons/rentals) must always succeed even if the result is still negative —
+    // otherwise refunds (rental cancel, process-refund) threw "Insufficient wallet
+    // balance" and the request 500'd (e.g. -650 + 460 = -190).
+    const availableDecreases = numericAvailableDelta < 0;
+    const nextAvailableNegative = nextAvailable < -0.0001;
+
+    if (!allowNegative && availableDecreases && nextAvailableNegative) {
       throw new Error('Insufficient wallet balance');
     }
 
+    // pending / non_withdrawable: left as absolute guards. The DB trigger
+    // (migration 265) forbids these buckets from ever being negative, so the
+    // current value is always >= 0 and a non-negative delta can never trip them.
     if (nextPending < -0.0001) {
       throw new Error('Pending wallet balance cannot be negative');
     }
@@ -1481,10 +1493,16 @@ export async function recordTransaction({
       throw new Error('Non-withdrawable wallet balance cannot be negative');
     }
 
-    if (allowNegative && nextAvailable < -0.0001) {
+    if (nextAvailableNegative && (allowNegative || !availableDecreases)) {
       // Enforce a per-wallet overdraft floor when one is configured (NULL = unlimited,
       // preserving prior behaviour). Closes the "overdraft is bottomless" finding.
-      if (balanceRow.overdraft_limit !== null && balanceRow.overdraft_limit !== undefined) {
+      // Like the guard above, the floor only blocks a row that pushes the balance
+      // further down — a credit on a wallet already beyond the floor must pass.
+      if (
+        availableDecreases
+        && balanceRow.overdraft_limit !== null
+        && balanceRow.overdraft_limit !== undefined
+      ) {
         const maxNegative = -Math.abs(toNumeric(balanceRow.overdraft_limit));
         if (nextAvailable < maxNegative - 0.0001) {
           throw new Error(
@@ -1498,33 +1516,36 @@ export async function recordTransaction({
       await client.query("SELECT set_config('wallet.allow_negative', 'true', true)");
 
       // Audit trail: record who exercised the override, on whose wallet, and for how much.
-      // Fires for every flow (bookings, rentals, shop) since they all funnel through here.
-      try {
-        await client.query(
-          `INSERT INTO wallet_audit_logs (wallet_user_id, actor_user_id, action, details)
-           VALUES ($1, $2, 'wallet.negative_balance_override', $3)`,
-          [
+      // Only for an explicit allowNegative override — a credit/zero-delta row that
+      // merely leaves an already-negative wallet negative is not an override.
+      if (allowNegative) {
+        try {
+          await client.query(
+            `INSERT INTO wallet_audit_logs (wallet_user_id, actor_user_id, action, details)
+             VALUES ($1, $2, 'wallet.negative_balance_override', $3)`,
+            [
+              userId,
+              createdBy || null,
+              JSON.stringify({
+                transactionType,
+                currency: normalizedCurrency,
+                availableDelta: numericAvailableDelta,
+                previousAvailable: currentAvailable,
+                nextAvailable,
+                shortfall: Math.abs(nextAvailable),
+                relatedEntityType: resolvedRelatedEntityType,
+                relatedEntityId: resolvedRelatedEntityId,
+              }),
+            ]
+          );
+        } catch (auditErr) {
+          // Audit failure must not abort the transaction — just log it.
+          logger.warn('Failed to write wallet.negative_balance_override audit row', {
             userId,
-            createdBy || null,
-            JSON.stringify({
-              transactionType,
-              currency: normalizedCurrency,
-              availableDelta: numericAvailableDelta,
-              previousAvailable: currentAvailable,
-              nextAvailable,
-              shortfall: Math.abs(nextAvailable),
-              relatedEntityType: resolvedRelatedEntityType,
-              relatedEntityId: resolvedRelatedEntityId,
-            }),
-          ]
-        );
-      } catch (auditErr) {
-        // Audit failure must not abort the transaction — just log it.
-        logger.warn('Failed to write wallet.negative_balance_override audit row', {
-          userId,
-          createdBy,
-          error: auditErr.message,
-        });
+            createdBy,
+            error: auditErr.message,
+          });
+        }
       }
     }
 
