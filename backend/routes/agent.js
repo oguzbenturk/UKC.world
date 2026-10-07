@@ -1875,7 +1875,8 @@ router.post('/accommodation/bookings', verifyAgentIdentity, async (req, res) => 
 // ── POST /bookings/:id/cancel — Cancel a lesson booking ──────────────────────
 router.post(
   '/bookings/:id/cancel',
-  requireRole(['admin', 'manager', 'instructor', 'owner']),
+  // Owner decision 2026-10-08: cancelling a lesson is staff-only (not instructors).
+  requireRole(['admin', 'manager', 'owner']),
   verifyAgentIdentity,
   async (req, res) => {
     try {

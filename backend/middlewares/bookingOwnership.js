@@ -360,7 +360,8 @@ export const INSTRUCTOR_CANNOT_COMPLETE = 'INSTRUCTOR_CANNOT_COMPLETE';
  * '-'/' ' → '_'): covers 'completed', 'done', 'checked_out'/'checked-out'
  * (DB constraint value) and 'no_show'/'no-show'. 'checked-in' is NOT closing.
  */
-export const LESSON_CLOSING_STATUSES = Object.freeze(['completed', 'done', 'checked_out', 'no_show']);
+// Owner decision 2026-10-08: instructors may not cancel lessons either — staff only.
+export const LESSON_CLOSING_STATUSES = Object.freeze(['completed', 'done', 'checked_out', 'no_show', 'cancelled', 'canceled']);
 
 /** Check-out columns on bookings — written only when a lesson is closed. */
 export const CHECKOUT_FIELDS = Object.freeze(['checkout_status', 'checkout_time', 'checkout_notes']);
@@ -408,7 +409,7 @@ export function findInstructorLessonClosingChanges(req, currentBooking, body = r
 /** 403 for an instructor-scoped attempt to complete / check out / no-show a lesson. */
 export const instructorCannotComplete = (res, fields = ['status']) =>
   res.status(403).json({
-    error: 'Only staff can complete, check out or mark a lesson as no-show. Your manager closes the lesson after it ends.',
+    error: 'Only staff can complete, cancel, check out or mark a lesson as no-show. Ask your manager.',
     code: INSTRUCTOR_CANNOT_COMPLETE,
     fields,
   });

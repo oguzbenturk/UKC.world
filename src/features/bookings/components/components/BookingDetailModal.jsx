@@ -16,6 +16,7 @@ import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import eventBus from '@/shared/utils/eventBus';
 import { canCloseLessons } from '@/shared/utils/roleUtils';
+import apiClient from '@/shared/services/apiClient';
 import { filterServicesByCapacity } from '@/shared/utils/serviceCapacityFilter';
 
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
@@ -765,22 +766,12 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     setIsProcessing(true);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/bookings/${booking.id}/cancel`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          reason: cancelForm.reason || 'Cancelled by staff'
-        })
+      // POST /bookings/:id/cancel (staff-only) — the old fetch used PUT and a `reason`
+      // field: no such route existed, so cancelling from this modal never worked.
+      await apiClient.post(`/bookings/${booking.id}/cancel`, {
+        cancellation_reason: cancelForm.reason || 'Cancelled by staff',
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to cancel booking');
-      }
-      
+
       showSuccess(t('common:bookings.detail.cancelSuccess'));
       
       // Dispatch event to notify other components about the booking cancellation
@@ -1891,7 +1882,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           {t('common:bookings.detail.edit')}
                         </button>
 
-                        {booking.status !== 'cancelled' && (
+                        {canClose && booking.status !== 'cancelled' && (
                           <button
                             type="button"
                             className="flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 transition-colors"

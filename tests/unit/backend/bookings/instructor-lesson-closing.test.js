@@ -108,7 +108,7 @@ afterAll(async () => {
 }, 30000);
 
 describe('PATCH /api/bookings/:id/status — closing a lesson is staff-only', () => {
-  test.each(['completed', 'no_show', 'checked_out', 'checked-out', 'done', 'no-show'])(
+  test.each(['completed', 'no_show', 'checked_out', 'checked-out', 'done', 'no-show', 'cancelled', 'canceled'])(
     'instructor cannot set "%s" on own booking (403 INSTRUCTOR_CANNOT_COMPLETE)',
     async (status) => {
       const id = await addBooking(ids.a);
@@ -311,10 +311,11 @@ describe('findInstructorLessonClosingChanges / isLessonClosingStatus (unit)', ()
   const current = { status: 'checked-in', checkout_status: 'pending', checkout_time: null, checkout_notes: null };
 
   test('closing statuses in every spelling; check-in is not closing', () => {
-    for (const s of ['completed', 'COMPLETED', 'done', 'checked_out', 'checked-out', 'no_show', 'no-show']) {
+    // 'cancelled' is staff-only too since 2026-10-08 (owner decision).
+    for (const s of ['completed', 'COMPLETED', 'done', 'checked_out', 'checked-out', 'no_show', 'no-show', 'cancelled', 'canceled']) {
       expect(ownership.isLessonClosingStatus(s)).toBe(true);
     }
-    for (const s of ['checked-in', 'confirmed', 'pending', 'cancelled', '', null, undefined]) {
+    for (const s of ['checked-in', 'confirmed', 'pending', '', null, undefined]) {
       expect(ownership.isLessonClosingStatus(s)).toBe(false);
     }
   });
