@@ -133,30 +133,45 @@ const endOfMonth = (iso) => addDays(addMonths(iso, 1), -1);
 const inRange = (date, start, end) => !!date && (!start || date >= start) && (!end || date <= end);
 
 /**
- * Resolve a period key into a plain-date range plus the same-length previous
+ * Resolve a period key into a plain-date range plus the comparable previous
  * period (calendar week Mon–Sun / calendar month / calendar year; 'all' has no
  * bounds and no previous period).
+ *
+ * The previous period is "to date": it covers the same number of elapsed days
+ * as the current period so far (Oct 1–7 is compared with Sep 1–7, not with all
+ * of September — a partial month against a full one made every month look like
+ * a ~−80% drop).
  */
+const minIso = (a, b) => (a <= b ? a : b);
+const daysBetween = (a, b) => Math.round((toUtc(b) - toUtc(a)) / 86400000);
 export function resolvePeriod(key = 'month', today = businessDate()) {
   const k = PERIOD_KEYS.includes(key) ? key : 'month';
   if (k === 'week') {
     const start = startOfWeek(today);
+    const elapsed = daysBetween(start, today);
+    const prevStart = addDays(start, -7);
     return {
       key: k, start, end: addDays(start, 6), label: `Week of ${start}`,
-      previous: { start: addDays(start, -7), end: addDays(start, -1) },
+      previous: { start: prevStart, end: addDays(prevStart, elapsed) },
     };
   }
   if (k === 'month') {
     const start = startOfMonth(today);
     const label = toUtc(start).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const prevStart = addMonths(start, -1);
-    return { key: k, start, end: endOfMonth(start), label, previous: { start: prevStart, end: endOfMonth(prevStart) } };
+    const elapsed = daysBetween(start, today);
+    return {
+      key: k, start, end: endOfMonth(start), label,
+      previous: { start: prevStart, end: minIso(addDays(prevStart, elapsed), endOfMonth(prevStart)) },
+    };
   }
   if (k === 'year') {
     const y = Number(today.slice(0, 4));
+    const prevStart = `${y - 1}-01-01`;
+    const elapsed = daysBetween(`${y}-01-01`, today);
     return {
       key: k, start: `${y}-01-01`, end: `${y}-12-31`, label: String(y),
-      previous: { start: `${y - 1}-01-01`, end: `${y - 1}-12-31` },
+      previous: { start: prevStart, end: minIso(addDays(prevStart, elapsed), `${y - 1}-12-31`) },
     };
   }
   return { key: 'all', start: null, end: null, label: 'All time', previous: null };
