@@ -411,7 +411,7 @@ export const getFriends = async (userId) => {
        u.first_name,
        u.last_name,
        u.email,
-       u.avatar_url,
+       u.profile_image_url AS avatar_url,
        COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as full_name
      FROM user_relationships r
      JOIN users u ON u.id = CASE WHEN r.sender_id = $1 THEN r.receiver_id ELSE r.sender_id END
@@ -438,7 +438,7 @@ export const getPendingRequests = async (userId) => {
        u.first_name,
        u.last_name,
        u.email,
-       u.avatar_url,
+       u.profile_image_url AS avatar_url,
        COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as full_name
      FROM user_relationships r
      JOIN users u ON u.id = r.sender_id
@@ -465,7 +465,7 @@ export const getSentRequests = async (userId) => {
        u.first_name,
        u.last_name,
        u.email,
-       u.avatar_url,
+       u.profile_image_url AS avatar_url,
        COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name)) as full_name
      FROM user_relationships r
      JOIN users u ON u.id = r.receiver_id

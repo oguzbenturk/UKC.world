@@ -13,7 +13,7 @@ export async function getTeamSettings() {
       u.first_name,
       u.last_name,
       u.profile_image_url,
-      u.avatar_url,
+      u.profile_image_url AS avatar_url,
       u.email
     FROM users u
     JOIN roles r ON r.id = u.role_id

@@ -2714,7 +2714,9 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
     // Package revenue is recognised via lesson CONSUMPTION inside effectiveLessonRevenue (each
     // package-drawn lesson contributes its share of the package price), so package PURCHASES
     // (packageRevenue) are intentionally NOT added here — doing so would double-count packages.
-    const totalRevenue = effectiveLessonRevenue + effectiveRentalRevenue + otherRevenue + membershipRevenue + shopRevenue;
+    // Decimal.js: plain float addition produced artefacts like 114379.73999999999
+    const totalRevenue = new Decimal(effectiveLessonRevenue || 0).plus(effectiveRentalRevenue || 0).plus(otherRevenue || 0)
+      .plus(membershipRevenue || 0).plus(shopRevenue || 0).toDecimalPlaces(2).toNumber();
 
     const revenueResult = {
       rows: [{

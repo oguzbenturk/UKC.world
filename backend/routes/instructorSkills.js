@@ -141,7 +141,7 @@ router.get(
       if (!service.discipline_tag) {
         const { rows } = await pool.query(`
           SELECT u.id, u.name, u.first_name, u.last_name, u.email, u.phone,
-                 u.profile_image_url, u.avatar_url, u.bio
+                 u.profile_image_url, u.profile_image_url AS avatar_url, u.bio
           FROM users u
           JOIN roles r ON r.id = u.role_id
           WHERE r.name IN ('instructor', 'manager') AND u.deleted_at IS NULL
@@ -157,7 +157,7 @@ router.get(
       // Find qualified instructors
       let query = `
         SELECT u.id, u.name, u.first_name, u.last_name, u.email, u.phone,
-               u.profile_image_url, u.avatar_url, u.bio,
+               u.profile_image_url, u.profile_image_url AS avatar_url, u.bio,
                isk.discipline_tag, isk.lesson_categories, isk.max_level
         FROM users u
         JOIN roles r ON r.id = u.role_id
