@@ -1,5 +1,9 @@
 import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
-import * as repairRequestService from '../../../backend/services/repairRequestService.js';
+// NOTE: the service used to be imported statically here. Static ESM imports are evaluated
+// before beforeAll() registers jest.unstable_mockModule, so the db.js mock never applied and
+// every test ran against the real database with fake ids like "user-1" (uuid errors). It is
+// now imported dynamically after the mocks are registered.
+let repairRequestService;
 
 let mockPool;
 
@@ -23,6 +27,14 @@ beforeAll(async () => {
   await jest.unstable_mockModule('../../../backend/services/notificationWriter.js', () => ({
     insertNotification: jest.fn().mockResolvedValue({})
   }));
+
+  // The service sends notifications through the unified dispatcher (not notificationWriter).
+  await jest.unstable_mockModule('../../../backend/services/notificationDispatcherUnified.js', () => ({
+    dispatchNotification: jest.fn().mockResolvedValue({}),
+    dispatchToStaff: jest.fn().mockResolvedValue({})
+  }));
+
+  repairRequestService = await import('../../../backend/services/repairRequestService.js');
 });
 
 beforeEach(() => {
@@ -487,10 +499,11 @@ describe('repairRequestService.getRepairStatistics', () => {
 
     const result = await repairRequestService.getRepairStatistics();
 
-    expect(mockPool.query).toHaveBeenCalledWith(
-      expect.stringContaining("status = 'pending'"),
-      expect.anything()
-    );
+    // getRepairStatistics runs a parameterless query (pool.query(sql)), so the old
+    // `expect.anything()` for a second argument could never match; assert on the SQL itself.
+    expect(mockPool.query).toHaveBeenCalledTimes(1);
+    expect(mockPool.query.mock.calls[0][0]).toEqual(expect.stringContaining("status = 'pending'"));
+    expect(result.pending_count).toBe('0');
   });
 });
 

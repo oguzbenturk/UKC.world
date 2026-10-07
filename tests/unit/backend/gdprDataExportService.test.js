@@ -23,8 +23,13 @@ beforeAll(async () => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   jest.clearAllMocks();
+  // clearAllMocks keeps queued mockResolvedValueOnce values; drop any unconsumed
+  // ones so they cannot leak into the next test.
+  const { pool } = await import('../../../backend/db.js');
+  pool.query.mockReset();
+  pool.query.mockResolvedValue({ rows: [] });
 });
 
 function createMockClient(responses = []) {
@@ -188,12 +193,16 @@ describe('gdprDataExportService.getPersonalInformation', () => {
       last_name: 'Doe',
       phone: '+1234567890',
       age: 30,
+      two_factor_enabled: false,
       created_at: new Date(),
     };
 
     pool.query.mockResolvedValueOnce({ rows: [userInfo] });
 
     const result = await gdprDataExportService.getPersonalInformation('user-1');
+
+    // The mock row is returned as-is, so also verify the export query selects the 2FA flag.
+    expect(pool.query.mock.calls[0][0]).toContain('two_factor_enabled');
 
     expect(result.email).toBe('john@example.com');
     expect(result.first_name).toBe('John');
@@ -241,7 +250,8 @@ describe('gdprDataExportService.getFinancialRecords', () => {
     const balances = [{ balance: 500, currency: 'EUR' }];
 
     pool.query.mockResolvedValueOnce({ rows: transactions });
-    pool.query.mockResolvedValueOnce({ rows: [] }); // commissions
+    // No commissions query any more: instructor_commissions does not exist in this
+    // schema, the service returns an empty list without hitting the DB.
     pool.query.mockResolvedValueOnce({ rows: balances });
 
     const result = await gdprDataExportService.getFinancialRecords('user-1');
@@ -316,12 +326,19 @@ describe('gdprDataExportService.anonymizeUserData', () => {
     const { pool } = await import('../../../backend/db.js');
 
     const mockClient = createMockClient([]);
+    const executedSql = [];
+    const originalQuery = mockClient.query;
+    mockClient.query = async (sql, params) => {
+      executedSql.push(String(sql));
+      return originalQuery(sql, params);
+    };
     pool.connect.mockResolvedValueOnce(mockClient);
 
-    await gdprDataExportService.anonymizeUserData('user-1');
+    const result = await gdprDataExportService.anonymizeUserData('user-1');
 
     // Check that transactions are NOT deleted, only updated
-    const transactionCalls = mockClient.query.toString().includes('UPDATE transactions');
+    expect(executedSql.some((sql) => /DELETE\s+FROM\s+transactions/i.test(sql))).toBe(false);
+    expect(executedSql.some((sql) => /UPDATE\s+transactions/i.test(sql))).toBe(true);
     expect(result.message).toContain('7 years');
   });
 
@@ -441,8 +458,9 @@ describe('gdprDataExportService.countRecords', () => {
     const count = gdprDataExportService.countRecords(dataPackage);
 
     expect(count).toBeGreaterThan(0);
-    // 1 personal + 1 consent + 2 bookings + 1 transaction + 1 balance + 1 notification + 1 rating + 1 service + 1 package + 1 accommodation + 1 rental + 1 support + 1 audit + 1 message = 16
-    expect(count).toBe(16);
+    // 1 personal + 1 consent + 2 bookings + 1 transaction + 1 balance + 1 notification + 1 rating + 1 service + 1 package + 1 accommodation + 1 rental + 1 support + 1 audit + 1 message = 15
+    // (the original expectation of 16 was an arithmetic slip — the listed items sum to 15)
+    expect(count).toBe(15);
   });
 });
 

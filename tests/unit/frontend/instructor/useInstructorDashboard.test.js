@@ -7,6 +7,12 @@ vi.mock('@/features/instructor/services/instructorApi', () => ({
   fetchInstructorDashboard: (...args) => mockFetchInstructorDashboard(...args),
 }));
 
+// Since v0.1.181 the hook skips the fetch entirely when there is no access
+// token (avoids 401 spam before login). These tests exercise the logged-in path.
+vi.mock('@/shared/services/apiClient', () => ({
+  getAccessToken: () => 'test-access-token',
+}));
+
 import { useInstructorDashboard } from '@/features/instructor/hooks/useInstructorDashboard';
 
 const makeDashboardResponse = (overrides = {}) => ({

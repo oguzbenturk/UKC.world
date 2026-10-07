@@ -374,7 +374,8 @@ describe('roleUpgradeService', () => {
       expect(result.upgraded).toBe(true);
       expect(result.newRole).toBe('student');
       expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('upgraded')
+        expect.stringContaining('upgraded'),
+        expect.objectContaining({ userId: 'user-1', newRole: 'student' })
       );
     });
 

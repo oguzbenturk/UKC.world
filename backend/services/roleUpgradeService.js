@@ -11,11 +11,12 @@ import { logger } from '../middlewares/errorHandler.js';
 /**
  * Check if a user is an outsider role
  * @param {string} userId - The user ID to check
+ * @param {object} [client] - Optional DB client (same transaction as the upgrade)
  * @returns {Promise<boolean>} - True if user is an outsider
  */
-export async function isOutsiderRole(userId) {
+export async function isOutsiderRole(userId, client = pool) {
   try {
-    const result = await pool.query(`
+    const result = await client.query(`
       SELECT r.name as role_name 
       FROM users u
       JOIN roles r ON u.role_id = r.id
@@ -117,7 +118,9 @@ export async function upgradeOutsiderToStudent(userId, options = {}) {
  */
 export async function checkAndUpgradeAfterBooking(userId, options = {}) {
   try {
-    const isOutsider = await isOutsiderRole(userId);
+    // Use the caller's client (if any) so the role check sees the same
+    // transaction as the upgrade itself.
+    const isOutsider = await isOutsiderRole(userId, options.client || pool);
     
     if (!isOutsider) {
       return { upgraded: false };

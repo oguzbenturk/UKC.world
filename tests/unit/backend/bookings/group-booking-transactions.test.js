@@ -401,6 +401,7 @@ describe('Group booking cash transactions', () => {
     const recordedTransactions = [];
     const recordedParticipants = [];
     const packageUpdates = [];
+    const packageByUser = { 'user-1': 'pkg-1', 'user-2': 'pkg-2' };
 
     const mockClient = {
       query: jest.fn(async (sql, params) => {
@@ -439,36 +440,45 @@ describe('Group booking cash transactions', () => {
           };
         }
 
-        if (normalized.startsWith('SELECT id, package_name') && normalized.includes('FROM customer_packages')) {
-          const packageId = params?.[0];
-          const userId = params?.[1];
+        // Package consumption goes through packageConsumptionService.consumeAcrossPackages
+        // (cross-package FIFO spillover): eligible-pool lookup → live-remaining read →
+        // guarded UPDATE. The old single-package `SELECT id, package_name …` path is gone.
+        if (normalized.includes('FROM customer_packages cp') && normalized.includes('cp.customer_id = $1')) {
+          const userId = params?.[0];
+          const packageId = packageByUser[userId];
           return {
-            rows: [
+            rows: packageId ? [
               {
                 id: packageId,
                 package_name: `${userId}-package`,
                 remaining_hours: '5',
                 total_hours: '10',
                 used_hours: '5',
+                live_remaining: '5',
                 purchase_price: '500',
+                currency: 'EUR',
+                status: 'active',
                 lesson_service_name: 'Group Lesson'
               }
-            ]
+            ] : []
           };
+        }
+
+        if (normalized.startsWith('SELECT used_hours, total_hours') && normalized.includes('FROM customer_packages')) {
+          return { rows: [{ used_hours: '5', total_hours: '10', live_remaining: '5' }] };
         }
 
         if (normalized.startsWith('UPDATE customer_packages')) {
           packageUpdates.push({ sql: normalized, params });
+          // guarded consume: [newUsed, newRemaining, packageId, take, lastUsedDate]
           return {
             rows: [
               {
-                id: params?.[3],
-                package_name: `${params?.[3]}-name`,
+                id: params?.[2],
+                package_name: `${params?.[2]}-name`,
                 used_hours: params?.[0],
                 remaining_hours: params?.[1],
-                status: 'active',
-                total_hours: '10',
-                purchase_price: '500'
+                status: 'active'
               }
             ]
           };
@@ -499,7 +509,8 @@ describe('Group booking cash transactions', () => {
 
         if (normalized.startsWith('INSERT INTO booking_participants')) {
           recordedParticipants.push({ params });
-          return { rows: [] };
+          // RETURNING id — the participant id scopes the package-consumption ledger rows
+          return { rows: [{ id: `participant-${recordedParticipants.length}` }] };
         }
 
         if (normalized.startsWith('INSERT INTO transactions')) {

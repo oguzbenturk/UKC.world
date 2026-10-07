@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+// Page is i18n'd (react-i18next) — load the real English copy so text assertions hit real UI strings.
+import '../../../setup/i18nForTests';
 import InstructorRatingsAnalytics from '@/features/admin/pages/InstructorRatingsAnalytics';
 import { useInstructorRatingsAnalytics } from '@/features/admin/hooks/useInstructorRatingsAnalytics';
 

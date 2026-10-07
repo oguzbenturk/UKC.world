@@ -32,6 +32,12 @@ beforeAll(() => {
   tokens.student = createToken({ role: 'student', email: 'student@test.local' });
 });
 
+// GET /api/finances/transactions without filters folds every wallet row through
+// several LATERAL joins before LIMIT; against a prod-sized local DB it takes
+// 30s+ and blew the 5s test timeout. These tests only check the role gate, so
+// query an empty date window (the auth middleware runs before any filtering).
+const FINANCE_TRANSACTIONS_URL = '/api/finances/transactions?start_date=2099-01-01&end_date=2099-01-01';
+
 // Helper: assert role is allowed (status is NOT 401 or 403)
 const expectAllowed = (res) => {
   expect([401, 403]).not.toContain(res.status);
@@ -48,7 +54,7 @@ const expectDenied = (res) => {
 describe('Manager role — finance access', () => {
   test('GET /api/finances/transactions allows manager', async () => {
     const res = await request(app)
-      .get('/api/finances/transactions')
+      .get(FINANCE_TRANSACTIONS_URL)
       .set('Authorization', `Bearer ${tokens.manager}`);
     expectAllowed(res);
   });
@@ -83,7 +89,7 @@ describe('Manager role — finance access', () => {
 
   test('student is denied from finance', async () => {
     const res = await request(app)
-      .get('/api/finances/transactions')
+      .get(FINANCE_TRANSACTIONS_URL)
       .set('Authorization', `Bearer ${tokens.student}`);
     expectDenied(res);
   });
@@ -306,7 +312,7 @@ describe('Front desk role — allowed endpoints', () => {
 describe('Front desk role — denied endpoints', () => {
   test('front_desk is denied from finance transactions', async () => {
     const res = await request(app)
-      .get('/api/finances/transactions')
+      .get(FINANCE_TRANSACTIONS_URL)
       .set('Authorization', `Bearer ${tokens.front_desk}`);
     expectDenied(res);
   });
@@ -318,11 +324,14 @@ describe('Front desk role — denied endpoints', () => {
     expectDenied(res);
   });
 
-  test('front_desk is denied from wallet admin', async () => {
+  // Intentional change v0.1.287 (2026-05-31, front-desk revision): the desk role
+  // (front_desk / receptionist aliases) reviews and approves deposits, so
+  // GET /api/wallet/admin/deposits now allows it (backend/routes/wallet.js).
+  test('front_desk is allowed to the wallet admin deposits list', async () => {
     const res = await request(app)
       .get('/api/wallet/admin/deposits')
       .set('Authorization', `Bearer ${tokens.front_desk}`);
-    expectDenied(res);
+    expectAllowed(res);
   });
 
   test('front_desk is denied from user create', async () => {
@@ -340,11 +349,13 @@ describe('Front desk role — denied endpoints', () => {
     expectDenied(res);
   });
 
-  test('front_desk is denied from booking deletion', async () => {
+  // Intentional change v0.1.322 (2026-06-21): DELETE /api/bookings/:id gate is
+  // ['admin', 'manager', 'receptionist', 'front_desk'] — the desk can cancel bookings.
+  test('front_desk is allowed to delete bookings', async () => {
     const res = await request(app)
       .delete('/api/bookings/00000000-0000-0000-0000-000000000000')
       .set('Authorization', `Bearer ${tokens.front_desk}`);
-    expectDenied(res);
+    expectAllowed(res);
   });
 
   test('front_desk is denied from business expense delete', async () => {
@@ -368,7 +379,7 @@ describe('Front desk role — denied endpoints', () => {
 // ============================================
 describe('Unauthenticated requests — denied', () => {
   test('GET /api/finances/transactions requires auth', async () => {
-    const res = await request(app).get('/api/finances/transactions');
+    const res = await request(app).get(FINANCE_TRANSACTIONS_URL);
     expect(res.status).toBe(401);
   });
 
@@ -399,7 +410,7 @@ describe('Unauthenticated requests — denied', () => {
 describe('Admin role — allowed everywhere', () => {
   test('GET /api/finances/transactions allows admin', async () => {
     const res = await request(app)
-      .get('/api/finances/transactions')
+      .get(FINANCE_TRANSACTIONS_URL)
       .set('Authorization', `Bearer ${tokens.admin}`);
     expectAllowed(res);
   });

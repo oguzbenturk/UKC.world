@@ -24,27 +24,34 @@ describe('Notifications Routes', () => {
   let studentToken;
 
   beforeAll(async () => {
-    await jest.unstable_mockModule('../../../backend/db.js', () => ({
+    await jest.unstable_mockModule('../../../../../backend/db.js', () => ({
       pool: {
         query: jest.fn()
       }
     }));
 
-    await jest.unstable_mockModule('../../../backend/services/notificationWriter.js', () => ({
-      insertNotification: jest.fn()
+    await jest.unstable_mockModule('../../../../../backend/services/notificationWriter.js', () => ({
+      insertNotification: jest.fn(),
+      // server.js imports other modules that use the default export too
+      default: { insertNotification: jest.fn() }
     }));
 
-    await jest.unstable_mockModule('../../../backend/services/marketingConsentService.js', () => ({
+    await jest.unstable_mockModule('../../../../../backend/services/marketingConsentService.js', () => ({
       filterUsersByConsent: jest.fn(),
       classifyNotification: jest.fn(),
       CHANNEL: { IN_APP: 'in_app', EMAIL: 'email', PUSH: 'push' },
-      COMMUNICATION_TYPE: { MARKETING: 'marketing', TRANSACTIONAL: 'transactional' }
+      COMMUNICATION_TYPE: { MARKETING: 'marketing', TRANSACTIONAL: 'transactional' },
+      // Exports used by other modules server.js loads (ESM mocks must cover every named import)
+      getUserMarketingConsent: jest.fn(),
+      canSendCommunication: jest.fn().mockResolvedValue(true),
+      recordMarketingCommunication: jest.fn(),
+      default: {}
     }));
 
-    ({ default: app } = await import('../../../../../backend/../backend/server.js'));
-    ({ pool } = await import('../../../../../backend/../backend/db.js'));
-    notificationWriter = await import('../../../../../backend/../backend/services/notificationWriter.js');
-    marketingConsentService = await import('../../../../../backend/../backend/services/marketingConsentService.js');
+    ({ default: app } = await import('../../../../../backend/server.js'));
+    ({ pool } = await import('../../../../../backend/db.js'));
+    notificationWriter = await import('../../../../../backend/services/notificationWriter.js');
+    marketingConsentService = await import('../../../../../backend/services/marketingConsentService.js');
 
     adminToken = createToken({ role: 'admin' });
     managerToken = createToken({ role: 'manager' });
@@ -71,7 +78,9 @@ describe('Notifications Routes', () => {
           }
         });
 
-      expect(response.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(response.status);
     });
 
     test('student can subscribe to push notifications', async () => {
@@ -124,7 +133,9 @@ describe('Notifications Routes', () => {
         .post(`${base}/unsubscribe`)
         .send({ endpoint: 'https://example.com/endpoint' });
 
-      expect(response.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(response.status);
     });
 
     test('student can unsubscribe from push notifications', async () => {
@@ -327,7 +338,9 @@ describe('Notifications Routes', () => {
       const response = await request(app)
         .patch(`${base}/77777777-7777-7777-7777-777777777777/read`);
 
-      expect(response.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(response.status);
     });
 
     test('marks notification as read', async () => {
@@ -359,7 +372,9 @@ describe('Notifications Routes', () => {
   describe('PATCH /read-all - Mark all notifications as read', () => {
     test('requires authentication', async () => {
       const response = await request(app).patch(`${base}/read-all`);
-      expect(response.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(response.status);
     });
 
     test('marks all user notifications as read', async () => {
@@ -381,7 +396,9 @@ describe('Notifications Routes', () => {
   describe('DELETE /clear-all - Clear all notifications', () => {
     test('requires authentication', async () => {
       const response = await request(app).delete(`${base}/clear-all`);
-      expect(response.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(response.status);
     });
 
     test('deletes all user notifications', async () => {
@@ -450,11 +467,17 @@ describe('Notifications Routes', () => {
         .put(`${base}/settings`)
         .send({ weather_alerts: false });
 
-      expect(response.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(response.status);
     });
 
     test('updates notification settings', async () => {
+      // Since v0.1.239 the route first reads the existing row (a partial PUT must not reset
+      // other toggles), then upserts — so two queries are mocked.
       jest.spyOn(pool, 'query').mockResolvedValueOnce({
+        rows: [{ user_id: '11111111-1111-1111-1111-111111111111', booking_updates: true }]
+      }).mockResolvedValueOnce({
         rows: [
           {
             user_id: '11111111-1111-1111-1111-111111111111',

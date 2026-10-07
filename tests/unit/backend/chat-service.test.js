@@ -54,8 +54,12 @@ describe('ChatService.getOrCreateDirectConversation', () => {
       created_at: '2026-04-01T10:00:00Z'
     };
 
+    // Sequence: BEGIN → find existing → re-activate soft-left participants (added in
+    // v0.1.315) → COMMIT. The old mock list omitted BEGIN and the UPDATE.
     client.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [existingConv] }) // check existing
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // UPDATE left_at = NULL
       .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
     const result = await ChatService.getOrCreateDirectConversation('user-1', 'user-2');
@@ -78,6 +82,7 @@ describe('ChatService.getOrCreateDirectConversation', () => {
     };
 
     client.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN (was missing: the old sequence only passed by accident)
       .mockResolvedValueOnce({ rows: [] }) // no existing
       .mockResolvedValueOnce({ rows: [newConv] }) // INSERT
       .mockResolvedValueOnce({ rows: [] }) // INSERT participants
@@ -103,6 +108,7 @@ describe('ChatService.getOrCreateDirectConversation', () => {
     const newConv = { id: 'conv-1', type: 'direct' };
 
     client.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN (was missing: the old sequence only passed by accident)
       .mockResolvedValueOnce({ rows: [] }) // no existing
       .mockResolvedValueOnce({ rows: [newConv] }) // INSERT conversation
       .mockResolvedValueOnce({ rows: [] }) // INSERT participants
@@ -142,6 +148,7 @@ describe('ChatService.getOrCreateDirectConversation', () => {
     const newConv = { id: 'conv-1', type: 'direct' };
 
     client.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN (was missing: the old sequence only passed by accident)
       .mockResolvedValueOnce({ rows: [] }) // no existing
       .mockResolvedValueOnce({ rows: [newConv] }) // INSERT
       .mockResolvedValueOnce({ rows: [] }) // INSERT participants
@@ -267,7 +274,7 @@ describe('ChatService.createGroupOrChannel', () => {
         rows: [{ id: 'user-1' }, { id: 'user-2' }, { id: 'user-3' }]
       }) // GET all users
       .mockResolvedValueOnce({ rows: [] }) // INSERT participants
-      .mockResolvedValueOnce({ rows: [] }) // INSERT welcome message (if provided)
+      // (no welcome-message INSERT: no welcomeMessage is passed in this test)
       .mockResolvedValueOnce({ rows: [] }) // COMMIT
       .mockResolvedValueOnce({
         rows: [{ total: 4 }]  // 1 creator + 3 users

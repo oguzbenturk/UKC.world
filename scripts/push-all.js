@@ -370,7 +370,9 @@ async function main() {
     const host = process.env.DEPLOY_HOST || secrets.host;
     const username = process.env.DEPLOY_USER || secrets.user || 'root';
     const password = process.env.DEPLOY_PASSWORD || secrets.password;
-    const privateKeyPath = process.env.DEPLOY_KEY_PATH || secrets.keyPath;
+    // Key auth preferred: privateKeyPath (or legacy keyPath) wins; password is only the fallback.
+    const privateKeyPath = (process.env.DEPLOY_KEY_PATH || secrets.privateKeyPath || secrets.keyPath || '')
+      .replace(/^~(?=$|[\\/])/, process.env.USERPROFILE || process.env.HOME || '~');
     const remotePath = process.env.DEPLOY_PATH || secrets.path || '/root/plannivo';
     const remoteBranch = process.env.DEPLOY_BRANCH || secrets.branch || 'main';
 
@@ -382,8 +384,9 @@ async function main() {
         await ssh.connect({
           host,
           username,
-          password: password || undefined,
+          password: privateKeyPath ? undefined : (password || undefined),
           privateKey: privateKeyPath ? fs.readFileSync(privateKeyPath, 'utf-8') : undefined,
+          passphrase: privateKeyPath ? (process.env.DEPLOY_KEY_PASSPHRASE || undefined) : undefined,
           readyTimeout: 20000,
         });
 

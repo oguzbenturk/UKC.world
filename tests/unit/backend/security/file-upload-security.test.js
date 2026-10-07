@@ -2,6 +2,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import app from '../../../../backend/server.js';
 
 /**
@@ -20,6 +21,44 @@ const JWT_SECRET = process.env.JWT_SECRET || 'plannivo-jwt-secret-key';
 
 const createToken = ({ id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', role = 'admin', email = 'admin@test.local' } = {}) =>
   jwt.sign({ id, role, email }, JWT_SECRET, { expiresIn: '1h' });
+
+// Unauthenticated (no Bearer header, no csrf cookie) mutating requests are rejected
+// by csrfMiddleware (backend/middlewares/security.js, mounted on /api since
+// v0.1.148, 2026-04) with 403 BEFORE the route's auth / token check runs, so
+// "rejected" means 401 or 403 here.
+const UNAUTHENTICATED_REJECTION = [401, 403];
+
+// Successful uploads write real files under backend/uploads (named after the
+// uploader / target user id). Remove the ones this suite created so repeated
+// runs don't accumulate artefacts.
+const UPLOADS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../backend/uploads');
+const TEST_USER_IDS = [
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  'cccccccc-cccc-cccc-cccc-cccccccccccc',
+];
+let suiteStartedAt = 0;
+
+beforeAll(() => {
+  suiteStartedAt = Date.now() - 1000;
+});
+
+afterAll(() => {
+  if (!fs.existsSync(UPLOADS_DIR)) return;
+  for (const sub of fs.readdirSync(UPLOADS_DIR, { withFileTypes: true })) {
+    if (!sub.isDirectory()) continue;
+    const dir = path.join(UPLOADS_DIR, sub.name);
+    for (const name of fs.readdirSync(dir)) {
+      if (!TEST_USER_IDS.some((id) => name.includes(id))) continue;
+      const filePath = path.join(dir, name);
+      try {
+        if (fs.statSync(filePath).mtimeMs >= suiteStartedAt) fs.unlinkSync(filePath);
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+});
 
 // Create a tiny valid PNG (1x1 pixel)
 const VALID_PNG_BYTES = Buffer.from([
@@ -41,7 +80,7 @@ describe('Image upload — /api/upload/image', () => {
     const res = await request(app)
       .post('/api/upload/image')
       .attach('image', VALID_PNG_BYTES, 'test.png');
-    expect(res.status).toBe(401);
+    expect(UNAUTHENTICATED_REJECTION).toContain(res.status);
   });
 
   test('rejects non-admin/non-manager roles', async () => {
@@ -149,8 +188,9 @@ describe('Public form upload — token protection', () => {
     const res = await request(app)
       .post('/api/upload/form-submission')
       .attach('file', VALID_PNG_BYTES, 'form-photo.png');
-    // Should be 401 (no token) or 503 (token not configured)
-    expect([401, 503]).toContain(res.status);
+    // Should be 401 (no token), 503 (token not configured) or 403 (CSRF rejects
+    // the cookie-less POST first — see UNAUTHENTICATED_REJECTION above)
+    expect([401, 403, 503]).toContain(res.status);
   });
 
   test('rejects form submission with wrong token', async () => {
@@ -158,7 +198,8 @@ describe('Public form upload — token protection', () => {
       .post('/api/upload/form-submission')
       .set('x-form-upload-token', 'wrong-token-123')
       .attach('file', VALID_PNG_BYTES, 'form-photo.png');
-    expect([401, 503]).toContain(res.status);
+    // 403 = CSRF rejects the cookie-less POST before the token check
+    expect([401, 403, 503]).toContain(res.status);
   });
 });
 
@@ -170,7 +211,7 @@ describe('Chat file upload — /api/upload/chat-file', () => {
     const res = await request(app)
       .post('/api/upload/chat-file')
       .attach('file', Buffer.from('test content'), 'doc.pdf');
-    expect(res.status).toBe(401);
+    expect(UNAUTHENTICATED_REJECTION).toContain(res.status);
   });
 });
 
@@ -182,7 +223,7 @@ describe('Voice message upload — /api/upload/voice-message', () => {
     const res = await request(app)
       .post('/api/upload/voice-message')
       .attach('audio', Buffer.from([0, 0, 0]), 'voice.webm');
-    expect(res.status).toBe(401);
+    expect(UNAUTHENTICATED_REJECTION).toContain(res.status);
   });
 });
 

@@ -1,5 +1,8 @@
 import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
-import * as userConsentService from '../../../backend/services/userConsentService.js';
+// Imported dynamically in beforeAll AFTER jest.unstable_mockModule — a static
+// ESM import is evaluated before the mocks are registered, so the real db.js
+// pool was used (fake ids like "user-1" then hit the real UUID column).
+let userConsentService;
 
 let mockPool;
 let mockClient;
@@ -26,6 +29,12 @@ beforeAll(async () => {
       warn: jest.fn()
     }
   }));
+  userConsentService = await import('../../../backend/services/userConsentService.js');
+
+  // ensureConsentSchema() runs its 5 DDL statements once per module (module-level
+  // flag) and would otherwise swallow the first test's mockResolvedValueOnce rows,
+  // making results depend on test order. Prime it here.
+  await userConsentService.getConsentStatus('00000000-0000-0000-0000-000000000000');
 });
 
 beforeEach(() => {
@@ -326,9 +335,7 @@ describe('userConsentService.updateUserConsent', () => {
           marketing_whatsapp_opt_in: false
         }]
       })
-      .mockResolvedValueOnce({
-        rows: [] // no existing waivers
-      })
+      // Service order: upsert user_consents first, THEN the waiver lookup/insert
       .mockResolvedValueOnce({
         rows: [{
           user_id: 'user-1',
@@ -338,7 +345,11 @@ describe('userConsentService.updateUserConsent', () => {
           marketing_sms_opt_in: false,
           marketing_whatsapp_opt_in: false
         }]
+      }) // upsert
+      .mockResolvedValueOnce({
+        rows: [] // no existing waivers
       })
+      .mockResolvedValueOnce({}) // INSERT liability_waivers
       .mockResolvedValueOnce({}); // COMMIT
 
     await userConsentService.updateUserConsent({

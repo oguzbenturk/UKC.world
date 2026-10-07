@@ -51,10 +51,15 @@ async function main() {
 
   console.log('\n🔌 Connecting to production server...');
   const ssh = new NodeSSH();
+  // Key auth preferred: privateKeyPath (or legacy keyPath) wins; password is only the fallback.
+  const keyPath = (process.env.DEPLOY_KEY_PATH || secrets.privateKeyPath || secrets.keyPath || '')
+    .replace(/^~(?=$|[\\/])/, process.env.USERPROFILE || process.env.HOME || '~');
   await ssh.connect({
     host: secrets.host,
     username: secrets.user || 'root',
-    password: secrets.password,
+    ...(keyPath
+      ? { privateKey: fs.readFileSync(keyPath, 'utf-8'), passphrase: process.env.DEPLOY_KEY_PASSPHRASE || undefined }
+      : { password: secrets.password }),
     readyTimeout: 20000,
   });
 

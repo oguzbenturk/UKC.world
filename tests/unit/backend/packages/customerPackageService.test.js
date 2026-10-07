@@ -381,7 +381,9 @@ describe('customerPackageService', () => {
         customerPackageService.mapWalletTransactionForResponse(mockTransaction);
 
       expect(result.amount).toBeNull();
-      expect(result.available_delta).toBeNull();
+      // The mapper has always emitted camelCase keys (availableDelta) — the
+      // snake_case key asserted here originally never existed on the response.
+      expect(result.availableDelta).toBeNull();
     });
   });
 });

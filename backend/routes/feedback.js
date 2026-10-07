@@ -122,7 +122,7 @@ router.get('/instructor/:instructorId/summary', authorizeRoles(['admin', 'manage
     const userRole = req.user.role;
 
     // Instructors can only see their own summary
-    if (userRole === 'instructor' && parseInt(instructorId) !== userId) {
+    if (userRole === 'instructor' && String(instructorId) !== String(userId)) { // ids are UUIDs: parseInt() never matched
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -140,7 +140,7 @@ router.get('/instructor/:instructorId/summary', authorizeRoles(['admin', 'manage
     `, [instructorId]);
 
     const recentFeedback = await pool.query(`
-      SELECT f.*, u.name as student_name, b.lesson_date
+      SELECT f.*, u.name as student_name, b.date AS lesson_date -- bookings has no lesson_date column
       FROM feedback f
       JOIN users u ON f.student_id = u.id
       JOIN bookings b ON f.booking_id = b.id
@@ -168,7 +168,7 @@ router.get('/achievements/:studentId', authorizeRoles(['admin', 'manager', 'inst
     const userRole = req.user.role;
 
     // Students can only see their own achievements
-    if (userRole === 'student' && parseInt(studentId) !== userId) {
+    if (userRole === 'student' && String(studentId) !== String(userId)) { // ids are UUIDs: parseInt() never matched
       return res.status(403).json({ error: 'Not authorized' });
     }
 

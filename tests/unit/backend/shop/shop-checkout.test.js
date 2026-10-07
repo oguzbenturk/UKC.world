@@ -26,7 +26,9 @@ describe('Shop checkout — POST /api/shop-orders', () => {
     const res = await request(app)
       .post(endpoint)
       .send({ items: [{ product_id: 'x', quantity: 1 }], payment_method: 'wallet' });
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('rejects empty items array', async () => {

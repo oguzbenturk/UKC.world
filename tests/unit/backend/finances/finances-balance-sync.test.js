@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { stubExports } from '../../../helpers/esmMockExports.js';
+
+const WALLET_SERVICE_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../backend/services/walletService.js');
 
 const mockQuery = jest.fn();
 const mockWalletSummary = jest.fn();
@@ -9,7 +14,9 @@ await jest.unstable_mockModule('../../../../backend/db.js', () => ({
   }
 }));
 
-await jest.unstable_mockModule('../../../../backend/services/walletService.js', () => ({
+// stubExports: routes/finances.js transitively imports many walletService named
+// exports (resolveStoredAvailableDelta, findBalanceLedgerDrift, ...); stub them all.
+await jest.unstable_mockModule('../../../../backend/services/walletService.js', () => stubExports(WALLET_SERVICE_PATH, {
   getWalletAccountSummary: mockWalletSummary,
   recordTransaction: jest.fn(),
   recordLegacyTransaction: jest.fn(),

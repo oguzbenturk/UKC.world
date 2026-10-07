@@ -71,7 +71,9 @@ describe('Chat Routes', () => {
       const res = await request(app)
         .post('/api/chat/conversations/direct')
         .send({ otherUserId: 5 });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires otherUserId', async () => {
@@ -124,7 +126,9 @@ describe('Chat Routes', () => {
       const res = await request(app)
         .post('/api/chat/conversations/1/messages')
         .send({ messageType: 'text', content: 'Hello' });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires content for text messages', async () => {
@@ -180,8 +184,18 @@ describe('Chat Routes', () => {
   });
 
   describe('GET /api/chat/health', () => {
-    test('health check no auth required', async () => {
+    // The whole /api/chat router is mounted behind authenticateJWT in server.js (since the
+    // initial commit) and the frontend calls /chat/health through the authed apiClient, so the
+    // old "no auth required" expectation never held.
+    test('health check requires authentication', async () => {
       const res = await request(app).get('/api/chat/health');
+      expect(res.status).toBe(401);
+    });
+
+    test('health check returns ok for an authenticated user', async () => {
+      const res = await request(app)
+        .get('/api/chat/health')
+        .set('Authorization', `Bearer ${managerToken}`);
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('ok');
     });

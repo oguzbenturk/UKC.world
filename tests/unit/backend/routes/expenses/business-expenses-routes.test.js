@@ -92,7 +92,9 @@ describe('Business Expenses Routes', () => {
           category: 'supplies',
           description: 'Office supplies'
         });
-      expect(res.status).toBe(401);
+      // csrfMiddleware (backend/middlewares/security.js, since v0.1.148) rejects
+      // cookie-less, Bearer-less mutations with 403 before auth runs.
+      expect([401, 403]).toContain(res.status);
     });
 
     test('creates expense (admin auto-approves)', async () => {
@@ -161,7 +163,9 @@ describe('Business Expenses Routes', () => {
       const res = await request(app)
         .put('/api/business-expenses/1')
         .send({ amount: 300 });
-      expect(res.status).toBe(401);
+      // csrfMiddleware (backend/middlewares/security.js, since v0.1.148) rejects
+      // cookie-less, Bearer-less mutations with 403 before auth runs.
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires admin or manager role', async () => {
@@ -184,7 +188,9 @@ describe('Business Expenses Routes', () => {
   describe('DELETE /api/business-expenses/:id', () => {
     test('requires authentication', async () => {
       const res = await request(app).delete('/api/business-expenses/1');
-      expect(res.status).toBe(401);
+      // csrfMiddleware (backend/middlewares/security.js, since v0.1.148) rejects
+      // cookie-less, Bearer-less mutations with 403 before auth runs.
+      expect([401, 403]).toContain(res.status);
     });
 
     test('soft deletes or returns 404', async () => {

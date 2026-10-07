@@ -1,76 +1,36 @@
-name: Deploy to Production
+name: CI
+
+# Deployment is done from the developer machine with `npm run push-all` (SSH to the
+# production server, see docs/wiki/Deployment_Infrastructure.md). This workflow only
+# checks every push. The old "deploy" job pointed at a wrong server path
+# (/opt/plannivo) and must never run, so it was removed (2026-10-07).
+#
+# Backend Jest suites need a database with production-like data and run locally:
+#   npm run test:ci   (before every push-all)
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
-  test:
+  frontend:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: plannivo_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: |
-        npm ci
-        cd backend && npm ci
-    
-    - name: Run tests
-      run: npm run test:run
-      env:
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: plannivo_test
-        DB_USER: postgres
-        DB_PASS: postgres
-    
-    - name: Build application
-      run: npm run build:production
+      - uses: actions/checkout@v4
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          cd /opt/plannivo
-          git pull origin main
-          docker-compose build
-          docker-compose run --rm backend node migrate.js up
-          docker-compose up -d
-          
-          # Health check
-          sleep 10
-          if curl -f http://localhost/api/health; then
-            echo "✅ Deployment successful"
-          else
-            echo "❌ Deployment failed"
-            docker-compose logs backend
-            exit 1
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Frontend unit tests (Vitest)
+        run: npx vitest run
+
+      - name: Translation keys present in all languages
+        run: node scripts/check-i18n-keys.mjs

@@ -1,12 +1,29 @@
 import { randomUUID } from 'node:crypto';
-import { afterEach, beforeAll, describe, expect, test } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 
-import { pool } from '../../../../backend/db.js';
-import {
+// Card deposits call initiateGatewayDeposit → the real Iyzico API over TLS.
+// A unit test must not depend on the network (it flaked with ECONNRESET), so
+// the gateway initiation is stubbed; the deposit-policy logic under test runs
+// for real against the local DB.
+const { supportedGateways } = await import('../../../../backend/services/paymentGateways/index.js');
+jest.unstable_mockModule('../../../../backend/services/paymentGatewayService.js', () => ({
+  listSupportedGateways: () => supportedGateways,
+  initiateGatewayDeposit: jest.fn(async ({ gateway }) => ({
+    gateway,
+    metadata: { stubbed: true },
+    session: null,
+    gatewayTransactionId: null,
+    shouldAutoComplete: false
+  })),
+  __testables: {}
+}));
+
+const { pool } = await import('../../../../backend/db.js');
+const {
   createDepositRequest,
   initiateBinancePayDeposit,
   saveWalletSettings
-} from '../../../../backend/services/walletService.js';
+} = await import('../../../../backend/services/walletService.js');
 
 const TEST_CURRENCY = 'EUR';
 const createdUsers = new Set();
@@ -33,7 +50,9 @@ async function cleanupUserData(userId) {
     'DELETE FROM wallet_settings WHERE scope_type = $1 AND scope_id = $2 AND currency = $3',
     ['user', userId, TEST_CURRENCY]
   );
-  // Note: We don't delete the user to avoid cascade issues; users are cleaned up naturally
+  await pool.query('DELETE FROM wallet_transactions WHERE user_id = $1', [userId]);
+  await pool.query('DELETE FROM wallet_balances WHERE user_id = $1', [userId]);
+  await pool.query('DELETE FROM users WHERE id = $1', [userId]);
 }
 
 afterEach(async () => {

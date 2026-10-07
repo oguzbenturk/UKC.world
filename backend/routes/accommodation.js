@@ -609,6 +609,9 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 		}
 
 		if (!unit_id || !check_in_date || !check_out_date) {
+			// ROLLBACK the BEGIN above — otherwise the pooled client is released with
+			// an open transaction and the next borrower's statements run inside it.
+			await client.query('ROLLBACK');
 			return res.status(400).json({ error: 'unit_id, check_in_date, and check_out_date are required' });
 		}
 
@@ -616,6 +619,7 @@ router.post('/bookings', authenticateJWT, cacheInvalidationMiddleware(accomCache
 		const checkIn = new Date(check_in_date);
 		const checkOut = new Date(check_out_date);
 		if (checkOut <= checkIn) {
+			await client.query('ROLLBACK');
 			return res.status(400).json({ error: 'check_out_date must be after check_in_date' });
 		}
 

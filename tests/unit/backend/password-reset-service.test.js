@@ -85,7 +85,12 @@ describe('passwordResetService.requestPasswordReset', () => {
     expect(result.message).toContain('email');
   });
 
-  test('rate limits reset requests (5 minute window)', async () => {
+  // Behaviour changed intentionally in v0.1.251 (2026-04-30): the service no longer
+  // gates on "an unused token from the last 5 minutes" (it silently swallowed
+  // admin-triggered resets right after a welcome email). Anti-abuse now lives in
+  // the express-rate-limit middleware (passwordResetRateLimit). A recent token
+  // must therefore be invalidated and a fresh one issued.
+  test('does not rate limit in the service — recent token is invalidated and a new one issued', async () => {
     const client = {
       query: jest.fn(),
       release: jest.fn()
@@ -95,9 +100,8 @@ describe('passwordResetService.requestPasswordReset', () => {
       .mockResolvedValueOnce({
         rows: [{ id: 'user-1', email: 'user@example.com', name: 'John' }]
       })
-      .mockResolvedValueOnce({
-        rows: [{ id: 'token-1' }]
-      }); // recent request exists
+      .mockResolvedValueOnce({ rows: [] }) // invalidate old tokens (incl. the recent one)
+      .mockResolvedValueOnce({ rows: [] }); // insert new token
 
     const result = await passwordResetService.requestPasswordReset(
       'user@example.com',
@@ -106,9 +110,13 @@ describe('passwordResetService.requestPasswordReset', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockLogger.warn).toHaveBeenCalledWith(
+    expect(mockLogger.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('rate limited'),
       expect.any(Object)
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO password_reset_tokens'),
+      expect.any(Array)
     );
   });
 
@@ -280,6 +288,14 @@ describe('passwordResetService.validateResetToken', () => {
 });
 
 describe('passwordResetService.resetPassword', () => {
+  beforeEach(() => {
+    // After COMMIT the service loads the user for the confirmation email via
+    // pool.query (not the transaction client).
+    mockPool.query.mockResolvedValue({
+      rows: [{ email: 'user@example.com', name: 'John', first_name: 'John' }]
+    });
+  });
+
   test('resets password for valid token', async () => {
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');

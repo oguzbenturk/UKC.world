@@ -510,11 +510,14 @@ describe('CurrencyService.getCurrencySymbol', () => {
   });
 });
 
+// Since 2026-04-10 (3eb69c1) fetchGoogleRate returns { rate, source } and tries
+// Yahoo Finance first, then open.er-api (needs result === 'success'), then
+// fxratesapi, then exchangerate-api. Mocks below follow that response shape.
 describe('CurrencyService.fetchGoogleRate', () => {
   test('returns 1.0 when fetching base currency rate', async () => {
     const result = await CurrencyService.fetchGoogleRate('EUR', 'EUR');
 
-    expect(result).toBe(1.0);
+    expect(result).toEqual({ rate: 1.0, source: 'open_er' });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -522,13 +525,14 @@ describe('CurrencyService.fetchGoogleRate', () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
       json: jest.fn().mockResolvedValueOnce({
-        rates: { USD: 1.0850 }
+        chart: { result: [{ meta: { regularMarketPrice: 1.0850 } }] }
       })
     });
 
     const result = await CurrencyService.fetchGoogleRate('USD', 'EUR');
 
-    expect(result).toBe(1.0850);
+    expect(result).toEqual({ rate: 1.0850, source: 'yahoo' });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   test('returns null when all sources fail', async () => {
@@ -545,13 +549,14 @@ describe('CurrencyService.fetchGoogleRate', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValueOnce({
+          result: 'success',
           rates: { USD: 1.0850 }
         })
       });
 
     const result = await CurrencyService.fetchGoogleRate('USD', 'EUR');
 
-    expect(result).toBe(1.0850);
+    expect(result).toEqual({ rate: 1.0850, source: 'open_er' });
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });

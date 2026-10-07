@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeAll } from '@jest/globals';
+import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
 
 let voucherService;
 let mockPool;
@@ -31,6 +31,13 @@ beforeAll(async () => {
     const mod = await import('../../../../backend/services/voucherService.js');
     voucherService = mod;
   });
+});
+
+// Reset the shared pool mock per test: un-consumed mockResolvedValueOnce values
+// otherwise leak into later tests and shift every subsequent query result.
+beforeEach(() => {
+  mockPool.query.mockReset();
+  mockPool.query.mockResolvedValue({ rows: [] });
 });
 
 describe('voucherService', () => {
@@ -330,9 +337,16 @@ describe('voucherService', () => {
         max_total_uses: null,
         usage_type: 'single_per_user',
         visibility: 'public',
+        // applies_to is NOT NULL in voucher_codes; without it the scope check
+        // (WRONG_CONTEXT) fires before the minimum-purchase check under test.
+        applies_to: 'all',
         currency: 'EUR',
       };
-      mockPool.query.mockResolvedValueOnce({ rows: [voucher] });
+      // validateVoucher looks the code up, then counts the user's prior
+      // redemptions (COUNT(*) always yields one row in Postgres).
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [voucher] })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] });
 
       const result = await voucherService.validateVoucher({
         code: 'MINPURCH',
@@ -362,7 +376,9 @@ describe('voucherService', () => {
         applies_to: 'all',
         currency: 'EUR',
       };
-      mockPool.query.mockResolvedValueOnce({ rows: [voucher] });
+      mockPool.query
+        .mockResolvedValueOnce({ rows: [voucher] })
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] }); // user's prior redemptions
 
       const result = await voucherService.validateVoucher({
         code: 'VALID20',
@@ -396,7 +412,8 @@ describe('voucherService', () => {
       };
       mockPool.query
         .mockResolvedValueOnce({ rows: [voucher] })
-        .mockResolvedValueOnce({ rows: [{ id: 'b1' }] });
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // user's prior redemptions
+        .mockResolvedValueOnce({ rows: [{ id: 'b1' }] }); // has a prior booking
 
       const result = await voucherService.validateVoucher({
         code: 'FIRSTBUY',
@@ -640,9 +657,13 @@ describe('voucherService', () => {
       });
 
       const call = mockPool.query.mock.calls[0];
-      expect(call[0]).not.toContain('code');
-      expect(call[0]).toContain('is_active');
-      expect(call[0]).toContain('name');
+      // The table itself is `voucher_codes`, so assert on the SET list, not on
+      // the bare substring "code": the code column must not be updatable.
+      const setClause = call[0].split(/ SET /)[1].split(/ WHERE /)[0];
+      expect(setClause).not.toMatch(/(^|[ ,])code *=/);
+      expect(call[1]).not.toContain('HACK');
+      expect(setClause).toContain('is_active');
+      expect(setClause).toContain('name');
     });
   });
 

@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeAll, afterAll, afterEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeAll, beforeEach, afterAll } from '@jest/globals';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
@@ -24,13 +24,14 @@ describe('Group Bookings Routes', () => {
   let outsiderToken;
 
   beforeAll(async () => {
-    await jest.unstable_mockModule('../../../backend/db.js', () => ({
+    await jest.unstable_mockModule('../../../../../backend/db.js', () => ({
       pool: {
-        query: jest.fn()
+        query: jest.fn(),
+        connect: jest.fn()
       }
     }));
 
-    await jest.unstable_mockModule('../../../backend/services/groupBookingService.js', () => ({
+    await jest.unstable_mockModule('../../../../../backend/services/groupBookingService.js', () => ({
       createGroupBooking: jest.fn(),
       inviteParticipants: jest.fn(),
       addParticipantsByUserIds: jest.fn(),
@@ -47,9 +48,9 @@ describe('Group Bookings Routes', () => {
       processOrganizerPayment: jest.fn()
     }));
 
-    ({ default: app } = await import('../../../../../backend/../backend/server.js'));
-    ({ pool } = await import('../../../../../backend/../backend/db.js'));
-    groupBookingService = await import('../../../../../backend/../backend/services/groupBookingService.js');
+    ({ default: app } = await import('../../../../../backend/server.js'));
+    ({ pool } = await import('../../../../../backend/db.js'));
+    groupBookingService = await import('../../../../../backend/services/groupBookingService.js');
 
     adminToken = createToken({ role: 'admin' });
     managerToken = createToken({ role: 'manager' });
@@ -61,8 +62,16 @@ describe('Group Bookings Routes', () => {
     // Pool cleanup handled by --forceExit
   }, 15000);
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  // Full reset (not just clear) so un-consumed mockResolvedValueOnce values can't
+  // leak into the next test; then give the db a benign default (empty result) so
+  // incidental lookups (calendar sync, staff notification) don't crash the route.
+  beforeEach(() => {
+    jest.resetAllMocks();
+    pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    pool.connect.mockResolvedValue({
+      query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      release: jest.fn()
+    });
   });
 
   describe('POST / - Create group booking', () => {
@@ -73,7 +82,9 @@ describe('Group Bookings Routes', () => {
         scheduledDate: '2026-04-10',
         startTime: '10:00'
       });
-      expect(response.status).toBe(401);
+      // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+      // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+      expect([401, 403]).toContain(response.status);
     });
 
     test('student can create group booking with participant IDs', async () => {
@@ -106,8 +117,16 @@ describe('Group Bookings Routes', () => {
         });
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('id');
+      // Route responds { success, groupBooking: {...}, participants, invitations }
+      expect(response.body.success).toBe(true);
+      expect(response.body.groupBooking).toHaveProperty('id', mockBooking.id);
+      expect(response.body.participants).toHaveLength(1);
       expect(groupBookingService.createGroupBooking).toHaveBeenCalled();
+      expect(groupBookingService.addParticipantsByUserIds).toHaveBeenCalledWith(
+        mockBooking.id,
+        '11111111-1111-1111-1111-111111111111',
+        ['44444444-4444-4444-4444-444444444444']
+      );
     });
 
     test('rejects when required fields are missing', async () => {
@@ -203,7 +222,9 @@ describe('Group Bookings Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`);
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.body)).toBe(true);
+      // Route responds { success, groupBookings: [...] }
+      expect(Array.isArray(response.body.groupBookings)).toBe(true);
+      expect(response.body.groupBookings[0]).toMatchObject({ id: mockBookings[0].id, title: 'Group Lesson 1' });
       expect(groupBookingService.getUserGroupBookings).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111');
     });
 
@@ -221,7 +242,9 @@ describe('Group Bookings Routes', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.body)).toBe(true);
+      // Route responds { success, groupBookings: [...] } (bookings the caller is part of)
+      expect(Array.isArray(response.body.groupBookings)).toBe(true);
+      expect(response.body.groupBookings).toHaveLength(2);
     });
   });
 
@@ -235,8 +258,12 @@ describe('Group Bookings Routes', () => {
       const mockBooking = {
         id: '33333333-3333-3333-3333-333333333333',
         title: 'Group Lesson',
-        participants: 3,
-        status: 'active'
+        participants: [],
+        participantCount: 3,
+        status: 'active',
+        // the route only returns details to the organizer, a participant or staff
+        isOrganizer: true,
+        isParticipant: false
       };
 
       jest.spyOn(groupBookingService, 'getGroupBookingDetails')
@@ -247,7 +274,14 @@ describe('Group Bookings Routes', () => {
         .set('Authorization', `Bearer ${studentToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockBooking);
+      // Route responds { success, groupBooking: {...camelCased fields} }
+      expect(response.body.groupBooking).toMatchObject({
+        id: mockBooking.id,
+        title: 'Group Lesson',
+        status: 'active',
+        participantCount: 3,
+        isOrganizer: true
+      });
     });
 
     test('returns 404 when booking not found', async () => {
@@ -265,40 +299,50 @@ describe('Group Bookings Routes', () => {
   describe('DELETE /:id - Cancel group booking', () => {
     test('requires authentication', async () => {
       const response = await request(app).delete(`${base}/33333333-3333-3333-3333-333333333333`);
-      expect(response.status).toBe(401);
+      // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+      // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+      expect([401, 403]).toContain(response.status);
     });
 
     test('organizer can cancel their booking', async () => {
-      const mockResult = {
-        id: '33333333-3333-3333-3333-333333333333',
-        status: 'cancelled'
-      };
+      const mockResult = { refundedCount: 2 };
 
       jest.spyOn(groupBookingService, 'cancelGroupBooking')
         .mockResolvedValueOnce(mockResult);
 
+      // No request body — the frontend may send none (Express 5 leaves req.body undefined)
       const response = await request(app)
         .delete(`${base}/33333333-3333-3333-3333-333333333333`)
         .set('Authorization', `Bearer ${studentToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('status', 'cancelled');
+      // Route responds { success, message, refundedCount }
+      expect(response.body).toMatchObject({ success: true, refundedCount: 2 });
+      expect(groupBookingService.cancelGroupBooking).toHaveBeenCalledWith(
+        '33333333-3333-3333-3333-333333333333',
+        '11111111-1111-1111-1111-111111111111',
+        undefined
+      );
     });
 
     test('admin can cancel any booking', async () => {
-      const mockResult = {
-        id: '33333333-3333-3333-3333-333333333333',
-        status: 'cancelled'
-      };
-
+      const organizerId = '55555555-5555-5555-5555-555555555555';
+      pool.query.mockResolvedValueOnce({ rows: [{ organizer_id: organizerId }], rowCount: 1 });
       jest.spyOn(groupBookingService, 'cancelGroupBooking')
-        .mockResolvedValueOnce(mockResult);
+        .mockResolvedValueOnce({ refundedCount: 0 });
 
       const response = await request(app)
         .delete(`${base}/33333333-3333-3333-3333-333333333333`)
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ reason: 'Weather' });
 
       expect(response.status).toBe(200);
+      // staff cancel on behalf of the organizer
+      expect(groupBookingService.cancelGroupBooking).toHaveBeenCalledWith(
+        '33333333-3333-3333-3333-333333333333',
+        organizerId,
+        'Weather'
+      );
     });
 
     test('returns 404 when booking not found', async () => {

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+// CustomizePanel is i18n'd (react-i18next) — load the real English copy.
+import '../../../setup/i18nForTests';
 import CustomizePanel from '@/features/dashboard/components/CustomizePanel';
 
 const WIDGETS = {

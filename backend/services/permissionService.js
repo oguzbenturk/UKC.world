@@ -61,7 +61,10 @@ class PermissionService {
       }
 
       // Parse permission
-      const [action, scope] = permission.split(':');
+      // Permission strings are "<scope>:<action>" (e.g. 'bookings:read'), matching
+      // the role JSONB keys. Destructuring was previously swapped, so lookups used
+      // 'read:bookings' / 'read:*' and never matched any role permission.
+      const [scope, action] = permission.split(':');
       if (!action || !scope) {
         return false;
       }

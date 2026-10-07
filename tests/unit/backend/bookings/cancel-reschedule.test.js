@@ -41,7 +41,9 @@ describe('Booking cancellation — DELETE /api/bookings/:id', () => {
   test('rejects unauthenticated requests', async () => {
     const res = await request(app)
       .delete(`/api/bookings/${FAKE_UUID}`);
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('denies student from deleting bookings', async () => {
@@ -86,7 +88,9 @@ describe('Booking status change — PATCH /api/bookings/:id/status', () => {
     const res = await request(app)
       .patch(`/api/bookings/${FAKE_UUID}/status`)
       .send({ status: 'cancelled' });
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('denies student from changing booking status', async () => {
@@ -134,7 +138,9 @@ describe('Booking reschedule — PUT /api/bookings/:id', () => {
     const res = await request(app)
       .put(`/api/bookings/${FAKE_UUID}`)
       .send({ date: '2026-12-01', start_hour: 10 });
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('denies student from rescheduling', async () => {
@@ -190,13 +196,17 @@ describe('Reschedule notifications', () => {
   test('PATCH /api/reschedule-notifications/:id/confirm requires auth', async () => {
     const res = await request(app)
       .patch(`/api/reschedule-notifications/${FAKE_UUID}/confirm`);
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('POST /api/reschedule-notifications/confirm-all requires auth', async () => {
     const res = await request(app)
       .post('/api/reschedule-notifications/confirm-all');
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('POST /api/reschedule-notifications/confirm-all works for authenticated user', async () => {
@@ -215,7 +225,9 @@ describe('Booking creation — POST /api/bookings', () => {
     const res = await request(app)
       .post('/api/bookings')
       .send({ date: '2026-12-01', start_hour: 10 });
-    expect(res.status).toBe(401);
+    // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+    // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('validates required fields', async () => {

@@ -20,7 +20,11 @@ vi.mock('@/features/finances/services/financialAnalytics', () => ({
   },
 }));
 
-import { useDashboardData } from '@/features/dashboard/hooks/useDashboardData';
+// useDashboardData keeps a module-level 5-minute response cache keyed by date
+// range. Every test renders the same default range, so a shared module would
+// serve test N the response cached by test N-1 (the failure-path tests never
+// hit their rejecting mocks). Re-import a fresh module per test for isolation.
+let useDashboardData;
 
 const makeSummaryResponse = (overrides = {}) => ({
   revenue: { total_revenue: 5000, lesson_revenue: 3000, rental_revenue: 1800, other_revenue: 200, total_refunds: 100 },
@@ -41,7 +45,9 @@ const makeDashboardSummary = (overrides = {}) => ({
 });
 
 describe('useDashboardData', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ useDashboardData } = await import('@/features/dashboard/hooks/useDashboardData'));
     vi.clearAllMocks();
     mockGetFinancialSummary.mockResolvedValue(makeSummaryResponse());
     mockGetRevenueAnalytics.mockResolvedValue({ trends: [{ period: '2025-01', revenue: 2000, transaction_count: 15 }] });

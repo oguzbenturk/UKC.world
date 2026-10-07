@@ -278,13 +278,24 @@ describe('bookingNotificationService immediate execution', () => {
     );
     expect(deleteCalls).toHaveLength(2);
 
-    expect(insertPayloads).toHaveLength(2);
-    const insertedIds = insertPayloads.map((payload) => payload.data.bookingId).sort();
+    // Since v0.1.244 (2026-04-27) the assigned instructor is notified too
+    // (booking_completed_instructor), so each booking yields a student AND an
+    // instructor notification.
+    const studentPayloads = insertPayloads.filter((payload) => payload.type === 'booking_completed_student');
+    const instructorPayloads = insertPayloads.filter((payload) => payload.type === 'booking_completed_instructor');
+    expect(insertPayloads).toHaveLength(4);
+    expect(studentPayloads).toHaveLength(2);
+    expect(instructorPayloads).toHaveLength(2);
+    const insertedIds = studentPayloads.map((payload) => payload.data.bookingId).sort();
     expect(insertedIds).toEqual([...bookingIds].sort());
-    expect(insertPayloads.map((payload) => payload.idempotencyKey).sort()).toEqual(
-      insertPayloads
+    expect(studentPayloads.map((payload) => payload.idempotencyKey).sort()).toEqual(
+      studentPayloads
         .map((payload) => `lesson-completed:${payload.data.bookingId}:student:${payload.data.student.id}`)
         .sort()
     );
+    expect(instructorPayloads.map((payload) => payload.idempotencyKey).sort()).toEqual([
+      'lesson-completed:book-batch-1:instructor:instructor-1',
+      'lesson-completed:book-batch-2:instructor:instructor-2'
+    ]);
   });
 });

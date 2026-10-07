@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+// Page is i18n'd (react-i18next) — load the real English copy so text assertions hit real UI strings.
+import '../../../setup/i18nForTests';
 import ManagerPayroll from '@/features/manager/pages/ManagerPayroll';
 
 vi.mock('@/features/manager/services/managerCommissionApi', () => ({

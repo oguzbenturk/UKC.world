@@ -23,8 +23,16 @@ beforeAll(async () => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   jest.clearAllMocks();
+  // clearAllMocks does not drain unconsumed mockResolvedValueOnce queues, so a test that
+  // over-mocks leaks responses into the next one (order-dependent failures). Reset the pool
+  // mock fully and restore its default.
+  const { pool } = await import('../../../backend/db.js');
+  pool.query.mockReset();
+  pool.query.mockResolvedValue({ rows: [] });
+  pool.connect.mockReset();
+  pool.connect.mockResolvedValue({ query: jest.fn().mockResolvedValue({ rows: [] }), release: jest.fn() });
 });
 
 // Mock client for transaction-based tests
@@ -310,19 +318,16 @@ describe('formTemplateService.duplicateFormTemplate', () => {
 
     pool.connect.mockResolvedValueOnce(mockClient);
 
-    // Mock getFormTemplateById
-    const originalMod = await import('../../../backend/services/formTemplateService.js');
-    jest.spyOn(originalMod, 'getFormTemplateById').mockResolvedValueOnce({
-      id: 1,
-      name: 'Original',
-      steps: [],
-    });
-
-    jest.spyOn(originalMod, 'getFormTemplateById').mockResolvedValueOnce({
-      id: 2,
-      name: 'Original (Copy)',
-      steps: [],
-    });
+    // getFormTemplateById is called internally (before and after the copy). ESM module
+    // namespaces are read-only, so jest.spyOn on the export threw "Cannot assign to property"
+    // and took the whole suite down — and internal calls would bypass the export anyway.
+    // Feed its pool.query calls instead: template → steps → fields per step.
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Original' }] }) // original template
+      .mockResolvedValueOnce({ rows: [{ id: 10, title: 'Step 1', order_index: 0 }] }) // its steps
+      .mockResolvedValueOnce({ rows: [{ id: 100, field_name: 'name', field_type: 'text' }] }) // step 10 fields
+      .mockResolvedValueOnce({ rows: [{ id: 2, name: 'Original (Copy)' }] }) // re-read copy
+      .mockResolvedValueOnce({ rows: [] }); // copy's steps (contents irrelevant here)
 
     const result = await formTemplateService.duplicateFormTemplate(
       1,
@@ -487,14 +492,11 @@ describe('formTemplateService.createFormTemplateVersion', () => {
 
     pool.connect.mockResolvedValueOnce(mockClient);
 
-    // Mock the getFormTemplateById to return template data
-    jest.spyOn(formTemplateService, 'getFormTemplateById').mockResolvedValueOnce(
-      {
-        id: 1,
-        name: 'Test',
-        steps: [],
-      }
-    );
+    // getFormTemplateById (called internally) reads via pool.query; ESM exports cannot be
+    // spied on, so mock its queries: template row, then (no) steps.
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'Test' }] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const result = await formTemplateService.createFormTemplateVersion(
       1,

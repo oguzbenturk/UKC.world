@@ -10,6 +10,17 @@ import { jest, describe, test, expect, beforeAll, afterEach } from '@jest/global
  */
 
 let WaiverService;
+
+// submitWaiver compresses the signature with sharp (.trim() needs >= 3x3 px) before the
+// INSERT. The old fixtures were a 1x1 PNG and a truncated PNG header ("iVBORw0KGgo="), so any
+// test reaching the image step failed inside sharp. Use a real 4x4 PNG everywhere.
+const VALID_SIGNATURE_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGNgYGD4j4ZJFQAABloP8SzApEkAAAAASUVORK5CYII=';
+
+// submitWaiver writes the signature to backend/uploads/signatures (and a backup copy).
+// Keep the suite side-effect free: no backups, and delete the files this suite creates.
+const SIGNATURE_DIR = new URL('../../../../backend/uploads/signatures/', import.meta.url);
+let signatureFilesBefore = new Set();
 const mockPool = {
   query: jest.fn().mockResolvedValue({ rows: [] }),
 };
@@ -19,10 +30,15 @@ const mockAuditLog = {
 };
 
 const mockNotification = {
-  dispatchWaiverSigned: jest.fn(),
+  // the real export is async and submitWaiver chains .catch() on it
+  dispatchWaiverSigned: jest.fn().mockResolvedValue(undefined),
 };
 
 beforeAll(async () => {
+  process.env.SIGNATURE_BACKUP_ENABLED = 'false';
+  const fsMod = await import('fs/promises');
+  signatureFilesBefore = new Set(await fsMod.readdir(SIGNATURE_DIR).catch(() => []));
+
   await jest.unstable_mockModule('../../../../backend/db.js', () => ({
     pool: mockPool,
   }));
@@ -37,8 +53,20 @@ beforeAll(async () => {
   });
 });
 
+afterAll(async () => {
+  const fsMod = await import('fs/promises');
+  const after = await fsMod.readdir(SIGNATURE_DIR).catch(() => []);
+  await Promise.all(after
+    .filter((name) => !signatureFilesBefore.has(name))
+    .map((name) => fsMod.unlink(new URL(name, SIGNATURE_DIR)).catch(() => {})));
+});
+
 afterEach(() => {
   jest.clearAllMocks();
+  // clearAllMocks does not drain unconsumed mockResolvedValueOnce queues, so over-mocked
+  // tests leaked DB rows into the next test. Reset fully and restore the default.
+  mockPool.query.mockReset();
+  mockPool.query.mockResolvedValue({ rows: [] });
 });
 
 describe('submitWaiver', () => {
@@ -49,7 +77,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'user-123',
       waiver_version: '1.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,
@@ -98,7 +126,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'user-123',
       waiver_version: '99.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgo=',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,
@@ -121,7 +149,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'user-123',
       waiver_version: '1.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgo=',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,
@@ -143,7 +171,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'user-123',
       waiver_version: '1.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgo=',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,
@@ -184,7 +212,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'user-123',
       waiver_version: '2.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgo=',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,
@@ -233,7 +261,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'hacker-999',
       waiver_version: '1.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgo=',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,
@@ -260,7 +288,7 @@ describe('submitWaiver', () => {
       signer_user_id: 'user-123',
       waiver_version: '1.0',
       language_code: 'en',
-      signature_data: 'data:image/png;base64,iVBORw0KGgo=',
+      signature_data: VALID_SIGNATURE_PNG,
       ip_address: '192.168.1.1',
       user_agent: 'Mozilla/5.0',
       agreed_to_terms: true,

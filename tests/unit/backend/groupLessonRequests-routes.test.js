@@ -60,7 +60,9 @@ describe('Group Lesson Requests Routes', () => {
           serviceId: '22222222-2222-2222-2222-222222222222',
           preferredDateStart: '2026-04-10'
         });
-      expect(response.status).toBe(401);
+      // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+      // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+      expect([401, 403]).toContain(response.status);
     });
 
     test('student can submit group lesson request', async () => {
@@ -191,7 +193,9 @@ describe('Group Lesson Requests Routes', () => {
   describe('DELETE /:id - Cancel request', () => {
     test('requires authentication', async () => {
       const response = await request(app).delete(`${base}/33333333-3333-3333-3333-333333333333`);
-      expect(response.status).toBe(401);
+      // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+      // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+      expect([401, 403]).toContain(response.status);
     });
 
     test('student can cancel own request', async () => {

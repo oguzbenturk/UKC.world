@@ -1,10 +1,17 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { stubExports } from '../../../helpers/esmMockExports.js';
+
+const WALLET_SERVICE_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../backend/services/walletService.js');
 
 await jest.unstable_mockModule('../../../../backend/services/walletService.js', () => {
   const asyncNoop = jest.fn(async () => undefined);
-  return {
+  // stubExports: every real named export gets a jest.fn() so transitive importers
+  // (e.g. financialReconciliationService -> findBalanceLedgerDrift) still link.
+  return stubExports(WALLET_SERVICE_PATH, {
     __esModule: true,
     getBalance: asyncNoop,
     fetchTransactions: asyncNoop,
@@ -42,7 +49,7 @@ await jest.unstable_mockModule('../../../../backend/services/walletService.js', 
     getAllBalances: jest.fn(async () => []),
     __testables: {},
     default: {}
-  };
+  });
 });
 
 const walletServiceModule = await import('../../../../backend/services/walletService.js');
@@ -81,7 +88,10 @@ describe('Wallet deposit routes', () => {
 
   test('POST /api/wallet/deposit requires authentication', async () => {
     const res = await request(app).post('/api/wallet/deposit').send({ amount: 10 });
-    expect(res.status).toBe(401);
+    // csrfMiddleware (backend/middlewares/security.js, since v0.1.148) rejects
+    // cookie-less, Bearer-less mutations with 403 before auth runs; either way
+    // the unauthenticated request is refused.
+    expect([401, 403]).toContain(res.status);
   });
 
   test('POST /api/wallet/deposit validates payload', async () => {

@@ -147,6 +147,21 @@ describe('Package normalization via fetchCustomerPackagesByIds', () => {
 // ============================================
 // 3. forceDeleteCustomerPackage — paid package
 // ============================================
+// forceDeleteCustomerPackage grew extra steps after these tests were written
+// (discount reversal, service-rate lookup, booking_package_consumption cleanup
+// (migration 288), accommodation cancel, preferred-currency lookup), so a fixed
+// mockResolvedValueOnce sequence no longer lines up. Route mocked rows by SQL.
+const routePackageDeleteQueries = ({ pkg, paid }) => {
+  mockClient.query.mockImplementation(async (sql) => {
+    const text = String(sql);
+    if (text.includes('FROM customer_packages WHERE id = $1 FOR UPDATE')) return { rows: [pkg] };
+    if (text.includes("transaction_type = 'package_purchase'")) return { rows: paid ? [{ id: 'txn-1' }] : [] };
+    if (text.includes('DELETE FROM customer_packages')) return { rows: [pkg], rowCount: 1 };
+    if (text.includes('preferred_currency')) return { rows: [{ preferred_currency: 'EUR' }] };
+    return { rows: [], rowCount: 0 };
+  });
+};
+
 describe('forceDeleteCustomerPackage — paid package', () => {
   const basePkg = {
     id: 'pkg-paid',
@@ -161,13 +176,8 @@ describe('forceDeleteCustomerPackage — paid package', () => {
   };
 
   test('issues partial refund for remaining hours', async () => {
-    // Package found
-    mockClient.query
-      .mockResolvedValueOnce({ rows: [basePkg] })        // SELECT FOR UPDATE
-      .mockResolvedValueOnce({ rows: [{ id: 'txn-1' }] }) // payment check → was paid
-      .mockResolvedValueOnce({ rows: [] })                 // participant cleanup
-      .mockResolvedValueOnce({ rows: [] })                 // booking cleanup
-      .mockResolvedValueOnce({ rows: [basePkg] });         // DELETE RETURNING
+    // Package found, payment check → was paid
+    routePackageDeleteQueries({ pkg: basePkg, paid: true });
 
     const result = await forceDeleteCustomerPackage({
       client: mockClient,
@@ -234,12 +244,8 @@ describe('forceDeleteCustomerPackage — pay_later (no refund)', () => {
   };
 
   test('skips refund when no payment transaction exists', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({ rows: [payLaterPkg] })     // SELECT FOR UPDATE
-      .mockResolvedValueOnce({ rows: [] })                 // payment check → NOT paid
-      .mockResolvedValueOnce({ rows: [] })                 // participant cleanup
-      .mockResolvedValueOnce({ rows: [] })                 // booking cleanup
-      .mockResolvedValueOnce({ rows: [payLaterPkg] });     // DELETE RETURNING
+    // payment check → NOT paid
+    routePackageDeleteQueries({ pkg: payLaterPkg, paid: false });
 
     await forceDeleteCustomerPackage({
       client: mockClient,

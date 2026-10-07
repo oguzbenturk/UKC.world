@@ -249,14 +249,20 @@ try {
   // (e.g. Feb 24 → shows as Feb 23 in notifications).
   pg.types.setTypeParser(1082, (str) => str);
 
+  // Under Jest every test file gets its own module registry, so every suite
+  // builds a fresh pool that is never ended. With 10 warm connections each,
+  // ~10 suites exhaust Postgres' max_connections (100) → "too many clients".
+  // In tests: no warm connections, small cap, idle sockets close quickly.
+  const isJestRun = Boolean(process.env.JEST_WORKER_ID);
+
   pool = new Pool({
     connectionString,
     ssl: dbSslEnabled ? { rejectUnauthorized: dbSslRejectUnauthorized } : false,
-    
+
     // Optimization settings for better performance
-    max: 20, // Maximum pool size — keep moderate to avoid exhausting remote DB limits
-    min: 10, // Minimum warm connections — app fires 8+ concurrent queries on every page load
-    idleTimeoutMillis: 30000, // Close idle clients after 30s
+    max: isJestRun ? 5 : 20, // Maximum pool size — keep moderate to avoid exhausting remote DB limits
+    min: isJestRun ? 0 : 10, // Minimum warm connections — app fires 8+ concurrent queries on every page load
+    idleTimeoutMillis: isJestRun ? 250 : 30000, // Close idle clients after 30s
     connectionTimeoutMillis: 10000, // Return error after 10s if connection cannot be established
     acquireTimeoutMillis: 15000, // Return error if no connection available after 15s
   // Keep connections alive to avoid intermediary (Docker/WiFi) idling out sockets
@@ -266,7 +272,7 @@ try {
   maxUses: 7500,
     
     // Enable better connection management
-    allowExitOnIdle: false,
+    allowExitOnIdle: isJestRun,
   });
 
   pool.on('connect', (client) => {

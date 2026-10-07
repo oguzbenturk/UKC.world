@@ -1,5 +1,8 @@
 import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
-import * as userRelationshipsService from '../../../backend/services/userRelationshipsService.js';
+// Imported dynamically in beforeAll AFTER jest.unstable_mockModule — a static
+// ESM import is evaluated before the mocks are registered, so the real db.js
+// pool was used (fake ids like "user-1" then hit the real UUID column).
+let userRelationshipsService;
 
 let mockPool;
 let mockClient;
@@ -30,6 +33,11 @@ beforeAll(async () => {
   await jest.unstable_mockModule('../../../backend/services/notificationWriter.js', () => ({
     insertNotification: jest.fn().mockResolvedValue({})
   }));
+  await jest.unstable_mockModule('../../../backend/services/notificationDispatcherUnified.js', () => ({
+    dispatchNotification: jest.fn().mockResolvedValue({})
+  }));
+
+  userRelationshipsService = await import('../../../backend/services/userRelationshipsService.js');
 });
 
 beforeEach(() => {
@@ -551,7 +559,9 @@ describe('userRelationshipsService.cancelFriendRequest', () => {
   });
 
   test('only cancels own pending requests', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    // An empty result makes the service throw ("not found"), which is covered by the
+    // previous test; here a row is returned so we can assert the scoped DELETE.
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
 
     await userRelationshipsService.cancelFriendRequest('user-1', 1);
 

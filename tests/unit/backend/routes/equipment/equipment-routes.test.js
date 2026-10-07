@@ -39,14 +39,24 @@ describe('Equipment Routes', () => {
   });
 
   describe('GET /api/equipment', () => {
-    test('returns equipment list without auth', async () => {
+    // /api/equipment is mounted behind authenticateJWT in server.js (since the initial commit),
+    // so listing/reading needs a token; the original "without auth" expectation never matched.
+    test('requires authentication', async () => {
       const res = await request(app).get('/api/equipment');
+      expect(res.status).toBe(401);
+    });
+
+    test('returns equipment list for an authenticated user', async () => {
+      const res = await request(app)
+        .get('/api/equipment')
+        .set('Authorization', `Bearer ${adminToken}`);
       expect([200, 500]).toContain(res.status);
     });
 
     test('filters by type', async () => {
       const res = await request(app)
         .get('/api/equipment')
+        .set('Authorization', `Bearer ${adminToken}`)
         .query({ type: 'board' });
       expect([200, 500]).toContain(res.status);
     });
@@ -54,6 +64,7 @@ describe('Equipment Routes', () => {
     test('filters by availability', async () => {
       const res = await request(app)
         .get('/api/equipment')
+        .set('Authorization', `Bearer ${adminToken}`)
         .query({ availability: 'Available' });
       expect([200, 500]).toContain(res.status);
     });
@@ -61,6 +72,7 @@ describe('Equipment Routes', () => {
     test('searches equipment', async () => {
       const res = await request(app)
         .get('/api/equipment')
+        .set('Authorization', `Bearer ${adminToken}`)
         .query({ search: 'Kite' });
       expect([200, 500]).toContain(res.status);
     });
@@ -68,7 +80,9 @@ describe('Equipment Routes', () => {
 
   describe('GET /api/equipment/:id', () => {
     test('returns 404 or equipment details', async () => {
-      const res = await request(app).get('/api/equipment/99999');
+      const res = await request(app)
+        .get('/api/equipment/99999')
+        .set('Authorization', `Bearer ${adminToken}`);
       expect([200, 404, 500]).toContain(res.status);
     });
   });
@@ -78,7 +92,9 @@ describe('Equipment Routes', () => {
       const res = await request(app)
         .post('/api/equipment')
         .send({ name: 'Kite Board', type: 'board' });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires admin/manager role', async () => {
@@ -103,7 +119,9 @@ describe('Equipment Routes', () => {
       const res = await request(app)
         .put('/api/equipment/1')
         .send({ name: 'Updated' });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires admin/manager role', async () => {
@@ -118,13 +136,17 @@ describe('Equipment Routes', () => {
   describe('DELETE /api/equipment/:id', () => {
     test('requires authentication', async () => {
       const res = await request(app).delete('/api/equipment/1');
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
-    test('requires admin role', async () => {
+    // authorizeRoles(['admin']) also admits roles whose JSONB permissions grant equipment:*
+    // (the seeded manager role does, by design), so the negative case uses the plain 'user' role.
+    test('requires admin role (or an equipment permission)', async () => {
       const res = await request(app)
         .delete('/api/equipment/1')
-        .set('Authorization', `Bearer ${managerToken}`);
+        .set('Authorization', `Bearer ${userToken}`);
       expect([401, 403]).toContain(res.status);
     });
   });

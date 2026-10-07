@@ -30,8 +30,16 @@ beforeAll(async () => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   jest.clearAllMocks();
+  // clearAllMocks keeps queued mockResolvedValueOnce values. Some tests queue a
+  // client but the service throws before pool.connect() (e.g. skillId validation),
+  // which leaked that client into the next test. Drop unconsumed queues.
+  const { pool } = await import('../../../backend/db.js');
+  pool.connect.mockReset();
+  pool.connect.mockResolvedValue({ query: jest.fn().mockResolvedValue({ rows: [] }), release: jest.fn() });
+  pool.query.mockReset();
+  pool.query.mockResolvedValue({ rows: [] });
 });
 
 function createMockClient(responses = []) {
@@ -74,7 +82,9 @@ describe('instructorService.getInstructorStudents', () => {
     expect(result[0].totalHours).toBe(10);
   });
 
-  test('calculates skill level progress percentage', async () => {
+  // v0.1.155 (2026-04-07) intentionally changed progressPercent from
+  // "lesson hours / 20h milestone" to "used / total hours of active lesson packages".
+  test('calculates progress percentage from active package hours', async () => {
     const { pool } = await import('../../../backend/db.js');
 
     const students = [
@@ -84,6 +94,9 @@ describe('instructorService.getInstructorStudents', () => {
         total_hours: 10,
         total_lessons: 5,
         progress_events: 1,
+        pkg_total_hours: 20,
+        pkg_used_hours: 10,
+        pkg_remaining_hours: 10,
       },
     ];
 
@@ -92,8 +105,9 @@ describe('instructorService.getInstructorStudents', () => {
 
     const result = await instructorService.getInstructorStudents('instructor-1');
 
-    // 10 hours / 20 hour milestone = 50%
+    // 10 used / 20 package hours = 50%
     expect(result[0].progressPercent).toBe(50);
+    expect(result[0].packageHours).toEqual({ totalHours: 20, usedHours: 10, remainingHours: 10 });
   });
 
   test('returns empty array when no students', async () => {
@@ -125,6 +139,8 @@ describe('instructorService.getInstructorStudentProfile', () => {
 
     const mockClient = createMockClient([
       { rows: [{ id: 'student-1', first_name: 'John', last_name: 'Doe' }] }, // ensureStudentAccess
+      { rows: [{ id: 1 }] }, // booking access
+      { rows: [] }, // progress access
       { rows: [{ total_lessons: 10, total_hours: 20 }] }, // stats
       { rows: [] }, // progress
       { rows: [] }, // skill levels
@@ -149,8 +165,10 @@ describe('instructorService.getInstructorStudentProfile', () => {
     const { pool } = await import('../../../backend/db.js');
 
     const mockClient = createMockClient([
-      { rows: [{ id: 'student-1' }] },
-      { rows: [{}] },
+      { rows: [{ id: 'student-1' }] }, // ensureStudentAccess
+      { rows: [{ id: 1 }] }, // booking access
+      { rows: [] }, // progress access
+      { rows: [{}] }, // stats
       {
         rows: [
           {
@@ -211,7 +229,7 @@ describe('instructorService.updateInstructorStudentProfile', () => {
 
     const mockClient = createMockClient([
       { rows: [{ id: 'student-1' }] }, // ensureStudentAccess
-      { rows: [] }, // booking access
+      { rows: [{ id: 1 }] }, // booking access (instructor must be assigned, else 403)
       { rows: [] }, // progress access
       {
         rows: [

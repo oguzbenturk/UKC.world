@@ -324,6 +324,41 @@ router.get('/',
 );
 
 /**
+ * GET /api/vouchers/campaigns
+ * List campaigns
+ */
+// NOTE: must be registered before GET /:id — otherwise '/campaigns' is captured as
+// a voucher id and rejected by the isUUID validator (400), making this list unreachable.
+router.get('/campaigns',
+  authenticateJWT,
+  authorizeRoles(['admin', 'manager']),
+  async (req, res, next) => {
+    try {
+      const { pool } = await import('../db.js');
+      
+      const result = await pool.query(
+        `SELECT c.*, 
+                COUNT(DISTINCT v.id) as voucher_count,
+                u.first_name || ' ' || u.last_name as created_by_name
+         FROM voucher_campaigns c
+         LEFT JOIN voucher_codes v ON v.campaign_id = c.id
+         LEFT JOIN users u ON c.created_by = u.id
+         GROUP BY c.id, u.first_name, u.last_name
+         ORDER BY c.created_at DESC`
+      );
+      
+      res.json({
+        success: true,
+        campaigns: result.rows
+      });
+      
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /api/vouchers/:id
  * Get voucher details
  */
@@ -583,39 +618,6 @@ router.post('/campaigns',
       res.status(201).json({
         success: true,
         campaign
-      });
-      
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/vouchers/campaigns
- * List campaigns
- */
-router.get('/campaigns',
-  authenticateJWT,
-  authorizeRoles(['admin', 'manager']),
-  async (req, res, next) => {
-    try {
-      const { pool } = await import('../db.js');
-      
-      const result = await pool.query(
-        `SELECT c.*, 
-                COUNT(DISTINCT v.id) as voucher_count,
-                u.first_name || ' ' || u.last_name as created_by_name
-         FROM voucher_campaigns c
-         LEFT JOIN voucher_codes v ON v.campaign_id = c.id
-         LEFT JOIN users u ON c.created_by = u.id
-         GROUP BY c.id, u.first_name, u.last_name
-         ORDER BY c.created_at DESC`
-      );
-      
-      res.json({
-        success: true,
-        campaigns: result.rows
       });
       
     } catch (error) {

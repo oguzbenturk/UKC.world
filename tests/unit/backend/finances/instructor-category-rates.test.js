@@ -126,7 +126,9 @@ describe('Instructor Category Rates API', () => {
   describe('DELETE category-rates', () => {
     test('rejects unauthenticated requests', async () => {
       const res = await request(app).delete(`${BASE}/${fakeInstructorId}/category-rates/group`);
-      expect(res.status).toBe(401);
+      // csrfMiddleware (backend/middlewares/security.js, since v0.1.148) rejects
+      // cookie-less, Bearer-less mutations with 403 before auth runs.
+      expect([401, 403]).toContain(res.status);
     });
 
     test('returns 404 for non-existent category rate', async () => {

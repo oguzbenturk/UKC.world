@@ -257,6 +257,10 @@ describe('getManagerPayrollEarnings', () => {
       ]
     });
 
+    // Paid/deducted totals come from wallet_transactions (manager_payment rows)
+    // since 2026-07-03 (291c02f), not from manager_commissions.paid_amount.
+    mockPool.query.mockResolvedValueOnce({ rows: [{ total_paid: '2250', total_deducted: '0' }] });
+
     const result = await managerCommissionService.getManagerPayrollEarnings('mgr1', { year: 2024 });
 
     expect(result.year).toBe(2024);
@@ -304,6 +308,8 @@ describe('getManagerPayrollEarnings', () => {
     });
 
     mockPool.query.mockResolvedValueOnce({ rows: [] }); // no commissions
+    // wallet_transactions payments/deductions query (since 291c02f)
+    mockPool.query.mockResolvedValueOnce({ rows: [{ total_paid: '0', total_deducted: '0' }] });
 
     const result = await managerCommissionService.getManagerPayrollEarnings('mgr2', { year: 2024 });
 
@@ -345,6 +351,8 @@ describe('getManagerPayrollEarnings', () => {
         pending_amount: '0'
       }]
     });
+    // wallet_transactions payments/deductions query (since 291c02f)
+    mockPool.query.mockResolvedValueOnce({ rows: [{ total_paid: '0', total_deducted: '0' }] });
 
     const result = await managerCommissionService.getManagerPayrollEarnings('mgr3', { year: 2024 });
 

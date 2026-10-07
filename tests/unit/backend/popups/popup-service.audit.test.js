@@ -1,11 +1,16 @@
 import { jest, describe, beforeAll, afterEach, test, expect } from '@jest/globals';
 
+// OUTDATED (not a bug): backend/services/popupService.js and routes/popups.js were removed on
+// purpose in v0.1.181 (commit 3eb69c1, 2026-04-10) together with the old popup admin UI.
+// The audit-stamping behaviour under test no longer exists, so the suite is skipped (kept
+// for history) instead of deleted. Re-enable if a popup service is reintroduced.
 let popupService;
 let pool;
 
 const actorId = '00000000-0000-0000-0000-000000000001';
 const userId = '00000000-0000-0000-0000-000000000002';
 
+describe.skip('popupService (removed in v0.1.181)', () => {
 beforeAll(async () => {
   await jest.unstable_mockModule('../../../../backend/db.js', () => ({
     pool: {
@@ -58,4 +63,5 @@ describe('popupService audit trail stamping', () => {
     expect(query).toContain('created_by');
     expect(params[params.length - 1]).toBe(actorId);
   });
+});
 });

@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,14 @@ vi.mock('@/shared/utils/antdStatic', () => ({
   },
 }));
 
+vi.mock('@/shared/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'admin-1', role: 'admin' } }),
+}));
+
 import EventsPage from '@/features/events/pages/EventsPage';
+
+// EventsPage now calls useNavigate() (contact CTA), so it must render inside a Router.
+const render = (ui) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

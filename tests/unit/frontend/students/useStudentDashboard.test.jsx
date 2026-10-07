@@ -22,10 +22,10 @@ vi.mock('@/features/students/services/studentPortalApi', () => ({
   },
 }));
 
+import * as studentDashboardHooks from '@/features/students/hooks/useStudentDashboard';
 import {
   useStudentDashboard,
   useStudentSchedule,
-  useStudentCourses,
   useStudentInvoices,
   useStudentProfile,
   useStudentPreferences,
@@ -182,38 +182,17 @@ describe('useStudentSchedule', () => {
   });
 });
 
-describe('useStudentCourses', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+// The "My Experience" page and its useStudentCourses hook / courses query key were
+// removed on purpose in de6a51a ("Remove 'My Experience' page ..."). These tests
+// used to exercise that hook; they now pin the removal so it is not silently
+// re-introduced half-wired (the API client still has fetchCourses).
+describe('useStudentCourses (removed in de6a51a)', () => {
+  it('is no longer exported from the dashboard hooks module', () => {
+    expect(studentDashboardHooks.useStudentCourses).toBeUndefined();
   });
 
-  it('fetches list of courses', async () => {
-    const mockCourses = [
-      { id: 'c1', name: 'Beginner Kitesurfing', progress: 70 },
-      { id: 'c2', name: 'Intermediate Techniques', progress: 30 },
-    ];
-    mockFetchCourses.mockResolvedValue(mockCourses);
-
-    const { result } = renderHook(() => useStudentCourses(), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.data).toEqual(mockCourses);
-    expect(result.current.data).toHaveLength(2);
-  });
-
-  it('handles empty courses list', async () => {
-    mockFetchCourses.mockResolvedValue([]);
-
-    const { result } = renderHook(() => useStudentCourses(), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.data).toEqual([]);
+  it('has no courses query key any more', () => {
+    expect(studentPortalQueryKeys.courses).toBeUndefined();
   });
 });
 
@@ -342,7 +321,7 @@ describe('studentPortalQueryKeys', () => {
   });
 
   it('provides query keys for all endpoints', () => {
-    expect(studentPortalQueryKeys.courses).toBeDefined();
+    // `courses` key intentionally removed with the My Experience page (de6a51a).
     expect(studentPortalQueryKeys.invoices).toBeDefined();
     expect(studentPortalQueryKeys.profile).toBeDefined();
     expect(studentPortalQueryKeys.preferences).toBeDefined();

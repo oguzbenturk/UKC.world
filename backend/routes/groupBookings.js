@@ -822,7 +822,7 @@ router.post('/invitation/:token/accept', authenticateJWT, async (req, res, next)
 router.post('/invitation/:token/decline', async (req, res, next) => {
   try {
     const { token } = req.params;
-    const { reason } = req.body;
+    const { reason } = req.body || {}; // Express 5: req.body is undefined when no body is sent
 
     await declineInvitation(token, reason);
 
@@ -932,7 +932,7 @@ router.post('/:id/decline', authenticateJWT, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const { reason } = req.body;
+    const { reason } = req.body || {}; // Express 5: req.body is undefined when no body is sent (NotificationBell posts none)
 
     await declineGroupBookingInvitation(userId, id, reason);
 
@@ -1262,7 +1262,7 @@ router.delete('/:id', authenticateJWT, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const { reason } = req.body;
+    const { reason } = req.body || {}; // Express 5: req.body is undefined when no body is sent
 
     // Check if admin/manager
     const isAdmin = ['admin', 'manager'].includes(req.user.role);

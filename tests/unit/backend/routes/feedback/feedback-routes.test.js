@@ -45,7 +45,9 @@ describe('Feedback Routes', () => {
       const res = await request(app)
         .post('/api/feedback')
         .send({ bookingId: 1, rating: 5 });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('allows student feedback', async () => {
@@ -179,32 +181,72 @@ describe('Feedback Routes', () => {
     });
   });
 
-  describe('GET /api/feedback/student/:studentId', () => {
+  // NOTE: the original suite targeted GET /student/:id, GET /instructor/:id, PATCH /:id and
+  // DELETE /:id — routes/feedback.js has never had those (file unchanged since the initial
+  // commit). The read tests are retargeted to the real endpoints the frontend uses
+  // (FeedbackPage.jsx: /achievements/:studentId and /instructor/:id/summary); PATCH/DELETE
+  // assert that feedback cannot be edited/deleted through the API (no such route → 404).
+  describe('GET /api/feedback/achievements/:studentId', () => {
+    const OWN_STUDENT_UUID = '6a000000-0000-4000-8000-000000006001';
+    const OTHER_STUDENT_UUID = '6a000000-0000-4000-8000-000000006999';
+
     test('requires authentication', async () => {
-      const res = await request(app).get('/api/feedback/student/1');
+      const res = await request(app).get('/api/feedback/achievements/1');
       expect(res.status).toBe(401);
     });
 
-    test('returns student feedback', async () => {
+    test('returns student achievements for admin', async () => {
       const res = await request(app)
-        .get('/api/feedback/student/6001')
+        .get(`/api/feedback/achievements/${OWN_STUDENT_UUID}`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect([200, 500]).toContain(res.status);
     });
+
+    // Regression: the ownership check used parseInt(studentId) !== req.user.id, which can
+    // never match a UUID, so students always got 403 on their own achievements.
+    test('student can read own achievements (UUID ids)', async () => {
+      const token = createToken({ role: 'student', id: OWN_STUDENT_UUID });
+      const res = await request(app)
+        .get(`/api/feedback/achievements/${OWN_STUDENT_UUID}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+    });
+
+    test("student cannot read another student's achievements", async () => {
+      const token = createToken({ role: 'student', id: OWN_STUDENT_UUID });
+      const res = await request(app)
+        .get(`/api/feedback/achievements/${OTHER_STUDENT_UUID}`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(403);
+    });
   });
 
-  describe('GET /api/feedback/instructor/:instructorId', () => {
+  describe('GET /api/feedback/instructor/:instructorId/summary', () => {
+    const OWN_INSTRUCTOR_UUID = '6a000000-0000-4000-8000-000000006002';
+    const OTHER_INSTRUCTOR_UUID = '6a000000-0000-4000-8000-000000006998';
+
     test('requires authentication', async () => {
-      const res = await request(app).get('/api/feedback/instructor/1');
+      const res = await request(app).get('/api/feedback/instructor/1/summary');
       expect(res.status).toBe(401);
     });
 
-    test('returns instructor feedback', async () => {
+    // Regression: same parseInt-vs-UUID ownership bug as achievements (always 403).
+    test('instructor can read own summary (UUID ids)', async () => {
+      const token = createToken({ role: 'instructor', id: OWN_INSTRUCTOR_UUID });
       const res = await request(app)
-        .get('/api/feedback/instructor/6002')
-        .set('Authorization', `Bearer ${instructorToken}`);
-      expect([200, 500]).toContain(res.status);
+        .get(`/api/feedback/instructor/${OWN_INSTRUCTOR_UUID}/summary`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
     });
+
+    test("instructor cannot read another instructor's summary", async () => {
+      const token = createToken({ role: 'instructor', id: OWN_INSTRUCTOR_UUID });
+      const res = await request(app)
+        .get(`/api/feedback/instructor/${OTHER_INSTRUCTOR_UUID}/summary`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(403);
+    });
+
   });
 
   describe('PATCH /api/feedback/:id', () => {
@@ -212,29 +254,33 @@ describe('Feedback Routes', () => {
       const res = await request(app)
         .patch('/api/feedback/1')
         .send({ rating: 4 });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
-    test('validates updated rating', async () => {
+    test('feedback cannot be edited via the API (no PATCH route)', async () => {
       const res = await request(app)
         .patch('/api/feedback/1')
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ rating: 10 });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(404);
     });
   });
 
   describe('DELETE /api/feedback/:id', () => {
     test('requires authentication', async () => {
       const res = await request(app).delete('/api/feedback/1');
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
-    test('prevents student from deleting', async () => {
+    test('prevents student from deleting (there is no DELETE route at all)', async () => {
       const res = await request(app)
         .delete('/api/feedback/1')
         .set('Authorization', `Bearer ${studentToken}`);
-      expect([401, 403]).toContain(res.status);
+      expect([401, 403, 404]).toContain(res.status);
     });
   });
 });

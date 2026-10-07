@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+// Page is i18n'd (react-i18next) — load the real English copy so text assertions hit real UI strings.
+import '../../../setup/i18nForTests';
 import ManagerCommissionSettings from '@/features/manager/pages/ManagerCommissionSettings';
 
 vi.mock('@/features/manager/services/managerCommissionApi', () => ({
@@ -11,6 +13,23 @@ vi.mock('@/features/manager/services/managerCommissionApi', () => ({
 
 vi.mock('@/shared/utils/formatters', () => ({
   formatCurrency: vi.fn((val) => `€${Number(val).toFixed(2)}`)
+}));
+
+// Editing moved from an inline "Edit Salary & Commission Settings" modal into the
+// EnhancedManagerDetailPanel drawer (opened via "Details"). That drawer is a
+// large component with its own data fetching; here we stub it and assert the
+// page wires it correctly (which manager, open state, refresh on update).
+const detailPanelProps = { current: null };
+vi.mock('@/features/manager/components/EnhancedManagerDetailPanel', () => ({
+  default: (props) => {
+    detailPanelProps.current = props;
+    return props.isOpen && props.manager ? (
+      <div data-testid="manager-detail-panel">
+        <span>Panel for {props.manager.name}</span>
+        <button type="button" onClick={() => props.onUpdate()}>stub-save</button>
+      </div>
+    ) : null;
+  }
 }));
 
 vi.mock('@/shared/utils/antdStatic', () => ({
@@ -105,40 +124,43 @@ describe('ManagerCommissionSettings', () => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
     expect(screen.getByText('10%')).toBeInTheDocument(); // commission default rate
-    expect(screen.getByText('€2000.00/mo')).toBeInTheDocument(); // monthly salary
+    // Suffix now comes from i18n manager:detailPanel.profile.perMonth ("/month").
+    expect(screen.getByText('€2000.00/month')).toBeInTheDocument(); // monthly salary
     expect(screen.getByText('€25.00/lesson')).toBeInTheDocument(); // per lesson
   });
 
   it('shows category rates for per_category commission', async () => {
     renderComponent();
     await waitFor(() => {
-      expect(screen.getByText('Booking: 12%')).toBeInTheDocument();
+      // Labels now come from i18n manager:detailPanel.commissions.categories.*
+      expect(screen.getByText('Bookings: 12%')).toBeInTheDocument();
     });
-    expect(screen.getByText('Rental: 8%')).toBeInTheDocument();
-    expect(screen.getByText('Shop: 7%')).toBeInTheDocument();
+    expect(screen.getByText('Rentals: 8%')).toBeInTheDocument();
+    expect(screen.getByText('Shop / Sales: 7%')).toBeInTheDocument();
     expect(screen.getByText('Membership: 5%')).toBeInTheDocument();
+    // null / 0 categories are not rendered
+    expect(screen.queryByText(/^Accommodation:/)).not.toBeInTheDocument();
   });
 
-  it('opens edit modal with salary type selector', async () => {
+  it('Details opens the manager detail panel for that manager', async () => {
     const user = userEvent.setup();
     renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('manager-detail-panel')).not.toBeInTheDocument();
 
-    // Click first Edit button
-    const editButtons = screen.getAllByText('Details');
-    await user.click(editButtons[0]);
+    const detailButtons = screen.getAllByText('Details');
+    expect(detailButtons).toHaveLength(3);
+    await user.click(detailButtons[1]);
 
     await waitFor(() => {
-      expect(screen.getByText('Edit Salary & Commission Settings')).toBeInTheDocument();
+      expect(screen.getByTestId('manager-detail-panel')).toBeInTheDocument();
     });
-    // Salary type radio buttons
-    expect(screen.getByText('Commission %')).toBeInTheDocument();
-    expect(screen.getByText('Per Lesson €')).toBeInTheDocument();
-    // Monthly Salary appears both in table tag and modal radio, so use getAllByText
-    expect(screen.getAllByText('Monthly Salary').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Panel for Jane Smith')).toBeInTheDocument();
+    expect(detailPanelProps.current.manager).toEqual(expect.objectContaining({ id: 'mgr2' }));
+    expect(detailPanelProps.current.manager.settings.salaryType).toBe('monthly_salary');
   });
 
   it('displays empty state when no managers', async () => {
@@ -150,33 +172,26 @@ describe('ManagerCommissionSettings', () => {
     });
   });
 
-  it('saves settings successfully', async () => {
-    updateManagerSettings.mockResolvedValue({ success: true });
+  it('reloads the manager list after the detail panel saves settings', async () => {
     const user = userEvent.setup();
     renderComponent();
 
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
+    expect(getAllManagersWithSettings).toHaveBeenCalledTimes(1);
 
-    const editButtons = screen.getAllByText('Details');
-    await user.click(editButtons[0]);
-
+    await user.click(screen.getAllByText('Details')[0]);
     await waitFor(() => {
-      expect(screen.getByText('Edit Salary & Commission Settings')).toBeInTheDocument();
+      expect(screen.getByText('Panel for John Doe')).toBeInTheDocument();
     });
 
-    // Click Save
-    await user.click(screen.getByText('Save Settings'));
+    // The panel calls onUpdate after a successful updateManagerSettings.
+    await user.click(screen.getByText('stub-save'));
 
     await waitFor(() => {
-      expect(updateManagerSettings).toHaveBeenCalledWith('mgr1', expect.objectContaining({
-        salaryType: 'commission',
-        commissionType: 'per_category'
-      }));
+      expect(getAllManagersWithSettings).toHaveBeenCalledTimes(2);
     });
-
-    expect(message.success).toHaveBeenCalledWith('Commission settings saved successfully');
   });
 
   it('has payroll button for each manager', async () => {
@@ -184,7 +199,10 @@ describe('ManagerCommissionSettings', () => {
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
-    const payrollButtons = screen.getAllByTitle('View Payroll');
-    expect(payrollButtons).toHaveLength(3);
+    // The payroll button is now icon-only inside an antd Tooltip ("View Payroll"),
+    // so there is no title attribute; locate it by its bar-chart icon instead.
+    const payrollIcons = screen.getAllByRole('img', { name: 'bar-chart' });
+    expect(payrollIcons).toHaveLength(3);
+    payrollIcons.forEach((icon) => expect(icon.closest('button')).not.toBeNull());
   });
 });

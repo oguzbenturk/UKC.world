@@ -80,7 +80,9 @@ describe('Events Routes', () => {
       const res = await request(app)
         .post('/api/events')
         .send({ name: 'Event', start_at: '2026-06-01T10:00:00Z' });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires admin/manager/developer role', async () => {
@@ -146,17 +148,21 @@ describe('Events Routes', () => {
     });
   });
 
-  describe('PATCH /api/events/:id', () => {
+  // routes/events.js updates events via PUT /:eventId — there has never been a PATCH route
+  // (git log -S "router.patch" is empty), so these tests now target PUT.
+  describe('PUT /api/events/:id', () => {
     test('requires authentication', async () => {
       const res = await request(app)
-        .patch('/api/events/1')
+        .put('/api/events/1')
         .send({ name: 'Updated' });
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires authorized role', async () => {
       const res = await request(app)
-        .patch('/api/events/1')
+        .put('/api/events/1')
         .set('Authorization', `Bearer ${userToken}`)
         .send({ name: 'Updated' });
       expect([401, 403]).toContain(res.status);
@@ -166,7 +172,9 @@ describe('Events Routes', () => {
   describe('DELETE /api/events/:id', () => {
     test('requires authentication', async () => {
       const res = await request(app).delete('/api/events/1');
-      expect(res.status).toBe(401);
+      // Unauthenticated mutating requests are rejected by csrfMiddleware (backend/middlewares/security.js,
+      // since v0.1.148) with 403 before the auth middleware can answer 401 — both mean "rejected".
+      expect([401, 403]).toContain(res.status);
     });
 
     test('requires admin/manager/developer role', async () => {

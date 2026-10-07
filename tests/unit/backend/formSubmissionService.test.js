@@ -26,8 +26,14 @@ beforeAll(async () => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   jest.clearAllMocks();
+  // clearAllMocks neither drains unconsumed mockResolvedValueOnce queues nor removes
+  // mockImplementation, so responses leaked between tests (and queued once-values even
+  // shadowed later mockImplementation calls). Reset fully and restore the default.
+  const { pool } = await import('../../../backend/db.js');
+  pool.query.mockReset();
+  pool.query.mockResolvedValue({ rows: [] });
 });
 
 describe('formSubmissionService.createFormSubmission', () => {
@@ -76,8 +82,8 @@ describe('formSubmissionService.createFormSubmission', () => {
     // Mock the INSERT query
     pool.query.mockResolvedValueOnce({ rows: [mockSubmission] });
 
-    // Mock quick_link update
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    // (No quick_link UPDATE here: it only runs when quick_link_id is given, which this test
+    // does not pass — the extra mocked response used to shift every later mock by one.)
 
     // Mock form template and quick link lookup for notifications
     pool.query.mockResolvedValueOnce({

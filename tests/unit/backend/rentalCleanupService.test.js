@@ -1,6 +1,15 @@
 import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
-import * as rentalCleanupService from '../../../backend/services/rentalCleanupService.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { stubExports } from '../../helpers/esmMockExports.js';
 
+const WALLET_SERVICE_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../backend/services/walletService.js');
+
+// Imported AFTER the mocks are registered (beforeAll). A static top-level import
+// is evaluated before unstable_mockModule runs, so the service would bind the
+// REAL walletService/db and the refund assertions could never observe the mock.
+let rentalCleanupService;
+let walletServiceMock;
 let mockPool;
 let mockClient;
 
@@ -28,7 +37,7 @@ beforeAll(async () => {
     }
   }));
 
-  await jest.unstable_mockModule('../../../backend/services/walletService.js', () => ({
+  await jest.unstable_mockModule('../../../backend/services/walletService.js', () => stubExports(WALLET_SERVICE_PATH, {
     recordLegacyTransaction: jest.fn().mockResolvedValue({
       id: 1,
       amount: 100,
@@ -39,6 +48,9 @@ beforeAll(async () => {
       currency: 'EUR'
     })
   }));
+
+  rentalCleanupService = await import('../../../backend/services/rentalCleanupService.js');
+  walletServiceMock = await import('../../../backend/services/walletService.js');
 });
 
 beforeEach(() => {
@@ -46,6 +58,8 @@ beforeEach(() => {
   mockPool.connect.mockClear();
   mockClient.query.mockReset();
   mockClient.release.mockReset();
+  walletServiceMock.recordLegacyTransaction.mockClear();
+  walletServiceMock.getWalletAccountSummary.mockClear();
 });
 
 describe('rentalCleanupService.normalizeRentalRow', () => {
@@ -237,28 +251,32 @@ describe('rentalCleanupService.fetchRentalsByIds', () => {
 });
 
 describe('rentalCleanupService.forceDeleteRental', () => {
+  // forceDeleteRental's query flow (since 2026-06-01 / 2026-08-13):
+  //   SELECT rental FOR UPDATE → SELECT rental_equipment → DELETE rental_equipment
+  //   → SUM(available_delta) wallet footprint (fc61e99: refund what the WALLET
+  //     actually lost, not total_price) → UPDATE manager_commissions (63f4db3)
+  //   → DELETE rentals RETURNING *.
+  // Route mocks by SQL so the tests don't depend on exact call order.
+  const routeRentalDeleteQueries = ({ rental, equipment = [], netDelta = 0, deleted = null }) => {
+    mockClient.query.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('FROM rentals WHERE id = $1 FOR UPDATE')) return { rows: rental ? [rental] : [] };
+      if (text.includes('FROM rental_equipment re')) return { rows: equipment };
+      if (text.includes('DELETE FROM rental_equipment')) return { rows: [], rowCount: equipment.length };
+      if (text.includes('SUM(available_delta)')) return { rows: [{ net_delta: String(netDelta) }] };
+      if (text.includes('UPDATE manager_commissions')) return { rows: [], rowCount: 0 };
+      if (text.includes('DELETE FROM rentals')) return { rows: deleted ? [deleted] : [] };
+      return { rows: [] };
+    });
+  };
+
   test('deletes rental and returns cleanup info', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 'customer-1',
-          total_price: '100',
-          currency: 'EUR'
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{ equipment_id: 1, name: 'Board' }]
-      })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{
-          id: 1,
-          user_id: 'customer-1',
-          total_price: '100',
-          equipment_list: [{ name: 'Board' }]
-        }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      equipment: [{ equipment_id: 1, name: 'Board' }],
+      netDelta: -100,
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100', equipment_list: [{ name: 'Board' }] }
+    });
 
     const result = await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -306,17 +324,11 @@ describe('rentalCleanupService.forceDeleteRental', () => {
   });
 
   test('issues refund when requested', async () => {
-    const { recordLegacyTransaction } = await import('../../../backend/services/walletService.js');
-
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      netDelta: -100, // wallet-funded: the wallet was debited the full 100
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100' }
+    });
 
     await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -325,7 +337,7 @@ describe('rentalCleanupService.forceDeleteRental', () => {
       includeWalletSummary: false
     });
 
-    expect(recordLegacyTransaction).toHaveBeenCalledWith(
+    expect(walletServiceMock.recordLegacyTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'customer-1',
         amount: 100,
@@ -335,18 +347,33 @@ describe('rentalCleanupService.forceDeleteRental', () => {
     );
   });
 
-  test('skips refund when issueRefund is false', async () => {
-    const { recordLegacyTransaction } = await import('../../../backend/services/walletService.js');
+  test('does not refund a rental whose wallet was never net-debited (cash/card paid)', async () => {
+    // Regression guard for fc61e99 (2026-08-12 phantom-credit case): a cash-paid
+    // rental has zero wallet footprint, so deleting it must not credit total_price.
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '78', currency: 'EUR' },
+      netDelta: 0,
+      deleted: { id: 1, user_id: 'customer-1', total_price: '78' }
+    });
 
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100' }]
-      });
+    const result = await rentalCleanupService.forceDeleteRental({
+      client: mockClient,
+      rentalId: 1,
+      issueRefund: true,
+      includeWalletSummary: false
+    });
+
+    expect(walletServiceMock.recordLegacyTransaction).not.toHaveBeenCalled();
+    expect(result.refundDetails.refundIssued).toBe(false);
+    expect(result.refundDetails.refundAmount).toBe(0);
+  });
+
+  test('skips refund when issueRefund is false', async () => {
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      netDelta: -100,
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100' }
+    });
 
     await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -355,19 +382,15 @@ describe('rentalCleanupService.forceDeleteRental', () => {
       includeWalletSummary: false
     });
 
-    expect(recordLegacyTransaction).not.toHaveBeenCalled();
+    expect(walletServiceMock.recordLegacyTransaction).not.toHaveBeenCalled();
   });
 
   test('returns refund details in response', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '150.50', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '150.50' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '150.50', currency: 'EUR' },
+      netDelta: -150.5,
+      deleted: { id: 1, user_id: 'customer-1', total_price: '150.50' }
+    });
 
     const result = await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -381,21 +404,35 @@ describe('rentalCleanupService.forceDeleteRental', () => {
     expect(result.refundDetails.refundIssued).toBe(true);
   });
 
+  test('cancels the pending manager commission before deleting the rental', async () => {
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100' }
+    });
+
+    await rentalCleanupService.forceDeleteRental({
+      client: mockClient,
+      rentalId: 1,
+      issueRefund: false,
+      includeWalletSummary: false
+    });
+
+    const sqls = mockClient.query.mock.calls.map(([sql]) => String(sql));
+    const commissionIdx = sqls.findIndex((s) => s.includes('UPDATE manager_commissions'));
+    const deleteIdx = sqls.findIndex((s) => s.includes('DELETE FROM rentals'));
+    expect(commissionIdx).toBeGreaterThan(-1);
+    expect(commissionIdx).toBeLessThan(deleteIdx);
+  });
+
   test('clears equipment references', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          { equipment_id: 1, name: 'Board' },
-          { equipment_id: 2, name: 'Harness' }
-        ]
-      })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      equipment: [
+        { equipment_id: 1, name: 'Board' },
+        { equipment_id: 2, name: 'Harness' }
+      ],
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100' }
+    });
 
     const result = await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -408,17 +445,10 @@ describe('rentalCleanupService.forceDeleteRental', () => {
   });
 
   test('includes wallet summary when requested', async () => {
-    const { getWalletAccountSummary } = await import('../../../backend/services/walletService.js');
-
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100' }
+    });
 
     const result = await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -427,19 +457,15 @@ describe('rentalCleanupService.forceDeleteRental', () => {
       includeWalletSummary: true
     });
 
-    expect(getWalletAccountSummary).toHaveBeenCalledWith('customer-1');
+    expect(walletServiceMock.getWalletAccountSummary).toHaveBeenCalledWith('customer-1');
     expect(result.walletSummary).toBeDefined();
   });
 
   test('handles zero rental price', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '0', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '0' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '0', currency: 'EUR' },
+      deleted: { id: 1, user_id: 'customer-1', total_price: '0' }
+    });
 
     const result = await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -453,15 +479,10 @@ describe('rentalCleanupService.forceDeleteRental', () => {
   });
 
   test('handles negative rental price as absolute value', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '-100', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '-100' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '-100', currency: 'EUR' },
+      deleted: { id: 1, user_id: 'customer-1', total_price: '-100' }
+    });
 
     const result = await rentalCleanupService.forceDeleteRental({
       client: mockClient,
@@ -474,15 +495,10 @@ describe('rentalCleanupService.forceDeleteRental', () => {
   });
 
   test('locks rental row for update', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({
-        rows: [{ id: 1, user_id: 'customer-1', total_price: '100' }]
-      });
+    routeRentalDeleteQueries({
+      rental: { id: 1, user_id: 'customer-1', total_price: '100', currency: 'EUR' },
+      deleted: { id: 1, user_id: 'customer-1', total_price: '100' }
+    });
 
     await rentalCleanupService.forceDeleteRental({
       client: mockClient,

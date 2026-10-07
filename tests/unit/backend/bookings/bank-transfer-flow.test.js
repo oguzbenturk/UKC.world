@@ -117,7 +117,9 @@ describe('Bank transfer flow - booking creation with pending_payment package', (
           return { rows: [{ booking_count: '0' }] };
         }
 
-        // Package lookup — returns a waiting_payment package
+        // Package lookup — returns a waiting_payment package. Consumption now runs
+        // through packageConsumptionService.consumeAcrossPackages, which reads
+        // `status` + `live_remaining` (eligible pool and live-remaining re-read).
         if (n.includes('FROM customer_packages') && n.includes('WHERE')) {
           return {
             rows: [{
@@ -126,8 +128,11 @@ describe('Bank transfer flow - booking creation with pending_payment package', (
               remaining_hours: '6',
               total_hours: '6',
               used_hours: '0',
+              live_remaining: '6',
               purchase_price: '300',
+              currency: 'EUR',
               lesson_service_name: 'Kitesurf Lesson',
+              status: 'waiting_payment',
               pkg_status: 'waiting_payment'
             }]
           };

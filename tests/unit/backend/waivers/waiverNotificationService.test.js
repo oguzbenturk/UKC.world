@@ -50,6 +50,10 @@ beforeAll(async () => {
 
 afterEach(() => {
   jest.clearAllMocks();
+  // clearAllMocks does not drain unconsumed mockResolvedValueOnce queues, so over-mocked
+  // tests leaked DB rows into the next test. Reset fully and restore the default.
+  mockPool.query.mockReset();
+  mockPool.query.mockResolvedValue({ rows: [] });
 });
 
 describe('dispatchWaiverSigned', () => {
@@ -140,9 +144,8 @@ describe('dispatchWaiverSigned', () => {
       ],
     }); // signer
 
-    mockPool.query.mockResolvedValueOnce({
-      rows: [], // no target user
-    });
+    // (no target-user query: fetchUser(null) returns early without touching the DB, so an
+    // extra mocked row here used to be consumed by the family-member lookup instead)
 
     mockPool.query.mockResolvedValueOnce({
       rows: [

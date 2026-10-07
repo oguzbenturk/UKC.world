@@ -710,7 +710,10 @@ describe('InstructorFinanceService', () => {
       // 3071.40 - 2481 - 1084 = -493.60 → clamped at 0 (overpaid manager owes nothing)
       expect(result[1].manager.balance).toBe(0);
       expect(result[1].totalPaid).toBe(2481);
-      expect(result[1].balance).toBe(0);
+      // Owner rule 2026-07-22 (v0.1.353): manager+instructor staff are ONE payee,
+      // so the headline balance is combined earned − every payout/deduction,
+      // UNCLAMPED (must equal the profile's "Balance Owed"): 3071.40 − 2481 − 1084.
+      expect(result[1].balance).toBe(-493.6);
     });
 
     test('overpaid manager side does not eat into instructor owed', async () => {
@@ -739,11 +742,14 @@ describe('InstructorFinanceService', () => {
 
       const result = await getAllInstructorBalances();
 
-      // Manager side is overpaid (100 - 400 = -300 → clamped 0); instructor is
-      // still owed the full 200 — combined owed must not net the surplus.
+      // Per-bucket breakdown: manager side is overpaid (100 - 400 = -300 →
+      // clamped 0 for the tooltip); instructor bucket still shows 200.
       expect(result[1].instructor.balance).toBe(200);
       expect(result[1].manager.balance).toBe(0);
-      expect(result[1].balance).toBe(200);
+      // Owner rule 2026-07-22 (v0.1.353) superseded the old "must not net the
+      // surplus" rule: one payee, one ledger → headline = 200 + 100 − 400 = −100,
+      // matching the profile panel's "Balance Owed".
+      expect(result[1].balance).toBe(-100);
     });
 
     test('manager deductions still leave a positive owed when under-settled', async () => {

@@ -46,6 +46,11 @@ export function createMockSocket() {
     _trigger(event, ...args) {
       (listeners[event] || []).forEach(handler => handler(...args));
     },
+
+    /** Public alias used by tests/integration/websocket.test.js (matches tests/setup/mocks/socket-mock.js). */
+    trigger(event, ...args) {
+      this._trigger(event, ...args);
+    },
   };
 
   return socket;

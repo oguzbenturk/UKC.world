@@ -23,7 +23,7 @@ describe('Vouchers Routes', () => {
   let userToken;
 
   beforeAll(async () => {
-    await jest.unstable_mockModule('../../../backend/services/voucherService.js', () => ({
+    await jest.unstable_mockModule('../../../../../backend/services/voucherService.js', () => ({
       default: {
         validateVoucher: jest.fn(),
         redeemVoucher: jest.fn(),
@@ -42,13 +42,13 @@ describe('Vouchers Routes', () => {
       }
     }));
 
-    await jest.unstable_mockModule('../../../backend/db.js', () => ({
+    await jest.unstable_mockModule('../../../../../backend/db.js', () => ({
       pool: { query: jest.fn() }
     }));
 
-    ({ default: app } = await import('../../../../../backend/../backend/server.js'));
-    voucherService = await import('../../../../../backend/../backend/services/voucherService.js');
-    ({ pool } = await import('../../../../../backend/../backend/db.js'));
+    ({ default: app } = await import('../../../../../backend/server.js'));
+    voucherService = await import('../../../../../backend/services/voucherService.js');
+    ({ pool } = await import('../../../../../backend/db.js'));
 
     adminToken = createToken({ role: 'admin' });
     managerToken = createToken({ role: 'manager' });
@@ -73,7 +73,9 @@ describe('Vouchers Routes', () => {
           amount: 100
         });
 
-      expect(response.status).toBe(401);
+      // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+      // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+      expect([401, 403]).toContain(response.status);
     });
 
     test('user can validate a voucher code', async () => {
@@ -160,7 +162,9 @@ describe('Vouchers Routes', () => {
         .post(`${base}/redeem-wallet`)
         .send({ code: 'WALLET100' });
 
-      expect(response.status).toBe(401);
+      // CSRF middleware (backend/middlewares/security.js, since v0.1.148) rejects cookie-less,
+      // Bearer-less mutations with 403 before auth runs; either way the request is refused.
+      expect([401, 403]).toContain(response.status);
     });
 
     test('user can redeem wallet_credit voucher', async () => {

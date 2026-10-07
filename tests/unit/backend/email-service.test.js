@@ -1,10 +1,11 @@
-import { jest, describe, test, expect, beforeAll, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeAll, beforeEach, afterAll } from '@jest/globals';
 
 let emailService;
 let mockPool;
 let mockCanSendCommunication;
 let mockRecordMarketingCommunication;
 let mockTransporter;
+let previousEmailTransport;
 
 beforeAll(async () => {
   mockPool = {
@@ -38,8 +39,18 @@ beforeAll(async () => {
     CHANNEL: { EMAIL: 'email' }
   }));
 
+  // These tests exercise the "transport disabled" path. jest.setup.js defaults
+  // EMAIL_TRANSPORT to 'stream', and emailService reads it once at import time,
+  // so force 'none' for this module and restore it afterwards.
+  previousEmailTransport = process.env.EMAIL_TRANSPORT;
+  process.env.EMAIL_TRANSPORT = 'none';
   const mod = await import('../../../backend/services/emailService.js');
   emailService = mod;
+});
+
+afterAll(() => {
+  if (previousEmailTransport === undefined) delete process.env.EMAIL_TRANSPORT;
+  else process.env.EMAIL_TRANSPORT = previousEmailTransport;
 });
 
 beforeEach(() => {

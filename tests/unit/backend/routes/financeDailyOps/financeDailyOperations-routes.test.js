@@ -16,18 +16,26 @@ const createToken = (overrides = {}) => {
 };
 
 describe('Finance Daily Operations Routes', () => {
-  const base = '/api/daily-operations';
+  // Router is mounted at /api/finances/daily-operations (backend/server.js).
+  const base = '/api/finances/daily-operations';
   let adminToken;
   let managerToken;
   let studentToken;
 
   beforeAll(async () => {
-    jest.unstable_mockModule('../../../backend/services/dailyOperationsService.js', () => ({
-      getDailyOperations: vi.fn()
+    // Jest ESM: mock path is relative to this file (5 levels up to repo root),
+    // must be awaited before importing server.js, and must use jest.fn (not vi.fn).
+    // ESM namespaces are read-only, so tests drive the mocked fn directly
+    // instead of jest.spyOn(namespace, ...).
+    await jest.unstable_mockModule('../../../../../backend/services/dailyOperationsService.js', () => ({
+      getDailyOperations: jest.fn(),
+      fetchDailyPayments: jest.fn(),
+      fetchRentalsCreated: jest.fn(),
+      fetchRentalsActive: jest.fn()
     }));
 
-    ({ default: app } = await import('../../../../../backend/../backend/server.js'));
-    dailyOperationsService = await import('../../../../../backend/../backend/services/dailyOperationsService.js');
+    ({ default: app } = await import('../../../../../backend/server.js'));
+    dailyOperationsService = await import('../../../../../backend/services/dailyOperationsService.js');
 
     adminToken = createToken({ role: 'admin' });
     managerToken = createToken({ role: 'manager' });
@@ -56,16 +64,17 @@ describe('Finance Daily Operations Routes', () => {
     });
 
     test('admin can fetch daily operations with default date', async () => {
+      // Service return value must be plain JSON (an asymmetric matcher here
+      // would be serialized into the response body).
       const mockData = {
-        date: expect.any(String),
+        date: '2026-10-07',
         lessons: 5,
         rentals: 3,
         revenue: 1250.50,
         pendingPayments: 450
       };
 
-      jest.spyOn(dailyOperationsService, 'getDailyOperations')
-        .mockResolvedValueOnce(mockData);
+      dailyOperationsService.getDailyOperations.mockResolvedValueOnce(mockData);
 
       const response = await request(app)
         .get(`${base}/`)
@@ -88,8 +97,7 @@ describe('Finance Daily Operations Routes', () => {
         pendingPayments: 200
       };
 
-      jest.spyOn(dailyOperationsService, 'getDailyOperations')
-        .mockResolvedValueOnce(mockData);
+      dailyOperationsService.getDailyOperations.mockResolvedValueOnce(mockData);
 
       const response = await request(app)
         .get(`${base}/?date=2026-04-03&rentalsScope=owned`)
@@ -104,8 +112,7 @@ describe('Finance Daily Operations Routes', () => {
     });
 
     test('handles service errors gracefully', async () => {
-      jest.spyOn(dailyOperationsService, 'getDailyOperations')
-        .mockRejectedValueOnce(new Error('Database connection failed'));
+      dailyOperationsService.getDailyOperations.mockRejectedValueOnce(new Error('Database connection failed'));
 
       const response = await request(app)
         .get(`${base}/`)
@@ -117,8 +124,7 @@ describe('Finance Daily Operations Routes', () => {
 
     test('accepts rentalsScope query parameter', async () => {
       const mockData = { rentals: 5 };
-      jest.spyOn(dailyOperationsService, 'getDailyOperations')
-        .mockResolvedValueOnce(mockData);
+      dailyOperationsService.getDailyOperations.mockResolvedValueOnce(mockData);
 
       await request(app)
         .get(`${base}/?rentalsScope=partner`)

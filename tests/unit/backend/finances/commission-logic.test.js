@@ -144,7 +144,10 @@ describe('BookingUpdateCascadeService.computeLessonAmount for packages', () => {
 
   test('package booking derives per-lesson amount by duration split', async () => {
     // purchase_price covers total_hours; per-lesson based on (purchase_price / (total_hours / duration))
+    // 1st query = booking_package_consumption ledger (spillover, v0.1.322) — none
+    // here, so computeLessonAmount falls through to the single-package derivation.
     const client = createMockClient([
+      { rows: [] },
       { rows: [{ purchase_price: 600, total_hours: 10 }] },
     ]);
     const booking = {
@@ -162,7 +165,10 @@ describe('BookingUpdateCascadeService.computeLessonAmount for packages', () => {
     // Package 600 / 10h = €60/hr. A 2h partial lesson where 1h came from the
     // package and 1h was €60 cash must be worth ~€120 — NOT €180 (full 2h at the
     // package rate PLUS the cash, which was the historical double-count bug).
+    // 1st query = booking_package_consumption ledger (spillover, v0.1.322) — none
+    // here, so computeLessonAmount falls through to the single-package derivation.
     const client = createMockClient([
+      { rows: [] },
       { rows: [{ purchase_price: 600, total_hours: 10 }] },
     ]);
     const booking = {
