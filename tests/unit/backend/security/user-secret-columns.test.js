@@ -142,14 +142,15 @@ describe('User secret columns never leave the API', () => {
     expectNoSecrets(res.body);
   });
 
-  test('POST /api/users/import-students does not echo secret columns', async () => {
-    const res = await request(app)
-      .post('/api/users/import-students')
-      .set('Authorization', `Bearer ${token('admin')}`)
-      .send({ csvData: 'first_name,last_name,email,phone\nLeaky,Student,leaky@example.com,+900000000' });
-    expect(res.status).toBe(200);
-    expect(res.body.users.length).toBe(1);
-    res.body.users.forEach(expectNoSecrets);
+  test('POST /api/users/import-students is removed (no role can bulk-create users)', async () => {
+    for (const role of ['student', 'admin']) {
+      const res = await request(app)
+        .post('/api/users/import-students')
+        .set('Authorization', `Bearer ${token(role)}`)
+        .send({ csvData: 'first_name,last_name,email,phone\nLeaky,Student,leaky@example.com,+900000000' });
+      expect(res.status).not.toBe(200);
+      expect(res.body?.users).toBeUndefined();
+    }
   });
 
   test('GET /api/students and /api/students/:id (deprecated) do not return secrets', async () => {

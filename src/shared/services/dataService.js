@@ -642,20 +642,6 @@ class DataService {
     }
   }
     /**
-   * Import users with student role via CSV data
-   * @param {Object} payload - Contains csvData string
-   * @returns {Promise<Object>} - Import summary
-   */
-  static async importUsersWithStudentRole(payload) {
-    try {
-      const response = await apiClient.post('/users/import-students', payload);
-      return response.data;
-    } catch (error) {
-  dbg('Error importing users with student role:', error?.message || error);
-      throw error;
-    }
-  }
-    /**
    * Delete a user by ID
    * @param {string} id - User ID
    * @param {Object} options - Delete options

@@ -1533,44 +1533,6 @@ router.get('/:id/student-details', authenticateJWT, authorizeRoles(['admin', 'ma
   }
 });
 
-// Import users with student role via CSV
-router.post('/import-students', authenticateJWT, async (req, res) => {
-  const { csvData } = req.body;
-  if (!csvData) {
-    return res.status(400).json({ error: 'CSV data is required' });
-  }
-  try {
-    // Parse CSV data (simple parser)
-    const lines = csvData.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim());
-    // Get student role id
-    const roleRes = await pool.query("SELECT id FROM roles WHERE name='student'");
-    const studentRoleId = roleRes.rows[0]?.id;
-    if (!studentRoleId) {
-      return res.status(500).json({ error: 'Student role not found' });
-    }
-    // Insert users
-    const inserted = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      const userData = {};
-      headers.forEach((h, idx) => userData[h] = values[idx] || null);
-      // Upsert by email — staff CSV import is pre-verified.
-      const query = `INSERT INTO users (first_name, last_name, email, phone, role_id, email_verified, email_verified_at)
-        VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
-        ON CONFLICT (email) DO NOTHING
-        RETURNING *`;
-      const params = [userData.first_name || userData.name, userData.last_name || '', userData.email, userData.phone, studentRoleId];
-      const result = await pool.query(query, params);
-      if (result.rows[0]) inserted.push(sanitizeUser(result.rows[0]));
-    }
-    res.json({ importedCount: inserted.length, users: inserted });
-  } catch (err) {
-    logger.error('Failed to import students', err);
-    res.status(500).json({ error: 'Failed to import users' });
-  }
-});
-
 // Get lessons for a user with student role
 router.get('/:id/lessons', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
