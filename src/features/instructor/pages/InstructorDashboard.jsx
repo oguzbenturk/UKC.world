@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useInstructorDashboard } from '../hooks/useInstructorDashboard';
 import { useInstructorStudents } from '../hooks/useInstructorStudents';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -512,7 +512,7 @@ const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, sli
         <p className="text-xs sm:text-sm text-slate-500 line-clamp-2">
           {nextLesson ? (
             <>
-  {t('instructor:dashboard.nextLesson', { studentName: nextLesson.studentName, time: formatDateShort(nextLesson.startTime) })}
+  <Trans t={t} i18nKey="instructor:dashboard.nextLesson" values={{ studentName: nextLesson.studentName, time: formatDateShort(nextLesson.startTime) }} components={{ strong: <strong /> }} />
             </>
           ) : (
 <>{t('instructor:dashboard.allCaughtUp')}</>

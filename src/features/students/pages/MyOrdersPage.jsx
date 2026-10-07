@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   Card, Typography, Tag, Spin, Empty, Button, Segmented, Pagination,
   Image, Drawer, Timeline, Divider, Input, Avatar, Badge, Tooltip
@@ -698,7 +698,7 @@ function MyOrdersPage() {
               <ShoppingOutlined className="text-sm" />
             </div>
             <p className="text-xs sm:text-sm text-slate-600">
-              {t('student:myOrders.latestOrderHint', { number: latestOrder.order_number, time: dayjs(latestOrder.created_at).fromNow() })}
+              <Trans t={t} i18nKey="student:myOrders.latestOrderHint" values={{ number: latestOrder.order_number, time: dayjs(latestOrder.created_at).fromNow() }} components={{ strong: <strong /> }} />
             </p>
           </div>
         )}

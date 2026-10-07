@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -1885,8 +1885,8 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
           message={t('bookingWizard.walletWarning.partialTitle')}
           description={
             <div>
-              <p className="mb-1">{t('bookingWizard.walletWarning.partialDesc1', { balance: formatCurrency(displayCurrentBalance, userCurrency) }).replace('<1>', '<strong>').replace('</1>', '</strong>')}</p>
-              <p className="mb-1">{t('bookingWizard.walletWarning.partialDesc2', { deficit: formatCurrency(displayDeficit, userCurrency) }).replace('<1>', '<strong>').replace('</1>', '</strong>')}</p>
+              <p className="mb-1"><Trans t={t} i18nKey="bookingWizard.walletWarning.partialDesc1" values={{ balance: formatCurrency(displayCurrentBalance, userCurrency) }} components={{ 1: <strong /> }} /></p>
+              <p className="mb-1"><Trans t={t} i18nKey="bookingWizard.walletWarning.partialDesc2" values={{ deficit: formatCurrency(displayDeficit, userCurrency) }} components={{ 1: <strong /> }} /></p>
               <p className="text-xs text-gray-500">{t('bookingWizard.walletWarning.partialDesc3')}</p>
             </div>
           }
@@ -2214,7 +2214,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
                 description={
                   <div className="mt-2 space-y-1 text-xs">
                     <p>{t('bookingWizard.booking.groupNextStep1')}</p>
-                    <p>{t('bookingWizard.booking.groupNextStep2')}</p>
+                    <p><Trans t={t} i18nKey="bookingWizard.booking.groupNextStep2" components={{ 1: <strong /> }} /></p>
                     <p>{t('bookingWizard.booking.groupNextStep3')}</p>
                   </div>
                 }
