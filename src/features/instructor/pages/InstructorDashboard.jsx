@@ -18,6 +18,9 @@ import LessonStatusHeatmap from '../components/LessonStatusHeatmap';
 import FloatingQuickAction from '../components/FloatingQuickAction';
 import InstructorRatingsCard from '../components/InstructorRatingsCard';
 
+// Opens /finance with the payout request sheet (see InstructorEarningsPage).
+const PAYOUT_REQUEST_PATH = '/finance?request=1';
+
 const BookingDrawer = lazy(() => import('@/features/bookings/components/components/BookingDrawer'));
 
 const formatNumber = (value) => {
@@ -115,7 +118,7 @@ const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, n
         ? {
           primary: {
             label: t('instructor:hero.goToPayouts'),
-            onClick: () => navigate('/finance'),
+            onClick: () => navigate(PAYOUT_REQUEST_PATH),
           },
         }
         : {},
@@ -566,14 +569,22 @@ const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, sli
 
 const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, pendingHint }) => {
   const { t } = useTranslation(['instructor']);
-  const effectivePendingHint = pendingInfo?.meetsThreshold ? 'Eligible to request payout now.' : pendingHint;
+  const navigate = useNavigate();
+  const canRequestPayout = Boolean(pendingInfo?.meetsThreshold);
+  const effectivePendingHint = canRequestPayout ? t('instructor:metrics.eligibleToRequestNow') : pendingHint;
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
         <FinanceTile label={t('instructor:finance.totalEarned')} value={formatAmount(finance?.totalEarned)} accent="text-emerald-600" />
         <FinanceTile label={t('instructor:finance.monthToDate')} value={formatAmount(finance?.monthToDate)} accent="text-sky-600" />
-        <FinanceTile label={t('instructor:finance.pending')} value={formatAmount(finance?.pending)} accent="text-amber-600" hint={effectivePendingHint} />
+        <FinanceTile
+          label={t('instructor:finance.pending')}
+          value={formatAmount(finance?.pending)}
+          accent="text-amber-600"
+          hint={effectivePendingHint}
+          onHintClick={canRequestPayout ? () => navigate(PAYOUT_REQUEST_PATH) : undefined}
+        />
         <FinanceTile label={t('instructor:finance.paidOut')} value={formatAmount(finance?.netPayments)} accent="text-violet-600" hint={t('instructor:finance.grossPaid', { amount: formatAmount(finance?.totalPaid) })} />
       </div>
 
@@ -784,11 +795,19 @@ const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTa
   );
 };
 
-const FinanceTile = ({ label, value, accent, hint }) => (
+const FinanceTile = ({ label, value, accent, hint, onHintClick }) => (
   <div className="rounded-lg border border-slate-100 px-2.5 py-2 sm:px-3 sm:py-2.5 bg-white hover:bg-slate-50/50 transition">
     <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
     <p className={`mt-0.5 sm:mt-1 text-sm sm:text-lg font-bold tabular-nums truncate ${accent || 'text-slate-900'}`}>{value}</p>
-    {hint && <p className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400 truncate">{hint}</p>}
+    {hint && onHintClick ? (
+      <button
+        type="button"
+        onClick={onHintClick}
+        className="mt-0.5 max-w-full truncate text-left text-[10px] sm:text-[11px] font-semibold text-[#00798c] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00798c] rounded"
+      >
+        {hint} →
+      </button>
+    ) : hint && <p className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400 truncate">{hint}</p>}
   </div>
 );
 

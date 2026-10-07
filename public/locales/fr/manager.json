@@ -1502,6 +1502,91 @@
       "subtitle": "Afficher les paramètres résolus par contexte.",
       "hideForm": "Masquer le formulaire",
       "editSettings": "Modifier les paramètres"
+    },
+    "payoutRequests": {
+      "title": "Demandes de paiement",
+      "subtitle": "Les moniteurs demandent ici le versement de leurs gains disponibles. Payez ou refusez chaque demande — le moniteur est notifié dans les deux cas.",
+      "close": "Fermer",
+      "availableHint": "Disponible maintenant",
+      "exceedsAvailable": "Supérieur au solde disponible actuel du moniteur",
+      "loadError": "Impossible de charger les demandes de paiement.",
+      "paidAmount": "{{amount}} payé",
+      "decidedBy": "par {{name}}",
+      "tabs": {
+        "pending": "En attente",
+        "history": "Historique"
+      },
+      "filters": {
+        "all": "Toutes"
+      },
+      "stats": {
+        "pendingCount": "Demandes en attente",
+        "pendingAmount": "Montant en attente",
+        "paidThisMonth": "Payé ce mois-ci"
+      },
+      "columns": {
+        "instructor": "Moniteur",
+        "date": "Demandée le",
+        "requested": "Montant",
+        "available": "Disponible",
+        "method": "Méthode préférée",
+        "note": "Note",
+        "actions": "Actions",
+        "status": "Statut",
+        "decision": "Décision"
+      },
+      "status": {
+        "pending": "En attente",
+        "paid": "Payée",
+        "rejected": "Refusée",
+        "cancelled": "Annulée"
+      },
+      "methods": {
+        "bank_transfer": "Virement bancaire",
+        "cash": "Espèces",
+        "card": "Carte",
+        "other": "Autre",
+        "none": "Aucune préférence"
+      },
+      "actions": {
+        "pay": "Payer",
+        "decline": "Refuser"
+      },
+      "empty": {
+        "pendingTitle": "Aucune demande en attente",
+        "pendingHint": "Les nouvelles demandes de paiement des moniteurs apparaîtront ici.",
+        "historyTitle": "Pas encore d’historique",
+        "historyHint": "Les demandes payées, refusées et annulées apparaîtront ici."
+      },
+      "payModal": {
+        "title": "Payer la demande",
+        "subtitle": "{{name}} a demandé {{amount}}",
+        "amount": "Montant",
+        "method": "Moyen de paiement",
+        "reference": "Référence",
+        "referencePlaceholder": "Référence bancaire ou numéro de reçu",
+        "note": "Note",
+        "notePlaceholder": "Note facultative",
+        "ledgerHint": "Enregistré comme paiement moniteur dans la paie, exactement comme un paiement ajouté manuellement.",
+        "submit": "Enregistrer le paiement",
+        "success": "Paiement enregistré",
+        "error": "Impossible d’enregistrer le paiement",
+        "amountRequired": "Saisissez un montant supérieur à 0"
+      },
+      "declineModal": {
+        "title": "Refuser la demande",
+        "subtitle": "{{name}} a demandé {{amount}}",
+        "reason": "Motif",
+        "reasonPlaceholder": "Expliquez le motif au moniteur — il sera notifié",
+        "reasonRequired": "Un motif est requis",
+        "submit": "Refuser la demande",
+        "success": "Demande refusée",
+        "error": "Impossible de refuser la demande"
+      },
+      "instructorPanel": {
+        "pending": "Demande de paiement en attente",
+        "viewAll": "Toutes les demandes de paiement"
+      }
     }
   },
   "equipmentPage": {

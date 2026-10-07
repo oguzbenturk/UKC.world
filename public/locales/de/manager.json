@@ -1502,6 +1502,91 @@
       "subtitle": "Aufgelöste Einstellungen nach Kontext anzeigen.",
       "hideForm": "Formular ausblenden",
       "editSettings": "Einstellungen bearbeiten"
+    },
+    "payoutRequests": {
+      "title": "Auszahlungsanfragen",
+      "subtitle": "Hier beantragen Lehrer ihr verfügbares Guthaben. Zahle oder lehne jede Anfrage ab — der Lehrer wird in beiden Fällen benachrichtigt.",
+      "close": "Schließen",
+      "availableHint": "Derzeit verfügbar",
+      "exceedsAvailable": "Mehr als das aktuell verfügbare Guthaben des Lehrers",
+      "loadError": "Auszahlungsanfragen konnten nicht geladen werden.",
+      "paidAmount": "{{amount}} ausgezahlt",
+      "decidedBy": "von {{name}}",
+      "tabs": {
+        "pending": "Offen",
+        "history": "Verlauf"
+      },
+      "filters": {
+        "all": "Alle"
+      },
+      "stats": {
+        "pendingCount": "Offene Anfragen",
+        "pendingAmount": "Offener Betrag",
+        "paidThisMonth": "Diesen Monat ausgezahlt"
+      },
+      "columns": {
+        "instructor": "Lehrer",
+        "date": "Angefragt",
+        "requested": "Betrag",
+        "available": "Verfügbar",
+        "method": "Bevorzugte Methode",
+        "note": "Notiz",
+        "actions": "Aktionen",
+        "status": "Status",
+        "decision": "Entscheidung"
+      },
+      "status": {
+        "pending": "Offen",
+        "paid": "Ausgezahlt",
+        "rejected": "Abgelehnt",
+        "cancelled": "Storniert"
+      },
+      "methods": {
+        "bank_transfer": "Banküberweisung",
+        "cash": "Bar",
+        "card": "Karte",
+        "other": "Sonstiges",
+        "none": "Keine Präferenz"
+      },
+      "actions": {
+        "pay": "Auszahlen",
+        "decline": "Ablehnen"
+      },
+      "empty": {
+        "pendingTitle": "Keine offenen Anfragen",
+        "pendingHint": "Neue Auszahlungsanfragen von Lehrern erscheinen hier.",
+        "historyTitle": "Noch kein Verlauf",
+        "historyHint": "Ausgezahlte, abgelehnte und stornierte Anfragen erscheinen hier."
+      },
+      "payModal": {
+        "title": "Auszahlungsanfrage auszahlen",
+        "subtitle": "{{name}} hat {{amount}} angefragt",
+        "amount": "Betrag",
+        "method": "Zahlungsmethode",
+        "reference": "Referenz",
+        "referencePlaceholder": "Bankreferenz oder Belegnummer",
+        "note": "Notiz",
+        "notePlaceholder": "Optionale Notiz",
+        "ledgerHint": "Wird in der Lohnabrechnung als Lehrerzahlung erfasst — genau wie eine manuell hinzugefügte Zahlung.",
+        "submit": "Zahlung erfassen",
+        "success": "Auszahlung erfasst",
+        "error": "Auszahlung konnte nicht erfasst werden",
+        "amountRequired": "Gib einen Betrag größer als 0 ein"
+      },
+      "declineModal": {
+        "title": "Auszahlungsanfrage ablehnen",
+        "subtitle": "{{name}} hat {{amount}} angefragt",
+        "reason": "Grund",
+        "reasonPlaceholder": "Teile dem Lehrer den Grund mit — er wird benachrichtigt",
+        "reasonRequired": "Ein Grund ist erforderlich",
+        "submit": "Anfrage ablehnen",
+        "success": "Anfrage abgelehnt",
+        "error": "Anfrage konnte nicht abgelehnt werden"
+      },
+      "instructorPanel": {
+        "pending": "Offene Auszahlungsanfrage",
+        "viewAll": "Alle Auszahlungsanfragen"
+      }
     }
   },
   "equipmentPage": {

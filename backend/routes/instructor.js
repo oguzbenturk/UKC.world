@@ -18,8 +18,12 @@ import {
   updateInstructorNote,
   deleteInstructorNote
 } from '../services/instructorNotesService.js';
+import instructorEarningsRouter from './instructorEarnings.js';
 
 const router = express.Router();
+
+// Earnings summary / activity / statement + payout requests (/me/earnings-*, /me/payout-requests)
+router.use('/me', instructorEarningsRouter);
 
 router.get('/me/students', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {

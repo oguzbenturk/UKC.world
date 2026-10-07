@@ -44,7 +44,8 @@
     "pendingPayout": "Pago pendiente",
     "awaitingConfirmation": "Esperando confirmación",
     "eligibleToPayout": "Elegible para solicitar pago.",
-    "untilThreshold": "{{amount}} para el umbral de pago"
+    "untilThreshold": "{{amount}} para el umbral de pago",
+    "eligibleToRequestNow": "Ya puedes solicitar un pago"
   },
   "quickActions": {
     "manageStudents": "Gestionar estudiantes",
@@ -961,5 +962,184 @@
       "status": "Estado"
     },
     "noInstructors": "Sin instructores"
+  },
+  "earnings": {
+    "title": "Tus ganancias",
+    "subtitle": "{{period}} · actualizado {{updated}}",
+    "loading": "Cargando tus ganancias…",
+    "period": {
+      "label": "Periodo",
+      "week": "Semana",
+      "month": "Mes",
+      "year": "Año",
+      "all": "Todo"
+    },
+    "hero": {
+      "week": "Ganado esta semana",
+      "month": "Ganado en {{label}}",
+      "year": "Ganado en {{label}}",
+      "all": "Ganado en total",
+      "vsWeek": "{{pct}} vs la semana pasada",
+      "vsMonth": "{{pct}} vs el mes pasado",
+      "vsYear": "{{pct}} vs el año pasado",
+      "stats_one": "{{count}} clase · {{hours}} h · media {{avg}} por clase",
+      "stats_many": "{{count}} clases · {{hours}} h · media {{avg}} por clase",
+      "stats_other": "{{count}} clases · {{hours}} h · media {{avg}} por clase",
+      "thresholdLine": "pago mínimo {{amount}}",
+      "trendLabel": "Ganancias semanales de las últimas 12 semanas, última semana {{amount}}"
+    },
+    "balances": {
+      "title": "Saldos",
+      "ready": "Listo para pago",
+      "paidOut": "Pagado",
+      "paidOutAllTime": "Pagado (total)",
+      "gross": "{{amount}} bruto antes de deducciones",
+      "totalEarned": "Total ganado"
+    },
+    "payout": {
+      "title": "Pago",
+      "minimum": "Mínimo {{amount}}",
+      "progressLabel": "Progreso hacia el pago mínimo",
+      "canRequest": "Ya puedes solicitar un pago",
+      "alreadyRequested": "Tu solicitud de pago está con tu responsable",
+      "aboveMinimum": "Por encima del mínimo de {{amount}} — puedes solicitarlo",
+      "shortfall": "Faltan <strong>{{amount}}</strong> para llegar al mínimo de {{minimum}}",
+      "lastPayout": "Último pago · {{date}}",
+      "noPayouts": "Aún no hay pagos",
+      "noPayoutsHint": "Cuando tu responsable te pague, aparecerá aquí.",
+      "requested": "Pago solicitado · {{amount}} · {{date}}",
+      "requestedShort": "Pago solicitado · {{amount}}",
+      "requestedHint": "Tu responsable ha sido avisado. Recibirás un mensaje cuando se pague.",
+      "cancel": "Cancelar solicitud",
+      "cancelConfirm": "¿Cancelar esta solicitud de pago?",
+      "keep": "Mantenerla",
+      "confirmCancel": "Sí, cancelar",
+      "cancelled": "Solicitud de pago cancelada",
+      "cancelError": "No se pudo cancelar la solicitud. Inténtalo de nuevo.",
+      "recent": "Pagos recientes",
+      "allPayouts": "Todos los pagos",
+      "received": "Pago recibido"
+    },
+    "status": {
+      "paid": "Pagado",
+      "pending": "Pendiente"
+    },
+    "methods": {
+      "bank_transfer": "Transferencia bancaria",
+      "cash": "Efectivo",
+      "other": "Otro",
+      "card": "Tarjeta",
+      "wallet": "Monedero",
+      "credit_card": "Tarjeta de crédito",
+      "paypal": "PayPal"
+    },
+    "rate": {
+      "perHour": "{{amount}}/h",
+      "perLesson": "{{amount}}/clase",
+      "percent": "{{value}} %"
+    },
+    "calc": {
+      "title": "¿Cómo se calcula?",
+      "summary_one": "{{count}} clase · {{hours}} h",
+      "summary_many": "{{count}} clases · {{hours}} h",
+      "summary_other": "{{count}} clases · {{hours}} h",
+      "row": "{{label}} ({{rate}} · {{hours}} h)",
+      "deductions": "Deducciones",
+      "totalWeek": "Ganado esta semana",
+      "totalMonth": "Ganado este mes",
+      "totalYear": "Ganado este año",
+      "totalAll": "Ganado en total",
+      "explainer": "Las tarifas fijas se pagan por hora impartida; los porcentajes son tu parte del precio de la clase. Las deducciones se restan del total."
+    },
+    "byType": {
+      "title": "Por tipo de clase",
+      "empty": "Aún no hay clases en este periodo",
+      "emptyHint": "Las clases completadas aparecen aquí, agrupadas por tipo."
+    },
+    "byMonth": {
+      "title": "Ganancias por mes",
+      "soFar": "{{month}} (hasta ahora)",
+      "chartLabel": "Ganancias de los últimos 6 meses"
+    },
+    "activity": {
+      "title": "Actividad",
+      "tableTitle": "Clases y pagos",
+      "filterLabel": "Filtrar actividad",
+      "filters": {
+        "all": "Todo",
+        "lessons": "Clases",
+        "payouts": "Pagos",
+        "pending": "Pendiente",
+        "paid": "Pagado"
+      },
+      "search": "Buscar alumno o clase",
+      "today": "Hoy · {{date}}",
+      "yesterday": "Ayer · {{date}}",
+      "unknownStudent": "Alumno",
+      "groupMore": "{{name}} +{{count}}",
+      "lessonMeta": "{{type}} · {{hours}} h · {{time}}",
+      "lessonMetaNoTime": "{{type}} · {{hours}} h",
+      "deduction": "Deducción",
+      "showMore": "Mostrar más ({{shown}} de {{total}})",
+      "empty": "Aún no hay nada",
+      "emptyHint": "Las clases completadas y los pagos aparecerán aquí.",
+      "noResults": "Sin resultados para «{{query}}»",
+      "noResultsHint": "Prueba con otro nombre de alumno o tipo de clase.",
+      "error": "No se pudo cargar tu actividad.",
+      "columns": {
+        "date": "Fecha",
+        "student": "Alumno",
+        "lesson": "Clase",
+        "hours": "Horas",
+        "rate": "Tarifa",
+        "amount": "Ganas",
+        "status": "Estado"
+      }
+    },
+    "request": {
+      "button": "Solicitar pago · {{amount}}",
+      "title": "Solicitar un pago",
+      "subtitle": "Disponible ahora: {{amount}}",
+      "amount": "Importe",
+      "amountHint": "Entre {{min}} y {{max}}",
+      "useMax": "Importe total",
+      "method": "Método preferido",
+      "note": "Nota (opcional)",
+      "notePlaceholder": "Algo que tu responsable deba saber",
+      "noteCount": "{{used}}/{{max}}",
+      "submit": "Enviar solicitud · {{amount}}",
+      "sending": "Enviando…",
+      "close": "Cerrar",
+      "done": "Listo",
+      "successTitle": "Solicitud enviada",
+      "successBody": "Solicitud enviada — tu responsable ha sido avisado.",
+      "errors": {
+        "required": "Introduce un importe",
+        "invalid": "Introduce un importe válido, p. ej. 250.00",
+        "max": "Puedes solicitar como máximo {{amount}}",
+        "min": "El pago mínimo es {{amount}}",
+        "pending": "Ya tienes una solicitud de pago pendiente.",
+        "generic": "No se pudo enviar tu solicitud. Inténtalo de nuevo."
+      }
+    },
+    "statement": {
+      "button": "Extracto",
+      "link": "Extractos mensuales (CSV)",
+      "title": "Descargar un extracto",
+      "month": "Mes",
+      "csv": "Descargar CSV",
+      "pdf": "Descargar PDF",
+      "error": "No se pudo descargar el extracto. Inténtalo de nuevo.",
+      "pdfUnavailable": "Los extractos en PDF aún no están disponibles — descarga el CSV."
+    },
+    "error": {
+      "title": "No se pudieron cargar tus ganancias",
+      "body": "Comprueba tu conexión e inténtalo de nuevo.",
+      "retry": "Reintentar"
+    },
+    "empty": {
+      "title": "Aún no hay ganancias",
+      "body": "Tus ganancias aparecerán aquí tras tu primera clase completada."
+    }
   }
 }

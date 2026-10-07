@@ -20,6 +20,7 @@ import InstructorServiceCommission from './InstructorServiceCommission';
 import InstructorSkillsManager from './InstructorSkillsManager';
 import InstructorPayments from './InstructorPayments';
 import PayrollDashboard from './PayrollDashboard';
+import InstructorPayoutRequestsPanel from '@/features/finances/components/payoutRequests/InstructorPayoutRequestsPanel';
 import { useData } from '@/shared/hooks/useData';
 import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
@@ -589,11 +590,14 @@ const EnhancedInstructorDetailModal = ({
         return <PayrollDashboard ref={payrollDashboardRef} instructor={instructor} />;
       case 'payments':
         return (
-          <InstructorPayments
-            ref={instructorPaymentsRef}
-            instructor={instructor}
-            onPaymentSuccess={refreshActiveSection}
-          />
+          <>
+            <InstructorPayoutRequestsPanel instructorId={instructor.id} onChanged={refreshActiveSection} />
+            <InstructorPayments
+              ref={instructorPaymentsRef}
+              instructor={instructor}
+              onPaymentSuccess={refreshActiveSection}
+            />
+          </>
         );
       case 'availability':
         return <AdminAvailabilityPanel instructorId={instructor.id} />;

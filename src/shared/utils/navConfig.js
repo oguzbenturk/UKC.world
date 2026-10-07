@@ -387,6 +387,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/manager/finance/earnings', label: 'Earnings', labelKey: 'common:nav.financeEarnings', icon: 'CurrencyDollarIcon' },
           { to: '/manager/finance/upcoming', label: 'Upcoming Income', labelKey: 'common:nav.financeUpcoming', icon: 'WalletIcon' },
           { to: '/manager/finance/payouts', label: 'Payouts', labelKey: 'common:nav.financePayouts', icon: 'WalletIcon' },
+          { to: '/finance/payout-requests', label: 'Payout Requests', labelKey: 'common:nav.payoutRequests', icon: 'WalletIcon', badgeKey: 'payoutRequests' },
           { to: '/finance/wallet-deposits', label: 'Wallet Transactions', labelKey: 'common:nav.walletDeposits', icon: 'WalletIcon' },
           { to: '/manager/finance/settings', label: 'Commission Settings', labelKey: 'common:nav.financeCommissionSettings', icon: 'CogIcon' }
         ]
@@ -485,6 +486,7 @@ export const getNavItemsForRole = (role, userPermissions = null) => {
           { to: '/finance/events', label: 'Community', labelKey: 'common:nav.community', dotColor: '#0ea5e9' },
           { to: '/finance/payment-history', label: 'Payment History', labelKey: 'common:nav.paymentHistory', icon: 'WalletIcon' },
           { to: '/finance/wallet-deposits', label: 'Wallet Deposits', labelKey: 'common:nav.walletDeposits', icon: 'WalletIcon' },
+          { to: '/finance/payout-requests', label: 'Payout Requests', labelKey: 'common:nav.payoutRequests', icon: 'WalletIcon', badgeKey: 'payoutRequests' },
           { to: '/finance/expenses', label: 'Expenses', labelKey: 'common:nav.expenses', icon: 'CurrencyDollarIcon' },
           { to: '/finance', label: 'Overall', labelKey: 'common:nav.overall', icon: 'PresentationChartBarIcon' }
         ]

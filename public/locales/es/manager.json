@@ -1502,6 +1502,91 @@
       "subtitle": "Ver la configuración resuelta por contexto.",
       "hideForm": "Ocultar formulario",
       "editSettings": "Editar configuración"
+    },
+    "payoutRequests": {
+      "title": "Solicitudes de pago",
+      "subtitle": "Los instructores solicitan aquí sus ganancias disponibles. Paga o rechaza cada solicitud: el instructor recibe una notificación en ambos casos.",
+      "close": "Cerrar",
+      "availableHint": "Disponible ahora",
+      "exceedsAvailable": "Supera el saldo disponible actual del instructor",
+      "loadError": "No se pudieron cargar las solicitudes de pago.",
+      "paidAmount": "{{amount}} pagado",
+      "decidedBy": "por {{name}}",
+      "tabs": {
+        "pending": "Pendientes",
+        "history": "Historial"
+      },
+      "filters": {
+        "all": "Todas"
+      },
+      "stats": {
+        "pendingCount": "Solicitudes pendientes",
+        "pendingAmount": "Importe pendiente",
+        "paidThisMonth": "Pagado este mes"
+      },
+      "columns": {
+        "instructor": "Instructor",
+        "date": "Solicitada",
+        "requested": "Importe",
+        "available": "Disponible",
+        "method": "Método preferido",
+        "note": "Nota",
+        "actions": "Acciones",
+        "status": "Estado",
+        "decision": "Decisión"
+      },
+      "status": {
+        "pending": "Pendiente",
+        "paid": "Pagada",
+        "rejected": "Rechazada",
+        "cancelled": "Cancelada"
+      },
+      "methods": {
+        "bank_transfer": "Transferencia bancaria",
+        "cash": "Efectivo",
+        "card": "Tarjeta",
+        "other": "Otro",
+        "none": "Sin preferencia"
+      },
+      "actions": {
+        "pay": "Pagar",
+        "decline": "Rechazar"
+      },
+      "empty": {
+        "pendingTitle": "No hay solicitudes pendientes",
+        "pendingHint": "Las nuevas solicitudes de pago de los instructores aparecerán aquí.",
+        "historyTitle": "Aún no hay historial",
+        "historyHint": "Las solicitudes pagadas, rechazadas y canceladas aparecerán aquí."
+      },
+      "payModal": {
+        "title": "Pagar solicitud",
+        "subtitle": "{{name}} solicitó {{amount}}",
+        "amount": "Importe",
+        "method": "Método de pago",
+        "reference": "Referencia",
+        "referencePlaceholder": "Referencia bancaria o número de recibo",
+        "note": "Nota",
+        "notePlaceholder": "Nota opcional",
+        "ledgerHint": "Se registra como pago al instructor en la nómina, igual que un pago añadido manualmente.",
+        "submit": "Registrar pago",
+        "success": "Pago registrado",
+        "error": "No se pudo registrar el pago",
+        "amountRequired": "Introduce un importe mayor que 0"
+      },
+      "declineModal": {
+        "title": "Rechazar solicitud",
+        "subtitle": "{{name}} solicitó {{amount}}",
+        "reason": "Motivo",
+        "reasonPlaceholder": "Explica el motivo al instructor: recibirá una notificación",
+        "reasonRequired": "El motivo es obligatorio",
+        "submit": "Rechazar solicitud",
+        "success": "Solicitud rechazada",
+        "error": "No se pudo rechazar la solicitud"
+      },
+      "instructorPanel": {
+        "pending": "Solicitud de pago pendiente",
+        "viewAll": "Todas las solicitudes de pago"
+      }
     }
   },
   "equipmentPage": {

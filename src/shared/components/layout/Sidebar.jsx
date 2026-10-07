@@ -10,6 +10,7 @@ import { getNavItemsForRole, getSystemItemsForRole } from '../../utils/navConfig
 import { useShopFilters, SORT_OPTIONS } from '../../contexts/ShopFiltersContext';
 import { preloadRoute } from '../../utils/routePreloader';
 import { hasSubcategories, getHierarchicalSubcategories } from '@/shared/constants/productCategories';
+import { usePayoutRequestCount } from '@/features/finances/hooks/usePayoutRequests';
 import {
   HomeIcon,
   UsersIcon,
@@ -193,6 +194,22 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   try { currentUser = JSON.parse(localStorage.getItem('user')); } catch {}
   const currentRole = currentUser?.role;
   const userPermissions = currentUser?.permissions || null;
+
+  // Pending-count badges on nav sub-items (subItem.badgeKey). Payout requests are
+  // admin/manager-only; the count refreshes on the payout_request:updated socket event.
+  const canSeePayoutRequests = ['admin', 'manager'].includes(String(currentRole || '').toLowerCase());
+  const pendingPayoutRequests = usePayoutRequestCount({ enabled: isAuthenticated && canSeePayoutRequests });
+  const navBadgeCounts = { payoutRequests: canSeePayoutRequests ? pendingPayoutRequests : 0 };
+  const subItemBadge = (subItem) => {
+    const count = subItem?.badgeKey ? navBadgeCounts[subItem.badgeKey] : 0;
+    if (!count) return null;
+    return (
+      <span className="ml-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold leading-4 text-white">
+        {count > 99 ? '99+' : count}
+      </span>
+    );
+  };
+  const parentBadgeCount = (item) => (item.subItems || []).reduce((acc, sub) => acc + (sub.badgeKey ? (navBadgeCounts[sub.badgeKey] || 0) : 0), 0);
 
   const dynamicNavItems = getNavItemsForRole(currentRole, userPermissions).map(n => ({
     ...n, icon: allIconMap[n.icon] || HomeIcon
@@ -454,7 +471,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                     </>
                                   )}
                                 </div>
-                                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} />
+                                <span className="flex items-center">
+                                  {parentBadgeCount(item) > 0 && !expandedItems[item.label] && (
+                                    <span className="mr-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold leading-4 text-white">
+                                      {parentBadgeCount(item) > 99 ? '99+' : parentBadgeCount(item)}
+                                    </span>
+                                  )}
+                                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} />
+                                </span>
                               </Component>
                             );
                           })()}
@@ -474,6 +498,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                         <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
                                       )}
                                       <span style={{ color: subItem.dotColor || parentColor, opacity: 0.75 }}>{t(subItem.labelKey, subItem.label)}</span>
+                                      {subItemBadge(subItem)}
                                     </span>
                                   </NavLink>
                                 );
@@ -542,7 +567,14 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                     </>
                                   )}
                                 </div>
-                                <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} />
+                                <span className="flex items-center">
+                                  {parentBadgeCount(item) > 0 && !expandedItems[item.label] && (
+                                    <span className="mr-2 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold leading-4 text-white">
+                                      {parentBadgeCount(item) > 99 ? '99+' : parentBadgeCount(item)}
+                                    </span>
+                                  )}
+                                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${expandedItems[item.label] ? 'rotate-180' : ''}`} />
+                                </span>
                               </Component>
                             );
                           })()}
@@ -562,6 +594,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                                         <span style={{ color: '#2d6a3e', fontSize: '0.75rem', lineHeight: '1', marginRight: '0.2rem' }}>•</span>
                                       )}
                                       <span style={{ color: subItem.dotColor || parentColor, opacity: 0.75 }}>{t(subItem.labelKey, subItem.label)}</span>
+                                      {subItemBadge(subItem)}
                                     </span>
                                   </NavLink>
                                 );

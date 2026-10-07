@@ -15,7 +15,7 @@ import {
   getTransactionById as getWalletTransactionById,
 } from '../services/walletService.js';
 import {
-  createStaffPayment,
+  recordInstructorPayment,
   updateStaffPayment,
   deleteStaffPayment,
   STAFF_KIND,
@@ -2213,9 +2213,8 @@ router.post('/instructor-payments',
       });
     }
 
-    const { transactionRecord, transactionType } = await createStaffPayment({
-      kind: STAFF_KIND.INSTRUCTOR,
-      userId: instructor_id,
+    const { transactionRecord, transactionType } = await recordInstructorPayment({
+      instructorId: instructor_id,
       amount,
       description,
       paymentDate: new Date(payment_date),

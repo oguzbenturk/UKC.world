@@ -178,7 +178,8 @@
     "financeUpcoming": "Upcoming Income",
     "financePayouts": "Payouts",
     "financeCommissionSettings": "Commission Settings",
-    "goTo": "Go to {{target}}"
+    "goTo": "Go to {{target}}",
+    "payoutRequests": "Payout Requests"
   },
   "shop": {
     "filters": "Filters",

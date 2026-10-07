@@ -44,7 +44,8 @@
     "pendingPayout": "Bekleyen Ödeme",
     "awaitingConfirmation": "Onay bekleniyor",
     "eligibleToPayout": "Ödeme talep etmeye uygun.",
-    "untilThreshold": "Ödeme eşiğine {{amount}} kaldı"
+    "untilThreshold": "Ödeme eşiğine {{amount}} kaldı",
+    "eligibleToRequestNow": "Şimdi ödeme talep edebilirsin"
   },
   "quickActions": {
     "manageStudents": "Öğrencileri Yönet",
@@ -961,5 +962,182 @@
       "status": "Durum"
     },
     "noInstructors": "Eğitmen yok"
+  },
+  "earnings": {
+    "title": "Kazançların",
+    "subtitle": "{{period}} · {{updated}} güncellendi",
+    "loading": "Kazançların yükleniyor…",
+    "period": {
+      "label": "Dönem",
+      "week": "Hafta",
+      "month": "Ay",
+      "year": "Yıl",
+      "all": "Tümü"
+    },
+    "hero": {
+      "week": "Bu hafta kazandığın",
+      "month": "{{label}} kazancın",
+      "year": "{{label}} kazancın",
+      "all": "Toplam kazancın",
+      "vsWeek": "geçen haftaya göre {{pct}}",
+      "vsMonth": "geçen aya göre {{pct}}",
+      "vsYear": "geçen yıla göre {{pct}}",
+      "stats_one": "{{count}} ders · {{hours}} sa · ders başı ort. {{avg}}",
+      "stats_other": "{{count}} ders · {{hours}} sa · ders başı ort. {{avg}}",
+      "thresholdLine": "asgari ödeme {{amount}}",
+      "trendLabel": "Son 12 haftanın haftalık kazancı, son hafta {{amount}}"
+    },
+    "balances": {
+      "title": "Bakiyeler",
+      "ready": "Ödemeye hazır",
+      "paidOut": "Ödenen",
+      "paidOutAllTime": "Ödenen (toplam)",
+      "gross": "kesintiler öncesi brüt {{amount}}",
+      "totalEarned": "Toplam kazanç"
+    },
+    "payout": {
+      "title": "Ödeme",
+      "minimum": "Asgari {{amount}}",
+      "progressLabel": "Asgari ödeme tutarına ilerleme",
+      "canRequest": "Şimdi ödeme talep edebilirsin",
+      "alreadyRequested": "Ödeme talebin müdüründe",
+      "aboveMinimum": "{{amount}} asgari tutarın üzerinde — talep edebilirsin",
+      "shortfall": "Asgari {{minimum}} tutara ulaşmak için <strong>{{amount}}</strong> daha",
+      "lastPayout": "Son ödeme · {{date}}",
+      "noPayouts": "Henüz ödeme yok",
+      "noPayoutsHint": "Müdürün sana ödeme yaptığında burada görünecek.",
+      "requested": "Ödeme talep edildi · {{amount}} · {{date}}",
+      "requestedShort": "Ödeme talep edildi · {{amount}}",
+      "requestedHint": "Müdürüne bildirildi. Ödeme yapıldığında sana haber vereceğiz.",
+      "cancel": "Talebi iptal et",
+      "cancelConfirm": "Bu ödeme talebi iptal edilsin mi?",
+      "keep": "Vazgeç",
+      "confirmCancel": "Evet, iptal et",
+      "cancelled": "Ödeme talebi iptal edildi",
+      "cancelError": "Talep iptal edilemedi. Lütfen tekrar dene.",
+      "recent": "Son ödemeler",
+      "allPayouts": "Tüm ödemeler",
+      "received": "Ödeme alındı"
+    },
+    "status": {
+      "paid": "Ödendi",
+      "pending": "Bekliyor"
+    },
+    "methods": {
+      "bank_transfer": "Banka havalesi",
+      "cash": "Nakit",
+      "other": "Diğer",
+      "card": "Kart",
+      "wallet": "Cüzdan",
+      "credit_card": "Kredi kartı",
+      "paypal": "PayPal"
+    },
+    "rate": {
+      "perHour": "{{amount}}/sa",
+      "perLesson": "{{amount}}/ders",
+      "percent": "%{{value}}"
+    },
+    "calc": {
+      "title": "Bu nasıl hesaplanıyor?",
+      "summary_one": "{{count}} ders · {{hours}} sa",
+      "summary_other": "{{count}} ders · {{hours}} sa",
+      "row": "{{label}} ({{rate}} · {{hours}} sa)",
+      "deductions": "Kesintiler",
+      "totalWeek": "Bu hafta kazandığın",
+      "totalMonth": "Bu ay kazandığın",
+      "totalYear": "Bu yıl kazandığın",
+      "totalAll": "Toplam kazancın",
+      "explainer": "Sabit ücretler verdiğin her saat için ödenir; yüzdelik ücretler ders fiyatından aldığın paydır. Kesintiler toplamdan düşülür."
+    },
+    "byType": {
+      "title": "Ders türüne göre",
+      "empty": "Bu dönemde henüz ders yok",
+      "emptyHint": "Tamamlanan dersler burada ders türüne göre gruplanır."
+    },
+    "byMonth": {
+      "title": "Aylara göre kazanç",
+      "soFar": "{{month}} (şu ana kadar)",
+      "chartLabel": "Son 6 ayın kazancı"
+    },
+    "activity": {
+      "title": "Hareketler",
+      "tableTitle": "Dersler ve ödemeler",
+      "filterLabel": "Hareketleri filtrele",
+      "filters": {
+        "all": "Tümü",
+        "lessons": "Dersler",
+        "payouts": "Ödemeler",
+        "pending": "Bekleyen",
+        "paid": "Ödenen"
+      },
+      "search": "Öğrenci veya ders ara",
+      "today": "Bugün · {{date}}",
+      "yesterday": "Dün · {{date}}",
+      "unknownStudent": "Öğrenci",
+      "groupMore": "{{name}} +{{count}}",
+      "lessonMeta": "{{type}} · {{hours}} sa · {{time}}",
+      "lessonMetaNoTime": "{{type}} · {{hours}} sa",
+      "deduction": "Kesinti",
+      "showMore": "Daha fazla göster ({{shown}}/{{total}})",
+      "empty": "Henüz bir şey yok",
+      "emptyHint": "Tamamlanan dersler ve ödemeler burada görünecek.",
+      "noResults": "“{{query}}” için sonuç yok",
+      "noResultsHint": "Başka bir öğrenci adı veya ders türü dene.",
+      "error": "Hareketlerin yüklenemedi.",
+      "columns": {
+        "date": "Tarih",
+        "student": "Öğrenci",
+        "lesson": "Ders",
+        "hours": "Saat",
+        "rate": "Ücret",
+        "amount": "Kazancın",
+        "status": "Durum"
+      }
+    },
+    "request": {
+      "button": "Ödeme talep et · {{amount}}",
+      "title": "Ödeme talep et",
+      "subtitle": "Şu an kullanılabilir: {{amount}}",
+      "amount": "Tutar",
+      "amountHint": "{{min}} ile {{max}} arasında",
+      "useMax": "Tamamını kullan",
+      "method": "Tercih edilen yöntem",
+      "note": "Not (isteğe bağlı)",
+      "notePlaceholder": "Müdürünün bilmesi gereken bir şey varsa yaz",
+      "noteCount": "{{used}}/{{max}}",
+      "submit": "Talebi gönder · {{amount}}",
+      "sending": "Gönderiliyor…",
+      "close": "Kapat",
+      "done": "Tamam",
+      "successTitle": "Talep gönderildi",
+      "successBody": "Talep gönderildi — müdürüne bildirildi.",
+      "errors": {
+        "required": "Bir tutar gir",
+        "invalid": "Geçerli bir tutar gir, örn. 250.00",
+        "max": "En fazla {{amount}} talep edebilirsin",
+        "min": "Asgari ödeme tutarı {{amount}}",
+        "pending": "Zaten bekleyen bir ödeme talebin var.",
+        "generic": "Talebin gönderilemedi. Lütfen tekrar dene."
+      }
+    },
+    "statement": {
+      "button": "Döküm",
+      "link": "Aylık dökümler (CSV)",
+      "title": "Döküm indir",
+      "month": "Ay",
+      "csv": "CSV indir",
+      "pdf": "PDF indir",
+      "error": "Döküm indirilemedi. Lütfen tekrar dene.",
+      "pdfUnavailable": "PDF dökümler henüz hazır değil — lütfen CSV indir."
+    },
+    "error": {
+      "title": "Kazançların yüklenemedi",
+      "body": "Bağlantını kontrol edip tekrar dene.",
+      "retry": "Tekrar dene"
+    },
+    "empty": {
+      "title": "Henüz kazanç yok",
+      "body": "İlk dersini tamamladığında kazançların burada görünecek."
+    }
   }
 }

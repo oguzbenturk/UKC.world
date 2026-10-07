@@ -1,31 +1,20 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from 'antd';
 import { Navigate } from 'react-router-dom';
 
-import InstructorFinanceView from '../components/InstructorFinanceView';
+// Instructors get the dedicated earnings + payout-request page
+// (docs/specs/instructor-earnings-payouts.md). The legacy InstructorFinanceView
+// stays in the codebase for admin-side reuse but is no longer routed here.
+import InstructorEarningsPage from '@/features/instructor/earnings/InstructorEarningsPage';
 import { useAuth } from '@/shared/hooks/useAuth';
 
-function Finance({ defaultFilter = 'all' }) {
+function Finance() {
   const { t } = useTranslation(['manager']);
   const { user } = useAuth();
   const role = user?.role?.toLowerCase?.();
 
-  const instructorProfile = useMemo(() => {
-    if (!user) return null;
-    return {
-      id: user.id,
-      name: user.name || user.fullName || 'Instructor',
-      email: user.email,
-      phone: user.phone,
-      status: user.status,
-      created_at: user.created_at,
-      avatar: user.avatar_url || user.avatar
-    };
-  }, [user]);
-
-  if (role === 'instructor' && instructorProfile?.id) {
-    return <InstructorFinanceView instructor={instructorProfile} />;
+  if (role === 'instructor' && user?.id) {
+    return <InstructorEarningsPage />;
   }
 
   // Managers get their own dedicated finance hub

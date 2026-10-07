@@ -83,6 +83,11 @@ const NOTIFICATION_TYPES = new Set([
   // Instructor
   'instructor_time_off_request',
 
+  // Instructor payout requests (migration 292)
+  'payout_request_created',         // → every admin + manager
+  'payout_request_paid',            // → the instructor
+  'payout_request_rejected',        // → the instructor
+
   // Waivers
   'waiver',
 
@@ -156,6 +161,11 @@ const PREFERENCE_MAP = {
 
   // Shop
   shop_order:                 'payment_notifications',
+
+  // Instructor payout requests
+  payout_request_created:     'payment_notifications',
+  payout_request_paid:        'payment_notifications',
+  payout_request_rejected:    'payment_notifications',
 
   // General / marketing
   general:                    'general_announcements',

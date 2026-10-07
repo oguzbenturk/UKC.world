@@ -44,7 +44,8 @@
     "pendingPayout": "Versement en attente",
     "awaitingConfirmation": "En attente de confirmation",
     "eligibleToPayout": "Éligible pour demander un versement.",
-    "untilThreshold": "{{amount}} avant le seuil de versement"
+    "untilThreshold": "{{amount}} avant le seuil de versement",
+    "eligibleToRequestNow": "Vous pouvez demander un versement"
   },
   "quickActions": {
     "manageStudents": "Gérer les élèves",
@@ -961,5 +962,184 @@
       "status": "Statut"
     },
     "noInstructors": "Aucun instructeur"
+  },
+  "earnings": {
+    "title": "Vos revenus",
+    "subtitle": "{{period}} · mis à jour {{updated}}",
+    "loading": "Chargement de vos revenus…",
+    "period": {
+      "label": "Période",
+      "week": "Semaine",
+      "month": "Mois",
+      "year": "Année",
+      "all": "Tout"
+    },
+    "hero": {
+      "week": "Gagné cette semaine",
+      "month": "Gagné en {{label}}",
+      "year": "Gagné en {{label}}",
+      "all": "Gagné au total",
+      "vsWeek": "{{pct}} vs semaine dernière",
+      "vsMonth": "{{pct}} vs mois dernier",
+      "vsYear": "{{pct}} vs année dernière",
+      "stats_one": "{{count}} cours · {{hours}} h · moy. {{avg}} par cours",
+      "stats_many": "{{count}} cours · {{hours}} h · moy. {{avg}} par cours",
+      "stats_other": "{{count}} cours · {{hours}} h · moy. {{avg}} par cours",
+      "thresholdLine": "versement minimum {{amount}}",
+      "trendLabel": "Revenus hebdomadaires des 12 dernières semaines, dernière semaine {{amount}}"
+    },
+    "balances": {
+      "title": "Soldes",
+      "ready": "Prêt pour versement",
+      "paidOut": "Versé",
+      "paidOutAllTime": "Versé (total)",
+      "gross": "{{amount}} brut avant retenues",
+      "totalEarned": "Total gagné"
+    },
+    "payout": {
+      "title": "Versement",
+      "minimum": "Minimum {{amount}}",
+      "progressLabel": "Progression vers le versement minimum",
+      "canRequest": "Vous pouvez demander un versement maintenant",
+      "alreadyRequested": "Votre demande de versement est chez votre responsable",
+      "aboveMinimum": "Au-dessus du minimum de {{amount}} — vous pouvez le demander",
+      "shortfall": "Encore <strong>{{amount}}</strong> pour atteindre le minimum de {{minimum}}",
+      "lastPayout": "Dernier versement · {{date}}",
+      "noPayouts": "Aucun versement pour l’instant",
+      "noPayoutsHint": "Quand votre responsable vous paiera, cela apparaîtra ici.",
+      "requested": "Versement demandé · {{amount}} · {{date}}",
+      "requestedShort": "Versement demandé · {{amount}}",
+      "requestedHint": "Votre responsable a été prévenu. Vous recevrez un message dès le paiement.",
+      "cancel": "Annuler la demande",
+      "cancelConfirm": "Annuler cette demande de versement ?",
+      "keep": "La garder",
+      "confirmCancel": "Oui, annuler",
+      "cancelled": "Demande de versement annulée",
+      "cancelError": "Impossible d’annuler la demande. Veuillez réessayer.",
+      "recent": "Versements récents",
+      "allPayouts": "Tous les versements",
+      "received": "Versement reçu"
+    },
+    "status": {
+      "paid": "Payé",
+      "pending": "En attente"
+    },
+    "methods": {
+      "bank_transfer": "Virement bancaire",
+      "cash": "Espèces",
+      "other": "Autre",
+      "card": "Carte",
+      "wallet": "Portefeuille",
+      "credit_card": "Carte de crédit",
+      "paypal": "PayPal"
+    },
+    "rate": {
+      "perHour": "{{amount}}/h",
+      "perLesson": "{{amount}}/cours",
+      "percent": "{{value}} %"
+    },
+    "calc": {
+      "title": "Comment est-ce calculé ?",
+      "summary_one": "{{count}} cours · {{hours}} h",
+      "summary_many": "{{count}} cours · {{hours}} h",
+      "summary_other": "{{count}} cours · {{hours}} h",
+      "row": "{{label}} ({{rate}} · {{hours}} h)",
+      "deductions": "Retenues",
+      "totalWeek": "Gagné cette semaine",
+      "totalMonth": "Gagné ce mois-ci",
+      "totalYear": "Gagné cette année",
+      "totalAll": "Gagné au total",
+      "explainer": "Les taux fixes sont payés par heure enseignée ; les pourcentages sont votre part du prix du cours. Les retenues sont déduites du total."
+    },
+    "byType": {
+      "title": "Par type de cours",
+      "empty": "Aucun cours sur cette période",
+      "emptyHint": "Les cours terminés apparaissent ici, regroupés par type."
+    },
+    "byMonth": {
+      "title": "Revenus par mois",
+      "soFar": "{{month}} (en cours)",
+      "chartLabel": "Revenus des 6 derniers mois"
+    },
+    "activity": {
+      "title": "Activité",
+      "tableTitle": "Cours et versements",
+      "filterLabel": "Filtrer l’activité",
+      "filters": {
+        "all": "Tout",
+        "lessons": "Cours",
+        "payouts": "Versements",
+        "pending": "En attente",
+        "paid": "Payé"
+      },
+      "search": "Rechercher un élève ou un cours",
+      "today": "Aujourd’hui · {{date}}",
+      "yesterday": "Hier · {{date}}",
+      "unknownStudent": "Élève",
+      "groupMore": "{{name}} +{{count}}",
+      "lessonMeta": "{{type}} · {{hours}} h · {{time}}",
+      "lessonMetaNoTime": "{{type}} · {{hours}} h",
+      "deduction": "Retenue",
+      "showMore": "Afficher plus ({{shown}} sur {{total}})",
+      "empty": "Rien pour l’instant",
+      "emptyHint": "Les cours terminés et les versements apparaîtront ici.",
+      "noResults": "Aucun résultat pour « {{query}} »",
+      "noResultsHint": "Essayez un autre nom d’élève ou type de cours.",
+      "error": "Impossible de charger votre activité.",
+      "columns": {
+        "date": "Date",
+        "student": "Élève",
+        "lesson": "Cours",
+        "hours": "Heures",
+        "rate": "Taux",
+        "amount": "Vous gagnez",
+        "status": "Statut"
+      }
+    },
+    "request": {
+      "button": "Demander un versement · {{amount}}",
+      "title": "Demander un versement",
+      "subtitle": "Disponible maintenant : {{amount}}",
+      "amount": "Montant",
+      "amountHint": "Entre {{min}} et {{max}}",
+      "useMax": "Montant total",
+      "method": "Méthode préférée",
+      "note": "Note (facultatif)",
+      "notePlaceholder": "Ce que votre responsable doit savoir",
+      "noteCount": "{{used}}/{{max}}",
+      "submit": "Envoyer la demande · {{amount}}",
+      "sending": "Envoi…",
+      "close": "Fermer",
+      "done": "Terminé",
+      "successTitle": "Demande envoyée",
+      "successBody": "Demande envoyée — votre responsable a été prévenu.",
+      "errors": {
+        "required": "Saisissez un montant",
+        "invalid": "Saisissez un montant valide, p. ex. 250.00",
+        "max": "Vous pouvez demander au maximum {{amount}}",
+        "min": "Le versement minimum est de {{amount}}",
+        "pending": "Vous avez déjà une demande de versement en attente.",
+        "generic": "Impossible d’envoyer votre demande. Veuillez réessayer."
+      }
+    },
+    "statement": {
+      "button": "Relevé",
+      "link": "Relevés mensuels (CSV)",
+      "title": "Télécharger un relevé",
+      "month": "Mois",
+      "csv": "Télécharger le CSV",
+      "pdf": "Télécharger le PDF",
+      "error": "Impossible de télécharger le relevé. Veuillez réessayer.",
+      "pdfUnavailable": "Les relevés PDF ne sont pas encore disponibles — téléchargez le CSV."
+    },
+    "error": {
+      "title": "Impossible de charger vos revenus",
+      "body": "Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer"
+    },
+    "empty": {
+      "title": "Pas encore de revenus",
+      "body": "Vos revenus apparaîtront ici après votre premier cours terminé."
+    }
   }
 }

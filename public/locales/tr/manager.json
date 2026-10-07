@@ -1502,6 +1502,91 @@
       "subtitle": "Bağlama göre çözümlenmiş ayarları görüntüleyin.",
       "hideForm": "Formu Gizle",
       "editSettings": "Ayarları Düzenle"
+    },
+    "payoutRequests": {
+      "title": "Ödeme talepleri",
+      "subtitle": "Eğitmenler kullanılabilir kazançlarını buradan talep eder. Her talebi öde ya da reddet — eğitmene her iki durumda da bildirim gider.",
+      "close": "Kapat",
+      "availableHint": "Şu an kullanılabilir",
+      "exceedsAvailable": "Eğitmenin mevcut kullanılabilir bakiyesinden fazla",
+      "loadError": "Ödeme talepleri yüklenemedi.",
+      "paidAmount": "{{amount}} ödendi",
+      "decidedBy": "{{name}} tarafından",
+      "tabs": {
+        "pending": "Bekleyen",
+        "history": "Geçmiş"
+      },
+      "filters": {
+        "all": "Tümü"
+      },
+      "stats": {
+        "pendingCount": "Bekleyen talepler",
+        "pendingAmount": "Bekleyen tutar",
+        "paidThisMonth": "Bu ay ödenen"
+      },
+      "columns": {
+        "instructor": "Eğitmen",
+        "date": "Talep tarihi",
+        "requested": "Tutar",
+        "available": "Kullanılabilir",
+        "method": "Tercih edilen yöntem",
+        "note": "Not",
+        "actions": "İşlemler",
+        "status": "Durum",
+        "decision": "Karar"
+      },
+      "status": {
+        "pending": "Bekliyor",
+        "paid": "Ödendi",
+        "rejected": "Reddedildi",
+        "cancelled": "İptal edildi"
+      },
+      "methods": {
+        "bank_transfer": "Banka havalesi",
+        "cash": "Nakit",
+        "card": "Kart",
+        "other": "Diğer",
+        "none": "Tercih yok"
+      },
+      "actions": {
+        "pay": "Öde",
+        "decline": "Reddet"
+      },
+      "empty": {
+        "pendingTitle": "Bekleyen talep yok",
+        "pendingHint": "Eğitmenlerin yeni ödeme talepleri burada görünecek.",
+        "historyTitle": "Henüz geçmiş yok",
+        "historyHint": "Ödenen, reddedilen ve iptal edilen talepler burada görünecek."
+      },
+      "payModal": {
+        "title": "Ödeme talebini öde",
+        "subtitle": "{{name}}, {{amount}} talep etti",
+        "amount": "Tutar",
+        "method": "Ödeme yöntemi",
+        "reference": "Referans",
+        "referencePlaceholder": "Banka referansı veya makbuz numarası",
+        "note": "Not",
+        "notePlaceholder": "İsteğe bağlı not",
+        "ledgerHint": "Bordroda eğitmen ödemesi olarak kaydedilir — elle ödeme eklemekle birebir aynı.",
+        "submit": "Ödemeyi kaydet",
+        "success": "Ödeme kaydedildi",
+        "error": "Ödeme kaydedilemedi",
+        "amountRequired": "0’dan büyük bir tutar girin"
+      },
+      "declineModal": {
+        "title": "Ödeme talebini reddet",
+        "subtitle": "{{name}}, {{amount}} talep etti",
+        "reason": "Gerekçe",
+        "reasonPlaceholder": "Eğitmene nedenini yazın — bildirim olarak iletilecek",
+        "reasonRequired": "Gerekçe zorunludur",
+        "submit": "Talebi reddet",
+        "success": "Talep reddedildi",
+        "error": "Talep reddedilemedi"
+      },
+      "instructorPanel": {
+        "pending": "Bekleyen ödeme talebi",
+        "viewAll": "Tüm ödeme talepleri"
+      }
     }
   },
   "equipmentPage": {

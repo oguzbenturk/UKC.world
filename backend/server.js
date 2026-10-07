@@ -36,6 +36,7 @@ import instructorAvailabilityRouter from './routes/instructorAvailability.js';
 import studentsRouter from './routes/students.js';
 import studentPortalRouter from './routes/studentPortal.js';
 import financesRouter from './routes/finances.js';
+import payoutRequestsRouter from './routes/payoutRequests.js';
 import rentalsRouter from './routes/rentals.js';
 import eventsRouter from './routes/events.js';
 import financeDailyOperationsRouter from './routes/financeDailyOperations.js';
@@ -1548,6 +1549,8 @@ app.use('/api/finances/callback/iyzico', (err, req, res, _next) => {
   res.redirect(`${frontendUrl}/payment/callback?status=failed&reason=server_error`);
 });
 
+// Instructor payout requests (admin/manager) — before the generic finances router.
+app.use('/api/finances/payout-requests', authenticateJWT, payoutRequestsRouter);
 app.use('/api/finances', authenticateJWT, triggerFinancialReconciliation, financesRouter);
 app.use('/api/rentals', authenticateJWT, triggerFinancialReconciliation, rentalsRouter);
 app.use('/api/events', (req, res, next) => {

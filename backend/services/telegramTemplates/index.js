@@ -1,5 +1,6 @@
 import { logger } from '../../middlewares/errorHandler.js';
 import { buildWarrantyClaimSubmitted } from './warranty.js';
+import { buildPayoutRequestCreated, buildPayoutRequestPaid, buildPayoutRequestRejected } from './payout.js';
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://ukc.plannivo.com').replace(/\/$/, '');
 
@@ -394,6 +395,12 @@ export function buildTelegramMessageForType(type, data) {
         return buildRentalCustomer(data);
       case 'warranty_claim_submitted':
         return buildWarrantyClaimSubmitted(data);
+      case 'payout_request_created':
+        return buildPayoutRequestCreated(data);
+      case 'payout_request_paid':
+        return buildPayoutRequestPaid(data);
+      case 'payout_request_rejected':
+        return buildPayoutRequestRejected(data);
       default:
         return null;
     }

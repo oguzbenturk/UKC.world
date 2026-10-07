@@ -197,6 +197,7 @@ const PaymentHistory = lazyWithRetry(() => import('../features/finances/pages/Pa
 const ExpensesPage = lazyWithRetry(() => import('../features/finances/pages/ExpensesPage'));
 const PaymentCallback = lazyWithRetry(() => import('../features/finances/pages/PaymentCallback'));
 const WalletDepositsAdmin = lazyWithRetry(() => import('../features/finances/pages/WalletDepositsAdmin'));
+const PayoutRequestsAdmin = lazyWithRetry(() => import('../features/finances/pages/PayoutRequestsAdmin'));
 
 // Shop Order Management
 const ShopOrdersPage = lazyWithRetry(() => import('../features/services/pages/ShopOrdersPage'));
@@ -643,6 +644,7 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MANAGER]} />}>
         <Route path="/finance/refunds" element={<Navigate to="/settings?tab=refunds" replace />} />
         <Route path="/finance/wallet-deposits" element={<WalletDepositsAdmin />} />
+        <Route path="/finance/payout-requests" element={<PayoutRequestsAdmin />} />
         <Route path="/finance/bank-accounts" element={<Navigate to="/settings?tab=bank-accounts" replace />} />
       </Route>
         {/* User profile and settings routes - all authenticated users can access */}

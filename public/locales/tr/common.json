@@ -182,7 +182,8 @@
     "financeUpcoming": "Upcoming Income",
     "financePayouts": "Payouts",
     "financeCommissionSettings": "Commission Settings",
-    "goTo": "{{target}} sayfasına git"
+    "goTo": "{{target}} sayfasına git",
+    "payoutRequests": "Ödeme Talepleri"
   },
   "shop": {
     "filters": "Filtreler",

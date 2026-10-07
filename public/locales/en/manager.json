@@ -1503,6 +1503,91 @@
       "subtitle": "View resolved settings by context; editing UI can be added here later.",
       "hideForm": "Hide Form",
       "editSettings": "Edit Settings"
+    },
+    "payoutRequests": {
+      "title": "Payout requests",
+      "subtitle": "Instructors request their available earnings here. Pay or decline each request — the instructor is notified either way.",
+      "close": "Close",
+      "availableHint": "Available now",
+      "exceedsAvailable": "More than the instructor’s current available balance",
+      "loadError": "Could not load payout requests.",
+      "paidAmount": "Paid {{amount}}",
+      "decidedBy": "by {{name}}",
+      "tabs": {
+        "pending": "Pending",
+        "history": "History"
+      },
+      "filters": {
+        "all": "All"
+      },
+      "stats": {
+        "pendingCount": "Pending requests",
+        "pendingAmount": "Pending amount",
+        "paidThisMonth": "Paid this month"
+      },
+      "columns": {
+        "instructor": "Instructor",
+        "date": "Requested",
+        "requested": "Amount",
+        "available": "Available",
+        "method": "Preferred method",
+        "note": "Note",
+        "actions": "Actions",
+        "status": "Status",
+        "decision": "Decision"
+      },
+      "status": {
+        "pending": "Pending",
+        "paid": "Paid",
+        "rejected": "Declined",
+        "cancelled": "Cancelled"
+      },
+      "methods": {
+        "bank_transfer": "Bank transfer",
+        "cash": "Cash",
+        "card": "Card",
+        "other": "Other",
+        "none": "No preference"
+      },
+      "actions": {
+        "pay": "Pay",
+        "decline": "Decline"
+      },
+      "empty": {
+        "pendingTitle": "No pending requests",
+        "pendingHint": "New instructor payout requests will appear here.",
+        "historyTitle": "No history yet",
+        "historyHint": "Paid, declined and cancelled requests will appear here."
+      },
+      "payModal": {
+        "title": "Pay payout request",
+        "subtitle": "{{name}} requested {{amount}}",
+        "amount": "Amount",
+        "method": "Payment method",
+        "reference": "Reference",
+        "referencePlaceholder": "Bank reference or receipt number",
+        "note": "Note",
+        "notePlaceholder": "Optional note",
+        "ledgerHint": "Recorded as an instructor payment in payroll, exactly like adding a payment manually.",
+        "submit": "Record payment",
+        "success": "Payout recorded",
+        "error": "Could not record the payout",
+        "amountRequired": "Enter an amount greater than 0"
+      },
+      "declineModal": {
+        "title": "Decline payout request",
+        "subtitle": "{{name}} requested {{amount}}",
+        "reason": "Reason",
+        "reasonPlaceholder": "Tell the instructor why — they will be notified",
+        "reasonRequired": "A reason is required",
+        "submit": "Decline request",
+        "success": "Request declined",
+        "error": "Could not decline the request"
+      },
+      "instructorPanel": {
+        "pending": "Pending payout request",
+        "viewAll": "All payout requests"
+      }
     }
   },
   "equipmentPage": {

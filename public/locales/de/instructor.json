@@ -44,7 +44,8 @@
     "pendingPayout": "Ausstehende Auszahlung",
     "awaitingConfirmation": "Auf Bestätigung wartend",
     "eligibleToPayout": "Berechtigt zur Auszahlungsanfrage.",
-    "untilThreshold": "{{amount}} bis zur Auszahlungsschwelle"
+    "untilThreshold": "{{amount}} bis zur Auszahlungsschwelle",
+    "eligibleToRequestNow": "Jetzt Auszahlung anfordern"
   },
   "quickActions": {
     "manageStudents": "Schüler verwalten",
@@ -961,5 +962,182 @@
       "status": "Status"
     },
     "noInstructors": "Keine Kursleiter"
+  },
+  "earnings": {
+    "title": "Deine Einnahmen",
+    "subtitle": "{{period}} · aktualisiert {{updated}}",
+    "loading": "Einnahmen werden geladen…",
+    "period": {
+      "label": "Zeitraum",
+      "week": "Woche",
+      "month": "Monat",
+      "year": "Jahr",
+      "all": "Gesamt"
+    },
+    "hero": {
+      "week": "Verdient diese Woche",
+      "month": "Verdient im {{label}}",
+      "year": "Verdient im Jahr {{label}}",
+      "all": "Insgesamt verdient",
+      "vsWeek": "{{pct}} ggü. letzter Woche",
+      "vsMonth": "{{pct}} ggü. letztem Monat",
+      "vsYear": "{{pct}} ggü. letztem Jahr",
+      "stats_one": "{{count}} Einheit · {{hours}} h · Ø {{avg}} pro Einheit",
+      "stats_other": "{{count}} Einheiten · {{hours}} h · Ø {{avg}} pro Einheit",
+      "thresholdLine": "Mindestauszahlung {{amount}}",
+      "trendLabel": "Wöchentliche Einnahmen der letzten 12 Wochen, letzte Woche {{amount}}"
+    },
+    "balances": {
+      "title": "Salden",
+      "ready": "Bereit zur Auszahlung",
+      "paidOut": "Ausgezahlt",
+      "paidOutAllTime": "Ausgezahlt (gesamt)",
+      "gross": "{{amount}} brutto vor Abzügen",
+      "totalEarned": "Gesamt verdient"
+    },
+    "payout": {
+      "title": "Auszahlung",
+      "minimum": "Minimum {{amount}}",
+      "progressLabel": "Fortschritt bis zur Mindestauszahlung",
+      "canRequest": "Du kannst jetzt eine Auszahlung anfordern",
+      "alreadyRequested": "Deine Auszahlungsanfrage liegt bei deinem Manager",
+      "aboveMinimum": "Über dem Minimum von {{amount}} — du kannst sie anfordern",
+      "shortfall": "Noch <strong>{{amount}}</strong> bis zum Minimum von {{minimum}}",
+      "lastPayout": "Letzte Auszahlung · {{date}}",
+      "noPayouts": "Noch keine Auszahlungen",
+      "noPayoutsHint": "Sobald dein Manager dich bezahlt, erscheint es hier.",
+      "requested": "Auszahlung angefordert · {{amount}} · {{date}}",
+      "requestedShort": "Auszahlung angefordert · {{amount}}",
+      "requestedHint": "Dein Manager wurde benachrichtigt. Du bekommst eine Nachricht, sobald gezahlt wurde.",
+      "cancel": "Anfrage stornieren",
+      "cancelConfirm": "Diese Auszahlungsanfrage stornieren?",
+      "keep": "Behalten",
+      "confirmCancel": "Ja, stornieren",
+      "cancelled": "Auszahlungsanfrage storniert",
+      "cancelError": "Die Anfrage konnte nicht storniert werden. Bitte versuche es erneut.",
+      "recent": "Letzte Auszahlungen",
+      "allPayouts": "Alle Auszahlungen",
+      "received": "Auszahlung erhalten"
+    },
+    "status": {
+      "paid": "Bezahlt",
+      "pending": "Ausstehend"
+    },
+    "methods": {
+      "bank_transfer": "Banküberweisung",
+      "cash": "Bar",
+      "other": "Sonstiges",
+      "card": "Karte",
+      "wallet": "Wallet",
+      "credit_card": "Kreditkarte",
+      "paypal": "PayPal"
+    },
+    "rate": {
+      "perHour": "{{amount}}/h",
+      "perLesson": "{{amount}}/Einheit",
+      "percent": "{{value}} %"
+    },
+    "calc": {
+      "title": "Wie wird das berechnet?",
+      "summary_one": "{{count}} Einheit · {{hours}} h",
+      "summary_other": "{{count}} Einheiten · {{hours}} h",
+      "row": "{{label}} ({{rate}} · {{hours}} h)",
+      "deductions": "Abzüge",
+      "totalWeek": "Verdient diese Woche",
+      "totalMonth": "Verdient diesen Monat",
+      "totalYear": "Verdient dieses Jahr",
+      "totalAll": "Insgesamt verdient",
+      "explainer": "Feste Sätze werden pro unterrichteter Stunde bezahlt; Prozentsätze sind dein Anteil am Unterrichtspreis. Abzüge werden von der Summe abgezogen."
+    },
+    "byType": {
+      "title": "Nach Unterrichtsart",
+      "empty": "In diesem Zeitraum noch kein Unterricht",
+      "emptyHint": "Abgeschlossene Einheiten erscheinen hier, gruppiert nach Unterrichtsart."
+    },
+    "byMonth": {
+      "title": "Einnahmen pro Monat",
+      "soFar": "{{month}} (bisher)",
+      "chartLabel": "Einnahmen der letzten 6 Monate"
+    },
+    "activity": {
+      "title": "Aktivität",
+      "tableTitle": "Unterricht und Auszahlungen",
+      "filterLabel": "Aktivität filtern",
+      "filters": {
+        "all": "Alle",
+        "lessons": "Unterricht",
+        "payouts": "Auszahlungen",
+        "pending": "Ausstehend",
+        "paid": "Bezahlt"
+      },
+      "search": "Schüler oder Unterricht suchen",
+      "today": "Heute · {{date}}",
+      "yesterday": "Gestern · {{date}}",
+      "unknownStudent": "Schüler",
+      "groupMore": "{{name}} +{{count}}",
+      "lessonMeta": "{{type}} · {{hours}} h · {{time}}",
+      "lessonMetaNoTime": "{{type}} · {{hours}} h",
+      "deduction": "Abzug",
+      "showMore": "Mehr anzeigen ({{shown}} von {{total}})",
+      "empty": "Noch nichts hier",
+      "emptyHint": "Abgeschlossener Unterricht und Auszahlungen erscheinen hier.",
+      "noResults": "Keine Ergebnisse für „{{query}}“",
+      "noResultsHint": "Versuche einen anderen Schülernamen oder eine andere Unterrichtsart.",
+      "error": "Deine Aktivität konnte nicht geladen werden.",
+      "columns": {
+        "date": "Datum",
+        "student": "Schüler",
+        "lesson": "Unterricht",
+        "hours": "Stunden",
+        "rate": "Satz",
+        "amount": "Dein Verdienst",
+        "status": "Status"
+      }
+    },
+    "request": {
+      "button": "Auszahlung anfordern · {{amount}}",
+      "title": "Auszahlung anfordern",
+      "subtitle": "Jetzt verfügbar: {{amount}}",
+      "amount": "Betrag",
+      "amountHint": "Zwischen {{min}} und {{max}}",
+      "useMax": "Gesamtbetrag",
+      "method": "Bevorzugte Methode",
+      "note": "Notiz (optional)",
+      "notePlaceholder": "Was dein Manager wissen sollte",
+      "noteCount": "{{used}}/{{max}}",
+      "submit": "Anfrage senden · {{amount}}",
+      "sending": "Wird gesendet…",
+      "close": "Schließen",
+      "done": "Fertig",
+      "successTitle": "Anfrage gesendet",
+      "successBody": "Anfrage gesendet — dein Manager wurde benachrichtigt.",
+      "errors": {
+        "required": "Gib einen Betrag ein",
+        "invalid": "Gib einen gültigen Betrag ein, z. B. 250.00",
+        "max": "Du kannst höchstens {{amount}} anfordern",
+        "min": "Die Mindestauszahlung beträgt {{amount}}",
+        "pending": "Du hast bereits eine offene Auszahlungsanfrage.",
+        "generic": "Deine Anfrage konnte nicht gesendet werden. Bitte versuche es erneut."
+      }
+    },
+    "statement": {
+      "button": "Abrechnung",
+      "link": "Monatliche Abrechnungen (CSV)",
+      "title": "Abrechnung herunterladen",
+      "month": "Monat",
+      "csv": "CSV herunterladen",
+      "pdf": "PDF herunterladen",
+      "error": "Die Abrechnung konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
+      "pdfUnavailable": "PDF-Abrechnungen sind noch nicht verfügbar — bitte lade die CSV herunter."
+    },
+    "error": {
+      "title": "Deine Einnahmen konnten nicht geladen werden",
+      "body": "Prüfe deine Verbindung und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    },
+    "empty": {
+      "title": "Noch keine Einnahmen",
+      "body": "Deine Einnahmen erscheinen hier nach deinem ersten abgeschlossenen Unterricht."
+    }
   }
 }

@@ -44,7 +44,8 @@
     "pendingPayout": "Pending Payout",
     "awaitingConfirmation": "Awaiting confirmation",
     "eligibleToPayout": "Eligible to request payout.",
-    "untilThreshold": "{{amount}} until payout threshold"
+    "untilThreshold": "{{amount}} until payout threshold",
+    "eligibleToRequestNow": "Eligible to request payout now"
   },
   "quickActions": {
     "manageStudents": "Manage Students",
@@ -961,5 +962,182 @@
       "status": "Status"
     },
     "noInstructors": "No instructors"
+  },
+  "earnings": {
+    "title": "Your earnings",
+    "subtitle": "{{period}} · updated {{updated}}",
+    "loading": "Loading your earnings…",
+    "period": {
+      "label": "Period",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year",
+      "all": "All time"
+    },
+    "hero": {
+      "week": "Earned this week",
+      "month": "Earned in {{label}}",
+      "year": "Earned in {{label}}",
+      "all": "Earned all time",
+      "vsWeek": "{{pct}} vs last week",
+      "vsMonth": "{{pct}} vs last month",
+      "vsYear": "{{pct}} vs last year",
+      "stats_one": "{{count}} lesson · {{hours}} h · avg {{avg}} per lesson",
+      "stats_other": "{{count}} lessons · {{hours}} h · avg {{avg}} per lesson",
+      "thresholdLine": "payout minimum {{amount}}",
+      "trendLabel": "Weekly earnings over the last 12 weeks, latest week {{amount}}"
+    },
+    "balances": {
+      "title": "Balances",
+      "ready": "Ready for payout",
+      "paidOut": "Paid out",
+      "paidOutAllTime": "Paid out (all time)",
+      "gross": "{{amount}} gross before deductions",
+      "totalEarned": "Total earned"
+    },
+    "payout": {
+      "title": "Payout",
+      "minimum": "Minimum {{amount}}",
+      "progressLabel": "Progress to the payout minimum",
+      "canRequest": "You can request a payout now",
+      "alreadyRequested": "Your payout request is with your manager",
+      "aboveMinimum": "Above the {{amount}} minimum — you can request it",
+      "shortfall": "<strong>{{amount}}</strong> more to reach the {{minimum}} minimum",
+      "lastPayout": "Last payout · {{date}}",
+      "noPayouts": "No payouts yet",
+      "noPayoutsHint": "When your manager pays you, it will show up here.",
+      "requested": "Payout requested · {{amount}} · {{date}}",
+      "requestedShort": "Payout requested · {{amount}}",
+      "requestedHint": "Your manager has been notified. You will get a message when it is paid.",
+      "cancel": "Cancel request",
+      "cancelConfirm": "Cancel this payout request?",
+      "keep": "Keep it",
+      "confirmCancel": "Yes, cancel",
+      "cancelled": "Payout request cancelled",
+      "cancelError": "Could not cancel the request. Please try again.",
+      "recent": "Recent payouts",
+      "allPayouts": "All payouts",
+      "received": "Payout received"
+    },
+    "status": {
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "methods": {
+      "bank_transfer": "Bank transfer",
+      "cash": "Cash",
+      "other": "Other",
+      "card": "Card",
+      "wallet": "Wallet",
+      "credit_card": "Credit card",
+      "paypal": "PayPal"
+    },
+    "rate": {
+      "perHour": "{{amount}}/h",
+      "perLesson": "{{amount}}/lesson",
+      "percent": "{{value}}%"
+    },
+    "calc": {
+      "title": "How is this calculated?",
+      "summary_one": "{{count}} lesson · {{hours}} h",
+      "summary_other": "{{count}} lessons · {{hours}} h",
+      "row": "{{label}} ({{rate}} · {{hours}} h)",
+      "deductions": "Deductions",
+      "totalWeek": "Earned this week",
+      "totalMonth": "Earned this month",
+      "totalYear": "Earned this year",
+      "totalAll": "Earned all time",
+      "explainer": "Fixed rates are paid per hour taught; percentage rates are your share of the lesson price. Deductions are subtracted from the total."
+    },
+    "byType": {
+      "title": "By lesson type",
+      "empty": "No lessons in this period yet",
+      "emptyHint": "Completed lessons show up here, grouped by lesson type."
+    },
+    "byMonth": {
+      "title": "Earnings by month",
+      "soFar": "{{month}} (so far)",
+      "chartLabel": "Earnings for the last 6 months"
+    },
+    "activity": {
+      "title": "Activity",
+      "tableTitle": "Lessons and payouts",
+      "filterLabel": "Filter activity",
+      "filters": {
+        "all": "All",
+        "lessons": "Lessons",
+        "payouts": "Payouts",
+        "pending": "Pending",
+        "paid": "Paid"
+      },
+      "search": "Search student or lesson",
+      "today": "Today · {{date}}",
+      "yesterday": "Yesterday · {{date}}",
+      "unknownStudent": "Student",
+      "groupMore": "{{name}} +{{count}}",
+      "lessonMeta": "{{type}} · {{hours}} h · {{time}}",
+      "lessonMetaNoTime": "{{type}} · {{hours}} h",
+      "deduction": "Deduction",
+      "showMore": "Show more ({{shown}} of {{total}})",
+      "empty": "Nothing here yet",
+      "emptyHint": "Completed lessons and payouts will show up here.",
+      "noResults": "No results for “{{query}}”",
+      "noResultsHint": "Try another student name or lesson type.",
+      "error": "We could not load your activity.",
+      "columns": {
+        "date": "Date",
+        "student": "Student",
+        "lesson": "Lesson",
+        "hours": "Hours",
+        "rate": "Rate",
+        "amount": "You earn",
+        "status": "Status"
+      }
+    },
+    "request": {
+      "button": "Request payout · {{amount}}",
+      "title": "Request a payout",
+      "subtitle": "Available now: {{amount}}",
+      "amount": "Amount",
+      "amountHint": "Between {{min}} and {{max}}",
+      "useMax": "Use full amount",
+      "method": "Preferred method",
+      "note": "Note (optional)",
+      "notePlaceholder": "Anything your manager should know",
+      "noteCount": "{{used}}/{{max}}",
+      "submit": "Send request · {{amount}}",
+      "sending": "Sending…",
+      "close": "Close",
+      "done": "Done",
+      "successTitle": "Request sent",
+      "successBody": "Request sent — your manager has been notified.",
+      "errors": {
+        "required": "Enter an amount",
+        "invalid": "Enter a valid amount, e.g. 250.00",
+        "max": "You can request at most {{amount}}",
+        "min": "The minimum payout is {{amount}}",
+        "pending": "You already have a pending payout request.",
+        "generic": "We could not send your request. Please try again."
+      }
+    },
+    "statement": {
+      "button": "Statement",
+      "link": "Monthly statements (CSV)",
+      "title": "Download a statement",
+      "month": "Month",
+      "csv": "Download CSV",
+      "pdf": "Download PDF",
+      "error": "We could not download the statement. Please try again.",
+      "pdfUnavailable": "PDF statements are not available yet — please download the CSV."
+    },
+    "error": {
+      "title": "We could not load your earnings",
+      "body": "Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "empty": {
+      "title": "No earnings yet",
+      "body": "Your earnings appear here after your first completed lesson."
+    }
   }
 }

@@ -151,6 +151,11 @@ export async function createStaffPayment({
   paymentMethod,
   actorId,
   requestedType = null,
+  // Optional: run inside the caller's transaction (payout-request pay flow) and
+  // tag the ledger row with extra metadata (e.g. payoutRequestId). Both default
+  // to "absent", so the POST /finances/instructor-payments row is unchanged.
+  client = undefined,
+  extraMetadata = null,
 }) {
   const cfg = getKindConfig(kind);
   const transactionAmount = parseFloat(amount);
@@ -175,6 +180,7 @@ export async function createStaffPayment({
       paymentDate: dt.toISOString(),
       referenceNumber,
       ...cfg.buildPostMetadataExtras({ requestedType }),
+      ...(extraMetadata || {}),
     },
     entityType: cfg.walletEntityType,
     relatedEntityType: cfg.relatedEntityType,
@@ -184,9 +190,44 @@ export async function createStaffPayment({
   if (cfg.postAllowNegative !== undefined) {
     payload.allowNegative = cfg.postAllowNegative;
   }
+  if (client) {
+    payload.client = client;
+  }
 
   const transactionRecord = await recordLegacyTransaction(payload);
   return { transactionRecord, transactionType };
+}
+
+/**
+ * Record an instructor payout / deduction — THE single implementation behind
+ * POST /api/finances/instructor-payments and the payout-request "pay" action
+ * (instructorPayoutService.payPayoutRequest). Positive amount → 'payment',
+ * negative → 'deduction'; availableDelta is always 0 (payroll never touches the
+ * staff wallet). Pass `client` to join an open transaction.
+ */
+export async function recordInstructorPayment({
+  instructorId,
+  amount,
+  description,
+  paymentDate,
+  paymentMethod,
+  actorId,
+  requestedType = null,
+  client = undefined,
+  extraMetadata = null,
+}) {
+  return createStaffPayment({
+    kind: STAFF_KIND.INSTRUCTOR,
+    userId: instructorId,
+    amount,
+    description,
+    paymentDate,
+    paymentMethod,
+    actorId,
+    requestedType,
+    client,
+    extraMetadata,
+  });
 }
 
 export async function updateStaffPayment({
