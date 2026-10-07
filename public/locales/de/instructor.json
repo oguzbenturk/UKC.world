@@ -1139,5 +1139,165 @@
       "title": "Noch keine Einnahmen",
       "body": "Deine Einnahmen erscheinen hier nach deinem ersten abgeschlossenen Unterricht."
     }
+  },
+  "myDay": {
+    "greeting": {
+      "morning": "Guten Morgen, {{name}}",
+      "afternoon": "Guten Tag, {{name}}",
+      "evening": "Guten Abend, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Guten Morgen",
+      "afternoon": "Guten Tag",
+      "evening": "Guten Abend"
+    },
+    "summary": {
+      "lessons_one": "Heute {{count}} Stunde",
+      "lessons_other": "Heute {{count}} Stunden",
+      "hours_one": "{{hours}} Std.",
+      "hours_other": "{{hours}} Std.",
+      "firstAt": "erste um {{time}}",
+      "none": "Heute keine Unterrichtsstunden"
+    },
+    "newBooking": "Neue Buchung",
+    "loading": "Dein Tag wird geladen…",
+    "error": {
+      "title": "Stunden konnten nicht geladen werden",
+      "body": "Prüfe deine Verbindung und versuche es erneut. Wind und Verdienst funktionieren weiterhin.",
+      "retry": "Erneut versuchen"
+    },
+    "unknownStudent": "Schüler",
+    "plusOthers": "{{name}} +{{others}}",
+    "lessonFallback": "Unterricht",
+    "durationHours": "{{hours}} Std.",
+    "lessonOf": "Stunde {{index}} von {{total}}",
+    "lessonNumber": "Stunde {{index}}",
+    "packageLeft": "Paket {{total}} Std. ({{left}} Std. übrig)",
+    "waiver": {
+      "signed": "Haftungsverzicht unterschrieben",
+      "missing": "Kein unterschriebener Haftungsverzicht",
+      "unknown": "Status des Haftungsverzichts unbekannt"
+    },
+    "level": "Level: {{level}}",
+    "levelUnset": "Kein Level festgelegt",
+    "lastNote": "Letzte Notiz ({{date}}): „{{text}}“",
+    "lastNoteUndated": "Letzte Notiz: „{{text}}“",
+    "openCalendar": "Kalender öffnen",
+    "calendar": "Kalender",
+    "attention": {
+      "title": "Braucht Aufmerksamkeit",
+      "waiver": "{{name}} ({{time}}) hat keinen unterschriebenen Haftungsverzicht",
+      "unpaid": "{{name}} ({{time}}) hat noch nicht bezahlt",
+      "unread_one": "{{count}} ungelesene Nachricht",
+      "unread_other": "{{count}} ungelesene Nachrichten",
+      "waiverChip_one": "{{count}} fehlender Haftungsverzicht",
+      "waiverChip_other": "{{count}} fehlende Haftungsverzichte",
+      "unpaidChip_one": "{{count}} unbezahlte Stunde",
+      "unpaidChip_other": "{{count}} unbezahlte Stunden"
+    },
+    "wind": {
+      "title": "Wind",
+      "now": "Wind in {{spot}} · jetzt",
+      "unit": "kn",
+      "gusts": "Böen {{value}} kn",
+      "from": "aus {{dir}}",
+      "good": "Gut für Unterricht",
+      "goodAllDay": "Den ganzen Tag gut für Unterricht",
+      "light": "Schwacher Wind",
+      "strong": "Starker Wind — Vorsicht",
+      "fullReport": "Vollständiger Windbericht",
+      "unavailable": "Winddaten sind gerade nicht verfügbar.",
+      "forecastLabel": "Windvorhersage nach Stunde",
+      "barLabel": "{{hour}}:00 — {{value}} Knoten",
+      "barUnknown": "{{hour}}:00 — keine Vorhersage"
+    },
+    "next": {
+      "title": "Nächste Stunde",
+      "eyebrow": "Nächste Stunde · {{when}}",
+      "inProgress": "läuft gerade",
+      "startingNow": "beginnt jetzt",
+      "inMinutes": "in {{minutes}} Min.",
+      "inHours": "in {{hours}} Std. {{minutes}} Min.",
+      "noneLeft": "Heute keine weiteren Stunden",
+      "noneToday": "Heute keine Unterrichtsstunden",
+      "noneHint": "Neue Buchungen erscheinen hier."
+    },
+    "actions": {
+      "checkIn": "Einchecken",
+      "checkOut": "Auschecken",
+      "saving": "Wird gespeichert…",
+      "notes": "Notizen",
+      "addNoteLong": "Notiz / Fortschritt hinzufügen",
+      "addNote": "Notiz hinzufügen",
+      "message": "Nachricht",
+      "openingChat": "Wird geöffnet…"
+    },
+    "toast": {
+      "checkedIn": "Eingecheckt",
+      "checkedOut": "Stunde ausgecheckt",
+      "actionError": "Die Stunde konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+      "noteSaved": "Notiz gespeichert",
+      "noteError": "Die Notiz konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "chatError": "Der Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
+    },
+    "state": {
+      "done": "Erledigt",
+      "now": "Jetzt",
+      "next": "Als Nächstes",
+      "unclosed": "Nicht ausgecheckt",
+      "later": "Später"
+    },
+    "timeline": {
+      "title": "Heute",
+      "waiverFlag": "Haftungsverzicht",
+      "empty": "Heute keine Unterrichtsstunden",
+      "emptyHint": "Für heute gebuchte Stunden erscheinen hier."
+    },
+    "week": {
+      "title": "Diese Woche",
+      "totals_one": "{{count}} Stunde · {{hours}} Std.",
+      "totals_other": "{{count}} Stunden · {{hours}} Std.",
+      "totalsThisWeek": "{{totals}} diese Woche",
+      "off": "frei",
+      "dayOff": "{{day}}: frei",
+      "dayLessons_one": "{{day}}: {{count}} Stunde",
+      "dayLessons_other": "{{day}}: {{count}} Stunden",
+      "error": "Diese Woche konnte nicht geladen werden."
+    },
+    "payout": {
+      "label": "Bereit zur Auszahlung",
+      "request": "Anfordern",
+      "pending": "Anfrage offen",
+      "belowMinimum": "Auszahlung ab {{amount}}",
+      "unavailable": "Verdienst öffnen"
+    },
+    "rating": {
+      "label": "Deine Bewertung",
+      "none": "Noch keine Bewertungen",
+      "unavailable": "Bewertungen nicht verfügbar",
+      "outOfFive": "von 5",
+      "reviews_one": "{{count}} Bewertung",
+      "reviews_other": "{{count}} Bewertungen",
+      "latest_one": "{{count}} Bewertung · „{{text}}“",
+      "latest_other": "{{count}} Bewertungen · „{{text}}“",
+      "latestBy_one": "{{count}} Bewertung · zuletzt: „{{text}}“ — {{name}}",
+      "latestBy_other": "{{count}} Bewertungen · zuletzt: „{{text}}“ — {{name}}"
+    },
+    "drawer": {
+      "close": "Schließen",
+      "checkedIn": "Eingecheckt",
+      "checkedOut": "Ausgecheckt",
+      "notCheckedIn": "Noch nicht eingecheckt",
+      "participants": "Teilnehmer ({{total}})",
+      "noParticipants": "Keine Teilnehmer in dieser Stunde.",
+      "noNotes": "Noch keine Notizen.",
+      "noteFor": "Notiz für {{name}}",
+      "notePlaceholder": "Woran habt ihr gearbeitet? Was kommt als Nächstes?",
+      "shareWithStudent": "Für den Schüler sichtbar",
+      "cancel": "Abbrechen",
+      "saveNote": "Notiz speichern",
+      "location": "Ort",
+      "equipment": "Ausrüstung"
+    }
   }
 }

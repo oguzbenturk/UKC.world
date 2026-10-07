@@ -1139,5 +1139,165 @@
       "title": "No earnings yet",
       "body": "Your earnings appear here after your first completed lesson."
     }
+  },
+  "myDay": {
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "summary": {
+      "lessons_one": "{{count}} lesson today",
+      "lessons_other": "{{count}} lessons today",
+      "hours_one": "{{hours}} hour",
+      "hours_other": "{{hours}} hours",
+      "firstAt": "first at {{time}}",
+      "none": "No lessons today"
+    },
+    "newBooking": "New booking",
+    "loading": "Loading your day…",
+    "error": {
+      "title": "Couldn't load your lessons",
+      "body": "Check your connection and try again. Wind and earnings still work.",
+      "retry": "Try again"
+    },
+    "unknownStudent": "Student",
+    "plusOthers": "{{name}} +{{others}}",
+    "lessonFallback": "Lesson",
+    "durationHours": "{{hours}} h",
+    "lessonOf": "lesson {{index}} of {{total}}",
+    "lessonNumber": "lesson {{index}}",
+    "packageLeft": "package {{total}} h ({{left}} h left)",
+    "waiver": {
+      "signed": "Waiver signed",
+      "missing": "No signed waiver",
+      "unknown": "Waiver status unknown"
+    },
+    "level": "Level: {{level}}",
+    "levelUnset": "Level not set",
+    "lastNote": "Last note ({{date}}): “{{text}}”",
+    "lastNoteUndated": "Last note: “{{text}}”",
+    "openCalendar": "Open calendar",
+    "calendar": "Calendar",
+    "attention": {
+      "title": "Needs attention",
+      "waiver": "{{name}} ({{time}}) has no signed waiver",
+      "unpaid": "{{name}} ({{time}}) hasn’t paid yet",
+      "unread_one": "{{count}} unread message",
+      "unread_other": "{{count}} unread messages",
+      "waiverChip_one": "{{count}} missing waiver",
+      "waiverChip_other": "{{count}} missing waivers",
+      "unpaidChip_one": "{{count}} unpaid lesson",
+      "unpaidChip_other": "{{count}} unpaid lessons"
+    },
+    "wind": {
+      "title": "Wind",
+      "now": "Wind at {{spot}} · now",
+      "unit": "kn",
+      "gusts": "Gusts {{value}} kn",
+      "from": "from {{dir}}",
+      "good": "Good for lessons",
+      "goodAllDay": "Good for lessons all day",
+      "light": "Light wind",
+      "strong": "Strong wind — careful",
+      "fullReport": "Full wind report",
+      "unavailable": "Wind data is unavailable right now.",
+      "forecastLabel": "Wind forecast by hour",
+      "barLabel": "{{hour}}:00 — {{value}} knots",
+      "barUnknown": "{{hour}}:00 — no forecast"
+    },
+    "next": {
+      "title": "Next lesson",
+      "eyebrow": "Next lesson · {{when}}",
+      "inProgress": "in progress",
+      "startingNow": "starting now",
+      "inMinutes": "in {{minutes}} min",
+      "inHours": "in {{hours}} h {{minutes}} min",
+      "noneLeft": "No more lessons today",
+      "noneToday": "No lessons today",
+      "noneHint": "New bookings will show up here."
+    },
+    "actions": {
+      "checkIn": "Check in",
+      "checkOut": "Check out",
+      "saving": "Saving…",
+      "notes": "Notes",
+      "addNoteLong": "Add note / progress",
+      "addNote": "Add note",
+      "message": "Message",
+      "openingChat": "Opening…"
+    },
+    "toast": {
+      "checkedIn": "Checked in",
+      "checkedOut": "Lesson checked out",
+      "actionError": "Couldn't update the lesson. Please try again.",
+      "noteSaved": "Note saved",
+      "noteError": "Couldn't save the note. Please try again.",
+      "chatError": "Couldn't open the chat. Please try again."
+    },
+    "state": {
+      "done": "Done",
+      "now": "Now",
+      "next": "Next",
+      "unclosed": "Not checked out",
+      "later": "Later"
+    },
+    "timeline": {
+      "title": "Today",
+      "waiverFlag": "waiver",
+      "empty": "No lessons today",
+      "emptyHint": "Lessons booked for today will appear here."
+    },
+    "week": {
+      "title": "This week",
+      "totals_one": "{{count}} lesson · {{hours}} h",
+      "totals_other": "{{count}} lessons · {{hours}} h",
+      "totalsThisWeek": "{{totals}} this week",
+      "off": "off",
+      "dayOff": "{{day}}: day off",
+      "dayLessons_one": "{{day}}: {{count}} lesson",
+      "dayLessons_other": "{{day}}: {{count}} lessons",
+      "error": "Couldn't load this week."
+    },
+    "payout": {
+      "label": "Ready for payout",
+      "request": "Request",
+      "pending": "Request pending",
+      "belowMinimum": "Payouts from {{amount}}",
+      "unavailable": "Open earnings"
+    },
+    "rating": {
+      "label": "Your rating",
+      "none": "No ratings yet",
+      "unavailable": "Ratings unavailable",
+      "outOfFive": "out of 5",
+      "reviews_one": "{{count}} review",
+      "reviews_other": "{{count}} reviews",
+      "latest_one": "{{count}} review · “{{text}}”",
+      "latest_other": "{{count}} reviews · “{{text}}”",
+      "latestBy_one": "{{count}} review · latest: “{{text}}” — {{name}}",
+      "latestBy_other": "{{count}} reviews · latest: “{{text}}” — {{name}}"
+    },
+    "drawer": {
+      "close": "Close",
+      "checkedIn": "Checked in",
+      "checkedOut": "Checked out",
+      "notCheckedIn": "Not checked in yet",
+      "participants": "Participants ({{total}})",
+      "noParticipants": "No participants on this lesson.",
+      "noNotes": "No notes yet.",
+      "noteFor": "Note for {{name}}",
+      "notePlaceholder": "What did you work on? What comes next?",
+      "shareWithStudent": "Visible to the student",
+      "cancel": "Cancel",
+      "saveNote": "Save note",
+      "location": "Location",
+      "equipment": "Equipment"
+    }
   }
 }

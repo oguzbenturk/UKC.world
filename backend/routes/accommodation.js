@@ -24,6 +24,7 @@ import {
   TX_DIRECTION,
 } from '../constants/transactions.js';
 import { isStaffNegativeBalanceRole } from '../constants/roles.js';
+import { requireBookingStaff } from '../middlewares/bookingOwnership.js';
 
 const router = Router();
 
@@ -336,7 +337,7 @@ router.get('/unit-types', async (req, res) => {
 // ============================================================================
 
 // List accommodation bookings with optional status filter
-router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
+router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), requireBookingStaff(), async (req, res) => {
 	try {
 		const { status, limit = 50, offset = 0, startDate, endDate, guestId } = req.query;
 		const params = [];
@@ -388,7 +389,7 @@ router.get('/bookings', authenticateJWT, authorizeRoles(['admin', 'manager', 'fr
 
 // Package-based accommodation stays (from customer_packages with check-in dates)
 // Returns stays that are stored in customer_packages but don't have a corresponding accommodation_bookings record.
-router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), async (req, res) => {
+router.get('/package-stays', authenticateJWT, authorizeRoles(['admin', 'manager', 'front_desk', 'receptionist']), requireBookingStaff(), async (req, res) => {
 	try {
 		const { rows } = await pool.query(
 			`SELECT
@@ -1245,7 +1246,7 @@ router.delete('/bookings/:id', authenticateJWT, cacheInvalidationMiddleware(acco
 
 // ── Admin: Pending Accommodation Deposits ────────────────────────────────────
 
-router.get('/admin/pending-deposits', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), async (req, res) => {
+router.get('/admin/pending-deposits', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), requireBookingStaff(), async (req, res) => {
 	try {
 		const status = req.query.status || 'pending';
 		const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);

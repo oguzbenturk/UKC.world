@@ -3,6 +3,18 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import {
+  isInstructorScopedRequest,
+  isCustomerScopedRequest,
+  resolveInstructorFilter,
+  instructorReadScopeSql,
+  customerReadScopeSql,
+  requireBookingOwnership,
+  requireSwapOwnership,
+  requireBookingStaff,
+  findBlockedInstructorFieldChanges,
+  sanitizeBookingForViewer,
+} from '../middlewares/bookingOwnership.js';
 import { bookingService } from '../services/bookingService.js';
 import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
 import {
@@ -1297,7 +1309,12 @@ router.get('/',
   const userRole = typeof rawRole === 'string' ? rawRole.toLowerCase() : rawRole;
   const userID = req.user.id;
   const canFilterByInstructor = ['admin', 'manager', 'instructor'].includes(userRole);
-  const limitedRoles = new Set(['student', 'freelancer']);
+  // Deny-by-default visibility (middlewares/bookingOwnership.js): staff see all;
+  // instructor-scoped roles see lessons they teach/attend; EVERY other role
+  // (student, outsider, trusted_customer, customer, custom roles) only sees
+  // bookings they are a party to — even when they pass ?student_id=<someone>.
+  const instructorScoped = isInstructorScopedRequest(req);
+  const customerScoped = isCustomerScopedRequest(req);
     
     let query = `
       SELECT b.*,
@@ -1410,26 +1427,23 @@ router.get('/',
       params.push(student_id, student_id, student_id);
     }
 
-    if (!student_id && limitedRoles.has(userRole)) {
-      const p1 = `$${paramCount++}`;
-      const p2 = `$${paramCount++}`;
-      const p3 = `$${paramCount++}`;
-      query += ` AND ( 
-        b.student_user_id = ${p1}
-        OR b.customer_user_id = ${p2}
-        OR EXISTS (
-          SELECT 1 FROM booking_participants bp2
-          WHERE bp2.booking_id = b.id AND bp2.user_id = ${p3}
-        )
-      )`;
-      params.push(userID, userID, userID);
+    if (customerScoped) {
+      // NOT_YOUR_BOOKING scope for customers: own / participant / family-member bookings.
+      query += ` AND ${customerReadScopeSql('b', `$${paramCount++}`)}`;
+      params.push(userID);
     }
 
-    if (instructor_id && canFilterByInstructor) {
+    if (instructorScoped) {
+      // NOT_YOUR_BOOKING scope: only lessons the caller teaches (or attends).
+      // Any instructor_id query param is ignored — the caller is always pinned
+      // to their own id (see middlewares/bookingOwnership.js).
+      query += ` AND ${instructorReadScopeSql('b', `$${paramCount++}`)}`;
+      params.push(userID);
+    } else if (instructor_id && canFilterByInstructor) {
       query += ` AND b.instructor_user_id = $${paramCount++}`;
       params.push(instructor_id);
     }
-    
+
     if (start_date) {
       query += ` AND b.date >= $${paramCount++}`;
       params.push(start_date);
@@ -1594,8 +1608,10 @@ router.get('/',
         updatedAt: booking.updated_at
       };
     });
-    
-    res.json(normalizedBookings);
+
+    res.json(customerScoped
+      ? normalizedBookings.map((b) => sanitizeBookingForViewer(b, req))
+      : normalizedBookings);
   } catch (err) {
     logger.error('Failed to fetch bookings', err);
     res.status(500).json({ error: 'Failed to fetch bookings' });
@@ -1603,9 +1619,19 @@ router.get('/',
 });
 
 // GET calendar bookings for a specific date (must be before /:id route)
-router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:bookings:calendar:${req.query.date || 'all'}:${req.query.instructor_id || 'all'}`), async (req, res) => {
+// Instructor-scoped callers are pinned to their own id BEFORE the cache lookup,
+// so they can never be served the cached all-instructors payload.
+// Customer-scoped callers (student/outsider/trusted_customer/custom roles) only
+// get bookings they are a party to, cached under their own key.
+const calendarCacheKey = (req) => {
+  const base = `api:bookings:calendar:${req.query.date || 'all'}:${resolveInstructorFilter(req, req.query.instructor_id) || 'all'}`;
+  return isCustomerScopedRequest(req) ? `${base}:customer:${req.user.id}` : base;
+};
+router.get('/calendar', authenticateJWT, cacheMiddleware(60, calendarCacheKey), async (req, res) => {
   try {
-    const { date, instructor_id } = req.query;
+    const { date } = req.query;
+    const instructor_id = resolveInstructorFilter(req, req.query.instructor_id);
+    const customerScoped = isCustomerScopedRequest(req);
     
     let query = `
       SELECT b.*,
@@ -1685,6 +1711,11 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
       query += ` AND b.instructor_user_id = $${paramCount++}`;
       params.push(instructor_id);
     }
+
+    if (customerScoped) {
+      query += ` AND ${customerReadScopeSql('b', `$${paramCount++}`)}`;
+      params.push(req.user.id);
+    }
     
     query += ` GROUP BY b.id, b.student_user_id, b.instructor_user_id, b.service_id, b.date, b.start_hour, b.duration, b.group_size, b.status, b.payment_status, b.final_amount, b.created_at, b.updated_at, b.notes, b.deleted_at, s.name, s.self_student_of_instructor_id, i.name, srv.name, cp.package_name, cp.total_hours, cp.purchase_price, d_pkg.amount, bcc.commission_value, isc.commission_value, icr.rate_value, idc.commission_value, bcc.commission_type, isc.commission_type, icr.rate_type, idc.commission_type, idc.self_student_commission_rate`;
     query += ` ORDER BY b.start_hour ASC`;
@@ -1720,7 +1751,9 @@ router.get('/calendar', authenticateJWT, cacheMiddleware(60, (req) => `api:booki
       };
     });
     
-    res.json(calendarBookings);
+    res.json(customerScoped
+      ? calendarBookings.map((b) => sanitizeBookingForViewer(b, req))
+      : calendarBookings);
   } catch (err) {
     logger.error('Failed to fetch calendar bookings', err);
     res.status(500).json({ error: 'Failed to fetch calendar bookings' });
@@ -1803,7 +1836,7 @@ router.get('/pending-partner-invites', authenticateJWT, async (req, res) => {
  * GET /bookings/pending-transfers
  * Admin/Staff route to fetch all pending bank transfer receipts
  */
-router.get('/pending-transfers', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner', 'staff']), async (req, res) => {
+router.get('/pending-transfers', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner', 'staff']), requireBookingStaff(), async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
     
@@ -1888,7 +1921,7 @@ router.get('/pending-transfers', authenticateJWT, authorizeRoles(['admin', 'mana
  * PATCH /bookings/pending-transfers/:id/action
  * Admin explicitly approves or rejects the bank transfer
  */
-router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), async (req, res) => {
+router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner']), requireBookingStaff(), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -2375,8 +2408,10 @@ router.patch('/pending-transfers/:id/action', authenticateJWT, authorizeRoles(['
   }
 });
 
-// GET a single booking by ID
-router.get('/:id', authenticateJWT, async (req, res) => {
+// GET a single booking by ID — staff: any; instructor-scoped: teaches/attends;
+// every other role: only as student/payer/participant/family parent (else 403
+// NOT_YOUR_BOOKING), with staff e-mails and other participants' contacts stripped.
+router.get('/:id', authenticateJWT, requireBookingOwnership({ access: 'read' }), async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT b.*, 
@@ -2484,7 +2519,7 @@ router.get('/:id', authenticateJWT, async (req, res) => {
       }
     }
     
-    res.json(booking);
+    res.json(sanitizeBookingForViewer(booking, req));
   } catch (err) {
     logger.error('Failed to fetch booking', err);
     res.status(500).json({ error: 'Failed to fetch booking' });
@@ -3600,7 +3635,8 @@ router.post('/',
     // Emit real-time event for booking creation
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'booking:created', booking);
+        // Targeted fan-out (staff rooms + instructor + parties) — never the `general` channel.
+        req.socketService.emitBookingCreated(booking, { participantUserIds: [partner_user_id] });
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
         if (booking.status === 'pending_payment' || booking.payment_status === 'pending_payment') {
           req.socketService.emitToChannel('dashboard', 'pending-transfer:updated', { bookingId: booking.id });
@@ -4498,7 +4534,7 @@ router.post('/group',
     // Emit real-time event for booking creation
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'booking:created', completeBooking);
+        req.socketService.emitBookingCreated(completeBooking);
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
       } catch (socketError) {
         logger.warn('Failed to emit socket event:', socketError);
@@ -5173,7 +5209,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
       // Emit real-time event for booking creation so other clients refresh
       if (req.socketService) {
         try {
-          req.socketService.emitToChannel('general', 'booking:created', {
+          req.socketService.emitBookingCreated({
             id: booking.rows[0].id,
             date: normalizedDate,
             startTime,
@@ -5230,7 +5266,7 @@ router.post('/calendar', authenticateJWT, async (req, res) => {
 });
 
 // UPDATE a booking
-router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist']), rateLimitBookingUpdates, async (req, res) => {
+router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist']), requireBookingOwnership(), rateLimitBookingUpdates, async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -5248,7 +5284,20 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       return res.status(404).json({ error: 'Booking not found' });
     }
     const currentBooking = currentBookingResult.rows[0];
-    
+
+    // Instructor-scoped callers (ownership already enforced by middleware) may
+    // still not change money / funding / commission / assignment fields, even on
+    // their own lesson. Echoing the current value back is fine.
+    const blockedInstructorFields = findBlockedInstructorFieldChanges(req, currentBooking);
+    if (blockedInstructorFields.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        error: `Instructors cannot change: ${blockedInstructorFields.join(', ')}`,
+        code: 'INSTRUCTOR_FIELD_FORBIDDEN',
+        fields: blockedInstructorFields,
+      });
+    }
+
     const {
       date, start_hour, duration, student_user_id, instructor_user_id,
       status, payment_status, amount, final_amount, notes, location, equipment_ids,
@@ -6088,7 +6137,10 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
     // Emit real-time event for booking update
     if (req.socketService) {
       try {
-        req.socketService.emitToChannel('general', 'booking:updated', updatedBooking);
+        // Previous instructor/student get an id-only event so their calendars drop a reassigned lesson.
+        req.socketService.emitBookingUpdated(updatedBooking, {
+          notifyUserIds: [currentBooking.instructor_user_id, currentBooking.student_user_id],
+        });
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'updated' });
       } catch (socketError) {
         logger.warn('Failed to emit socket event', socketError);
@@ -6360,6 +6412,7 @@ router.post(
   '/swap',
   authenticateJWT,
   authorizeRoles(['admin', 'manager', 'instructor']),
+  requireSwapOwnership(),
   rateLimitBookingUpdates,
   async (req, res) => {
     const client = await pool.connect();
@@ -6521,8 +6574,9 @@ router.post(
       // Emit socket updates (best-effort, outside of tx)
       if (req.socketService) {
         try {
-          req.socketService.emitToChannel('general', 'booking:updated', updatedA);
-          req.socketService.emitToChannel('general', 'booking:updated', updatedB);
+          const swapNotify = { notifyUserIds: [aRow.instructor_user_id, bRow.instructor_user_id] };
+          req.socketService.emitBookingUpdated(updatedA, swapNotify);
+          req.socketService.emitBookingUpdated(updatedB, swapNotify);
           req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'updated' });
         } catch (socketError) {
           logger?.warn?.('Failed to emit socket event (swap):', socketError);
@@ -6550,6 +6604,7 @@ router.post(
   '/swap-with-parking',
   authenticateJWT,
   authorizeRoles(['admin', 'manager', 'instructor']),
+  requireSwapOwnership(),
   rateLimitBookingUpdates,
   async (req, res) => {
     const client = await pool.connect();
@@ -6679,8 +6734,9 @@ router.post(
 
       if (req.socketService) {
         try {
-          req.socketService.emitToChannel('general', 'booking:updated', updatedA);
-          req.socketService.emitToChannel('general', 'booking:updated', updatedB);
+          const swapNotify = { notifyUserIds: [aRow.instructor_user_id, bRow.instructor_user_id] };
+          req.socketService.emitBookingUpdated(updatedA, swapNotify);
+          req.socketService.emitBookingUpdated(updatedB, swapNotify);
           req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'updated' });
         } catch (socketError) {
           logger?.warn?.('Failed to emit socket event (swap-with-parking):', socketError);
@@ -6703,6 +6759,7 @@ router.post(
   '/swap-auto',
   authenticateJWT,
   authorizeRoles(['admin', 'manager', 'instructor']),
+  requireSwapOwnership(),
   rateLimitBookingUpdates,
   async (req, res) => {
     const client = await pool.connect();
@@ -6829,8 +6886,9 @@ router.post(
       const updatedB2 = updated2.find(r => String(r.id) === String(bRow.id));
       if (req.socketService) {
         try {
-          req.socketService.emitToChannel('general', 'booking:updated', updatedA2);
-          req.socketService.emitToChannel('general', 'booking:updated', updatedB2);
+          const swapNotify = { notifyUserIds: [aRow.instructor_user_id, bRow.instructor_user_id] };
+          req.socketService.emitBookingUpdated(updatedA2, swapNotify);
+          req.socketService.emitBookingUpdated(updatedB2, swapNotify);
           req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'updated' });
         } catch (socketError) {
           logger?.warn?.('Failed to emit socket event (swap-auto parking):', socketError);
@@ -6970,7 +7028,7 @@ async function deleteOneBookingWithinTx(client, bookingId, deletingUserId, reaso
 }
 
 // eslint-disable-next-line complexity
-router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist', 'front_desk']), async (req, res) => {
+router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist', 'front_desk']), requireBookingStaff(), async (req, res) => {
     const bookingId = req.params.id;
     const deletingUserId = req.user.id;
     const reason = (req.body && req.body.reason) || 'Administrative deletion';
@@ -7109,15 +7167,11 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'rece
         // Emit real-time events
         if (req.socketService) {
             try {
-                req.socketService.emitToChannel('general', 'booking:deleted', { 
-                    id: bookingId,
-                    packagesUpdated: packagesUpdated.length,
-                    balanceRefunded
-                });
-                req.socketService.emitToChannel('general', 'dashboard:refresh', { 
-                    type: 'booking', 
-                    action: 'deleted',
-                    userId: studentId
+                // `general` reaches every logged-in user: id only (no refund amount / student id).
+                req.socketService.emitToChannel('general', 'booking:deleted', { id: bookingId });
+                req.socketService.emitToChannel('general', 'dashboard:refresh', {
+                    type: 'booking',
+                    action: 'deleted'
                 });
         logger.info('Socket events emitted');
       } catch (socketError) {
@@ -7183,7 +7237,7 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'rece
  * @desc Bulk delete bookings with auto reconciliation and 10s undo token
  * @access Private (Admin/Manager)
  */
-router.post('/bulk-delete', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist', 'front_desk']), async (req, res) => {
+router.post('/bulk-delete', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptionist', 'front_desk']), requireBookingStaff(), async (req, res) => {
   const { ids = [], reason = 'Bulk deletion' } = req.body || {};
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: true, message: 'ids[] is required' });
@@ -7235,7 +7289,7 @@ router.post('/bulk-delete', authenticateJWT, authorizeRoles(['admin', 'manager',
  * @desc Undo a recent bulk delete using token (10s window)
  * @access Private (Admin/Manager)
  */
-router.post('/undo-delete', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/undo-delete', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res) => {
   const { token } = req.body || {};
   if (!token) return res.status(400).json({ error: true, message: 'token is required' });
   const data = undoManager.redeem(token);
@@ -7329,7 +7383,7 @@ router.post('/undo-delete', authenticateJWT, authorizeRoles(['admin', 'manager']
  * @desc Restore the most recently soft-deleted booking and reverse reconciliation
  * @access Private (Admin/Manager)
  */
-router.post('/restore-latest', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/restore-latest', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -7412,7 +7466,7 @@ router.post('/restore-latest', authenticateJWT, authorizeRoles(['admin', 'manage
  * @desc Restore a specific soft-deleted booking and reverse reconciliation
  * @access Private (Admin/Manager)
  */
-router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {
@@ -7497,7 +7551,7 @@ router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin', 'manager']
  * TEMPORARILY DISABLED - SoftDeleteService import issue
  */
 /*
-router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin']), requireBookingStaff(), async (req, res) => {
     const bookingId = req.params.id;
     const restoringUserId = req.user.id;
     
@@ -7541,7 +7595,7 @@ router.post('/:id/restore', authenticateJWT, authorizeRoles(['admin']), async (r
  * @desc Get list of deleted bookings
  * @access Private (Admin only)
  */
-router.get('/deleted/list', authenticateJWT, authorizeRoles(['admin']), async (req, res) => {
+router.get('/deleted/list', authenticateJWT, authorizeRoles(['admin']), requireBookingStaff(), async (req, res) => {
     try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -7630,7 +7684,7 @@ router.get('/deleted/list', authenticateJWT, authorizeRoles(['admin']), async (r
  * @access Private
  */
 // eslint-disable-next-line complexity
-router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res) => {
+router.post('/:id/cancel', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res) => {
   const client = await pool.connect();
   
   try {
@@ -7848,7 +7902,7 @@ async function ensureRentalFromBooking(client, booking, actorUserId) {
 // Multi-participant (semi-private/group) bookings require participant_id and
 // switch that one participant's funding.
 //   body: { mode: 'package' | 'cash', customer_package_id?: <uuid>, participant_id?: <id> }
-router.post('/:id/switch-funding', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist', 'owner']), async (req, res) => {
+router.post('/:id/switch-funding', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'receptionist', 'owner']), requireBookingStaff('INSTRUCTOR_MONEY_FIELD_FORBIDDEN'), async (req, res) => {
   const { id } = req.params;
   const { mode, customer_package_id, participant_id, participantId } = req.body || {};
   const actorId = resolveActorId(req);
@@ -7880,7 +7934,7 @@ router.post('/:id/switch-funding', authenticateJWT, authorizeRoles(['admin', 'ma
 });
 
 // PATCH /:id/status - Update booking status (for approve/decline actions from notifications)
-router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'owner']), async (req, res) => {
+router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager', 'instructor', 'owner']), requireBookingOwnership(), async (req, res) => {
   const client = await pool.connect();
   
   try {

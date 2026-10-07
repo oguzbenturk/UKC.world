@@ -19,6 +19,10 @@ Plannivo is a business management platform for watersports academies (kite surfi
 - Active dev env: `backend/.env` → always points to `localhost:5432/plannivo_dev`
 - Production env: `backend/.env.production` (gitignored, only used during `push-all`)
 
+**Demo data locally (preferred for feature work — fictional data, no real customers / KVKK-safe):**
+- `npm run db:sync:demo` — copies the aydin.plannivo.com demo DB into a separate local DB `plannivo_demo` (+ demo images into `backend/uploads`, never overwriting). `plannivo_dev` is untouched.
+- `npm run dev:demo` — same as `npm run dev`, but the backend uses `plannivo_demo` (via `LOCAL_DATABASE_URL`) and the local Redis API cache is flushed first. Logins: `../demo-aydin/DEMO-LOGINS.md`.
+
 `push-all.js` temporarily swaps `backend/.env` to production credentials during the git commit/push window, then restores `backend/.env.development` immediately after. After every `push-all`, local dev is always back on the local DB.
 
 **Safe daily workflow:**

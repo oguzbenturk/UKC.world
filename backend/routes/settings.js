@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateJWT } from './auth.js';
+import { authorizeRoles } from '../middlewares/authorize.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
@@ -107,7 +108,9 @@ router.get('/', authenticateJWT, cacheMiddleware(1800), async (req, res) => {
 });
 
 // Update specific setting
-router.put('/:key', authenticateJWT, cacheInvalidationMiddleware(SETTINGS_CACHE_PATTERNS), async (req, res) => {
+// Writing settings is staff-only: previously ANY logged-in user (incl. self-registered
+// outsiders) could overwrite business settings such as security.password_min_length.
+router.put('/:key', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner', 'super_admin']), cacheInvalidationMiddleware(SETTINGS_CACHE_PATTERNS), async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;

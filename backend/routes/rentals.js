@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { authenticateJWT } from './auth.js';
+import { isCustomerScopedRequest } from '../middlewares/bookingOwnership.js';
 import { requireWaiver, checkFamilyMemberWaiver } from '../middlewares/waiverCheck.js';
 import { resolveActorId } from '../utils/auditUtils.js';
 import { recordLegacyTransaction, createDepositRequest, getAllBalances, getEntityNetCharges } from '../services/walletService.js';
@@ -1572,6 +1573,11 @@ router.patch('/:id/deposit-returned', authenticateJWT, authorizeRoles(['admin', 
 router.get('/user/:userId', authenticateJWT, async (req, res) => {
   try {
     const { userId } = req.params;
+    // Deny-by-default (middlewares/bookingOwnership.js): customer-scoped roles
+    // (student/outsider/trusted_customer/custom) may only list their OWN rentals.
+    if (isCustomerScopedRequest(req) && String(userId) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'You can only access your own rentals', code: 'NOT_YOUR_RENTAL' });
+    }
     
     const query = `
       SELECT 

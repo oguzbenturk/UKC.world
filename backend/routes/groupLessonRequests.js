@@ -11,6 +11,7 @@ import express from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { requireBookingStaff } from '../middlewares/bookingOwnership.js';
 import { logger } from '../middlewares/errorHandler.js';
 import {
   createGroupLessonRequest,
@@ -121,7 +122,7 @@ router.delete('/:id', authenticateJWT, async (req, res, next) => {
  * POST /match — Match selected requests into a group booking
  * Admin/Manager only
  */
-router.post('/match', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res, next) => {
+router.post('/match', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res, next) => {
   try {
     const matchedBy = req.user.id;
     const {
@@ -173,7 +174,7 @@ router.post('/match', authenticateJWT, authorizeRoles(['admin', 'manager']), asy
  * link the matched group_lesson_requests to that booking.
  * Admin/Manager only.
  */
-router.post('/mark-matched', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res, next) => {
+router.post('/mark-matched', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res, next) => {
   try {
     const { requestIds, bookingId } = req.body;
     if (!Array.isArray(requestIds) || requestIds.length === 0) {

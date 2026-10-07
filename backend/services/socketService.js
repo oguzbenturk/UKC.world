@@ -4,6 +4,13 @@ import jwt from 'jsonwebtoken';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { pool } from '../db.js';
+import { BOOKING_STAFF_ROLES } from '../constants/roles.js';
+import { sanitizeBookingForCustomer, pickPublicBookingFields } from '../middlewares/bookingOwnership.js';
+
+const bookingParticipantIds = (booking) =>
+  (Array.isArray(booking?.participants) ? booking.participants : [])
+    .map((p) => p?.userId ?? p?.user_id)
+    .filter(Boolean);
 
 // SEC-017 FIX: Get JWT_SECRET securely from environment
 if (!process.env.JWT_SECRET) {
@@ -357,14 +364,52 @@ class SocketService {
   }
 
   /**
-   * Emit booking events
+   * Booking create/update fan-out WITHOUT the `general` channel (which every
+   * logged-in user — incl. self-registered outsiders — joins):
+   *  - full row  → staff role rooms (BOOKING_STAFF_ROLES) + the assigned
+   *    instructor's `user:` room;
+   *  - customer-sanitized row (no staff e-mails / commission / other
+   *    participants' contacts) → each party's `user:` room (student, payer,
+   *    participants, `participantUserIds`);
+   *  - id/date/start_hour/duration/instructor_user_id/status only →
+   *    `notifyUserIds` (e.g. the previous instructor after a reassignment, so
+   *    their calendar drops the lesson).
+   * Each socket receives the event at most once (`except` the rooms already hit).
    */
-  emitBookingCreated(booking) {
-    this.emitToChannel('general', 'booking:created', booking);
+  emitBookingEvent(event, booking, { participantUserIds = [], notifyUserIds = [] } = {}) {
+    if (!this.io || !booking) return;
+    const stamp = (data) => ({ ...data, timestamp: Date.now() });
+
+    const fullRooms = BOOKING_STAFF_ROLES.map((role) => `role:${role}`);
+    const instructorId = booking.instructor_user_id ?? booking.instructorId ?? null;
+    if (instructorId) fullRooms.push(`user:${instructorId}`);
+    this.io.to(fullRooms).emit(event, stamp(booking));
+
+    const partyIds = new Set(
+      [booking.student_user_id, booking.customer_user_id, ...bookingParticipantIds(booking), ...participantUserIds]
+        .filter(Boolean)
+        .map(String)
+    );
+    partyIds.delete(String(instructorId));
+    for (const uid of partyIds) {
+      this.io.to(`user:${uid}`).except(fullRooms).emit(event, stamp(sanitizeBookingForCustomer(booking, uid)));
+    }
+
+    const alreadyHit = [...fullRooms, ...[...partyIds].map((uid) => `user:${uid}`)];
+    const notifyIds = new Set(notifyUserIds.filter(Boolean).map(String));
+    partyIds.forEach((uid) => notifyIds.delete(uid));
+    notifyIds.delete(String(instructorId));
+    for (const uid of notifyIds) {
+      this.io.to(`user:${uid}`).except(alreadyHit).emit(event, stamp(pickPublicBookingFields(booking)));
+    }
   }
 
-  emitBookingUpdated(booking) {
-    this.emitToChannel('general', 'booking:updated', booking);
+  emitBookingCreated(booking, options) {
+    this.emitBookingEvent('booking:created', booking, options);
+  }
+
+  emitBookingUpdated(booking, options) {
+    this.emitBookingEvent('booking:updated', booking, options);
   }
 
   emitBookingDeleted(bookingId) {

@@ -6,6 +6,7 @@
 import express from 'express';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
+import { requireBookingStaff } from '../middlewares/bookingOwnership.js';
 import { logger } from '../middlewares/errorHandler.js';
 import {
   createGroupBooking,
@@ -82,6 +83,7 @@ export async function ensureGroupCalendarBooking(groupBookingId, socketService, 
   let bookingId = null;
   let created = false;
   let emitPayload = null;
+  let emitParticipantIds = [];
   try {
     await client.query('BEGIN');
 
@@ -221,6 +223,7 @@ export async function ensureGroupCalendarBooking(groupBookingId, socketService, 
         group_size: accepted.length,
         max_participants: gb.max_participants || 6
       };
+      emitParticipantIds = accepted.map((p) => p.user_id);
     } else {
       // Not enough accepted yet (e.g. only the organizer) → leave the calendar untouched.
       await client.query('ROLLBACK');
@@ -246,7 +249,8 @@ export async function ensureGroupCalendarBooking(groupBookingId, socketService, 
   }
   if (created && emitPayload && socketService) {
     try {
-      socketService.emitToChannel('general', 'booking:created', emitPayload);
+      // Targeted fan-out (staff + instructor + participants) — never the `general` channel.
+      socketService.emitBookingCreated(emitPayload, { participantUserIds: emitParticipantIds });
       socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
     } catch (e) {
       logger.warn('Failed to emit booking:created for group calendar booking', { bookingId, error: e.message });
@@ -1439,7 +1443,7 @@ router.delete('/:id/participants/:participantId', authenticateJWT, async (req, r
  * Update a group booking (admin/manager only)
  * PATCH /api/group-bookings/:id
  */
-router.patch('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res, next) => {
+router.patch('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -1551,7 +1555,7 @@ router.patch('/:id', authenticateJWT, authorizeRoles(['admin', 'manager']), asyn
  * Confirm a group booking & create calendar event (admin/manager only)
  * POST /api/group-bookings/:id/confirm
  */
-router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res, next) => {
+router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -1765,7 +1769,7 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
         const endMns = Math.round((endDecimal - endHrs) * 60);
         const fmtEnd = `${String(endHrs).padStart(2, '0')}:${String(endMns).padStart(2, '0')}`;
 
-        req.socketService.emitToChannel('general', 'booking:created', {
+        req.socketService.emitBookingCreated({
           id: booking.id,
           date: isoDate,
           startTime: fmtStart,
@@ -1779,7 +1783,7 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
           group_size: participants.length,
           max_participants: gb.max_participants,
           service_name: gb.service_name
-        });
+        }, { participantUserIds: participants.map((p) => p.user_id) });
         req.socketService.emitToChannel('general', 'dashboard:refresh', { type: 'booking', action: 'created' });
         // Notify participants
         for (const p of participants) {
@@ -1813,7 +1817,7 @@ router.post('/:id/confirm', authenticateJWT, authorizeRoles(['admin', 'manager']
  * Add a participant to a group booking (admin/manager only)
  * POST /api/group-bookings/:id/add-participant
  */
-router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'manager']), async (req, res, next) => {
+router.post('/:id/add-participant', authenticateJWT, authorizeRoles(['admin', 'manager']), requireBookingStaff(), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { userId, email } = req.body;

@@ -1147,5 +1147,185 @@
       "title": "Заработка пока нет",
       "body": "Ваш заработок появится здесь после первого завершённого урока."
     }
+  },
+  "myDay": {
+    "greeting": {
+      "morning": "Доброе утро, {{name}}",
+      "afternoon": "Добрый день, {{name}}",
+      "evening": "Добрый вечер, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Доброе утро",
+      "afternoon": "Добрый день",
+      "evening": "Добрый вечер"
+    },
+    "summary": {
+      "lessons_one": "Сегодня {{count}} занятие",
+      "lessons_few": "Сегодня {{count}} занятия",
+      "lessons_many": "Сегодня {{count}} занятий",
+      "lessons_other": "Сегодня {{count}} занятия",
+      "hours_one": "{{hours}} час",
+      "hours_few": "{{hours}} часа",
+      "hours_many": "{{hours}} часов",
+      "hours_other": "{{hours}} часа",
+      "firstAt": "первое в {{time}}",
+      "none": "Сегодня занятий нет"
+    },
+    "newBooking": "Новое бронирование",
+    "loading": "Загружаем ваш день…",
+    "error": {
+      "title": "Не удалось загрузить занятия",
+      "body": "Проверьте подключение и попробуйте ещё раз. Ветер и заработок по-прежнему доступны.",
+      "retry": "Повторить"
+    },
+    "unknownStudent": "Ученик",
+    "plusOthers": "{{name}} +{{others}}",
+    "lessonFallback": "Занятие",
+    "durationHours": "{{hours}} ч",
+    "lessonOf": "занятие {{index}} из {{total}}",
+    "lessonNumber": "занятие {{index}}",
+    "packageLeft": "пакет {{total}} ч (осталось {{left}} ч)",
+    "waiver": {
+      "signed": "Отказ от претензий подписан",
+      "missing": "Нет подписанного отказа от претензий",
+      "unknown": "Статус отказа от претензий неизвестен"
+    },
+    "level": "Уровень: {{level}}",
+    "levelUnset": "Уровень не указан",
+    "lastNote": "Последняя заметка ({{date}}): «{{text}}»",
+    "lastNoteUndated": "Последняя заметка: «{{text}}»",
+    "openCalendar": "Открыть календарь",
+    "calendar": "Календарь",
+    "attention": {
+      "title": "Требует внимания",
+      "waiver": "{{name}} ({{time}}) не подписал(а) отказ от претензий",
+      "unpaid": "{{name}} ({{time}}) ещё не оплатил(а)",
+      "unread_one": "{{count}} непрочитанное сообщение",
+      "unread_few": "{{count}} непрочитанных сообщения",
+      "unread_many": "{{count}} непрочитанных сообщений",
+      "unread_other": "{{count}} непрочитанного сообщения",
+      "waiverChip_one": "{{count}} отказ не подписан",
+      "waiverChip_few": "{{count}} отказа не подписаны",
+      "waiverChip_many": "{{count}} отказов не подписаны",
+      "waiverChip_other": "{{count}} отказа не подписаны",
+      "unpaidChip_one": "{{count}} неоплаченное занятие",
+      "unpaidChip_few": "{{count}} неоплаченных занятия",
+      "unpaidChip_many": "{{count}} неоплаченных занятий",
+      "unpaidChip_other": "{{count}} неоплаченного занятия"
+    },
+    "wind": {
+      "title": "Ветер",
+      "now": "Ветер: {{spot}} · сейчас",
+      "unit": "уз",
+      "gusts": "Порывы {{value}} уз",
+      "from": "направление {{dir}}",
+      "good": "Подходит для занятий",
+      "goodAllDay": "Весь день подходит для занятий",
+      "light": "Слабый ветер",
+      "strong": "Сильный ветер — осторожно",
+      "fullReport": "Полный прогноз ветра",
+      "unavailable": "Данные о ветре сейчас недоступны.",
+      "forecastLabel": "Почасовой прогноз ветра",
+      "barLabel": "{{hour}}:00 — {{value}} уз",
+      "barUnknown": "{{hour}}:00 — нет прогноза"
+    },
+    "next": {
+      "title": "Следующее занятие",
+      "eyebrow": "Следующее занятие · {{when}}",
+      "inProgress": "идёт сейчас",
+      "startingNow": "начинается сейчас",
+      "inMinutes": "через {{minutes}} мин",
+      "inHours": "через {{hours}} ч {{minutes}} мин",
+      "noneLeft": "На сегодня занятий больше нет",
+      "noneToday": "Сегодня занятий нет",
+      "noneHint": "Новые бронирования появятся здесь."
+    },
+    "actions": {
+      "checkIn": "Отметить приход",
+      "checkOut": "Завершить",
+      "saving": "Сохраняем…",
+      "notes": "Заметки",
+      "addNoteLong": "Добавить заметку / прогресс",
+      "addNote": "Добавить заметку",
+      "message": "Написать",
+      "openingChat": "Открываем…"
+    },
+    "toast": {
+      "checkedIn": "Приход отмечен",
+      "checkedOut": "Занятие завершено",
+      "actionError": "Не удалось обновить занятие. Попробуйте ещё раз.",
+      "noteSaved": "Заметка сохранена",
+      "noteError": "Не удалось сохранить заметку. Попробуйте ещё раз.",
+      "chatError": "Не удалось открыть чат. Попробуйте ещё раз."
+    },
+    "state": {
+      "done": "Готово",
+      "now": "Сейчас",
+      "next": "Далее",
+      "unclosed": "Не завершено",
+      "later": "Позже"
+    },
+    "timeline": {
+      "title": "Сегодня",
+      "waiverFlag": "отказ",
+      "empty": "Сегодня занятий нет",
+      "emptyHint": "Занятия на сегодня появятся здесь."
+    },
+    "week": {
+      "title": "Эта неделя",
+      "totals_one": "{{count}} занятие · {{hours}} ч",
+      "totals_few": "{{count}} занятия · {{hours}} ч",
+      "totals_many": "{{count}} занятий · {{hours}} ч",
+      "totals_other": "{{count}} занятия · {{hours}} ч",
+      "totalsThisWeek": "{{totals}} на этой неделе",
+      "off": "вых.",
+      "dayOff": "{{day}}: выходной",
+      "dayLessons_one": "{{day}}: {{count}} занятие",
+      "dayLessons_few": "{{day}}: {{count}} занятия",
+      "dayLessons_many": "{{day}}: {{count}} занятий",
+      "dayLessons_other": "{{day}}: {{count}} занятия",
+      "error": "Не удалось загрузить неделю."
+    },
+    "payout": {
+      "label": "Готово к выплате",
+      "request": "Запросить",
+      "pending": "Запрос на рассмотрении",
+      "belowMinimum": "Выплата от {{amount}}",
+      "unavailable": "Открыть заработок"
+    },
+    "rating": {
+      "label": "Ваш рейтинг",
+      "none": "Пока нет отзывов",
+      "unavailable": "Отзывы недоступны",
+      "outOfFive": "из 5",
+      "reviews_one": "{{count}} отзыв",
+      "reviews_few": "{{count}} отзыва",
+      "reviews_many": "{{count}} отзывов",
+      "reviews_other": "{{count}} отзыва",
+      "latest_one": "{{count}} отзыв · «{{text}}»",
+      "latest_few": "{{count}} отзыва · «{{text}}»",
+      "latest_many": "{{count}} отзывов · «{{text}}»",
+      "latest_other": "{{count}} отзыва · «{{text}}»",
+      "latestBy_one": "{{count}} отзыв · последний: «{{text}}» — {{name}}",
+      "latestBy_few": "{{count}} отзыва · последний: «{{text}}» — {{name}}",
+      "latestBy_many": "{{count}} отзывов · последний: «{{text}}» — {{name}}",
+      "latestBy_other": "{{count}} отзыва · последний: «{{text}}» — {{name}}"
+    },
+    "drawer": {
+      "close": "Закрыть",
+      "checkedIn": "Приход отмечен",
+      "checkedOut": "Завершено",
+      "notCheckedIn": "Приход ещё не отмечен",
+      "participants": "Участники ({{total}})",
+      "noParticipants": "На этом занятии нет участников.",
+      "noNotes": "Заметок пока нет.",
+      "noteFor": "Заметка для: {{name}}",
+      "notePlaceholder": "Над чем работали? Что дальше?",
+      "shareWithStudent": "Видно ученику",
+      "cancel": "Отмена",
+      "saveNote": "Сохранить заметку",
+      "location": "Место",
+      "equipment": "Снаряжение"
+    }
   }
 }

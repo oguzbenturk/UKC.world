@@ -1139,5 +1139,165 @@
       "title": "Henüz kazanç yok",
       "body": "İlk dersini tamamladığında kazançların burada görünecek."
     }
+  },
+  "myDay": {
+    "greeting": {
+      "morning": "Günaydın, {{name}}",
+      "afternoon": "İyi günler, {{name}}",
+      "evening": "İyi akşamlar, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Günaydın",
+      "afternoon": "İyi günler",
+      "evening": "İyi akşamlar"
+    },
+    "summary": {
+      "lessons_one": "Bugün {{count}} ders",
+      "lessons_other": "Bugün {{count}} ders",
+      "hours_one": "{{hours}} saat",
+      "hours_other": "{{hours}} saat",
+      "firstAt": "ilki {{time}}",
+      "none": "Bugün ders yok"
+    },
+    "newBooking": "Yeni rezervasyon",
+    "loading": "Günün yükleniyor…",
+    "error": {
+      "title": "Dersler yüklenemedi",
+      "body": "Bağlantını kontrol edip tekrar dene. Rüzgar ve kazanç bilgileri çalışmaya devam ediyor.",
+      "retry": "Tekrar dene"
+    },
+    "unknownStudent": "Öğrenci",
+    "plusOthers": "{{name}} +{{others}}",
+    "lessonFallback": "Ders",
+    "durationHours": "{{hours}} sa",
+    "lessonOf": "ders {{index}}/{{total}}",
+    "lessonNumber": "{{index}}. ders",
+    "packageLeft": "paket {{total}} sa ({{left}} sa kaldı)",
+    "waiver": {
+      "signed": "Feragatname imzalı",
+      "missing": "İmzalı feragatname yok",
+      "unknown": "Feragatname durumu bilinmiyor"
+    },
+    "level": "Seviye: {{level}}",
+    "levelUnset": "Seviye belirtilmemiş",
+    "lastNote": "Son not ({{date}}): “{{text}}”",
+    "lastNoteUndated": "Son not: “{{text}}”",
+    "openCalendar": "Takvimi aç",
+    "calendar": "Takvim",
+    "attention": {
+      "title": "İlgilenmen gerekenler",
+      "waiver": "{{name}} ({{time}}) feragatnameyi imzalamamış",
+      "unpaid": "{{name}} ({{time}}) henüz ödeme yapmamış",
+      "unread_one": "{{count}} okunmamış mesaj",
+      "unread_other": "{{count}} okunmamış mesaj",
+      "waiverChip_one": "{{count}} eksik feragatname",
+      "waiverChip_other": "{{count}} eksik feragatname",
+      "unpaidChip_one": "{{count}} ödenmemiş ders",
+      "unpaidChip_other": "{{count}} ödenmemiş ders"
+    },
+    "wind": {
+      "title": "Rüzgar",
+      "now": "{{spot}} · şu an",
+      "unit": "kn",
+      "gusts": "Hamle {{value}} kn",
+      "from": "{{dir}} yönünden",
+      "good": "Ders için uygun",
+      "goodAllDay": "Gün boyu ders için uygun",
+      "light": "Rüzgar zayıf",
+      "strong": "Rüzgar sert — dikkat",
+      "fullReport": "Detaylı rüzgar raporu",
+      "unavailable": "Rüzgar verisi şu an alınamıyor.",
+      "forecastLabel": "Saatlik rüzgar tahmini",
+      "barLabel": "{{hour}}:00 — {{value}} knot",
+      "barUnknown": "{{hour}}:00 — tahmin yok"
+    },
+    "next": {
+      "title": "Sıradaki ders",
+      "eyebrow": "Sıradaki ders · {{when}}",
+      "inProgress": "devam ediyor",
+      "startingNow": "şimdi başlıyor",
+      "inMinutes": "{{minutes}} dk sonra",
+      "inHours": "{{hours}} sa {{minutes}} dk sonra",
+      "noneLeft": "Bugün başka ders yok",
+      "noneToday": "Bugün ders yok",
+      "noneHint": "Yeni rezervasyonlar burada görünecek."
+    },
+    "actions": {
+      "checkIn": "Giriş yap",
+      "checkOut": "Çıkış yap",
+      "saving": "Kaydediliyor…",
+      "notes": "Notlar",
+      "addNoteLong": "Not / ilerleme ekle",
+      "addNote": "Not ekle",
+      "message": "Mesaj",
+      "openingChat": "Açılıyor…"
+    },
+    "toast": {
+      "checkedIn": "Giriş yapıldı",
+      "checkedOut": "Dersin çıkışı yapıldı",
+      "actionError": "Ders güncellenemedi. Lütfen tekrar dene.",
+      "noteSaved": "Not kaydedildi",
+      "noteError": "Not kaydedilemedi. Lütfen tekrar dene.",
+      "chatError": "Sohbet açılamadı. Lütfen tekrar dene."
+    },
+    "state": {
+      "done": "Bitti",
+      "now": "Şimdi",
+      "next": "Sıradaki",
+      "unclosed": "Çıkışı yapılmadı",
+      "later": "Sonra"
+    },
+    "timeline": {
+      "title": "Bugün",
+      "waiverFlag": "feragatname",
+      "empty": "Bugün ders yok",
+      "emptyHint": "Bugüne planlanan dersler burada görünecek."
+    },
+    "week": {
+      "title": "Bu hafta",
+      "totals_one": "{{count}} ders · {{hours}} sa",
+      "totals_other": "{{count}} ders · {{hours}} sa",
+      "totalsThisWeek": "Bu hafta {{totals}}",
+      "off": "izin",
+      "dayOff": "{{day}}: izinli",
+      "dayLessons_one": "{{day}}: {{count}} ders",
+      "dayLessons_other": "{{day}}: {{count}} ders",
+      "error": "Bu hafta yüklenemedi."
+    },
+    "payout": {
+      "label": "Ödemeye hazır",
+      "request": "Talep et",
+      "pending": "Talep bekliyor",
+      "belowMinimum": "Ödeme {{amount}} itibarıyla",
+      "unavailable": "Kazançları aç"
+    },
+    "rating": {
+      "label": "Puanın",
+      "none": "Henüz değerlendirme yok",
+      "unavailable": "Değerlendirmeler alınamadı",
+      "outOfFive": "5 üzerinden",
+      "reviews_one": "{{count}} değerlendirme",
+      "reviews_other": "{{count}} değerlendirme",
+      "latest_one": "{{count}} değerlendirme · “{{text}}”",
+      "latest_other": "{{count}} değerlendirme · “{{text}}”",
+      "latestBy_one": "{{count}} değerlendirme · son: “{{text}}” — {{name}}",
+      "latestBy_other": "{{count}} değerlendirme · son: “{{text}}” — {{name}}"
+    },
+    "drawer": {
+      "close": "Kapat",
+      "checkedIn": "Giriş yapıldı",
+      "checkedOut": "Çıkış yapıldı",
+      "notCheckedIn": "Henüz giriş yapılmadı",
+      "participants": "Katılımcılar ({{total}})",
+      "noParticipants": "Bu derste katılımcı yok.",
+      "noNotes": "Henüz not yok.",
+      "noteFor": "{{name}} için not",
+      "notePlaceholder": "Neler çalıştınız? Sırada ne var?",
+      "shareWithStudent": "Öğrenci görebilsin",
+      "cancel": "Vazgeç",
+      "saveNote": "Notu kaydet",
+      "location": "Konum",
+      "equipment": "Ekipman"
+    }
   }
 }

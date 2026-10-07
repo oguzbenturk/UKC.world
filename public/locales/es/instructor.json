@@ -1141,5 +1141,165 @@
       "title": "Aún no hay ganancias",
       "body": "Tus ganancias aparecerán aquí tras tu primera clase completada."
     }
+  },
+  "myDay": {
+    "greeting": {
+      "morning": "Buenos días, {{name}}",
+      "afternoon": "Buenas tardes, {{name}}",
+      "evening": "Buenas noches, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Buenos días",
+      "afternoon": "Buenas tardes",
+      "evening": "Buenas noches"
+    },
+    "summary": {
+      "lessons_one": "{{count}} clase hoy",
+      "lessons_other": "{{count}} clases hoy",
+      "hours_one": "{{hours}} hora",
+      "hours_other": "{{hours}} horas",
+      "firstAt": "la primera a las {{time}}",
+      "none": "Hoy no hay clases"
+    },
+    "newBooking": "Nueva reserva",
+    "loading": "Cargando tu día…",
+    "error": {
+      "title": "No se pudieron cargar tus clases",
+      "body": "Revisa tu conexión e inténtalo de nuevo. El viento y las ganancias siguen disponibles.",
+      "retry": "Reintentar"
+    },
+    "unknownStudent": "Alumno",
+    "plusOthers": "{{name}} +{{others}}",
+    "lessonFallback": "Clase",
+    "durationHours": "{{hours}} h",
+    "lessonOf": "clase {{index}} de {{total}}",
+    "lessonNumber": "clase {{index}}",
+    "packageLeft": "paquete {{total}} h (quedan {{left}} h)",
+    "waiver": {
+      "signed": "Exención firmada",
+      "missing": "Sin exención firmada",
+      "unknown": "Estado de la exención desconocido"
+    },
+    "level": "Nivel: {{level}}",
+    "levelUnset": "Nivel sin definir",
+    "lastNote": "Última nota ({{date}}): «{{text}}»",
+    "lastNoteUndated": "Última nota: «{{text}}»",
+    "openCalendar": "Abrir calendario",
+    "calendar": "Calendario",
+    "attention": {
+      "title": "Requiere atención",
+      "waiver": "{{name}} ({{time}}) no tiene la exención firmada",
+      "unpaid": "{{name}} ({{time}}) aún no ha pagado",
+      "unread_one": "{{count}} mensaje sin leer",
+      "unread_other": "{{count}} mensajes sin leer",
+      "waiverChip_one": "{{count}} exención pendiente",
+      "waiverChip_other": "{{count}} exenciones pendientes",
+      "unpaidChip_one": "{{count}} clase sin pagar",
+      "unpaidChip_other": "{{count}} clases sin pagar"
+    },
+    "wind": {
+      "title": "Viento",
+      "now": "Viento en {{spot}} · ahora",
+      "unit": "kn",
+      "gusts": "Rachas {{value}} kn",
+      "from": "del {{dir}}",
+      "good": "Bueno para clases",
+      "goodAllDay": "Bueno para clases todo el día",
+      "light": "Viento flojo",
+      "strong": "Viento fuerte — cuidado",
+      "fullReport": "Informe de viento completo",
+      "unavailable": "Los datos de viento no están disponibles ahora mismo.",
+      "forecastLabel": "Previsión de viento por hora",
+      "barLabel": "{{hour}}:00 — {{value}} nudos",
+      "barUnknown": "{{hour}}:00 — sin previsión"
+    },
+    "next": {
+      "title": "Próxima clase",
+      "eyebrow": "Próxima clase · {{when}}",
+      "inProgress": "en curso",
+      "startingNow": "empieza ahora",
+      "inMinutes": "en {{minutes}} min",
+      "inHours": "en {{hours}} h {{minutes}} min",
+      "noneLeft": "No quedan más clases hoy",
+      "noneToday": "Hoy no hay clases",
+      "noneHint": "Las nuevas reservas aparecerán aquí."
+    },
+    "actions": {
+      "checkIn": "Registrar llegada",
+      "checkOut": "Cerrar clase",
+      "saving": "Guardando…",
+      "notes": "Notas",
+      "addNoteLong": "Añadir nota / progreso",
+      "addNote": "Añadir nota",
+      "message": "Mensaje",
+      "openingChat": "Abriendo…"
+    },
+    "toast": {
+      "checkedIn": "Llegada registrada",
+      "checkedOut": "Clase cerrada",
+      "actionError": "No se pudo actualizar la clase. Inténtalo de nuevo.",
+      "noteSaved": "Nota guardada",
+      "noteError": "No se pudo guardar la nota. Inténtalo de nuevo.",
+      "chatError": "No se pudo abrir el chat. Inténtalo de nuevo."
+    },
+    "state": {
+      "done": "Hecha",
+      "now": "Ahora",
+      "next": "Siguiente",
+      "unclosed": "Sin cerrar",
+      "later": "Más tarde"
+    },
+    "timeline": {
+      "title": "Hoy",
+      "waiverFlag": "exención",
+      "empty": "Hoy no hay clases",
+      "emptyHint": "Las clases reservadas para hoy aparecerán aquí."
+    },
+    "week": {
+      "title": "Esta semana",
+      "totals_one": "{{count}} clase · {{hours}} h",
+      "totals_other": "{{count}} clases · {{hours}} h",
+      "totalsThisWeek": "{{totals}} esta semana",
+      "off": "libre",
+      "dayOff": "{{day}}: día libre",
+      "dayLessons_one": "{{day}}: {{count}} clase",
+      "dayLessons_other": "{{day}}: {{count}} clases",
+      "error": "No se pudo cargar esta semana."
+    },
+    "payout": {
+      "label": "Listo para cobrar",
+      "request": "Solicitar",
+      "pending": "Solicitud pendiente",
+      "belowMinimum": "Pagos desde {{amount}}",
+      "unavailable": "Abrir ganancias"
+    },
+    "rating": {
+      "label": "Tu valoración",
+      "none": "Aún no hay valoraciones",
+      "unavailable": "Valoraciones no disponibles",
+      "outOfFive": "de 5",
+      "reviews_one": "{{count}} reseña",
+      "reviews_other": "{{count}} reseñas",
+      "latest_one": "{{count}} reseña · «{{text}}»",
+      "latest_other": "{{count}} reseñas · «{{text}}»",
+      "latestBy_one": "{{count}} reseña · la última: «{{text}}» — {{name}}",
+      "latestBy_other": "{{count}} reseñas · la última: «{{text}}» — {{name}}"
+    },
+    "drawer": {
+      "close": "Cerrar",
+      "checkedIn": "Llegada registrada",
+      "checkedOut": "Clase cerrada",
+      "notCheckedIn": "Llegada aún no registrada",
+      "participants": "Participantes ({{total}})",
+      "noParticipants": "Esta clase no tiene participantes.",
+      "noNotes": "Aún no hay notas.",
+      "noteFor": "Nota para {{name}}",
+      "notePlaceholder": "¿Qué habéis trabajado? ¿Qué viene después?",
+      "shareWithStudent": "Visible para el alumno",
+      "cancel": "Cancelar",
+      "saveNote": "Guardar nota",
+      "location": "Lugar",
+      "equipment": "Material"
+    }
   }
 }

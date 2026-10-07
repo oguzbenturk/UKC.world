@@ -3,6 +3,7 @@ import xss from 'xss';
 import { body as _body, validationResult } from 'express-validator';
 import { pool } from '../db.js';
 import { logger } from './errorHandler.js';
+import { isBuiltinCustomerRole } from '../constants/roles.js';
 
 // Cache for role permissions (avoid DB query on every request)
 const rolePermissionsCache = new Map();
@@ -167,6 +168,16 @@ export const authorizeRoles = (allowedRoles, requiredPermission = null) => {
       return next();
     }
     
+    // Deny-by-default for built-in customer roles (student, outsider,
+    // trusted_customer, customer): they pass ONLY when named in allowedRoles.
+    // Their JSONB flags (`bookings:read`, `services:read`) exist for the UI and
+    // used to open staff-only GETs through the fallback below
+    // (/bookings/deleted/list, /bookings/pending-transfers, /accommodation/bookings,
+    // /form-submissions, /member-offerings/admin/*, /services/packages ...).
+    if (userRole && isBuiltinCustomerRole(userRole)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient permissions' });
+    }
+
     // Second check: JSONB permission-based access for custom/non-matching roles
     if (userRole) {
       try {

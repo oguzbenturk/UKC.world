@@ -1,936 +1,275 @@
+/**
+ * Instructor dashboard — "My day".
+ * Design boards: earnings-canvas Dashboard.dc.html (mobile 390px) and
+ * DashboardDesktop.dc.html (desktop bento). Data: GET /instructors/me/today +
+ * /me/week (backend/routes/instructorToday.js), the public wind forecast, the
+ * earnings summary (ready-for-payout) and the ratings hook.
+ *
+ * Mobile order: greeting → wind → next lesson → needs attention → today →
+ * this week → payout + rating. Desktop: greeting with attention chips and
+ * "New booking", then next lesson | wind, today | payout · rating · week.
+ */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Trans, useTranslation } from 'react-i18next';
-import { useInstructorDashboard } from '../hooks/useInstructorDashboard';
-import { useInstructorStudents } from '../hooks/useInstructorStudents';
+import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
-import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { usePullToRefresh } from '@/shared/hooks/usePullToRefresh';
 import { analyticsService } from '@/shared/services/analyticsService';
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
-import EarningsTrendCard from '../components/EarningsTrendCard';
-import HeroCarousel from '../components/HeroCarousel';
-import SummaryMetricStrip from '../components/SummaryMetricStrip';
-import FinanceTabs from '../components/FinanceTabs';
-import UpcomingLessonsAccordion from '../components/UpcomingLessonsAccordion';
-import StudentCheckInPanel from '../components/StudentCheckInPanel';
-import LessonStatusHeatmap from '../components/LessonStatusHeatmap';
-import FloatingQuickAction from '../components/FloatingQuickAction';
-import InstructorRatingsCard from '../components/InstructorRatingsCard';
-
-// Opens /finance with the payout request sheet (see InstructorEarningsPage).
-const PAYOUT_REQUEST_PATH = '/finance?request=1';
+import { ErrorState } from '../earnings/components/ui';
+import { primaryButtonClass } from '../earnings/components/earningsStyles';
+import { useIsDesktop } from '../earnings/useEarnings';
+import { firstName, lessonStates } from '../dashboard/dashboardFormat';
+import {
+  dashboardKeys,
+  useBookingRealtime,
+  useChatBridge,
+  useLessonStatusActions,
+  useMinuteTick,
+  useToday,
+  useWeek,
+  useWindReport,
+  useWindSettings,
+} from '../dashboard/useDashboard';
+import Greeting from '../dashboard/components/Greeting';
+import WindCard from '../dashboard/components/WindCard';
+import NextLessonCard from '../dashboard/components/NextLessonCard';
+import TodayTimeline from '../dashboard/components/TodayTimeline';
+import WeekStrip from '../dashboard/components/WeekStrip';
+import LessonDrawer from '../dashboard/components/LessonDrawer';
+import DashboardSkeleton from '../dashboard/components/DashboardSkeleton';
+import { AttentionChips, AttentionList } from '../dashboard/components/Attention';
+import { PayoutMiniCard, RatingMiniCard } from '../dashboard/components/SideCards';
+import { PlusIcon } from '../dashboard/components/DashboardIcons';
 
 const BookingDrawer = lazy(() => import('@/features/bookings/components/components/BookingDrawer'));
 
-const formatNumber = (value) => {
-  if (value === undefined || value === null) return '—';
-  return Number(value).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-};
+function useSpotName(spot) {
+  const { t, i18n } = useTranslation(['instructor']);
+  const key = `common:windReport.spots.${spot}`;
+  return i18n.exists?.(key) ? t(key) : spot;
+}
 
-const formatDateTime = (value) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+function useDrawerState(lessons) {
+  const [state, setState] = useState({ lessonId: null, note: false });
+  const lesson = useMemo(() => lessons.find((l) => l.id === state.lessonId) || null, [lessons, state.lessonId]);
+  const open = useCallback((target, { note = false } = {}) => {
+    if (target?.id) setState({ lessonId: target.id, note });
+  }, []);
+  const close = useCallback(() => setState((s) => ({ ...s, lessonId: null })), []);
+  return { lesson, initialNote: state.note, isOpen: Boolean(state.lessonId), open, close };
+}
 
-const formatDateShort = (value) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+/** Server attention items + the chat widget's unread total (client side). */
+function useAttention(day, lessons, chat, openLesson) {
+  const items = useMemo(() => {
+    const list = [...(day?.attention ?? [])];
+    if (chat.unread > 0) list.push({ kind: 'unread_messages', count: chat.unread });
+    return list;
+  }, [day?.attention, chat.unread]);
 
-const formatDayLabel = (value) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const numberNoDecimals = new Intl.NumberFormat(undefined, {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
-
-const placeholderKeys = Array.from({ length: 6 }, (_, index) => index);
-
-const computeInstructorName = (user) => {
-  if (!user) return 'Instructor';
-  if (user.first_name || user.last_name) {
-    return `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Instructor';
-  }
-  return user.name || user.email || 'Instructor';
-};
-
-const computeTodaysLessonsCount = (upcomingLessons) => {
-  if (!Array.isArray(upcomingLessons) || !upcomingLessons.length) return 0;
-  const todayKey = new Date().toISOString().split('T')[0];
-  return upcomingLessons.reduce((count, lesson) => {
-    if (!lesson?.startTime) return count;
-    const lessonDate = new Date(lesson.startTime);
-    if (Number.isNaN(lessonDate.getTime())) return count;
-    return lessonDate.toISOString().split('T')[0] === todayKey ? count + 1 : count;
-  }, 0);
-};
-
-const computePendingHint = (pendingThresholdInfo, formatAmount, t) => {
-  if (!pendingThresholdInfo) return t('instructor:metrics.awaitingConfirmation');
-  if (pendingThresholdInfo.meetsThreshold) return t('instructor:metrics.eligibleToPayout');
-  return t('instructor:metrics.untilThreshold', { amount: formatAmount(pendingThresholdInfo.shortfall) });
-};
-
-const buildHeroSlides = (data, pendingThresholdInfo, nextLesson, formatAmount, navigate, t) => {
-  if (!data) return [];
-  const slides = [];
-
-  if (pendingThresholdInfo) {
-    slides.push({
-      id: 'payout',
-      eyebrow: t('instructor:hero.pendingEarnings'),
-      title: t('instructor:hero.readyToUnlock', { amount: formatAmount(data.finance.pending) }),
-      body: pendingThresholdInfo.meetsThreshold
-        ? t('instructor:hero.payoutEligible')
-        : t('instructor:hero.payoutShortfall', { amount: formatAmount(pendingThresholdInfo.shortfall) }),
-      pill: {
-        label: pendingThresholdInfo.meetsThreshold ? t('instructor:hero.actionReady') : t('instructor:hero.keepMomentum'),
-      },
-      cta: pendingThresholdInfo.meetsThreshold
-        ? {
-          primary: {
-            label: t('instructor:hero.goToPayouts'),
-            onClick: () => navigate(PAYOUT_REQUEST_PATH),
-          },
-        }
-        : {},
-    });
-  }
-
-  if (nextLesson) {
-    slides.push({
-      id: 'next-lesson',
-      eyebrow: t('instructor:hero.nextOnCalendar'),
-      title: `${nextLesson.studentName} at ${formatDateShort(nextLesson.startTime)}`,
-      body: t('instructor:hero.jumpIntoBoard'),
-      pill: {
-        label: t('instructor:hero.todaysFocus'),
-        variant: 'bg-emerald-100 text-emerald-700',
-      },
-      cta: {
-        primary: {
-          label: t('instructor:hero.viewCalendar'),
-          onClick: () => navigate('/bookings/calendar'),
-        },
-      },
-    });
-  }
-
-  slides.push({
-    id: 'students',
-    eyebrow: t('instructor:hero.momentum'),
-    title: t('instructor:hero.studentsEngaged', { count: numberNoDecimals.format(data?.studentStats?.activeThisMonth ?? 0) }),
-    body: t('instructor:hero.keepStreaks'),
-    pill: {
-      label: t('instructor:hero.rosterHealth'),
-      variant: 'bg-sky-500 text-white',
-    },
-    cta: {
-      primary: {
-        label: t('instructor:hero.openMyStudents'),
-        onClick: () => navigate('/instructor/students'),
-      },
-    },
-    footer: data?.lessonInsights?.inactiveStudents?.length
-      ? t('instructor:hero.studentsAwaitCheckin', { count: data.lessonInsights.inactiveStudents.length })
-      : t('instructor:hero.allStudentsBooked'),
-  });
-
-  return slides;
-};
-
-const buildSummaryCards = (data, todaysLessonsCount, nextLesson, formatAmount, pendingHint, t) => {
-  if (!data) return [];
-  return [
-    {
-      title: t('instructor:metrics.activeStudents'),
-      value: numberNoDecimals.format(data.studentStats?.activeThisMonth ?? 0),
-      hint: t('instructor:metrics.totalInRoster', { count: numberNoDecimals.format(data.studentStats?.uniqueStudents ?? 0) }),
-      dotClass: 'bg-emerald-500',
-      textClass: 'text-emerald-600',
-    },
-    {
-      title: t('instructor:metrics.todaysLessons'),
-      value: numberNoDecimals.format(todaysLessonsCount),
-      hint: t('instructor:metrics.upcomingOverall', { count: numberNoDecimals.format(data.upcomingLessons?.length ?? 0) }),
-      dotClass: 'bg-sky-500',
-      textClass: 'text-sky-600',
-    },
-    {
-      title: t('instructor:metrics.nextLesson'),
-      value: nextLesson ? formatDateShort(nextLesson.startTime) : t('instructor:metrics.noneScheduled'),
-      hint: nextLesson?.studentName ? t('instructor:metrics.withStudent', { name: nextLesson.studentName }) : t('instructor:metrics.stayReady'),
-      dotClass: 'bg-violet-500',
-      textClass: 'text-violet-600',
-    },
-    {
-      title: t('instructor:metrics.pendingPayout'),
-      value: formatAmount(data.finance?.pending),
-      hint: pendingHint,
-      dotClass: 'bg-amber-500',
-      textClass: 'text-amber-600',
-    },
-  ];
-};
-
-const buildQuickActions = (navigate, onNewBooking, t) => ([
-  {
-    title: t('instructor:quickActions.manageStudents'),
-    description: t('instructor:quickActions.manageStudentsDesc'),
-    icon: '\uD83D\uDC65',
-    onClick: () => navigate('/instructor/students'),
-  },
-  {
-    title: t('instructor:quickActions.lessonCalendar'),
-    description: t('instructor:quickActions.lessonCalendarDesc'),
-    icon: '\uD83D\uDCC5',
-    onClick: () => navigate('/bookings/calendar'),
-  },
-  {
-    title: t('instructor:quickActions.newBooking'),
-    description: t('instructor:quickActions.newBookingDesc'),
-    icon: '\u2795',
-    onClick: onNewBooking,
-  },
-]);
-
-const groupLessonsByDay = (upcomingLessons) => {
-  if (!Array.isArray(upcomingLessons) || !upcomingLessons.length) return [];
-  const groups = new Map();
-  upcomingLessons.forEach((lesson) => {
-    if (!lesson?.startTime) return;
-    const lessonDate = new Date(lesson.startTime);
-    if (Number.isNaN(lessonDate.getTime())) return;
-    const key = lessonDate.toISOString().split('T')[0];
-    if (!groups.has(key)) {
-      groups.set(key, { label: formatDayLabel(lessonDate), lessons: [] });
+  const onSelect = useCallback((item) => {
+    if (item.kind === 'unread_messages') {
+      chat.openInbox();
+      return;
     }
-    groups.get(key).lessons.push(lesson);
-  });
-  return Array.from(groups.values());
-};
+    const target = lessons.find((l) => l.id === item.bookingId);
+    if (target) openLesson(target);
+  }, [chat, lessons, openLesson]);
 
-const rankTopStudents = (students) => {
-  if (!Array.isArray(students) || !students.length) return [];
-  return [...students]
-    .sort((a, b) => (b.totalHours || 0) - (a.totalHours || 0))
-    .slice(0, 5);
-};
+  return { items, onSelect };
+}
 
-const buildNudgeMessages = (pendingThresholdInfo, inactiveStudents, formatAmount, navigate, inactiveWindowDays, t) => {
-  const nudges = [];
-  if (pendingThresholdInfo && !pendingThresholdInfo.meetsThreshold) {
-    nudges.push({
-      id: 'payout-shortfall',
-      title: t('instructor:nudges.payoutStreak'),
-      body: t('instructor:nudges.payoutStreakBody', { amount: formatAmount(pendingThresholdInfo.shortfall) }),
-      action: {
-        label: t('instructor:nudges.sendReminder'),
-        onClick: () => navigate('/instructor/students'),
-      },
-    });
-  }
-  if (inactiveStudents?.length) {
-    nudges.push({
-      id: 'inactive-students',
-      title: t('instructor:nudges.inactiveStudents'),
-      body: t('instructor:nudges.inactiveStudentsBody', { count: inactiveStudents.length, days: inactiveWindowDays || 30 }),
-      action: {
-        label: t('instructor:nudges.openCheckinList'),
-        onClick: () => document.getElementById('instructor-checkin')?.scrollIntoView({ behavior: 'smooth' }),
-      },
-    });
-  }
-  return nudges;
-};
-
-const InstructorDashboard = () => {
-  const { t } = useTranslation(['instructor']);
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { data, loading, error, refetch, lastUpdated } = useInstructorDashboard(0);
-  const { students, loading: studentsLoading, error: studentsError } = useInstructorStudents();
-  const { formatCurrency, businessCurrency } = useCurrency();
-  const [financeTab, setFinanceTab] = useState('overview');
-  const [bookingDrawerOpen, setBookingDrawerOpen] = useState(false);
-  const viewLoggedRef = useRef(false);
-
-  const currencyCode = businessCurrency || 'EUR';
-  const formatAmount = useCallback(
-    (value = 0) => formatCurrency(value || 0, currencyCode),
-    [formatCurrency, currencyCode],
-  );
-
-  const handleRefresh = useCallback(() => {
-    analyticsService.track('instructor_dashboard_refreshed');
-    refetch();
-  }, [refetch]);
-
+function useViewTracking(queryClient) {
+  const logged = useRef(false);
+  useEffect(() => {
+    if (logged.current) return;
+    logged.current = true;
+    analyticsService.track('instructor_dashboard_viewed');
+  }, []);
   usePullToRefresh(() => {
     analyticsService.track('instructor_dashboard_pull_refresh');
-    refetch();
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
   }, { threshold: 90, maxScroll: 30 });
+}
 
-  useEffect(() => {
-    if (!viewLoggedRef.current) {
-      viewLoggedRef.current = true;
-      analyticsService.track('instructor_dashboard_viewed');
-    }
-  }, []);
-
-  const instructorName = useMemo(() => computeInstructorName(user), [user]);
-
-  const nextLesson = useMemo(() => data?.upcomingLessons?.[0] ?? null, [data]);
-
-  const todaysLessonsCount = useMemo(
-    () => computeTodaysLessonsCount(data?.upcomingLessons),
-    [data?.upcomingLessons],
+function LessonsError({ query, isDesktop }) {
+  const { t } = useTranslation(['instructor']);
+  return (
+    <ErrorState
+      className={isDesktop ? 'lg:col-span-2' : ''}
+      title={t('instructor:myDay.error.title')}
+      body={t('instructor:myDay.error.body')}
+      retryLabel={t('instructor:myDay.error.retry')}
+      onRetry={() => query.refetch()}
+    />
   );
+}
 
-  const pendingThresholdInfo = data?.finance?.pendingThreshold;
-  const pendingCardHint = useMemo(
-    () => computePendingHint(pendingThresholdInfo, formatAmount, t),
-    [pendingThresholdInfo, formatAmount, t],
+function NewBookingButton({ onClick }) {
+  const { t } = useTranslation(['instructor']);
+  return (
+    <button type="button" onClick={onClick} className={`${primaryButtonClass} h-11 text-sm`}>
+      <PlusIcon size={18} />
+      {t('instructor:myDay.newBooking')}
+    </button>
   );
+}
 
-  const heroSlides = useMemo(
-    () => buildHeroSlides(data, pendingThresholdInfo, nextLesson, formatAmount, navigate, t),
-    [data, pendingThresholdInfo, nextLesson, formatAmount, navigate, t],
-  );
-
-  const summaryCards = useMemo(
-    () => buildSummaryCards(data, todaysLessonsCount, nextLesson, formatAmount, pendingCardHint, t),
-    [data, todaysLessonsCount, nextLesson, formatAmount, pendingCardHint, t],
-  );
-
-  const financeSummary = data?.finance || null;
-
-  const handleStudentNavigate = useCallback((studentId) => {
-    if (!studentId) return;
-    navigate(`/instructor/students/${studentId}`);
-  }, [navigate]);
-
-  const handleCreateBooking = useCallback(() => {
-    analyticsService.track('instructor_dashboard_fab_clicked');
-    setBookingDrawerOpen(true);
-  }, []);
-
-  const quickActions = useMemo(() => buildQuickActions(navigate, handleCreateBooking, t), [navigate, handleCreateBooking, t]);
-
-  const groupedLessons = useMemo(
-    () => groupLessonsByDay(data?.upcomingLessons),
-    [data?.upcomingLessons],
-  );
-
-  const topStudents = useMemo(() => rankTopStudents(students), [students]);
-
-  const inactiveStudents = useMemo(
-    () => data?.lessonInsights?.inactiveStudents ?? [],
-    [data?.lessonInsights?.inactiveStudents],
-  );
-  const statusBreakdown = data?.lessonInsights?.statusBreakdown || [];
-
-  const isRefreshing = loading && !!data;
-  const showSkeleton = loading && !data;
-
-  if (showSkeleton) {
-    return (
-      <div className="space-y-6 p-4 md:p-6 pb-24 md:pb-10">
-        <DashboardSkeleton />
+function DesktopLayout({ sections, wind, weekQuery }) {
+  return (
+    <div className="grid items-start gap-5 lg:grid-cols-3">
+      {sections ? sections.next : <DashboardSkeleton isDesktop />}
+      {wind}
+      {sections?.timeline}
+      <div className="flex min-w-0 flex-col gap-5">
+        <PayoutMiniCard isDesktop />
+        <RatingMiniCard isDesktop />
+        <WeekStrip query={weekQuery} isDesktop />
       </div>
-    );
-  }
+    </div>
+  );
+}
 
+function MobileLayout({ sections, wind, weekQuery, attention }) {
   return (
     <>
-      <InstructorDashboardView
-        instructorName={instructorName}
-        nextLesson={nextLesson}
-        onRefresh={handleRefresh}
-        refreshing={isRefreshing}
-        lastUpdated={lastUpdated}
-        heroSlides={heroSlides}
-        error={error}
-        studentsError={studentsError}
-        summaryCards={summaryCards}
-        loading={loading}
-        dataAvailable={Boolean(data)}
-        financeSummary={financeSummary}
-        financeTab={financeTab}
-        onFinanceTabChange={setFinanceTab}
-        formatAmount={formatAmount}
-        groupedLessons={groupedLessons}
-        quickActions={quickActions}
-        topStudents={topStudents}
-        studentsLoading={studentsLoading}
-        onStudentNavigate={handleStudentNavigate}
-        inactiveStudents={inactiveStudents}
-        statusBreakdown={statusBreakdown}
-        onCreateBooking={handleCreateBooking}
-        onViewStudents={() => navigate('/instructor/students')}
-      />
-
-      {bookingDrawerOpen && (
-        <Suspense fallback={null}>
-          <CalendarProvider>
-            <BookingDrawer
-              isOpen={bookingDrawerOpen}
-              onClose={() => setBookingDrawerOpen(false)}
-              prefilledInstructor={{ id: user?.id, name: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() }}
-              onBookingCreated={() => {
-                setBookingDrawerOpen(false);
-                refetch();
-              }}
-            />
-          </CalendarProvider>
-        </Suspense>
-      )}
+      {wind}
+      {sections ? (
+        <>
+          {sections.next}
+          <AttentionList items={attention.items} onSelect={attention.onSelect} />
+          {sections.timeline}
+        </>
+      ) : <DashboardSkeleton />}
+      <WeekStrip query={weekQuery} />
+      <div className="grid grid-cols-2 gap-2.5">
+        <PayoutMiniCard />
+        <RatingMiniCard />
+      </div>
     </>
   );
-};
+}
 
-const InstructorDashboardView = ({
-  instructorName,
-  nextLesson,
-  onRefresh,
-  refreshing,
-  lastUpdated,
-  heroSlides,
-  error,
-  studentsError,
-  summaryCards,
-  loading,
-  dataAvailable,
-  financeSummary,
-  financeTab,
-  onFinanceTabChange,
-  formatAmount,
-  groupedLessons,
-  quickActions,
-  topStudents,
-  studentsLoading,
-  onStudentNavigate,
-  onViewStudents,
-  inactiveStudents,
-  statusBreakdown,
-  onCreateBooking,
-}) => {
-  const { t } = useTranslation(['instructor']);
+function NewBookingDrawer({ open, user, onClose, onCreated }) {
+  if (!open) return null;
   return (
-  <div className="space-y-4 p-4 md:p-5 pb-20 md:pb-8">
-    <HeroSection
-      name={instructorName}
-      nextLesson={nextLesson}
-      onRefresh={onRefresh}
-      refreshing={refreshing}
-      lastUpdated={lastUpdated}
-      slides={heroSlides}
-      quickActions={quickActions}
-    />
-
-    {error && (
-      <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
-    )}
-    {studentsError && (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{studentsError}</div>
-    )}
-
-    <SummaryMetricStrip cards={summaryCards} loading={loading && !dataAvailable} />
-
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-      <div className="space-y-4 xl:col-span-2">
-        <FinanceOverview
-          finance={financeSummary}
-          loading={loading}
-          formatAmount={formatAmount}
-          onTabChange={onFinanceTabChange}
-          activeTab={financeTab}
+    <Suspense fallback={null}>
+      <CalendarProvider>
+        <BookingDrawer
+          isOpen={open}
+          onClose={onClose}
+          prefilledInstructor={{ id: user?.id, name: user?.name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() }}
+          onBookingCreated={onCreated}
         />
-        <UpcomingLessonsAccordion groupedLessons={groupedLessons} loading={loading} />
-      </div>
-      <aside className="space-y-4">
-        <InstructorRatingsCard limit={3} />
-        <LessonStatusHeatmap breakdown={statusBreakdown} />
-      </aside>
-    </div>
-
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" id="instructor-checkin">
-      <TopStudentsList
-        students={topStudents}
-        loading={studentsLoading}
-        onSelect={onStudentNavigate}
-        onViewAll={onViewStudents}
-      />
-      <StudentCheckInPanel
-        students={inactiveStudents}
-        loading={loading}
-        onSelect={onStudentNavigate}
-      />
-    </div>
-
-    <FloatingQuickAction label={t('instructor:dashboard.createBooking')} onClick={onCreateBooking} />
-  </div>
+      </CalendarProvider>
+    </Suspense>
   );
-};
-
-const HeroSection = ({ name, nextLesson, onRefresh, refreshing, lastUpdated, slides, quickActions = [] }) => {
-  const { t } = useTranslation(['instructor']);
-  return (
-  <section className="rounded-xl md:rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/30 to-white shadow-sm p-3 sm:p-5 md:p-6 space-y-2 sm:space-y-3">
-    <div className="flex items-start sm:items-center justify-between gap-2">
-      <div className="space-y-0.5 sm:space-y-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-sky-500 animate-pulse" />
-          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('instructor:dashboard.label')}</p>
-        </div>
-        <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate">{t('instructor:dashboard.welcomeBack', { name })}</h1>
-        <p className="text-xs sm:text-sm text-slate-500 line-clamp-2">
-          {nextLesson ? (
-            <>
-  <Trans t={t} i18nKey="instructor:dashboard.nextLesson" values={{ studentName: nextLesson.studentName, time: formatDateShort(nextLesson.startTime) }} components={{ strong: <strong /> }} />
-            </>
-          ) : (
-<>{t('instructor:dashboard.allCaughtUp')}</>
-          )}
-        </p>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={refreshing}
-          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs sm:text-sm font-medium text-slate-600 hover:bg-slate-50 transition disabled:opacity-60 shadow-sm"
-        >
-          {refreshing ? '\u21BB' : 'Refresh'}
-        </button>
-        {lastUpdated && (
-          <p className="text-[10px] text-slate-400 hidden sm:block">
-            {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        )}
-      </div>
-    </div>
-
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-2 sm:gap-3 items-stretch">
-      <HeroCarousel slides={slides} />
-      {quickActions.length > 0 && (
-        <div className="grid grid-cols-3 lg:grid-cols-1 gap-1.5 sm:gap-2 lg:w-44">
-          {quickActions.map((action) => (
-            <button
-              key={action.title}
-              type="button"
-              onClick={action.onClick}
-              className="text-center lg:text-left rounded-lg border border-slate-100 bg-white/80 backdrop-blur-sm px-2 py-2 sm:px-3.5 sm:py-2.5 hover:bg-sky-50 hover:border-sky-200 active:scale-[0.97] transition group"
-            >
-              {action.icon && <span className="text-base lg:hidden block">{action.icon}</span>}
-              <div className="flex items-center gap-2">
-                {action.icon && <span className="text-sm hidden lg:block">{action.icon}</span>}
-                <div>
-                  <p className="text-[11px] sm:text-sm font-medium text-slate-800 group-hover:text-sky-700 transition">{action.title}</p>
-                  <p className="text-[10px] text-slate-400 hidden lg:block">{action.description}</p>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  </section>
-);
 }
 
-const FinanceOverviewSummary = ({ finance, loading, formatAmount, pendingInfo, pendingHint }) => {
-  const { t } = useTranslation(['instructor']);
-  const navigate = useNavigate();
-  const canRequestPayout = Boolean(pendingInfo?.meetsThreshold);
-  const effectivePendingHint = canRequestPayout ? t('instructor:metrics.eligibleToRequestNow') : pendingHint;
+export default function InstructorDashboard() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const isDesktop = useIsDesktop();
+  useMinuteTick();
+  useBookingRealtime();
+  useViewTracking(queryClient);
 
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-        <FinanceTile label={t('instructor:finance.totalEarned')} value={formatAmount(finance?.totalEarned)} accent="text-emerald-600" />
-        <FinanceTile label={t('instructor:finance.monthToDate')} value={formatAmount(finance?.monthToDate)} accent="text-sky-600" />
-        <FinanceTile
-          label={t('instructor:finance.pending')}
-          value={formatAmount(finance?.pending)}
-          accent="text-amber-600"
-          hint={effectivePendingHint}
-          onHintClick={canRequestPayout ? () => navigate(PAYOUT_REQUEST_PATH) : undefined}
-        />
-        <FinanceTile label={t('instructor:finance.paidOut')} value={formatAmount(finance?.netPayments)} accent="text-violet-600" hint={t('instructor:finance.grossPaid', { amount: formatAmount(finance?.totalPaid) })} />
-      </div>
+  const todayQuery = useToday();
+  const weekQuery = useWeek();
+  const { settings: windSettings, ready: windSettingsReady } = useWindSettings();
+  const windQuery = useWindReport(windSettings.spot, windSettingsReady);
+  const spotName = useSpotName(windSettings.spot);
+  const { checkIn, checkOut, busy } = useLessonStatusActions();
+  const chat = useChatBridge();
+  const [bookingOpen, setBookingOpen] = useState(false);
 
-      <EarningsTrendCard
-        timeseries={finance?.timeseries}
-        loading={loading}
-        formatCurrency={formatAmount}
-        pendingThreshold={pendingInfo}
-      />
+  const day = todayQuery.data;
+  const lessons = useMemo(() => day?.lessons ?? [], [day]);
+  const states = useMemo(() => lessonStates(lessons, day?.nextLessonId), [lessons, day?.nextLessonId]);
+  const nextLesson = lessons.find((l) => l.id === day?.nextLessonId) || null;
+  const drawer = useDrawerState(lessons);
+  const attention = useAttention(day, lessons, chat, drawer.open);
 
-      <div className="rounded-xl border border-slate-100 p-4 bg-gradient-to-r from-slate-50/50 to-white">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{t('instructor:finance.lastPayout')}</p>
-        {finance?.lastPayout ? (
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(finance.lastPayout.amount)}</p>
-            <p className="text-xs text-slate-400">{t('instructor:finance.paid', { datetime: formatDateTime(finance.lastPayout.paymentDate) })}</p>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400">{t('instructor:finance.noPayoutsYet')}</p>
-        )}
-      </div>
-    </div>
-  );
-};
+  const openNewBooking = useCallback(() => {
+    analyticsService.track('instructor_dashboard_new_booking');
+    setBookingOpen(true);
+  }, []);
 
-const FinanceEarningsTable = ({ earnings, formatAmount }) => {
-  const { t } = useTranslation(['instructor']);
-  return (
-  <>
-    {/* Desktop table */}
-    <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-100">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50/70">
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            <th className="py-2.5 px-4">{t('instructor:earningsTable.date')}</th>
-            <th className="py-2.5 px-4">{t('instructor:earningsTable.student')}</th>
-            <th className="py-2.5 px-4">{t('instructor:earningsTable.hours')}</th>
-            <th className="py-2.5 px-4">{t('instructor:earningsTable.amount')}</th>
-            <th className="py-2.5 px-4">{t('instructor:earningsTable.status')}</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {earnings?.length ? earnings.map((row) => (
-            <tr key={row.bookingId} className="hover:bg-slate-50/50 transition">
-              <td className="py-2.5 px-4 text-slate-600 text-xs">{formatDateTime(row.lessonDate)}</td>
-              <td className="py-2.5 px-4 text-slate-800 font-medium">{row.studentName || '\u2014'}</td>
-              <td className="py-2.5 px-4 text-slate-500 tabular-nums">{formatNumber(row.durationHours)}</td>
-              <td className="py-2.5 px-4 font-semibold text-slate-900 tabular-nums">{formatAmount(row.amount)}</td>
-              <td className="py-2.5 px-4"><span className="inline-flex items-center rounded-full bg-sky-50 text-sky-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">{row.status}</span></td>
-            </tr>
-          )) : (
-            <tr>
-              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">{t('instructor:earningsTable.noEarnings')}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-    {/* Mobile cards */}
-    <div className="sm:hidden space-y-2">
-      {earnings?.length ? earnings.map((row) => (
-        <div key={row.bookingId} className="rounded-lg border border-slate-100 px-3 py-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-800">{row.studentName || '\u2014'}</span>
-            <span className="text-xs font-bold text-slate-900 tabular-nums">{formatAmount(row.amount)}</span>
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-slate-400">{formatDateTime(row.lessonDate)}</span>
-            <span className="inline-flex items-center rounded-full bg-sky-50 text-sky-700 px-1.5 py-0.5 text-[9px] font-medium uppercase">{row.status}</span>
-          </div>
-        </div>
-      )) : (
-        <p className="text-center text-xs text-slate-400 py-4">{t('instructor:earningsTable.noEarnings')}</p>
-      )}
-    </div>
-  </>
-);
-}
+  const lessonActions = {
+    busy,
+    onCheckIn: (lesson) => checkIn.mutate(lesson.id),
+    onCheckOut: (lesson) => checkOut.mutate(lesson.id),
+    onMessage: chat.messageStudent,
+    openingFor: chat.openingFor,
+  };
 
-const FinancePaymentsTable = ({ payments, formatAmount }) => {
-  const { t } = useTranslation(['instructor']);
-  return (
-  <>
-    {/* Desktop table */}
-    <div className="hidden sm:block overflow-x-auto rounded-xl border border-slate-100">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50/70">
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            <th className="py-2.5 px-4">{t('instructor:paymentsTable.date')}</th>
-            <th className="py-2.5 px-4">{t('instructor:paymentsTable.amount')}</th>
-            <th className="py-2.5 px-4">{t('instructor:paymentsTable.description')}</th>
-            <th className="py-2.5 px-4">{t('instructor:paymentsTable.method')}</th>
-            <th className="py-2.5 px-4">{t('instructor:paymentsTable.reference')}</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {payments?.length ? payments.map((payment) => (
-            <tr key={payment.id} className="hover:bg-slate-50/50 transition">
-              <td className="py-2.5 px-4 text-slate-600 text-xs">{formatDateTime(payment.paymentDate)}</td>
-              <td className="py-2.5 px-4 font-semibold tabular-nums">
-                <span className={payment.amount < 0 ? 'text-rose-600' : 'text-emerald-600'}>{formatAmount(payment.amount)}</span>
-                {payment.type === 'deduction' && (
-                  <span className="ml-2 inline-flex items-center rounded-full bg-rose-50 text-rose-600 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide">{t('instructor:payroll.deductionTag')}</span>
-                )}
-              </td>
-              <td className="py-2.5 px-4 text-slate-600">{payment.description || t('instructor:finance.instructorPayout')}</td>
-              <td className="py-2.5 px-4 text-slate-500 capitalize">{payment.method || 'balance'}</td>
-              <td className="py-2.5 px-4 text-slate-400 font-mono text-xs">{payment.referenceNumber || '\u2014'}</td>
-            </tr>
-          )) : (
-            <tr>
-              <td colSpan={5} className="py-6 text-center text-xs text-slate-400">{t('instructor:paymentsTable.noPayouts')}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-    {/* Mobile cards */}
-    <div className="sm:hidden space-y-2">
-      {payments?.length ? payments.map((payment) => (
-        <div key={payment.id} className="rounded-lg border border-slate-100 px-3 py-2.5">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
-              <span className={`text-xs font-semibold tabular-nums ${payment.amount < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatAmount(payment.amount)}</span>
-              {payment.type === 'deduction' && (
-                <span className="inline-flex items-center rounded-full bg-rose-50 text-rose-600 px-1.5 py-0.5 text-[8px] font-medium uppercase">{t('instructor:payroll.deductionTag')}</span>
-              )}
-            </span>
-            <span className="text-[10px] text-slate-400 capitalize">{payment.method || 'balance'}</span>
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-slate-400">{formatDateTime(payment.paymentDate)}</span>
-            <span className="text-[10px] text-slate-500">{payment.description || t('instructor:finance.payout')}</span>
-          </div>
-        </div>
-      )) : (
-        <p className="text-center text-xs text-slate-400 py-4">{t('instructor:paymentsTable.noPayouts')}</p>
-      )}
-    </div>
-  </>
-);
-}
-
-const FinanceOverview = ({ finance, loading, formatAmount, onTabChange, activeTab }) => {
-  const { t } = useTranslation(['instructor']);
-  const pendingInfo = finance?.pendingThreshold;
-  const pendingHint = computePendingHint(pendingInfo, formatAmount, t);
-  const tabs = useMemo(() => ([
-    {
-      key: 'overview',
-      label: t('instructor:finance.overview'),
-      description: t('instructor:finance.overviewDesc'),
-      content: (
-        <FinanceOverviewSummary
-          finance={finance}
-          loading={loading}
-          formatAmount={formatAmount}
-          pendingInfo={pendingInfo}
-          pendingHint={pendingHint}
+  let sections = null;
+  if (day) {
+    sections = {
+      next: (
+        <NextLessonCard
+          lesson={nextLesson}
+          date={day.date}
+          isDesktop={isDesktop}
+          hadLessons={lessons.length > 0}
+          busy={busy}
+          openingChat={chat.openingFor}
+          onCheckIn={lessonActions.onCheckIn}
+          onCheckOut={lessonActions.onCheckOut}
+          onOpen={drawer.open}
+          onMessage={chat.messageStudent}
         />
       ),
-    },
-    {
-      key: 'earnings',
-      label: t('instructor:finance.earnings'),
-      badge: finance?.recentEarnings?.length ?? 0,
-      description: t('instructor:finance.earningsDesc'),
-      content: <FinanceEarningsTable earnings={finance?.recentEarnings} formatAmount={formatAmount} />,
-    },
-    {
-      key: 'payments',
-      label: t('instructor:finance.payments'),
-      badge: finance?.recentPayments?.length ?? 0,
-      description: t('instructor:finance.paymentsDesc'),
-      content: <FinancePaymentsTable payments={finance?.recentPayments} formatAmount={formatAmount} />,
-    },
-  ]), [finance, loading, formatAmount, pendingInfo, pendingHint]);
+      timeline: <TodayTimeline lessons={lessons} states={states} isDesktop={isDesktop} onOpen={drawer.open} onNewBooking={openNewBooking} />,
+    };
+  } else if (todayQuery.isError) {
+    sections = { next: <LessonsError query={todayQuery} isDesktop={isDesktop} />, timeline: null };
+  }
 
-  const lifetimeEarnings = formatAmount(finance?.totalEarned);
-  const hasFinance = Boolean(finance);
+  const wind = <WindCard query={windQuery} settings={windSettings} date={day?.date} isDesktop={isDesktop} spotName={spotName} />;
 
   return (
-    <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5">
-      <header className="flex items-center justify-between mb-2 sm:mb-3">
-        <div>
-          <h2 className="text-sm sm:text-base font-semibold text-slate-900">{t('instructor:dashboard.earningsFocus')}</h2>
-          <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">{t('instructor:dashboard.personalFinanceSummary')}</p>
-        </div>
-        <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums">{lifetimeEarnings}</span>
-      </header>
-      {loading && !hasFinance ? (
-        <div className="space-y-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-          <div className="h-4 bg-slate-100 rounded animate-pulse w-11/12" />
-          <div className="h-4 bg-slate-100 rounded animate-pulse w-9/12" />
-          <div className="h-48 bg-slate-100 rounded animate-pulse" />
-        </div>
-      ) : hasFinance ? (
-        <FinanceTabs
-          tabs={tabs}
-          initialKey={activeTab}
-          onChange={onTabChange}
-        />
-      ) : (
-        <p className="text-sm text-slate-500">{t('instructor:dashboard.financeUnavailable')}</p>
-      )}
-    </section>
-  );
-};
-
-const FinanceTile = ({ label, value, accent, hint, onHintClick }) => (
-  <div className="rounded-lg border border-slate-100 px-2.5 py-2 sm:px-3 sm:py-2.5 bg-white hover:bg-slate-50/50 transition">
-    <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-    <p className={`mt-0.5 sm:mt-1 text-sm sm:text-lg font-bold tabular-nums truncate ${accent || 'text-slate-900'}`}>{value}</p>
-    {hint && onHintClick ? (
-      <button
-        type="button"
-        onClick={onHintClick}
-        className="mt-0.5 max-w-full truncate text-left text-[10px] sm:text-[11px] font-semibold text-[#00798c] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00798c] rounded"
-      >
-        {hint} →
-      </button>
-    ) : hint && <p className="mt-0.5 text-[10px] sm:text-[11px] text-slate-400 truncate">{hint}</p>}
-  </div>
-);
-
-
-const DashboardSkeleton = () => (
-  <div className="space-y-6 animate-pulse">
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
-      <div className="h-4 w-28 rounded bg-slate-100" />
-      <div className="h-8 w-40 rounded bg-slate-100" />
-      <div className="h-4 w-full rounded bg-slate-100" />
-      <div className="h-48 w-full rounded bg-slate-100" />
-    </div>
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {placeholderKeys.slice(0, 4).map((key) => (
-          <div key={`metric-${key}`} className="h-20 rounded-xl bg-slate-100" />
-        ))}
-      </div>
-    </div>
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <div className="space-y-4 xl:col-span-2">
-        <div className="h-64 rounded-2xl border border-slate-200 bg-white" />
-        <div className="h-64 rounded-2xl border border-slate-200 bg-white" />
-      </div>
-      <div className="space-y-4">
-        {placeholderKeys.slice(0, 3).map((key) => (
-          <div key={`nudge-${key}`} className="h-24 rounded-2xl border border-slate-200 bg-white" />
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-const QuickActions = ({ actions }) => {
-  const { t } = useTranslation(['instructor']);
-  return (
-  <section className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
-    <h2 className="text-sm font-semibold text-slate-900 mb-2">{t('instructor:dashboard.quickLinks')}</h2>
-    <div className="space-y-2">
-      {actions.map((action) => (
-        <button
-          key={action.title}
-          type="button"
-          onClick={action.onClick}
-          className="w-full text-left rounded-lg border border-slate-100 px-3 py-2 bg-white hover:bg-sky-50/50 hover:border-sky-200 transition group"
-        >
-          <div className="flex items-center gap-2.5">
-            {action.icon && <span className="text-sm">{action.icon}</span>}
-            <div>
-              <p className="text-sm font-medium text-slate-800 group-hover:text-sky-700 transition">{action.title}</p>
-              <p className="text-[11px] text-slate-400">{action.description}</p>
-            </div>
+    <div
+      data-testid="instructor-dashboard"
+      data-layout={isDesktop ? 'desktop' : 'mobile'}
+      className={`mx-auto flex w-full flex-col ${isDesktop ? 'max-w-7xl gap-5 p-6 xl:p-8' : 'max-w-xl gap-3.5 px-4 pb-8 pt-4'}`}
+    >
+      <Greeting
+        name={firstName(user)}
+        date={day?.date}
+        summary={day?.summary}
+        isDesktop={isDesktop}
+        actions={isDesktop ? (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AttentionChips items={attention.items} onSelect={attention.onSelect} />
+            <NewBookingButton onClick={openNewBooking} />
           </div>
-        </button>
-      ))}
+        ) : null}
+      />
+
+      {isDesktop
+        ? <DesktopLayout sections={sections} wind={wind} weekQuery={weekQuery} />
+        : <MobileLayout sections={sections} wind={wind} weekQuery={weekQuery} attention={attention} />}
+
+      <LessonDrawer
+        lesson={drawer.lesson}
+        open={drawer.isOpen}
+        onClose={drawer.close}
+        isDesktop={isDesktop}
+        initialNote={drawer.initialNote}
+        {...lessonActions}
+      />
+
+      <NewBookingDrawer
+        open={bookingOpen}
+        user={user}
+        onClose={() => setBookingOpen(false)}
+        onCreated={() => {
+          setBookingOpen(false);
+          queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+        }}
+      />
     </div>
-  </section>
-);
+  );
 }
-
-const TopStudentsList = ({ students, loading, onSelect, onViewAll }) => {
-  const { t } = useTranslation(['instructor']);
-  return (
-  <section className="rounded-xl md:rounded-2xl border border-slate-200 bg-white shadow-sm p-3 sm:p-5">
-    <header className="flex items-center justify-between mb-2 sm:mb-3">
-      <h2 className="text-sm sm:text-base font-semibold text-slate-900">{t('instructor:students.studentSpotlight')}</h2>
-      <button
-        type="button"
-        onClick={onViewAll}
-        className="text-xs text-sky-500 hover:text-sky-600 font-medium"
-      >
-{t('instructor:students.viewAll')}
-      </button>
-    </header>
-    {loading && !students.length ? (
-      <div className="space-y-3">
-        {placeholderKeys.map((key) => (
-          <div key={key} className="h-14 rounded-xl bg-slate-100/70 animate-pulse" />
-        ))}
-      </div>
-    ) : !students.length ? (
-      <div className="rounded-xl bg-slate-50 px-4 py-6 text-center">
-        <p className="text-sm text-slate-500">{t('instructor:students.noStudentsYet')}</p>
-      </div>
-    ) : (
-      <ul className="space-y-2">
-        {students.map((student) => (
-          <li key={student.studentId}>
-            <button
-              type="button"
-              onClick={() => onSelect?.(student.studentId)}
-              className="w-full text-left rounded-lg sm:rounded-xl border border-slate-100 px-3 py-2.5 sm:px-4 sm:py-3 bg-white hover:bg-sky-50/30 hover:border-sky-200 active:scale-[0.98] sm:hover:-translate-y-0.5 transition group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 flex items-center justify-center text-sky-700 text-[11px] sm:text-xs font-semibold shrink-0">
-                    {(student.name || '?')[0].toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-sky-700 transition truncate">{student.name}</p>
-                    <p className="text-[10px] sm:text-xs text-slate-400">{student.skillLevel || t('instructor:students.skillLevelTbd')}</p>
-                  </div>
-                </div>
-                <span className="text-[10px] sm:text-xs font-medium text-slate-500 tabular-nums shrink-0">{student.totalHours}h</span>
-              </div>
-              {student.progressPercent > 0 && (
-                <div className="mt-1.5 sm:mt-2 flex items-center gap-2 ml-[38px] sm:ml-11">
-                  <div className="flex-1 h-1 sm:h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-emerald-400 to-sky-500 rounded-full"
-                      style={{ width: `${student.progressPercent}%` }}
-                    />
-                  </div>
-                  <span className="text-[9px] sm:text-[10px] tabular-nums text-slate-400">{student.progressPercent}%</span>
-                </div>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
-    )}
-  </section>
-);
-}
-
-export default InstructorDashboard;

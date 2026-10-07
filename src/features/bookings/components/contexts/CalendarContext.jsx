@@ -566,6 +566,16 @@ function CalendarProvider({ children }) {
   useEffect(() => {
     // Handlers
     const handleRtCreated = (payload) => {
+      // Instructors only receive their own lessons from GET /bookings (backend
+      // NOT_YOUR_BOOKING scope). The backend now sends booking rows only to staff
+      // rooms + the involved instructor/students (socketService.emitBookingEvent);
+      // keep this guard anyway (e.g. an instructor who is a participant), so we
+      // never optimistically insert a colleague's lesson the next sync would drop.
+      const role = String(user?.role || '').toLowerCase();
+      if (role === 'instructor' || role === 'freelancer') {
+        const ownerId = payload?.instructor_user_id ?? payload?.instructorId;
+        if (ownerId && String(ownerId) !== String(user?.id)) return;
+      }
       try {
         const standardized = standardizeBookingData(payload);
         updateCalendarData({ reason: 'booking-created-rt', newBooking: standardized });
@@ -604,7 +614,7 @@ function CalendarProvider({ children }) {
       realTimeService.off('booking:updated', handleRtUpdated);
       realTimeService.off('booking:deleted', handleRtDeleted);
     };
-  }, [updateCalendarData]);
+  }, [updateCalendarData, user?.id, user?.role]);
 
   /**
    * Check for booking conflicts before creating a new booking

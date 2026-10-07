@@ -34,3 +34,38 @@ export const isStaffNegativeBalanceRole = (role) =>
   STAFF_NEGATIVE_BALANCE_ROLES.includes(
     String(role || '').toLowerCase().replace(/[-\s]+/g, '_').trim(),
   );
+
+// Booking visibility (deny-by-default, see middlewares/bookingOwnership.js).
+// Staff roles that see EVERY booking (calendar, lists, deleted/list, pending
+// transfers, full socket payloads). Anything not listed here and not
+// instructor-scoped (instructor/freelancer) is CUSTOMER-SCOPED: it only sees
+// bookings it is a party to — including custom roles created in the UI. Add a
+// custom desk role here (by name) if it must see the whole calendar.
+// 'front_desk' and 'receptionist' are aliases and MUST stay together.
+export const BOOKING_STAFF_ROLES = Object.freeze([
+  'admin',
+  'manager',
+  'owner',
+  'super_admin',
+  'developer',
+  'receptionist',
+  'front_desk',
+]);
+
+// Built-in customer roles. authorizeRoles() never lets these through via the
+// roles.permissions JSONB fallback (their `bookings:read` / `services:read`
+// flags exist for the UI, not to open staff-only routes) — they must be named
+// explicitly in a route's allow-list.
+export const BUILTIN_CUSTOMER_ROLES = Object.freeze([
+  'student',
+  'outsider',
+  'trusted_customer',
+  'customer',
+]);
+
+export const normalizeRoleName = (role) =>
+  String(role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+export const isBookingStaffRole = (role) => BOOKING_STAFF_ROLES.includes(normalizeRoleName(role));
+
+export const isBuiltinCustomerRole = (role) => BUILTIN_CUSTOMER_ROLES.includes(normalizeRoleName(role));

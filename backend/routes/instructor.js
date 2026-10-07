@@ -19,11 +19,14 @@ import {
   deleteInstructorNote
 } from '../services/instructorNotesService.js';
 import instructorEarningsRouter from './instructorEarnings.js';
+import instructorTodayRouter from './instructorToday.js';
 
 const router = express.Router();
 
 // Earnings summary / activity / statement + payout requests (/me/earnings-*, /me/payout-requests)
 router.use('/me', instructorEarningsRouter);
+// "My day" dashboard: own lessons today + week strip (/me/today, /me/week)
+router.use('/me', instructorTodayRouter);
 
 router.get('/me/students', authorizeRoles(['instructor', 'manager']), async (req, res, next) => {
   try {

@@ -1141,5 +1141,165 @@
       "title": "Pas encore de revenus",
       "body": "Vos revenus apparaîtront ici après votre premier cours terminé."
     }
+  },
+  "myDay": {
+    "greeting": {
+      "morning": "Bonjour, {{name}}",
+      "afternoon": "Bon après-midi, {{name}}",
+      "evening": "Bonsoir, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir"
+    },
+    "summary": {
+      "lessons_one": "{{count}} cours aujourd'hui",
+      "lessons_other": "{{count}} cours aujourd'hui",
+      "hours_one": "{{hours}} heure",
+      "hours_other": "{{hours}} heures",
+      "firstAt": "premier à {{time}}",
+      "none": "Aucun cours aujourd'hui"
+    },
+    "newBooking": "Nouvelle réservation",
+    "loading": "Chargement de votre journée…",
+    "error": {
+      "title": "Impossible de charger vos cours",
+      "body": "Vérifiez votre connexion et réessayez. Le vent et les revenus restent disponibles.",
+      "retry": "Réessayer"
+    },
+    "unknownStudent": "Élève",
+    "plusOthers": "{{name}} +{{others}}",
+    "lessonFallback": "Cours",
+    "durationHours": "{{hours}} h",
+    "lessonOf": "cours {{index}} sur {{total}}",
+    "lessonNumber": "cours {{index}}",
+    "packageLeft": "forfait {{total}} h ({{left}} h restantes)",
+    "waiver": {
+      "signed": "Décharge signée",
+      "missing": "Aucune décharge signée",
+      "unknown": "Statut de la décharge inconnu"
+    },
+    "level": "Niveau : {{level}}",
+    "levelUnset": "Niveau non défini",
+    "lastNote": "Dernière note ({{date}}) : « {{text}} »",
+    "lastNoteUndated": "Dernière note : « {{text}} »",
+    "openCalendar": "Ouvrir le calendrier",
+    "calendar": "Calendrier",
+    "attention": {
+      "title": "À traiter",
+      "waiver": "{{name}} ({{time}}) n'a pas signé de décharge",
+      "unpaid": "{{name}} ({{time}}) n'a pas encore payé",
+      "unread_one": "{{count}} message non lu",
+      "unread_other": "{{count}} messages non lus",
+      "waiverChip_one": "{{count}} décharge manquante",
+      "waiverChip_other": "{{count}} décharges manquantes",
+      "unpaidChip_one": "{{count}} cours impayé",
+      "unpaidChip_other": "{{count}} cours impayés"
+    },
+    "wind": {
+      "title": "Vent",
+      "now": "Vent à {{spot}} · maintenant",
+      "unit": "nd",
+      "gusts": "Rafales {{value}} nd",
+      "from": "de {{dir}}",
+      "good": "Bon pour les cours",
+      "goodAllDay": "Bon pour les cours toute la journée",
+      "light": "Vent faible",
+      "strong": "Vent fort — prudence",
+      "fullReport": "Bulletin de vent complet",
+      "unavailable": "Les données de vent sont indisponibles pour le moment.",
+      "forecastLabel": "Prévision de vent par heure",
+      "barLabel": "{{hour}}:00 — {{value}} nœuds",
+      "barUnknown": "{{hour}}:00 — pas de prévision"
+    },
+    "next": {
+      "title": "Prochain cours",
+      "eyebrow": "Prochain cours · {{when}}",
+      "inProgress": "en cours",
+      "startingNow": "commence maintenant",
+      "inMinutes": "dans {{minutes}} min",
+      "inHours": "dans {{hours}} h {{minutes}} min",
+      "noneLeft": "Plus de cours aujourd'hui",
+      "noneToday": "Aucun cours aujourd'hui",
+      "noneHint": "Les nouvelles réservations apparaîtront ici."
+    },
+    "actions": {
+      "checkIn": "Enregistrer l’arrivée",
+      "checkOut": "Clôturer",
+      "saving": "Enregistrement…",
+      "notes": "Notes",
+      "addNoteLong": "Ajouter une note / un progrès",
+      "addNote": "Ajouter une note",
+      "message": "Message",
+      "openingChat": "Ouverture…"
+    },
+    "toast": {
+      "checkedIn": "Arrivée enregistrée",
+      "checkedOut": "Cours clôturé",
+      "actionError": "Impossible de mettre à jour le cours. Veuillez réessayer.",
+      "noteSaved": "Note enregistrée",
+      "noteError": "Impossible d'enregistrer la note. Veuillez réessayer.",
+      "chatError": "Impossible d'ouvrir la conversation. Veuillez réessayer."
+    },
+    "state": {
+      "done": "Terminé",
+      "now": "En cours",
+      "next": "Suivant",
+      "unclosed": "Non clôturé",
+      "later": "Plus tard"
+    },
+    "timeline": {
+      "title": "Aujourd'hui",
+      "waiverFlag": "décharge",
+      "empty": "Aucun cours aujourd'hui",
+      "emptyHint": "Les cours réservés pour aujourd'hui apparaîtront ici."
+    },
+    "week": {
+      "title": "Cette semaine",
+      "totals_one": "{{count}} cours · {{hours}} h",
+      "totals_other": "{{count}} cours · {{hours}} h",
+      "totalsThisWeek": "{{totals}} cette semaine",
+      "off": "repos",
+      "dayOff": "{{day}} : jour de repos",
+      "dayLessons_one": "{{day}} : {{count}} cours",
+      "dayLessons_other": "{{day}} : {{count}} cours",
+      "error": "Impossible de charger cette semaine."
+    },
+    "payout": {
+      "label": "Prêt pour le versement",
+      "request": "Demander",
+      "pending": "Demande en attente",
+      "belowMinimum": "Versement dès {{amount}}",
+      "unavailable": "Ouvrir les revenus"
+    },
+    "rating": {
+      "label": "Votre note",
+      "none": "Pas encore d'avis",
+      "unavailable": "Avis indisponibles",
+      "outOfFive": "sur 5",
+      "reviews_one": "{{count}} avis",
+      "reviews_other": "{{count}} avis",
+      "latest_one": "{{count}} avis · « {{text}} »",
+      "latest_other": "{{count}} avis · « {{text}} »",
+      "latestBy_one": "{{count}} avis · dernier : « {{text}} » — {{name}}",
+      "latestBy_other": "{{count}} avis · dernier : « {{text}} » — {{name}}"
+    },
+    "drawer": {
+      "close": "Fermer",
+      "checkedIn": "Arrivée enregistrée",
+      "checkedOut": "Clôturé",
+      "notCheckedIn": "Arrivée pas encore enregistrée",
+      "participants": "Participants ({{total}})",
+      "noParticipants": "Aucun participant pour ce cours.",
+      "noNotes": "Pas encore de notes.",
+      "noteFor": "Note pour {{name}}",
+      "notePlaceholder": "Sur quoi avez-vous travaillé ? Et ensuite ?",
+      "shareWithStudent": "Visible par l'élève",
+      "cancel": "Annuler",
+      "saveNote": "Enregistrer la note",
+      "location": "Lieu",
+      "equipment": "Matériel"
+    }
   }
 }

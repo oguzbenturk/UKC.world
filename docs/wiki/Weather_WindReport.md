@@ -60,6 +60,7 @@ Kod, parolanın **asla hardcode edilmemesini** açıkça uyarır (git geçmişin
 ### Diğer rüzgar tüketicileri
 
 - **`src/features/forecast/`** — `ForecastContext` `/api/weather/hourly`'i çağırır; booking takviminde (`DailyView.jsx`) günlük rüzgar şeridi için kullanılır (bkz. [[Bookings_Calendar]]).
+- **Eğitmen "Günüm" dashboard'u** (`src/features/instructor/dashboard/components/WindCard.jsx`, 2026-10-08) — `GET /api/weather/report/:spot` (wind-report servisi `fetchSpotReport`) ile o günün `dateLocal` saatlerinden "şimdi" + 09–19 çubukları; spot ve ders-uygunluk eşikleri `settings.instructor_dashboard` (`wind_spot` vars. `gulbahce`, `wind_min_kn` 12, `wind_max_kn` 25). Hata → kompakt "veri yok" kartı, sayfa bloklanmaz (bkz. [[Instructors_Payroll]]).
 - **`src/features/weather/pages/WeatherPage.jsx`** — eski dashboard; `FeaturesContext.refreshWeather()` ile beslenir, güvenlik kılavuzları (rüzgar/gust eşikleri) ve booking-hava uyumu uyarıları içerir (kısmen mock). Yeni canlı hero değil.
 
 ## Veri Modeli

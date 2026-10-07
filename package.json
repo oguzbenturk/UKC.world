@@ -48,7 +48,9 @@
     "db:dev:down": "docker compose -f docker-compose.development.yml down",
     "db:dev:reset": "docker compose -f docker-compose.development.yml down -v && docker compose -f docker-compose.development.yml up -d",
     "db:sync": "node scripts/db-sync-from-prod.js",
-    "dev:reset-passwords": "node backend/scripts/dev-reset-passwords.js"
+    "dev:reset-passwords": "node backend/scripts/dev-reset-passwords.js",
+    "db:sync:demo": "node scripts/db-sync-demo.js",
+    "dev:demo": "node scripts/dev-demo.js"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
