@@ -226,7 +226,10 @@
       "placeholders": {
         "name": "Jamie Rivera",
         "product": "e.g. Duotone Juice 11m",
-        "purchase": "Shop or order #"
+        "purchase": "Shop or order #",
+        "brand": "Select brand",
+        "model": "Select model",
+        "year": "Year"
       },
       "fields": {
         "name": "Full name",
@@ -240,7 +243,8 @@
         "purchaseLocation": "Bought from",
         "issue": "Describe the problem",
         "issuePlaceholder": "Tell us what happened, when it happened, and how the product is currently behaving.",
-        "media": "Photos and videos of the issue"
+        "media": "Photos and videos of the issue",
+        "year": "Model year"
       }
     },
     "track": {
@@ -281,7 +285,9 @@
         "claimNumber": "Manufacturer claim #",
         "submittedAt": "Submitted",
         "issue": "Issue"
-      }
+      },
+      "teamUploads": "From the UKC team",
+      "yourUploads": "Your uploads"
     },
     "staff": {
       "eyebrow": "UKC.Care · Warranty team",
@@ -311,7 +317,12 @@
       "uploadDone": "Files uploaded.",
       "timelineSection": "Activity",
       "galleryHeading": "Existing media",
-      "opened": "Opened {{when}}"
+      "opened": "Opened {{when}}",
+      "anotherMember": "another team member",
+      "claimNumberLocked": "This manufacturer claim number was set by {{name}} and is locked. Ask an admin if it needs to change.",
+      "claimNumberLockedTitle": "Claim # {{value}}",
+      "claimNumberUpdate": "Update",
+      "downloadZip": "Download all (ZIP)"
     },
     "timeline": {
       "empty": "No updates yet.",
@@ -324,11 +335,15 @@
       "staffRevoked": "Warranty team access revoked.",
       "linkResent": "Tracking link re-sent.",
       "closed": "Claim closed.",
-      "deleted": "Claim deleted."
+      "deleted": "Claim deleted.",
+      "claimNumberSet": "Manufacturer claim # recorded: {{value}}"
     },
     "media": {
       "empty": "No photos or videos uploaded yet.",
-      "viewDocument": "View PDF"
+      "viewDocument": "View PDF",
+      "customerSection": "Customer uploads",
+      "otherSection": "Other",
+      "teamSection": "Team uploads"
     },
     "uploader": {
       "cta": "Click to add photos or videos",
@@ -346,6 +361,15 @@
       "errorVideos": "Maximum {{n}} videos per claim.",
       "errorDocuments": "Maximum {{n}} documents per claim.",
       "errorFileCount": "Too many files (max {{n}})."
+    },
+    "upload": {
+      "errorGeneric": "Upload failed. Please try again.",
+      "errorNetwork": "The connection dropped while uploading. Please check your internet and try again.",
+      "errorRateLimit": "Too many attempts from this connection. Please wait a while and try again.",
+      "errorServer": "Our server could not accept the upload. Please try again in a moment.",
+      "errorTimeout": "The upload timed out. Large videos need a stable connection — try again on Wi-Fi, or attach a shorter clip.",
+      "errorTooLarge": "The files are too large to upload. Videos may be up to {{video}} MB each and photos up to {{photo}} MB.",
+      "errorType": "One of the files is a type we cannot accept. Photos: JPG, PNG, WEBP, HEIC. Videos: MP4, MOV, WEBM."
     }
   }
 }

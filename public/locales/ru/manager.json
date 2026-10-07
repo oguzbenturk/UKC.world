@@ -110,6 +110,21 @@
       },
       "empty": "Записи о комиссиях не найдены",
       "total": "{{count}} записей"
+    },
+    "membershipDetail": {
+      "beachBase": "Пляжные сборы (база)",
+      "beachBaseCol": "База (пляж)",
+      "beachCommission": "Комиссия с пляжных сборов",
+      "byCustomer": "По клиентам",
+      "byOffering": "По предложениям",
+      "customer": "Клиент",
+      "membershipsCol": "Членства",
+      "offering": "Предложение",
+      "sold": "Продано членств",
+      "soldCol": "Продано",
+      "storageExclCol": "Хранение искл.",
+      "storageExcluded": "Хранение (не учитывается)",
+      "title": "Доход от членств — подробно"
     }
   },
   "commissionSettings": {
@@ -566,7 +581,8 @@
       "discontinued": "Снят с производства",
       "allCreators": "Все создатели",
       "createdBy": "Создал",
-      "lowStockOnly": "Только низкий запас"
+      "lowStockOnly": "Только низкий запас",
+      "allSubcategories": "Все типы"
     },
     "showing": "Показано {{count}} из {{total}} товаров",
     "selected": "Выбрано {{count}}",
@@ -679,7 +695,15 @@
       "namePlaceholder": "напр. Duotone Rebel D/LAB 2026",
       "skuPlaceholder": "Создаётся автоматически",
       "createCategory": "Создать категорию",
-      "createSubcategory": "Создать подкатегорию"
+      "createSubcategory": "Создать подкатегорию",
+      "brandCreated": "Бренд «{{label}}» добавлен",
+      "categoryCreated": "Категория «{{label}}» добавлена",
+      "categoryCreateError": "Не удалось создать категорию",
+      "categoryRemoved": "Категория удалена",
+      "categoryRemoveError": "Не удалось удалить категорию",
+      "colorSizeStock": "Запас: цвет × размер",
+      "visibleToShop": "Виден в магазине / клиентам",
+      "visibleToShopTooltip": "Если выключено, товар скрыт в магазине для клиентов. Сотрудники по-прежнему видят его здесь, в разделе управления."
     },
     "colorTable": {
       "colorCode": "Код цвета",
@@ -705,6 +729,25 @@
       "emptyHint": "Нажмите на размер выше или «Добавить вариант», чтобы начать.",
       "unitsAcrossSizes": "единица в {{count}} размере",
       "unitsAcrossSizesPlural": "единиц в {{count}} размерах"
+    },
+    "hiddenFromShop": "Скрыт",
+    "variantMatrix": {
+      "addAll": "Добавить все стандартные",
+      "addColorsFirst": "Добавьте хотя бы один цвет на вкладке «Товар», чтобы построить таблицу запасов «цвет × размер».",
+      "addSize": "Добавить",
+      "addSizesHint": "Выберите выше размеры, которые есть в наличии, чтобы построить таблицу, затем укажите количество для каждого цвета.",
+      "allSizesAdded": "Все стандартные размеры уже добавлены",
+      "colorHeader": "Цвет",
+      "costPerSize": "Себестоимость / размер",
+      "customSize": "Свой размер...",
+      "legacyNotice": "Внимание: у этого товара был запас, не привязанный к цвету. Введите количество заново по цветам выше. Прежние итоги по размерам: {{summary}}.",
+      "photoTip": "Фото, привязанные к этому цвету (показываются в магазине при его выборе)",
+      "pricePerSize": "Цена продажи / размер",
+      "removeSize": "Удалить этот столбец размера",
+      "rowTotal": "Итого",
+      "sizeExists": "«{{size}}» уже есть в столбцах",
+      "sizesLabel": "Размеры (столбцы)",
+      "totalUnits": "шт. в наличии"
     }
   },
   "accommodation": {
@@ -754,7 +797,8 @@
         "confirm": "Подтвердить",
         "complete": "Завершить",
         "cancel": "Отменить",
-        "delete": "Удалить"
+        "delete": "Удалить",
+        "edit": "Изменить"
       },
       "status": {
         "pending": "Ожидает",
@@ -786,7 +830,8 @@
         "notFound": "Бронирование не найдено или уже удалено",
         "unauthorized": "Нет прав на удаление этого бронирования",
         "deleteError": "Не удалось удалить бронирование"
-      }
+      },
+      "newBooking": "Новое бронирование"
     }
   },
   "marketing": {
@@ -1220,7 +1265,8 @@
       "saveFailed": "Не удалось сохранить платёж",
       "deleteFailed": "Не удалось удалить платёж"
     },
-    "instructorLedgerTag": "ведомость инструктора"
+    "instructorLedgerTag": "ведомость инструктора",
+    "totalDeducted": "Всего удержано"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
@@ -1263,7 +1309,9 @@
         "membershipRevenue": "Доход от членства",
         "totalPurchases": "Всего покупок",
         "avgMembershipValue": "Ср. стоимость членства",
-        "outstanding": "Задолженность"
+        "outstanding": "Задолженность",
+        "managerCommission": "Комиссия менеджера",
+        "netMembershipRevenue": "Чистый доход от членства"
       }
     },
     "shop": {
@@ -1275,7 +1323,8 @@
         "totalRevenue": "Общий доход",
         "totalOrders": "Всего заказов",
         "costOfGoods": "Себестоимость",
-        "netProfit": "Чистая прибыль"
+        "netProfit": "Чистая прибыль",
+        "managerCommission": "Комиссия менеджера"
       }
     },
     "accommodation": {
@@ -1286,7 +1335,8 @@
         "accommodationRevenue": "Доход от размещения",
         "totalBookings": "Всего бронирований",
         "totalNights": "Всего ночей",
-        "avgRatePerNight": "Ср. тариф/ночь"
+        "avgRatePerNight": "Ср. тариф/ночь",
+        "managerCommission": "Комиссия менеджера"
       }
     },
     "events": {

@@ -9,7 +9,8 @@
     "earningsFocus": "Kazanç Özeti",
     "personalFinanceSummary": "Kişisel finans özeti",
     "createBooking": "Rezervasyon oluştur",
-    "quickLinks": "Hızlı bağlantılar"
+    "quickLinks": "Hızlı bağlantılar",
+    "view": "Görüntüle"
   },
   "hero": {
     "pendingEarnings": "Bekleyen kazançlar",
@@ -112,7 +113,8 @@
     "upcomingLessons": "Yaklaşan dersler",
     "session": "seans",
     "sessions": "seans",
-    "noLessonsScheduled": "Şu an planlanmış gelecek ders yok."
+    "noLessonsScheduled": "Şu an planlanmış gelecek ders yok.",
+    "category": "Kategori"
   },
   "ratings": {
     "rating": "değerlendirme",
@@ -251,7 +253,13 @@
     "connectedChats_other": "{{count}} bağlı sohbet",
     "confirmUnlink": "Bu sohbete bildirim göndermeyi durduralım mı?",
     "cancel": "İptal",
-    "linkedSuccess": "Telegram bağlandı!"
+    "linkedSuccess": "Telegram bağlandı!",
+    "inactive": "Yeniden bağlanmanız gerekiyor",
+    "sendTest": "Test mesajı gönder",
+    "testFailed": "Test mesajı gönderilemedi.",
+    "testNoActiveChats": "Mesaj gönderilecek aktif bir Telegram sohbeti yok.",
+    "testSent_one": "Test mesajı gönderildi — Telegram'ınızı kontrol edin.",
+    "testSent_other": "Test mesajı {{count}} sohbete gönderildi — Telegram'ınızı kontrol edin."
   },
   "profile": {
     "navItems": {

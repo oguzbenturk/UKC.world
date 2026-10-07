@@ -358,7 +358,12 @@
     "confirmPasswordRequired": "Veuillez confirmer votre mot de passe !",
     "passwordMismatch": "Les deux mots de passe que vous avez saisis ne correspondent pas !",
     "errorSaving": "Une erreur s'est produite lors de l'enregistrement de l'utilisateur.",
-    "selectRoleRequired": "Veuillez sélectionner un rôle avant de créer un utilisateur."
+    "selectRoleRequired": "Veuillez sélectionner un rôle avant de créer un utilisateur.",
+    "activateNow": "Activer maintenant",
+    "activationPrompt": "Choisissez comment ce client accède à son compte. La vérification d'identité vous revient : confirmez en personne et activez immédiatement, ou envoyez-lui un lien par e-mail pour qu'il confirme lui-même.",
+    "activationTitle": "Comment activer ce compte ?",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "sendActivationEmail": "Envoyer l'e-mail d'activation"
   },
   "chat": {
     "messagePlaceholder": "Message à Kai...",
@@ -727,7 +732,15 @@
       "percentageCommission": "Commission en pourcentage",
       "fixedCommission": "Commission fixe",
       "dateLabel": "Date",
-      "total": "Total"
+      "total": "Total",
+      "conflictDesc_one": "Ce moniteur a déjà {{count}} réservation qui chevauche le nouvel horaire ({{summary}}). Enregistrer quand même ?",
+      "conflictDesc_other": "Ce moniteur a déjà {{count}} réservations qui chevauchent le nouvel horaire ({{summary}}). Enregistrer quand même ?",
+      "conflictTitle": "Conflit sur ce créneau",
+      "serviceCapacityHintMulti": "Prestations adaptées à {{count}} participants.",
+      "serviceCapacityHintSingle": "Réservation pour un seul participant — seules les prestations privées peuvent être sélectionnées.",
+      "startTimeLabel": "Heure de début",
+      "startTimeRequired": "L'heure de début est obligatoire (HH:MM)",
+      "useDefaultRate": "Taux par défaut"
     },
     "groupDetail": {
       "title": "Réservation de groupe",
@@ -888,7 +901,15 @@
     "typeMessage": "Saisir un message...",
     "send": "Envoyer",
     "online": "En ligne",
-    "offline": "Hors ligne"
+    "offline": "Hors ligne",
+    "back": "Retour",
+    "close": "Fermer",
+    "directMessage": "Message direct",
+    "messageUser": "Envoyer un message",
+    "noConversationsDesc": "Les messages de l'équipe apparaîtront ici.",
+    "startConversation": "Dites bonjour pour commencer la conversation.",
+    "title": "Messages",
+    "you": "vous"
   },
   "windReport": {
     "title": "Rapport de Vent",
@@ -900,7 +921,11 @@
     "unit": {
       "knots": "nd",
       "kmh": "km/h",
-      "ms": "m/s"
+      "ms": "m/s",
+      "hpa": "hPa",
+      "mm": "mm",
+      "mmH": "mm/h",
+      "pct": "%"
     },
     "spots": {
       "alacati": "Alaçatı",
@@ -940,7 +965,8 @@
       "b": "GFS",
       "servedBy": "via Windguru",
       "modelA": "ECMWF · modèle européen",
-      "modelB": "GFS · modèle américain"
+      "modelB": "GFS · modèle américain",
+      "servedByPws": "via Weather Underground"
     },
     "agreement": {
       "title": "Accord entre modèles",
@@ -1039,6 +1065,91 @@
       "rising": "Le vent monte de {{start}} à {{peak}} nd — la fenêtre s'ouvre vers {{peakTime}}.",
       "falling": "Le vent faiblit après {{peakTime}} — planifiez les sessions plus tôt.",
       "tooLight": "Trop léger aujourd'hui (pic {{peak}} nd). Foil ou wing si possible."
+    },
+    "bestToday": {
+      "label": "Le meilleur aujourd'hui",
+      "none": "Rien de navigable aujourd'hui sur les spots.",
+      "peaks": "pic {{peak}} nd à {{time}}"
+    },
+    "card": {
+      "bestWindow": "Meilleur {{start}}–{{end}}",
+      "forecast": "Prévision sur 3 jours",
+      "hide": "Masquer",
+      "noWindow": "Pas de créneau net aujourd'hui",
+      "peak": "pic {{peak}} nd"
+    },
+    "colors": {
+      "title": "Signification des couleurs"
+    },
+    "featured": {
+      "yourBeach": "Votre plage"
+    },
+    "history": {
+      "empty": "Enregistrement en cours — l'historique se remplit au fil des relevés de la station.",
+      "error": "Historique indisponible pour le moment.",
+      "range": {
+        "1h": "1 h"
+      },
+      "recent": "Sur {{range}}",
+      "title": "Historique du vent"
+    },
+    "live": {
+      "dewpoint": "Point de rosée",
+      "dir": "Direction",
+      "feelsLike": "Ressenti",
+      "gust": "Rafale",
+      "gusty": "En rafales (rafale {{gust}})",
+      "hrsAgo_one": "il y a {{count}} h",
+      "hrsAgo_other": "il y a {{count}} h",
+      "humidity": "Humidité",
+      "justNow": "à l'instant",
+      "label": "En direct",
+      "lull": "Accalmie",
+      "minsAgo_one": "il y a {{count}} min",
+      "minsAgo_other": "il y a {{count}} min",
+      "more": "Plus de conditions",
+      "offline": "Station en direct hors ligne — prévision affichée ci-dessous.",
+      "precipAccum": "Précip. (aujourd'hui)",
+      "precipRate": "Intensité des précip.",
+      "pressure": "Pression",
+      "rigNow": "{{size}} m²",
+      "station": "Urla Kite Center · Gülbahçe",
+      "temp": "Temp.",
+      "updated": "Mis à jour {{time}}",
+      "uv": "UV",
+      "viaStation": "Station UKC n° {{id}}",
+      "viaStationPws": "Station UKC {{id}}"
+    },
+    "region": {
+      "away": "éloigné"
     }
+  },
+  "add": "Ajouter",
+  "customerSelf": {
+    "activateWarning": "⚠️ Ouvrez cet e-mail et cliquez sur « Définir votre mot de passe » pour choisir un mot de passe et activer votre compte. Vous ne pourrez pas vous connecter avant de l'avoir fait.",
+    "activationSentTo": "Nous avons envoyé un lien d'activation à :",
+    "registerAnother": "Inscrire une autre personne",
+    "submit": "S'inscrire",
+    "submitting": "Inscription en cours…",
+    "successSubtitle": "Nous vous avons envoyé un lien pour définir votre mot de passe et activer votre compte.",
+    "successTitle": "Presque terminé — consultez vos e-mails 📧",
+    "welcomeSubtitle": "Veuillez renseigner vos informations ci-dessous. Cela ne prend qu'une minute.",
+    "welcomeTitle": "Bienvenue ! 👋"
+  },
+  "invalid": "Invalide",
+  "invalidDate": "Date invalide",
+  "packages": {
+    "hoursUnit": "heures",
+    "rescue": {
+      "label": "Sauvetage",
+      "totalTrips": "Total des sorties",
+      "totalTripsTooltip": "Nombre de sorties de sauvetage incluses dans ce forfait — 1 sortie = 1 unité (facultatif)",
+      "tripsUnit": "sorties",
+      "tripsUnitShort": "sorties",
+      "tripsUnitTitle": "Sorties",
+      "tripUnitSingular": "sortie"
+    },
+    "totalLessonHours": "Total des heures de cours",
+    "totalLessonHoursTooltip": "Nombre d'heures de cours incluses dans ce forfait (facultatif)"
   }
 }

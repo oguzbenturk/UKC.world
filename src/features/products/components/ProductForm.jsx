@@ -705,8 +705,8 @@ const ProductForm = ({
                 valuePropName="checked"
               >
                 <Switch
-                  checkedChildren={t('common:yes', { defaultValue: 'Yes' })}
-                  unCheckedChildren={t('common:no', { defaultValue: 'No' })}
+                  checkedChildren={t('common:buttons.yes')}
+                  unCheckedChildren={t('common:buttons.no')}
                 />
               </Form.Item>
             </Col>

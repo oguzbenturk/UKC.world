@@ -9,7 +9,8 @@
     "earningsFocus": "Einnahmen-Fokus",
     "personalFinanceSummary": "Persönliche Finanzübersicht",
     "createBooking": "Buchung erstellen",
-    "quickLinks": "Schnelllinks"
+    "quickLinks": "Schnelllinks",
+    "view": "Ansehen"
   },
   "hero": {
     "pendingEarnings": "Ausstehende Einnahmen",
@@ -112,7 +113,8 @@
     "upcomingLessons": "Bevorstehende Lektionen",
     "session": "Sitzung",
     "sessions": "Sitzungen",
-    "noLessonsScheduled": "Derzeit sind keine zukünftigen Lektionen geplant."
+    "noLessonsScheduled": "Derzeit sind keine zukünftigen Lektionen geplant.",
+    "category": "Kategorie"
   },
   "ratings": {
     "rating": "Bewertung",
@@ -251,7 +253,13 @@
     "connectedChats_other": "{{count}} verbundene Chats",
     "confirmUnlink": "Benachrichtigungen an diesen Chat stoppen?",
     "cancel": "Abbrechen",
-    "linkedSuccess": "Telegram verknüpft!"
+    "linkedSuccess": "Telegram verknüpft!",
+    "inactive": "Erneute Verbindung erforderlich",
+    "sendTest": "Testnachricht senden",
+    "testFailed": "Testnachricht konnte nicht gesendet werden.",
+    "testNoActiveChats": "Keine aktiven Telegram-Chats zum Senden vorhanden.",
+    "testSent_one": "Testnachricht gesendet – sieh in Telegram nach.",
+    "testSent_other": "Testnachricht an {{count}} Chats gesendet – sieh in Telegram nach."
   },
   "profile": {
     "navItems": {

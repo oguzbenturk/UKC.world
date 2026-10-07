@@ -1011,6 +1011,11 @@
     "adminCta": {
       "text": "Du bist eingeloggt — sieh alle deine Anfragen an einem Ort",
       "button": "Zum Reparatur-Dashboard"
+    },
+    "warrantyCta": {
+      "eyebrow": "Garantie",
+      "subtitle": "Reiche einen Garantiefall mit Fotos und Videos ein – den Tracking-Link erhältst du per E-Mail.",
+      "title": "Herstellungsfehler mit Garantie?"
     }
   },
   "shop": {
@@ -1620,5 +1625,15 @@
       "uploadReceipt": "Bitte wähle ein Bankkonto und lade deinen Anzahlungsbeleg hoch.",
       "overlapBooking": "Der gewählte Zeitraum überschneidet sich mit einer bestehenden Buchung."
     }
+  },
+  "rescue": {
+    "empty": "Derzeit sind keine Rettungsdienste verfügbar.",
+    "loadError": "Rettungsdienste konnten nicht geladen werden. Bitte versuche es später erneut.",
+    "membersBadge": "⭐ Mitglieder {{pct}} % günstiger",
+    "priceOnRequest": "Preis auf Anfrage",
+    "seoDescription": "Rettungsboot-Unterstützung auf dem Wasser. Aktive Mitglieder sparen mit dem Mitgliederrabatt.",
+    "seoTitle": "Rettungsboot — Duotone Pro Center Urla",
+    "subtitle": "Rettung und Bootsunterstützung auf dem Wasser, wann immer du sie brauchst. Aktive Mitglieder erhalten einen Mitgliederrabatt.",
+    "title": "🚤 Rettungsboot"
   }
 }

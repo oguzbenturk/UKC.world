@@ -110,6 +110,21 @@
       },
       "empty": "No commission records found",
       "total": "{{count}} records"
+    },
+    "membershipDetail": {
+      "beachBase": "Beach fees (base)",
+      "beachBaseCol": "Beach base",
+      "beachCommission": "Beach-fee commission",
+      "byCustomer": "By customer",
+      "byOffering": "By offering",
+      "customer": "Customer",
+      "membershipsCol": "Memberships",
+      "offering": "Offering",
+      "sold": "Memberships sold",
+      "soldCol": "Sold",
+      "storageExclCol": "Storage excl.",
+      "storageExcluded": "Storage (excluded)",
+      "title": "Membership earnings — detail"
     }
   },
   "commissionSettings": {
@@ -566,7 +581,8 @@
       "discontinued": "Discontinued",
       "allCreators": "All Creators",
       "createdBy": "Created by",
-      "lowStockOnly": "Low Stock Only"
+      "lowStockOnly": "Low Stock Only",
+      "allSubcategories": "All Types"
     },
     "showing": "Showing {{count}} of {{total}} products",
     "selected": "{{count}} selected",
@@ -679,7 +695,15 @@
       "namePlaceholder": "e.g., Duotone Rebel D/LAB 2026",
       "skuPlaceholder": "Auto-generated",
       "createCategory": "Create category",
-      "createSubcategory": "Create subcategory"
+      "createSubcategory": "Create subcategory",
+      "brandCreated": "Brand \"{{label}}\" added",
+      "categoryCreated": "Category \"{{label}}\" added",
+      "categoryCreateError": "Failed to create category",
+      "categoryRemoved": "Category removed",
+      "categoryRemoveError": "Failed to remove category",
+      "colorSizeStock": "Colour × Size stock",
+      "visibleToShop": "Visible to the Shop/customer",
+      "visibleToShopTooltip": "When off, this product is hidden from the customer-facing shop. Staff can still find it here in management."
     },
     "colorTable": {
       "colorCode": "Color Code",
@@ -705,6 +729,25 @@
       "emptyHint": "Click a size above or \"Add Variant\" to start.",
       "unitsAcrossSizes": "units across {{count}} size",
       "unitsAcrossSizesPlural": "units across {{count}} sizes"
+    },
+    "hiddenFromShop": "Hidden",
+    "variantMatrix": {
+      "addAll": "Add all presets",
+      "addColorsFirst": "Add at least one colour on the Product tab to build the colour x size stock grid.",
+      "addSize": "Add",
+      "addSizesHint": "Pick the sizes you stock above to build the grid, then enter how many of each colour you have.",
+      "allSizesAdded": "All preset sizes already added",
+      "colorHeader": "Colour",
+      "costPerSize": "Cost price / size",
+      "customSize": "Custom size...",
+      "legacyNotice": "Heads up: this product had stock that was not tied to a colour. Re-enter the quantities per colour above. The old per-size totals were: {{summary}}.",
+      "photoTip": "Photos linked to this colour (shown on the storefront when selected)",
+      "pricePerSize": "Selling price / size",
+      "removeSize": "Remove this size column",
+      "rowTotal": "Total",
+      "sizeExists": "\"{{size}}\" is already a column",
+      "sizesLabel": "Sizes (columns)",
+      "totalUnits": "units in stock"
     }
   },
   "accommodation": {
@@ -756,7 +799,8 @@
         "confirm": "Confirm",
         "complete": "Complete",
         "cancel": "Cancel",
-        "delete": "Delete"
+        "delete": "Delete",
+        "edit": "Edit"
       },
       "status": {
         "pending": "Pending",
@@ -1222,7 +1266,8 @@
       "saveFailed": "Failed to save payment",
       "deleteFailed": "Failed to delete payment"
     },
-    "instructorLedgerTag": "instructor ledger"
+    "instructorLedgerTag": "instructor ledger",
+    "totalDeducted": "Total Deducted"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
@@ -1265,7 +1310,9 @@
         "membershipRevenue": "Membership Revenue",
         "totalPurchases": "Total Purchases",
         "avgMembershipValue": "Avg Membership Value",
-        "outstanding": "Outstanding"
+        "outstanding": "Outstanding",
+        "managerCommission": "Manager Commission",
+        "netMembershipRevenue": "Net Membership Revenue"
       }
     },
     "shop": {
@@ -1277,7 +1324,8 @@
         "totalRevenue": "Total Revenue",
         "totalOrders": "Total Orders",
         "costOfGoods": "Cost of Goods",
-        "netProfit": "Net Profit"
+        "netProfit": "Net Profit",
+        "managerCommission": "Manager Commission"
       }
     },
     "accommodation": {
@@ -1288,7 +1336,8 @@
         "accommodationRevenue": "Accommodation Revenue",
         "totalBookings": "Total Bookings",
         "totalNights": "Total Nights",
-        "avgRatePerNight": "Avg. Rate/Night"
+        "avgRatePerNight": "Avg. Rate/Night",
+        "managerCommission": "Manager Commission"
       }
     },
     "events": {

@@ -597,10 +597,11 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
           const confirmed = await new Promise((resolve) => {
             Modal.confirm({
               title: t('common:bookings.detail.conflictTitle', 'Time slot has conflicts'),
-              content: t(
-                'common:bookings.detail.conflictDesc',
-                `This instructor already has ${otherConflicts.length} booking(s) overlapping with the new time (${summary}). Save anyway?`
-              ),
+              content: t('common:bookings.detail.conflictDesc', {
+                count: otherConflicts.length,
+                summary,
+                defaultValue: `This instructor already has ${otherConflicts.length} booking(s) overlapping with the new time (${summary}). Save anyway?`,
+              }),
               okText: t('common:buttons.save', 'Save anyway'),
               cancelText: t('common:buttons.cancel', 'Cancel'),
               okButtonProps: { danger: true },
@@ -1094,7 +1095,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                               label={t('common:bookings.detail.service')}
                               hint={participantCount === 1
                                 ? t('common:bookings.detail.serviceCapacityHintSingle', 'Single-participant booking — only private services can be selected.')
-                                : t('common:bookings.detail.serviceCapacityHintMulti', `Showing services that fit ${participantCount} participants.`)}
+                                : t('common:bookings.detail.serviceCapacityHintMulti', { count: participantCount, defaultValue: `Showing services that fit ${participantCount} participants.` })}
                             >
                               <select
                                 className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 disabled:bg-slate-50 disabled:text-slate-400 transition-colors"

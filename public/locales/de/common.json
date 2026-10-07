@@ -354,7 +354,12 @@
     "confirmPasswordRequired": "Bitte bestätigen Sie Ihr Passwort!",
     "passwordMismatch": "Die beiden eingegebenen Passwörter stimmen nicht überein!",
     "errorSaving": "Beim Speichern des Benutzers ist ein Fehler aufgetreten.",
-    "selectRoleRequired": "Bitte wählen Sie vor dem Erstellen eines Benutzers eine Rolle aus."
+    "selectRoleRequired": "Bitte wählen Sie vor dem Erstellen eines Benutzers eine Rolle aus.",
+    "activateNow": "Jetzt aktivieren",
+    "activationPrompt": "Wähle, wie dieser Kunde Zugang erhält. Die Identitätsprüfung liegt bei dir — persönlich bestätigen und sofort aktivieren oder einen E-Mail-Link senden, damit der Kunde selbst bestätigt.",
+    "activationTitle": "Wie soll dieses Konto aktiviert werden?",
+    "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+    "sendActivationEmail": "Aktivierungs-E-Mail senden"
   },
   "chat": {
     "messagePlaceholder": "Nachricht an Kai...",
@@ -723,7 +728,15 @@
       "percentageCommission": "Prozentuate Provision",
       "fixedCommission": "Feste Provision",
       "dateLabel": "Datum",
-      "total": "Gesamt"
+      "total": "Gesamt",
+      "conflictDesc_one": "Dieser Lehrer hat bereits {{count}} Buchung, die sich mit der neuen Zeit überschneidet ({{summary}}). Trotzdem speichern?",
+      "conflictDesc_other": "Dieser Lehrer hat bereits {{count}} Buchungen, die sich mit der neuen Zeit überschneiden ({{summary}}). Trotzdem speichern?",
+      "conflictTitle": "Zeitfenster hat Konflikte",
+      "serviceCapacityHintMulti": "Es werden Leistungen für {{count}} Teilnehmer angezeigt.",
+      "serviceCapacityHintSingle": "Buchung für eine Person — nur Privatleistungen sind wählbar.",
+      "startTimeLabel": "Startzeit",
+      "startTimeRequired": "Startzeit ist erforderlich (HH:MM)",
+      "useDefaultRate": "Standardsatz"
     },
     "groupDetail": {
       "title": "Gruppenbuchung",
@@ -884,7 +897,15 @@
     "typeMessage": "Nachricht eingeben...",
     "send": "Senden",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "back": "Zurück",
+    "close": "Schließen",
+    "directMessage": "Direktnachricht",
+    "messageUser": "Nachricht senden",
+    "noConversationsDesc": "Nachrichten vom Team erscheinen hier.",
+    "startConversation": "Sag Hallo, um das Gespräch zu beginnen.",
+    "title": "Nachrichten",
+    "you": "du"
   },
   "windReport": {
     "title": "Windbericht",
@@ -896,7 +917,11 @@
     "unit": {
       "knots": "kn",
       "kmh": "km/h",
-      "ms": "m/s"
+      "ms": "m/s",
+      "hpa": "hPa",
+      "mm": "mm",
+      "mmH": "mm/h",
+      "pct": "%"
     },
     "spots": {
       "alacati": "Alaçatı",
@@ -948,7 +973,8 @@
       "b": "GFS",
       "servedBy": "via Windguru",
       "modelA": "ECMWF · europäisches Modell",
-      "modelB": "GFS · amerikanisches Modell"
+      "modelB": "GFS · amerikanisches Modell",
+      "servedByPws": "via Weather Underground"
     },
     "agreement": {
       "title": "Modell-Übereinstimmung",
@@ -1058,7 +1084,29 @@
         "good": "Es geht — ab aufs Wasser.",
         "strong": "Stark — kleiner kiten.",
         "extreme": "Zu stark — bleib sicher."
-      }
+      },
+      "dewpoint": "Taupunkt",
+      "dir": "Richtung",
+      "feelsLike": "Gefühlt",
+      "gust": "Böe",
+      "hrsAgo_one": "vor {{count}} Std.",
+      "hrsAgo_other": "vor {{count}} Std.",
+      "humidity": "Luftfeuchtigkeit",
+      "justNow": "gerade eben",
+      "label": "Jetzt live",
+      "lull": "Flaute",
+      "minsAgo_one": "vor {{count}} Min.",
+      "minsAgo_other": "vor {{count}} Min.",
+      "offline": "Live-Station offline — unten wird die Vorhersage angezeigt.",
+      "precipAccum": "Niederschlag (heute)",
+      "precipRate": "Niederschlagsrate",
+      "pressure": "Luftdruck",
+      "station": "Urla Kite Center · Gülbahçe",
+      "temp": "Temp.",
+      "updated": "Aktualisiert {{time}}",
+      "uv": "UV",
+      "viaStation": "UKC-Station #{{id}}",
+      "viaStationPws": "UKC-Station {{id}}"
     },
     "bestToday": {
       "label": "Heute am besten",
@@ -1085,5 +1133,33 @@
       "hourCell": "{{time}}, {{wind}} Knoten, Böen {{gust}}, {{dir}}, {{band}}",
       "liveWind": "{{kts}} Knoten, {{state}}, aktualisiert {{updated}}"
     }
+  },
+  "add": "Hinzufügen",
+  "customerSelf": {
+    "activateWarning": "⚠️ Öffne diese E-Mail und klicke auf „Passwort festlegen“, um ein Passwort zu wählen und dein Konto zu aktivieren. Vorher kannst du dich nicht anmelden.",
+    "activationSentTo": "Wir haben einen Aktivierungslink gesendet an:",
+    "registerAnother": "Weitere Person registrieren",
+    "submit": "Registrieren",
+    "submitting": "Wird registriert…",
+    "successSubtitle": "Wir haben dir einen Link geschickt, mit dem du dein Passwort festlegen und dein Konto aktivieren kannst.",
+    "successTitle": "Fast geschafft — schau in dein E-Mail-Postfach 📧",
+    "welcomeSubtitle": "Bitte gib unten deine Daten ein. Es dauert nur eine Minute.",
+    "welcomeTitle": "Willkommen! 👋"
+  },
+  "invalid": "Ungültig",
+  "invalidDate": "Ungültiges Datum",
+  "packages": {
+    "hoursUnit": "Stunden",
+    "rescue": {
+      "label": "Rettung",
+      "totalTrips": "Fahrten gesamt",
+      "totalTripsTooltip": "Anzahl der im Paket enthaltenen Rettungsfahrten — 1 Fahrt = 1 Einheit (optional)",
+      "tripsUnit": "Fahrten",
+      "tripsUnitShort": "Fahrten",
+      "tripsUnitTitle": "Fahrten",
+      "tripUnitSingular": "Fahrt"
+    },
+    "totalLessonHours": "Unterrichtsstunden gesamt",
+    "totalLessonHoursTooltip": "Anzahl der im Paket enthaltenen Unterrichtsstunden (optional)"
   }
 }

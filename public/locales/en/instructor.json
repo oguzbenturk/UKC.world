@@ -9,7 +9,8 @@
     "earningsFocus": "Earnings Focus",
     "personalFinanceSummary": "Personal finance summary",
     "createBooking": "Create booking",
-    "quickLinks": "Quick links"
+    "quickLinks": "Quick links",
+    "view": "View"
   },
   "hero": {
     "pendingEarnings": "Pending earnings",
@@ -112,7 +113,8 @@
     "upcomingLessons": "Upcoming lessons",
     "session": "session",
     "sessions": "sessions",
-    "noLessonsScheduled": "No future lessons are scheduled at the moment."
+    "noLessonsScheduled": "No future lessons are scheduled at the moment.",
+    "category": "Category"
   },
   "ratings": {
     "rating": "rating",
@@ -251,7 +253,13 @@
     "connectedChats_other": "{{count}} connected chats",
     "confirmUnlink": "Stop sending notifications to this chat?",
     "cancel": "Cancel",
-    "linkedSuccess": "Telegram linked!"
+    "linkedSuccess": "Telegram linked!",
+    "inactive": "Reconnect needed",
+    "sendTest": "Send test message",
+    "testFailed": "Failed to send test message.",
+    "testNoActiveChats": "No active Telegram chats to send to.",
+    "testSent_one": "Test message sent — check your Telegram.",
+    "testSent_other": "Test message sent to {{count}} chats — check your Telegram."
   },
   "profile": {
     "navItems": {

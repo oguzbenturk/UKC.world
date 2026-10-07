@@ -1625,5 +1625,15 @@
       "uploadReceipt": "Please select a bank account and upload your deposit receipt.",
       "overlapBooking": "Selected range overlaps with an existing booking."
     }
+  },
+  "rescue": {
+    "empty": "No rescue services are available right now.",
+    "loadError": "Could not load rescue services. Please try again later.",
+    "membersBadge": "⭐ Members {{pct}}% off",
+    "priceOnRequest": "Price on request",
+    "seoDescription": "On-water rescue boat support. Active members save with a member discount.",
+    "seoTitle": "Rescue Boat — Duotone Pro Center Urla",
+    "subtitle": "On-water rescue and boat support when you need it. Active members enjoy a member discount.",
+    "title": "🚤 Rescue Boat"
   }
 }

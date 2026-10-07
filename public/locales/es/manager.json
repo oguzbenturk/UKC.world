@@ -110,6 +110,21 @@
       },
       "empty": "No se encontraron registros de comisión",
       "total": "{{count}} registros"
+    },
+    "membershipDetail": {
+      "beachBase": "Tarifas de playa (base)",
+      "beachBaseCol": "Base playa",
+      "beachCommission": "Comisión por tarifas de playa",
+      "byCustomer": "Por cliente",
+      "byOffering": "Por oferta",
+      "customer": "Cliente",
+      "membershipsCol": "Membresías",
+      "offering": "Oferta",
+      "sold": "Membresías vendidas",
+      "soldCol": "Vendidas",
+      "storageExclCol": "Almacén excl.",
+      "storageExcluded": "Almacenamiento (excluido)",
+      "title": "Ganancias por membresías: detalle"
     }
   },
   "commissionSettings": {
@@ -566,7 +581,8 @@
       "discontinued": "Descontinuado",
       "allCreators": "Todos los creadores",
       "createdBy": "Creado por",
-      "lowStockOnly": "Solo stock bajo"
+      "lowStockOnly": "Solo stock bajo",
+      "allSubcategories": "Todos los tipos"
     },
     "showing": "Mostrando {{count}} de {{total}} productos",
     "selected": "{{count}} seleccionado(s)",
@@ -679,7 +695,15 @@
       "namePlaceholder": "ej. Duotone Rebel D/LAB 2026",
       "skuPlaceholder": "Generado automáticamente",
       "createCategory": "Crear categoría",
-      "createSubcategory": "Crear subcategoría"
+      "createSubcategory": "Crear subcategoría",
+      "brandCreated": "Marca «{{label}}» añadida",
+      "categoryCreated": "Categoría «{{label}}» añadida",
+      "categoryCreateError": "No se pudo crear la categoría",
+      "categoryRemoved": "Categoría eliminada",
+      "categoryRemoveError": "No se pudo eliminar la categoría",
+      "colorSizeStock": "Stock por color × talla",
+      "visibleToShop": "Visible en la tienda / para clientes",
+      "visibleToShopTooltip": "Si está desactivado, el producto se oculta en la tienda para clientes. El personal puede seguir encontrándolo aquí, en la gestión."
     },
     "colorTable": {
       "colorCode": "Código de color",
@@ -705,6 +729,25 @@
       "emptyHint": "Haz clic en una talla arriba o en «Añadir variante» para empezar.",
       "unitsAcrossSizes": "unidad en {{count}} talla",
       "unitsAcrossSizesPlural": "unidades en {{count}} tallas"
+    },
+    "hiddenFromShop": "Oculto",
+    "variantMatrix": {
+      "addAll": "Añadir todas las predefinidas",
+      "addColorsFirst": "Añade al menos un color en la pestaña Producto para crear la tabla de stock color × talla.",
+      "addSize": "Añadir",
+      "addSizesHint": "Elige arriba las tallas que tienes en stock para crear la tabla y luego indica cuántas unidades tienes de cada color.",
+      "allSizesAdded": "Ya se han añadido todas las tallas predefinidas",
+      "colorHeader": "Color",
+      "costPerSize": "Precio de coste / talla",
+      "customSize": "Talla personalizada...",
+      "legacyNotice": "Atención: este producto tenía stock no asociado a ningún color. Vuelve a introducir las cantidades por color arriba. Los totales anteriores por talla eran: {{summary}}.",
+      "photoTip": "Fotos vinculadas a este color (se muestran en la tienda al seleccionarlo)",
+      "pricePerSize": "Precio de venta / talla",
+      "removeSize": "Quitar esta columna de talla",
+      "rowTotal": "Total",
+      "sizeExists": "«{{size}}» ya es una columna",
+      "sizesLabel": "Tallas (columnas)",
+      "totalUnits": "unidades en stock"
     }
   },
   "accommodation": {
@@ -754,7 +797,8 @@
         "confirm": "Confirmar",
         "complete": "Completar",
         "cancel": "Cancelar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "edit": "Editar"
       },
       "status": {
         "pending": "Pendiente",
@@ -786,7 +830,8 @@
         "notFound": "Reserva no encontrada o ya eliminada",
         "unauthorized": "No autorizado para eliminar esta reserva",
         "deleteError": "Error al eliminar la reserva"
-      }
+      },
+      "newBooking": "Nueva reserva"
     }
   },
   "marketing": {
@@ -1220,7 +1265,8 @@
       "saveFailed": "No se pudo guardar el pago",
       "deleteFailed": "No se pudo eliminar el pago"
     },
-    "instructorLedgerTag": "libro del instructor"
+    "instructorLedgerTag": "libro del instructor",
+    "totalDeducted": "Total deducido"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
@@ -1263,7 +1309,9 @@
         "membershipRevenue": "Ingresos de membresía",
         "totalPurchases": "Total compras",
         "avgMembershipValue": "Valor medio membresía",
-        "outstanding": "Pendiente"
+        "outstanding": "Pendiente",
+        "managerCommission": "Comisión del gerente",
+        "netMembershipRevenue": "Ingresos netos de membresía"
       }
     },
     "shop": {
@@ -1275,7 +1323,8 @@
         "totalRevenue": "Ingresos totales",
         "totalOrders": "Total pedidos",
         "costOfGoods": "Coste de bienes",
-        "netProfit": "Beneficio neto"
+        "netProfit": "Beneficio neto",
+        "managerCommission": "Comisión del gerente"
       }
     },
     "accommodation": {
@@ -1286,7 +1335,8 @@
         "accommodationRevenue": "Ingresos de alojamiento",
         "totalBookings": "Total reservas",
         "totalNights": "Total noches",
-        "avgRatePerNight": "Tarifa media/noche"
+        "avgRatePerNight": "Tarifa media/noche",
+        "managerCommission": "Comisión del gerente"
       }
     },
     "events": {

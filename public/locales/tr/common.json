@@ -361,7 +361,12 @@
     "confirmPasswordRequired": "Lütfen şifrenizi onaylayın!",
     "passwordMismatch": "Girdiğiniz iki şifre eşleşmiyor!",
     "errorSaving": "Kullanıcı kaydedilirken bir hata oluştu.",
-    "selectRoleRequired": "Lütfen kullanıcı oluşturmadan önce bir rol seçin."
+    "selectRoleRequired": "Lütfen kullanıcı oluşturmadan önce bir rol seçin.",
+    "activateNow": "Şimdi etkinleştir",
+    "activationPrompt": "Bu müşterinin hesaba nasıl erişeceğini seçin. Kimlik doğrulama sizin kararınız — yüz yüze doğrulayıp hemen etkinleştirin ya da müşterinin kendisi onaylaması için e-posta bağlantısı gönderin.",
+    "activationTitle": "Bu hesap nasıl etkinleştirilsin?",
+    "passwordTooShort": "Şifre en az 8 karakter olmalıdır",
+    "sendActivationEmail": "Etkinleştirme e-postası gönder"
   },
   "chat": {
     "messagePlaceholder": "Kai'ye mesaj yaz...",
@@ -730,7 +735,15 @@
       "percentageCommission": "Yüzde komisyon",
       "fixedCommission": "Sabit tutar komisyonu",
       "dateLabel": "Tarih",
-      "total": "Toplam"
+      "total": "Toplam",
+      "conflictDesc_one": "Bu eğitmenin yeni saatle çakışan {{count}} rezervasyonu var ({{summary}}). Yine de kaydedilsin mi?",
+      "conflictDesc_other": "Bu eğitmenin yeni saatle çakışan {{count}} rezervasyonu var ({{summary}}). Yine de kaydedilsin mi?",
+      "conflictTitle": "Bu saat diliminde çakışma var",
+      "serviceCapacityHintMulti": "{{count}} katılımcıya uygun hizmetler gösteriliyor.",
+      "serviceCapacityHintSingle": "Tek katılımcılı rezervasyon — yalnızca özel hizmetler seçilebilir.",
+      "startTimeLabel": "Başlangıç saati",
+      "startTimeRequired": "Başlangıç saati zorunludur (SS:DD)",
+      "useDefaultRate": "Varsayılan oran"
     },
     "groupDetail": {
       "title": "Grup Rezervasyonu",
@@ -891,7 +904,15 @@
     "typeMessage": "Mesaj yazın...",
     "send": "Gönder",
     "online": "Çevrimiçi",
-    "offline": "Çevrimdışı"
+    "offline": "Çevrimdışı",
+    "back": "Geri",
+    "close": "Kapat",
+    "directMessage": "Doğrudan mesaj",
+    "messageUser": "Mesaj gönder",
+    "noConversationsDesc": "Ekibimizden gelen mesajlar burada görünecek.",
+    "startConversation": "Sohbeti başlatmak için merhaba deyin.",
+    "title": "Mesajlar",
+    "you": "siz"
   },
   "windReport": {
     "title": "Rüzgar Raporu",
@@ -1126,5 +1147,33 @@
       "hourCell": "{{time}}, {{wind}} knot, patlama {{gust}}, {{dir}}, {{band}}",
       "liveWind": "{{kts}} knot, {{state}}, {{updated}} güncellendi"
     }
+  },
+  "add": "Ekle",
+  "customerSelf": {
+    "activateWarning": "⚠️ Bu e-postayı açın ve şifrenizi belirleyip hesabınızı etkinleştirmek için \"Şifrenizi belirleyin\" bağlantısına tıklayın. Bunu yapana kadar giriş yapamazsınız.",
+    "activationSentTo": "Etkinleştirme bağlantısını şu adrese gönderdik:",
+    "registerAnother": "Başka birini kaydet",
+    "submit": "Kayıt ol",
+    "submitting": "Kaydediliyor…",
+    "successSubtitle": "Şifrenizi belirleyip hesabınızı etkinleştirmeniz için size bir bağlantı gönderdik.",
+    "successTitle": "Neredeyse bitti — e-postanızı kontrol edin 📧",
+    "welcomeSubtitle": "Lütfen bilgilerinizi aşağıya girin. Sadece bir dakikanızı alır.",
+    "welcomeTitle": "Hoş geldiniz! 👋"
+  },
+  "invalid": "Geçersiz",
+  "invalidDate": "Geçersiz tarih",
+  "packages": {
+    "hoursUnit": "saat",
+    "rescue": {
+      "label": "Kurtarma",
+      "totalTrips": "Toplam Sefer",
+      "totalTripsTooltip": "Bu pakete dahil kurtarma seferi sayısı — 1 sefer = 1 birim (isteğe bağlı)",
+      "tripsUnit": "sefer",
+      "tripsUnitShort": "sefer",
+      "tripsUnitTitle": "Sefer",
+      "tripUnitSingular": "sefer"
+    },
+    "totalLessonHours": "Toplam Ders Saati",
+    "totalLessonHoursTooltip": "Bu pakete dahil ders saati sayısı (isteğe bağlı)"
   }
 }

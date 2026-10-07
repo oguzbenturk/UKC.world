@@ -110,6 +110,21 @@
       },
       "empty": "Aucun enregistrement de commission trouvé",
       "total": "{{count}} enregistrements"
+    },
+    "membershipDetail": {
+      "beachBase": "Frais de plage (base)",
+      "beachBaseCol": "Base plage",
+      "beachCommission": "Commission sur les frais de plage",
+      "byCustomer": "Par client",
+      "byOffering": "Par offre",
+      "customer": "Client",
+      "membershipsCol": "Abonnements",
+      "offering": "Offre",
+      "sold": "Abonnements vendus",
+      "soldCol": "Vendus",
+      "storageExclCol": "Stockage exclu",
+      "storageExcluded": "Stockage (exclu)",
+      "title": "Gains sur les abonnements — détail"
     }
   },
   "commissionSettings": {
@@ -566,7 +581,8 @@
       "discontinued": "Abandonné",
       "allCreators": "Tous les créateurs",
       "createdBy": "Créé par",
-      "lowStockOnly": "Stock faible uniquement"
+      "lowStockOnly": "Stock faible uniquement",
+      "allSubcategories": "Tous les types"
     },
     "showing": "{{count}} sur {{total}} produits",
     "selected": "{{count}} sélectionné(s)",
@@ -679,7 +695,15 @@
       "namePlaceholder": "ex. Duotone Rebel D/LAB 2026",
       "skuPlaceholder": "Généré automatiquement",
       "createCategory": "Créer une catégorie",
-      "createSubcategory": "Créer une sous-catégorie"
+      "createSubcategory": "Créer une sous-catégorie",
+      "brandCreated": "Marque « {{label}} » ajoutée",
+      "categoryCreated": "Catégorie « {{label}} » ajoutée",
+      "categoryCreateError": "Impossible de créer la catégorie",
+      "categoryRemoved": "Catégorie supprimée",
+      "categoryRemoveError": "Impossible de supprimer la catégorie",
+      "colorSizeStock": "Stock couleur × taille",
+      "visibleToShop": "Visible dans la boutique / par les clients",
+      "visibleToShopTooltip": "Désactivé, ce produit est masqué dans la boutique client. L'équipe peut toujours le retrouver ici, dans la gestion."
     },
     "colorTable": {
       "colorCode": "Code couleur",
@@ -705,6 +729,25 @@
       "emptyHint": "Cliquez sur une taille ci-dessus ou sur « Ajouter une variante » pour commencer.",
       "unitsAcrossSizes": "unité sur {{count}} taille",
       "unitsAcrossSizesPlural": "unités sur {{count}} tailles"
+    },
+    "hiddenFromShop": "Masqué",
+    "variantMatrix": {
+      "addAll": "Ajouter toutes les tailles prédéfinies",
+      "addColorsFirst": "Ajoutez au moins une couleur dans l'onglet Produit pour créer la grille de stock couleur × taille.",
+      "addSize": "Ajouter",
+      "addSizesHint": "Choisissez ci-dessus les tailles en stock pour créer la grille, puis indiquez la quantité pour chaque couleur.",
+      "allSizesAdded": "Toutes les tailles prédéfinies sont déjà ajoutées",
+      "colorHeader": "Couleur",
+      "costPerSize": "Prix de revient / taille",
+      "customSize": "Taille personnalisée...",
+      "legacyNotice": "Attention : ce produit avait du stock non associé à une couleur. Saisissez à nouveau les quantités par couleur ci-dessus. Anciens totaux par taille : {{summary}}.",
+      "photoTip": "Photos associées à cette couleur (affichées dans la boutique lorsqu'elle est sélectionnée)",
+      "pricePerSize": "Prix de vente / taille",
+      "removeSize": "Supprimer cette colonne de taille",
+      "rowTotal": "Total",
+      "sizeExists": "« {{size}} » est déjà une colonne",
+      "sizesLabel": "Tailles (colonnes)",
+      "totalUnits": "unités en stock"
     }
   },
   "accommodation": {
@@ -754,7 +797,8 @@
         "confirm": "Confirmer",
         "complete": "Terminer",
         "cancel": "Annuler",
-        "delete": "Supprimer"
+        "delete": "Supprimer",
+        "edit": "Modifier"
       },
       "status": {
         "pending": "En Attente",
@@ -786,7 +830,8 @@
         "notFound": "Réservation introuvable ou déjà supprimée",
         "unauthorized": "Non autorisé à supprimer cette réservation",
         "deleteError": "Impossible de supprimer la réservation"
-      }
+      },
+      "newBooking": "Nouvelle réservation"
     }
   },
   "marketing": {
@@ -1220,7 +1265,8 @@
       "saveFailed": "Échec de l'enregistrement du paiement",
       "deleteFailed": "Échec de la suppression du paiement"
     },
-    "instructorLedgerTag": "registre instructeur"
+    "instructorLedgerTag": "registre instructeur",
+    "totalDeducted": "Total déduit"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
@@ -1263,7 +1309,9 @@
         "membershipRevenue": "Revenus abonnements",
         "totalPurchases": "Total achats",
         "avgMembershipValue": "Valeur moy. abonnement",
-        "outstanding": "En attente"
+        "outstanding": "En attente",
+        "managerCommission": "Commission manager",
+        "netMembershipRevenue": "Revenu net des abonnements"
       }
     },
     "shop": {
@@ -1275,7 +1323,8 @@
         "totalRevenue": "Chiffre d'affaires",
         "totalOrders": "Total commandes",
         "costOfGoods": "Coût des marchandises",
-        "netProfit": "Bénéfice net"
+        "netProfit": "Bénéfice net",
+        "managerCommission": "Commission manager"
       }
     },
     "accommodation": {
@@ -1286,7 +1335,8 @@
         "accommodationRevenue": "Revenus hébergement",
         "totalBookings": "Total réservations",
         "totalNights": "Total nuits",
-        "avgRatePerNight": "Tarif moy./nuit"
+        "avgRatePerNight": "Tarif moy./nuit",
+        "managerCommission": "Commission manager"
       }
     },
     "events": {

@@ -1035,7 +1035,7 @@ const InstructorMyProfileDrawer = () => {
 
           {/* Close */}
           <div className="p-1 border-t border-slate-200">
-            <Tooltip title={t('instructor:detailModal.close')} placement="right">
+            <Tooltip title={t('instructor:instructorsList.detailModal.close')} placement="right">
               <button
                 onClick={handleClose}
                 className="w-full flex items-center justify-center py-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer border-0 bg-transparent"
@@ -1113,7 +1113,7 @@ const InstructorMyProfileDrawer = () => {
               onClick={handleClose}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer border-0 bg-transparent"
             >
-              <CloseOutlined className="text-xs" /> {t('instructor:detailModal.close')}
+              <CloseOutlined className="text-xs" /> {t('instructor:instructorsList.detailModal.close')}
             </button>
           </div>
         </div>

@@ -1629,5 +1629,15 @@
       "uploadReceipt": "Lütfen bir banka hesabı seçin ve depozito dekontu yükleyin.",
       "overlapBooking": "Seçilen aralık mevcut bir rezervasyonla çakışıyor."
     }
+  },
+  "rescue": {
+    "empty": "Şu anda kullanılabilir bir kurtarma hizmeti bulunmuyor.",
+    "loadError": "Kurtarma hizmetleri yüklenemedi. Lütfen daha sonra tekrar deneyin.",
+    "membersBadge": "⭐ Üyelere %{{pct}} indirim",
+    "priceOnRequest": "Fiyat için bilgi alın",
+    "seoDescription": "Su üstünde kurtarma botu desteği. Aktif üyeler, üyelere özel indirimle tasarruf eder.",
+    "seoTitle": "Kurtarma Botu — Duotone Pro Center Urla",
+    "subtitle": "İhtiyaç duyduğunuzda su üstünde kurtarma ve bot desteği. Aktif üyeler üyelere özel indirimden yararlanır.",
+    "title": "🚤 Kurtarma Botu"
   }
 }

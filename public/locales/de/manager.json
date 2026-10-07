@@ -110,6 +110,21 @@
       },
       "empty": "Keine Provisionsdatensätze gefunden",
       "total": "{{count}} Datensätze"
+    },
+    "membershipDetail": {
+      "beachBase": "Strandgebühren (Basis)",
+      "beachBaseCol": "Strand-Basis",
+      "beachCommission": "Provision auf Strandgebühren",
+      "byCustomer": "Nach Kunde",
+      "byOffering": "Nach Angebot",
+      "customer": "Kunde",
+      "membershipsCol": "Mitgliedschaften",
+      "offering": "Angebot",
+      "sold": "Verkaufte Mitgliedschaften",
+      "soldCol": "Verkauft",
+      "storageExclCol": "Lagerung ausgen.",
+      "storageExcluded": "Lagerung (ausgenommen)",
+      "title": "Mitgliedschaftseinnahmen – Details"
     }
   },
   "commissionSettings": {
@@ -566,7 +581,8 @@
       "discontinued": "Eingestellt",
       "allCreators": "Alle Ersteller",
       "createdBy": "Erstellt von",
-      "lowStockOnly": "Nur niedriger Bestand"
+      "lowStockOnly": "Nur niedriger Bestand",
+      "allSubcategories": "Alle Typen"
     },
     "showing": "{{count}} von {{total}} Produkten",
     "selected": "{{count}} ausgewählt",
@@ -679,7 +695,15 @@
       "namePlaceholder": "z.B. Duotone Rebel D/LAB 2026",
       "skuPlaceholder": "Wird automatisch generiert",
       "createCategory": "Kategorie erstellen",
-      "createSubcategory": "Unterkategorie erstellen"
+      "createSubcategory": "Unterkategorie erstellen",
+      "brandCreated": "Marke „{{label}}“ hinzugefügt",
+      "categoryCreated": "Kategorie „{{label}}“ hinzugefügt",
+      "categoryCreateError": "Kategorie konnte nicht erstellt werden",
+      "categoryRemoved": "Kategorie entfernt",
+      "categoryRemoveError": "Kategorie konnte nicht entfernt werden",
+      "colorSizeStock": "Bestand nach Farbe × Größe",
+      "visibleToShop": "Im Shop für Kunden sichtbar",
+      "visibleToShopTooltip": "Wenn deaktiviert, ist dieses Produkt im Kunden-Shop ausgeblendet. Mitarbeitende finden es weiterhin hier in der Verwaltung."
     },
     "colorTable": {
       "colorCode": "Farbcode",
@@ -705,6 +729,25 @@
       "emptyHint": "Klicken Sie oben auf eine Größe oder auf «Variante hinzufügen», um zu beginnen.",
       "unitsAcrossSizes": "Einheit in {{count}} Größe",
       "unitsAcrossSizesPlural": "Einheiten in {{count}} Größen"
+    },
+    "hiddenFromShop": "Ausgeblendet",
+    "variantMatrix": {
+      "addAll": "Alle Vorgaben hinzufügen",
+      "addColorsFirst": "Füge im Tab „Produkt“ mindestens eine Farbe hinzu, um das Bestandsraster Farbe × Größe zu erstellen.",
+      "addSize": "Hinzufügen",
+      "addSizesHint": "Wähle oben die vorrätigen Größen aus, um das Raster zu erstellen, und gib dann die Stückzahl pro Farbe ein.",
+      "allSizesAdded": "Alle vordefinierten Größen sind bereits hinzugefügt",
+      "colorHeader": "Farbe",
+      "costPerSize": "Einkaufspreis / Größe",
+      "customSize": "Eigene Größe...",
+      "legacyNotice": "Hinweis: Dieses Produkt hatte Bestand, der keiner Farbe zugeordnet war. Gib die Mengen oben pro Farbe neu ein. Die bisherigen Summen pro Größe waren: {{summary}}.",
+      "photoTip": "Mit dieser Farbe verknüpfte Fotos (werden im Shop angezeigt, wenn sie ausgewählt ist)",
+      "pricePerSize": "Verkaufspreis / Größe",
+      "removeSize": "Diese Größenspalte entfernen",
+      "rowTotal": "Gesamt",
+      "sizeExists": "„{{size}}“ ist bereits eine Spalte",
+      "sizesLabel": "Größen (Spalten)",
+      "totalUnits": "Stück auf Lager"
     }
   },
   "accommodation": {
@@ -754,7 +797,8 @@
         "confirm": "Bestätigen",
         "complete": "Abschließen",
         "cancel": "Stornieren",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "edit": "Bearbeiten"
       },
       "status": {
         "pending": "Ausstehend",
@@ -786,7 +830,8 @@
         "notFound": "Buchung nicht gefunden oder bereits gelöscht",
         "unauthorized": "Nicht autorisiert, diese Buchung zu löschen",
         "deleteError": "Buchung konnte nicht gelöscht werden"
-      }
+      },
+      "newBooking": "Neue Buchung"
     }
   },
   "marketing": {
@@ -1220,7 +1265,8 @@
       "saveFailed": "Zahlung konnte nicht gespeichert werden",
       "deleteFailed": "Zahlung konnte nicht gelöscht werden"
     },
-    "instructorLedgerTag": "Kursleiter-Buch"
+    "instructorLedgerTag": "Kursleiter-Buch",
+    "totalDeducted": "Insgesamt abgezogen"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
@@ -1263,7 +1309,9 @@
         "membershipRevenue": "Mitgliedschaftseinnahmen",
         "totalPurchases": "Käufe gesamt",
         "avgMembershipValue": "Durchschn. Mitgliedschaftswert",
-        "outstanding": "Ausstehend"
+        "outstanding": "Ausstehend",
+        "managerCommission": "Manager-Provision",
+        "netMembershipRevenue": "Netto-Mitgliedschaftseinnahmen"
       }
     },
     "shop": {
@@ -1275,7 +1323,8 @@
         "totalRevenue": "Gesamtumsatz",
         "totalOrders": "Bestellungen gesamt",
         "costOfGoods": "Warenkosten",
-        "netProfit": "Nettogewinn"
+        "netProfit": "Nettogewinn",
+        "managerCommission": "Manager-Provision"
       }
     },
     "accommodation": {
@@ -1286,7 +1335,8 @@
         "accommodationRevenue": "Unterkunftseinnahmen",
         "totalBookings": "Buchungen gesamt",
         "totalNights": "Nächte gesamt",
-        "avgRatePerNight": "Durchschn. Preis/Nacht"
+        "avgRatePerNight": "Durchschn. Preis/Nacht",
+        "managerCommission": "Manager-Provision"
       }
     },
     "events": {

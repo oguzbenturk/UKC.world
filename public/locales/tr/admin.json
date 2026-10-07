@@ -1169,7 +1169,8 @@
       "purchased": "Satın Alındı",
       "expires": "Bitiş",
       "amount": "Tutar",
-      "never": "Asla"
+      "never": "Asla",
+      "actions": "İşlemler"
     },
     "status": {
       "active": "Aktif",
@@ -1189,7 +1190,8 @@
       "neverExpires": "Hiç sona ermez",
       "amountPaid": "Ödenen Tutar",
       "paymentMethod": "Ödeme Yöntemi",
-      "notes": "Notlar"
+      "notes": "Notlar",
+      "storageBox": "Dolap Kutusu"
     },
     "empty": {
       "noMembers": "Üye bulunamadı"
@@ -1211,7 +1213,16 @@
     "count_plural": "{{count}} üye",
     "totalMembers": "{{total}} üye",
     "toast": {
-      "assigned": "Üyelik başarıyla atandı!"
+      "assigned": "Üyelik başarıyla atandı!",
+      "updated": "Üyelik güncellendi",
+      "updateFailed": "Güncellenemedi"
+    },
+    "edit": {
+      "expires": "Bitiş tarihi",
+      "notes": "Notlar",
+      "paymentStatus": "Ödeme durumu",
+      "status": "Durum",
+      "title": "Üyeliği düzenle"
     }
   },
   "community": {
@@ -1423,7 +1434,8 @@
         "media": "Medya ({{n}})",
         "staff": "Ekip bağlantıları",
         "notes": "Notlar ve mesajlar",
-        "danger": "Tehlikeli bölge"
+        "danger": "Tehlikeli bölge",
+        "emails": "E-postalar"
       },
       "fields": {
         "customer": "Müşteri",
@@ -1442,7 +1454,8 @@
       "addTitle": "Dosya veya Ürün Faturası ekle",
       "addHint": "Fotoğraf, video veya PDF ekleyin — üreticinin Ürün Faturası / satın alma belgesi dahil. Belgeler yalnızca UKC ekibine görünür, müşteriye gösterilmez.",
       "uploadCta": "{{n}} dosya yükle",
-      "uploaded": "Dosyalar yüklendi."
+      "uploaded": "Dosyalar yüklendi.",
+      "downloadZip": "Tümünü indir (ZIP)"
     },
     "create": {
       "eyebrow": "UKC.Care",
@@ -1490,7 +1503,10 @@
       "staffRevoked": "Ekip bağlantısı iptal edildi.",
       "mediaDeleted": "Medya silindi.",
       "closed": "Talep kapatıldı.",
-      "deleted": "Talep silindi."
+      "deleted": "Talep silindi.",
+      "resendStaffEmail": "E-postayı yeniden gönder",
+      "save": "Kaydet",
+      "staffLinkResent": "Takip e-postası ekip üyesine yeniden gönderildi."
     },
     "danger": {
       "headsUp": "Bu işlemler kalıcıdır.",
@@ -1500,6 +1516,21 @@
       "delete": "Talebi sil",
       "deleteConfirm": "Bu talep kalıcı olarak silinsin ve tüm yüklenen medya temizlensin mi?",
       "copyCustomer": "Müşteri bağlantısını kopyala"
+    },
+    "claimNumber": {
+      "override": "Değiştir",
+      "placeholder": "örn. RMA-1234",
+      "saved": "Üretici talep numarası kaydedildi.",
+      "set": "Kaydet",
+      "setBy": "{{name}} tarafından girildi{{when}}"
+    },
+    "emails": {
+      "hint": "Bu dosya için gönderilen tüm e-postalar, e-posta sağlayıcısından (Resend) gelen anlık teslim durumuyla birlikte. \"Teslim edildi\" = alıcının e-posta sunucusuna ulaştı; \"Geri döndü\" = reddedildi; \"Gönderildi\" = iletildi, onay bekleniyor.",
+      "none": "Bu dosya için henüz e-posta gönderilmedi.",
+      "recipient": "Alıcı",
+      "status": "Durum",
+      "subject": "Konu",
+      "when": "Son güncelleme"
     }
   }
 }

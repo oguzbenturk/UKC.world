@@ -1149,7 +1149,9 @@
       "expired": "Abgelaufen",
       "cancelled": "Storniert",
       "from": "Von",
-      "to": "Bis"
+      "to": "Bis",
+      "allCategories": "Alle Arten",
+      "allDurations": "Alle Laufzeiten"
     },
     "table": {
       "member": "Mitglied",
@@ -1158,7 +1160,8 @@
       "purchased": "Gekauft",
       "expires": "Läuft ab",
       "amount": "Betrag",
-      "never": "Nie"
+      "never": "Nie",
+      "actions": "Aktionen"
     },
     "status": {
       "active": "Aktiv",
@@ -1178,7 +1181,8 @@
       "neverExpires": "Läuft nicht ab",
       "amountPaid": "Bezahlter Betrag",
       "paymentMethod": "Zahlungsmethode",
-      "notes": "Notizen"
+      "notes": "Notizen",
+      "storageBox": "Aufbewahrungsbox"
     },
     "empty": {
       "noMembers": "Keine Mitglieder gefunden"
@@ -1187,7 +1191,30 @@
     "count_plural": "{{count}} Mitglieder",
     "totalMembers": "{{total}} Mitglieder",
     "toast": {
-      "assigned": "Mitgliedschaft erfolgreich zugewiesen!"
+      "assigned": "Mitgliedschaft erfolgreich zugewiesen!",
+      "updated": "Mitgliedschaft aktualisiert",
+      "updateFailed": "Aktualisierung fehlgeschlagen"
+    },
+    "actions": {
+      "delete": "Löschen",
+      "discount": "Rabatt anwenden",
+      "edit": "Bearbeiten",
+      "view": "Ansehen"
+    },
+    "activeTitle": "Aktive Mitgliedschaften",
+    "delete": {
+      "confirm": "„{{name}}“ löschen? Eine Zahlung aus dem Guthaben wird dem Kunden erstattet und die Aufbewahrungsbox wird freigegeben. Die Mitgliedschaft bleibt zur Dokumentation als „storniert“ erhalten.",
+      "failed": "Mitgliedschaft konnte nicht gelöscht werden",
+      "noRefund": "Mitgliedschaft gelöscht. Es wurde keine Guthabenbelastung zur Erstattung gefunden – passe den Saldo bei Bedarf manuell an.",
+      "refunded": "Mitgliedschaft gelöscht · {{amount}} dem Guthaben erstattet",
+      "title": "Mitgliedschaft löschen"
+    },
+    "edit": {
+      "expires": "Läuft ab am",
+      "notes": "Notizen",
+      "paymentStatus": "Zahlungsstatus",
+      "status": "Status",
+      "title": "Mitgliedschaft bearbeiten"
     }
   },
   "community": {
@@ -1348,6 +1375,154 @@
         "digit": "Eine Zahl",
         "special": "Ein Sonderzeichen (@$!%*?&)"
       }
+    }
+  },
+  "warranty": {
+    "actions": {
+      "apply": "Übernehmen",
+      "cancel": "Abbrechen",
+      "changeStatus": "Status ändern",
+      "closed": "Fall geschlossen.",
+      "copied": "Link kopiert.",
+      "copyLink": "Link kopieren",
+      "customerUpdated": "Update an den Kunden gesendet.",
+      "delete": "Löschen",
+      "deleted": "Fall gelöscht.",
+      "linkResent": "Tracking-Link erneut gesendet.",
+      "mediaDeleted": "Medium gelöscht.",
+      "newClaim": "Neuer Fall",
+      "noteSaved": "Notiz gespeichert.",
+      "open": "Öffnen",
+      "refresh": "Aktualisieren",
+      "resendLink": "Kundenlink erneut senden",
+      "resendStaffEmail": "E-Mail erneut senden",
+      "revoke": "Widerrufen",
+      "revokeConfirm": "Diesen Mitarbeiter-Link widerrufen?",
+      "save": "Speichern",
+      "staffInvited": "Einladung an Mitarbeiter gesendet.",
+      "staffLinkResent": "Tracking-E-Mail erneut an den Mitarbeiter gesendet.",
+      "staffRevoked": "Mitarbeiter-Link widerrufen.",
+      "statusNote": "Optionale Nachricht an den Kunden",
+      "statusNotePlaceholder": "z. B. „Wir warten auf die Bestätigung des Herstellers…“",
+      "statusUpdated": "Status aktualisiert. Kunde benachrichtigt."
+    },
+    "claimNumber": {
+      "override": "Überschreiben",
+      "placeholder": "z. B. RMA-1234",
+      "saved": "Hersteller-Fallnummer gespeichert.",
+      "set": "Festlegen",
+      "setBy": "festgelegt von {{name}}{{when}}"
+    },
+    "create": {
+      "errorGeneric": "Der Fall konnte nicht erstellt werden.",
+      "eyebrow": "UKC.Care",
+      "fields": {
+        "externalClaim": "Hersteller-Fallnummer",
+        "externalClaimHint": "falls bereits vorhanden",
+        "language": "Sprache des Kunden"
+      },
+      "notify": {
+        "body": "Empfohlen. Der Kunde erhält eine E-Mail im UKC.Care-Design mit dem Tracking-Link.",
+        "title": "Tracking-Link per E-Mail an den Kunden senden"
+      },
+      "section": {
+        "case": "Fall",
+        "customer": "Kunde",
+        "media": "Medien (optional)",
+        "product": "Produkt"
+      },
+      "submit": "Fall erstellen",
+      "subtitle": "Erfasse einen Fall im Namen eines Kunden. Der Kunde erhält einen Tracking-Link per E-Mail.",
+      "success": "Garantiefall erstellt.",
+      "title": "Neuer Garantiefall"
+    },
+    "danger": {
+      "close": "Fall schließen",
+      "closeConfirm": "Diesen Fall schließen und den Kunden per E-Mail informieren?",
+      "copyCustomer": "Kundenlink kopieren",
+      "delete": "Fall löschen",
+      "deleteConfirm": "Diesen Fall endgültig löschen und alle hochgeladenen Medien entfernen?",
+      "description": "Beim Schließen eines Falls wird der Kunde benachrichtigt, und hochgeladene Fotos und Videos werden nach Abschluss des Falls vom Speicher gelöscht. Beim Löschen wird der Fall aus dem Dashboard ausgeblendet und die Medien werden sofort entfernt. Das Prüfprotokoll bleibt erhalten.",
+      "headsUp": "Diese Aktionen sind endgültig."
+    },
+    "detail": {
+      "activeStaff": "Aktive Mitarbeiter-Links",
+      "customerUpdate": "Nachricht an den Kunden senden",
+      "customerUpdatePlaceholder": "Nachricht eingeben – der Kunde sieht sie auf seiner Tracking-Seite und erhält eine E-Mail.",
+      "customerUpdateSend": "An Kunden senden",
+      "fields": {
+        "closed": "Geschlossen am",
+        "customer": "Kunde",
+        "issue": "Problembeschreibung",
+        "mfrClaim": "Hersteller-Fallnummer",
+        "model": "Modell / Seriennummer",
+        "phone": "Telefon",
+        "product": "Produkt",
+        "purchase": "Kauf",
+        "submitted": "Eingereicht"
+      },
+      "internalNote": "Notiz hinzufügen",
+      "inviteStaff": "Mitglied des Garantieteams einladen",
+      "loading": "Garantiefall",
+      "noStaffLinks": "Noch keine aktiven Mitarbeiter-Links.",
+      "notePlaceholder": "Notiz schreiben…",
+      "noteSubmit": "Notiz hinzufügen",
+      "noteVisible": "Für Kunden sichtbar",
+      "openTracking": "Tracking-Seite öffnen",
+      "revokedHidden": "Widerrufene Links bleiben für das Prüfprotokoll im Verlauf erhalten.",
+      "sendStaffInvite": "Einladung senden",
+      "sentAt": "Gesendet {{when}}",
+      "staffEmail": "E-Mail",
+      "staffName": "Name",
+      "tabs": {
+        "danger": "Gefahrenbereich",
+        "emails": "E-Mails",
+        "media": "Medien ({{n}})",
+        "notes": "Notizen & Nachrichten",
+        "overview": "Übersicht",
+        "staff": "Mitarbeiter-Links",
+        "timeline": "Verlauf"
+      }
+    },
+    "emails": {
+      "hint": "Alle E-Mails, die zu diesem Fall gesendet wurden, mit Live-Zustellstatus vom Mailanbieter (Resend). „Zugestellt“ = beim Mailserver des Empfängers angekommen; „Unzustellbar“ = abgelehnt; „Gesendet“ = übergeben, Bestätigung ausstehend.",
+      "none": "Zu diesem Fall wurden noch keine E-Mails gesendet.",
+      "recipient": "Empfänger",
+      "status": "Status",
+      "subject": "Betreff",
+      "when": "Letzte Aktualisierung"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "customer": "Kunde",
+        "media": "Medien",
+        "product": "Produkt",
+        "status": "Status",
+        "submitted": "Eingereicht"
+      },
+      "empty": "Noch keine Garantiefälle.",
+      "searchPlaceholder": "Nach Name, E-Mail, Code, Produkt suchen…",
+      "statusFilter": "Alle Status",
+      "title": "Garantiefälle"
+    },
+    "media": {
+      "addHint": "Füge Fotos, Videos oder ein PDF hinzu – auch die Herstellerrechnung / den Kaufbeleg. Dokumente bleiben intern beim UKC-Team und werden dem Kunden nicht angezeigt.",
+      "addTitle": "Dateien oder Produktrechnung hinzufügen",
+      "deletePrompt": "Diese Datei endgültig löschen?",
+      "downloadZip": "Alle herunterladen (ZIP)",
+      "uploadCta": "{{n}} Datei(en) hochladen",
+      "uploaded": "Dateien hochgeladen."
+    },
+    "stats": {
+      "awaitingCustomer": "Wartet auf Kunden",
+      "last7": "Letzte 7 Tage",
+      "open": "Offene Fälle",
+      "withManufacturer": "Beim Hersteller"
+    },
+    "tabs": {
+      "claims": "Fälle",
+      "spareParts": "Ersatzteile"
     }
   }
 }

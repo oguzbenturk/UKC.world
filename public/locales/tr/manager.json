@@ -110,6 +110,21 @@
       },
       "empty": "Komisyon kaydı bulunamadı",
       "total": "{{count}} kayıt"
+    },
+    "membershipDetail": {
+      "beachBase": "Plaj ücretleri (matrah)",
+      "beachBaseCol": "Plaj matrahı",
+      "beachCommission": "Plaj ücreti komisyonu",
+      "byCustomer": "Müşteriye göre",
+      "byOffering": "Pakete göre",
+      "customer": "Müşteri",
+      "membershipsCol": "Üyelikler",
+      "offering": "Paket",
+      "sold": "Satılan üyelikler",
+      "soldCol": "Satılan",
+      "storageExclCol": "Depolama hariç",
+      "storageExcluded": "Depolama (hariç)",
+      "title": "Üyelik kazançları — ayrıntı"
     }
   },
   "commissionSettings": {
@@ -566,7 +581,8 @@
       "discontinued": "Üretimi Durdurulan",
       "allCreators": "Tüm Oluşturanlar",
       "createdBy": "Oluşturan",
-      "lowStockOnly": "Yalnızca Düşük Stok"
+      "lowStockOnly": "Yalnızca Düşük Stok",
+      "allSubcategories": "Tüm Türler"
     },
     "showing": "{{total}} üründen {{count}} gösteriliyor",
     "selected": "{{count}} seçildi",
@@ -679,7 +695,15 @@
       "namePlaceholder": "ör. Duotone Rebel D/LAB 2026",
       "skuPlaceholder": "Otomatik oluşturulur",
       "createCategory": "Kategori oluştur",
-      "createSubcategory": "Alt kategori oluştur"
+      "createSubcategory": "Alt kategori oluştur",
+      "brandCreated": "\"{{label}}\" markası eklendi",
+      "categoryCreated": "\"{{label}}\" kategorisi eklendi",
+      "categoryCreateError": "Kategori oluşturulamadı",
+      "categoryRemoved": "Kategori kaldırıldı",
+      "categoryRemoveError": "Kategori kaldırılamadı",
+      "colorSizeStock": "Renk × Beden stoğu",
+      "visibleToShop": "Mağazada/müşteriye görünür",
+      "visibleToShopTooltip": "Kapalıyken bu ürün müşterilere açık mağazada gizlenir. Personel ürünü yine de buradan, yönetim panelinden bulabilir."
     },
     "colorTable": {
       "colorCode": "Renk Kodu",
@@ -705,6 +729,25 @@
       "emptyHint": "Başlamak için yukarıdan bir beden seçin veya \"Varyant Ekle\"ye tıklayın.",
       "unitsAcrossSizes": "{{count}} bedende adet",
       "unitsAcrossSizesPlural": "{{count}} bedende adet"
+    },
+    "hiddenFromShop": "Gizli",
+    "variantMatrix": {
+      "addAll": "Tüm hazır bedenleri ekle",
+      "addColorsFirst": "Renk × beden stok tablosunu oluşturmak için Ürün sekmesinde en az bir renk ekleyin.",
+      "addSize": "Ekle",
+      "addSizesHint": "Tabloyu oluşturmak için yukarıdan stokta bulunan bedenleri seçin, ardından her renkten kaç adet olduğunu girin.",
+      "allSizesAdded": "Tüm hazır bedenler zaten eklendi",
+      "colorHeader": "Renk",
+      "costPerSize": "Maliyet fiyatı / beden",
+      "customSize": "Özel beden...",
+      "legacyNotice": "Dikkat: Bu ürünün bir renge bağlı olmayan stoğu vardı. Lütfen miktarları yukarıda renk bazında yeniden girin. Eski beden bazlı toplamlar: {{summary}}.",
+      "photoTip": "Bu renge bağlı fotoğraflar (seçildiğinde mağazada gösterilir)",
+      "pricePerSize": "Satış fiyatı / beden",
+      "removeSize": "Bu beden sütununu kaldır",
+      "rowTotal": "Toplam",
+      "sizeExists": "\"{{size}}\" zaten bir sütun olarak var",
+      "sizesLabel": "Bedenler (sütunlar)",
+      "totalUnits": "adet stokta"
     }
   },
   "accommodation": {
@@ -754,7 +797,8 @@
         "confirm": "Onayla",
         "complete": "Tamamla",
         "cancel": "İptal Et",
-        "delete": "Sil"
+        "delete": "Sil",
+        "edit": "Düzenle"
       },
       "status": {
         "pending": "Beklemede",
@@ -786,7 +830,8 @@
         "notFound": "Rezervasyon bulunamadı veya zaten silindi",
         "unauthorized": "Bu rezervasyonu silme yetkiniz yok",
         "deleteError": "Rezervasyon silinemedi"
-      }
+      },
+      "newBooking": "Yeni Rezervasyon"
     }
   },
   "marketing": {
@@ -1220,7 +1265,8 @@
       "saveFailed": "Ödeme kaydedilemedi",
       "deleteFailed": "Ödeme silinemedi"
     },
-    "instructorLedgerTag": "eğitmen defteri"
+    "instructorLedgerTag": "eğitmen defteri",
+    "totalDeducted": "Toplam Kesinti"
   },
   "financePages": {
     "rangeLabel": "{{start}} – {{end}}",
@@ -1263,7 +1309,9 @@
         "membershipRevenue": "Üyelik Geliri",
         "totalPurchases": "Toplam Satın Alma",
         "avgMembershipValue": "Ort. Üyelik Değeri",
-        "outstanding": "Bekleyen"
+        "outstanding": "Bekleyen",
+        "managerCommission": "Yönetici Komisyonu",
+        "netMembershipRevenue": "Net Üyelik Geliri"
       }
     },
     "shop": {
@@ -1275,7 +1323,8 @@
         "totalRevenue": "Toplam Gelir",
         "totalOrders": "Toplam Sipariş",
         "costOfGoods": "Mal Maliyeti",
-        "netProfit": "Net Kâr"
+        "netProfit": "Net Kâr",
+        "managerCommission": "Yönetici Komisyonu"
       }
     },
     "accommodation": {
@@ -1286,7 +1335,8 @@
         "accommodationRevenue": "Konaklama Geliri",
         "totalBookings": "Toplam Rezervasyon",
         "totalNights": "Toplam Gece",
-        "avgRatePerNight": "Ort. Gecelik Ücret"
+        "avgRatePerNight": "Ort. Gecelik Ücret",
+        "managerCommission": "Yönetici Komisyonu"
       }
     },
     "events": {

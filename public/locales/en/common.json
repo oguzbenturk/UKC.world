@@ -357,7 +357,12 @@
     "confirmPasswordRequired": "Please confirm your password!",
     "passwordMismatch": "The two passwords that you entered do not match!",
     "errorSaving": "An error occurred while saving the user.",
-    "selectRoleRequired": "Please select a role before creating a user."
+    "selectRoleRequired": "Please select a role before creating a user.",
+    "activateNow": "Activate now",
+    "activationPrompt": "Choose how this customer should gain access. Identity is your call — confirm in person and activate immediately, or send them an email link so they confirm themselves.",
+    "activationTitle": "How should this account be activated?",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "sendActivationEmail": "Send activation email"
   },
   "chat": {
     "messagePlaceholder": "Message Kai...",
@@ -726,7 +731,15 @@
       "percentageCommission": "Percentage commission",
       "fixedCommission": "Fixed amount commission",
       "dateLabel": "Date",
-      "total": "Total"
+      "total": "Total",
+      "conflictDesc_one": "This instructor already has {{count}} booking overlapping with the new time ({{summary}}). Save anyway?",
+      "conflictDesc_other": "This instructor already has {{count}} bookings overlapping with the new time ({{summary}}). Save anyway?",
+      "conflictTitle": "Time slot has conflicts",
+      "serviceCapacityHintMulti": "Showing services that fit {{count}} participants.",
+      "serviceCapacityHintSingle": "Single-participant booking — only private services can be selected.",
+      "startTimeLabel": "Start time",
+      "startTimeRequired": "Start time is required (HH:MM)",
+      "useDefaultRate": "Default rate"
     },
     "groupDetail": {
       "title": "Group Booking",
@@ -1130,5 +1143,33 @@
       "hourCell": "{{time}}, {{wind}} knots, gusts {{gust}}, {{dir}}, {{band}}",
       "liveWind": "{{kts}} knots, {{state}}, updated {{updated}}"
     }
+  },
+  "add": "Add",
+  "customerSelf": {
+    "activateWarning": "⚠️ Open that email and click \"Set your password\" to choose a password and activate your account. You won't be able to log in until you do.",
+    "activationSentTo": "We've emailed an activation link to:",
+    "registerAnother": "Register another",
+    "submit": "Register",
+    "submitting": "Registering…",
+    "successSubtitle": "We've sent you a link to set your password and activate your account.",
+    "successTitle": "Almost done — check your email 📧",
+    "welcomeSubtitle": "Please fill in your details below. It only takes a minute.",
+    "welcomeTitle": "Welcome! 👋"
+  },
+  "invalid": "Invalid",
+  "invalidDate": "Invalid date",
+  "packages": {
+    "hoursUnit": "hours",
+    "rescue": {
+      "label": "Rescue",
+      "totalTrips": "Total Trips",
+      "totalTripsTooltip": "Number of rescue trips (sefer) included in this package — 1 trip = 1 unit (optional)",
+      "tripsUnit": "trips",
+      "tripsUnitShort": "trips",
+      "tripsUnitTitle": "Trips",
+      "tripUnitSingular": "trip"
+    },
+    "totalLessonHours": "Total Lesson Hours",
+    "totalLessonHoursTooltip": "Number of lesson hours included in this package (optional)"
   }
 }

@@ -1015,6 +1015,11 @@
     "adminCta": {
       "text": "Vous êtes connecté — voyez toutes vos demandes en un seul endroit",
       "button": "Aller au tableau de bord des réparations"
+    },
+    "warrantyCta": {
+      "eyebrow": "Garantie",
+      "subtitle": "Ouvrez une demande de garantie avec photos et vidéos — vous recevrez un lien de suivi par e-mail.",
+      "title": "Un défaut de fabrication sous garantie ?"
     }
   },
   "shop": {
@@ -1624,5 +1629,15 @@
       "uploadReceipt": "Veuillez sélectionner un compte bancaire et télécharger votre reçu de dépôt.",
       "overlapBooking": "La plage sélectionnée chevauche une réservation existante."
     }
+  },
+  "rescue": {
+    "empty": "Aucun service de sauvetage n'est disponible pour le moment.",
+    "loadError": "Impossible de charger les services de sauvetage. Veuillez réessayer plus tard.",
+    "membersBadge": "⭐ Membres : -{{pct}} %",
+    "priceOnRequest": "Prix sur demande",
+    "seoDescription": "Assistance en bateau de sauvetage sur l'eau. Les membres actifs bénéficient d'une remise membre.",
+    "seoTitle": "Bateau de sauvetage — Duotone Pro Center Urla",
+    "subtitle": "Sauvetage et assistance en bateau sur l'eau, quand vous en avez besoin. Les membres actifs bénéficient d'une remise membre.",
+    "title": "🚤 Bateau de sauvetage"
   }
 }

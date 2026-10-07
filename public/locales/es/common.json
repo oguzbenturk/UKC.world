@@ -358,7 +358,12 @@
     "confirmPasswordRequired": "Por favor, confirma tu contraseña.",
     "passwordMismatch": "Las dos contraseñas que introdujiste no coinciden.",
     "errorSaving": "Ocurrió un error al guardar el usuario.",
-    "selectRoleRequired": "Por favor, selecciona un rol antes de crear un usuario."
+    "selectRoleRequired": "Por favor, selecciona un rol antes de crear un usuario.",
+    "activateNow": "Activar ahora",
+    "activationPrompt": "Elige cómo accederá este cliente. La verificación de identidad depende de ti: confírmala en persona y activa la cuenta al instante, o envíale un enlace por correo para que la confirme él mismo.",
+    "activationTitle": "¿Cómo debe activarse esta cuenta?",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+    "sendActivationEmail": "Enviar correo de activación"
   },
   "chat": {
     "messagePlaceholder": "Mensaje a Kai...",
@@ -727,7 +732,15 @@
       "percentageCommission": "Comisión porcentual",
       "fixedCommission": "Comisión fija",
       "dateLabel": "Fecha",
-      "total": "Total"
+      "total": "Total",
+      "conflictDesc_one": "Este instructor ya tiene {{count}} reserva que se solapa con el nuevo horario ({{summary}}). ¿Guardar de todos modos?",
+      "conflictDesc_other": "Este instructor ya tiene {{count}} reservas que se solapan con el nuevo horario ({{summary}}). ¿Guardar de todos modos?",
+      "conflictTitle": "Hay conflictos en este horario",
+      "serviceCapacityHintMulti": "Mostrando servicios para {{count}} participantes.",
+      "serviceCapacityHintSingle": "Reserva de un solo participante: solo se pueden seleccionar servicios privados.",
+      "startTimeLabel": "Hora de inicio",
+      "startTimeRequired": "La hora de inicio es obligatoria (HH:MM)",
+      "useDefaultRate": "Tarifa predeterminada"
     },
     "groupDetail": {
       "title": "Reserva grupal",
@@ -888,7 +901,15 @@
     "typeMessage": "Escriba un mensaje...",
     "send": "Enviar",
     "online": "En línea",
-    "offline": "Sin conexión"
+    "offline": "Sin conexión",
+    "back": "Volver",
+    "close": "Cerrar",
+    "directMessage": "Mensaje directo",
+    "messageUser": "Enviar un mensaje",
+    "noConversationsDesc": "Los mensajes del equipo aparecerán aquí.",
+    "startConversation": "Saluda para empezar la conversación.",
+    "title": "Mensajes",
+    "you": "tú"
   },
   "windReport": {
     "title": "Informe de Viento",
@@ -900,7 +921,11 @@
     "unit": {
       "knots": "kn",
       "kmh": "km/h",
-      "ms": "m/s"
+      "ms": "m/s",
+      "hpa": "hPa",
+      "mm": "mm",
+      "mmH": "mm/h",
+      "pct": "%"
     },
     "spots": {
       "alacati": "Alaçatı",
@@ -940,7 +965,8 @@
       "b": "GFS",
       "servedBy": "vía Windguru",
       "modelA": "ECMWF · modelo europeo",
-      "modelB": "GFS · modelo americano"
+      "modelB": "GFS · modelo americano",
+      "servedByPws": "vía Weather Underground"
     },
     "agreement": {
       "title": "Acuerdo entre modelos",
@@ -1039,6 +1065,91 @@
       "rising": "El viento sube de {{start}} a {{peak}} kn — la ventana se abre sobre las {{peakTime}}.",
       "falling": "El viento cae tras las {{peakTime}} — planifica sesiones temprano.",
       "tooLight": "Demasiado flojo hoy (pico {{peak}} kn). Foil o wing si acaso."
+    },
+    "bestToday": {
+      "label": "Lo mejor de hoy",
+      "none": "Hoy no hay viento navegable en ningún spot.",
+      "peaks": "máx. {{peak}} kn a las {{time}}"
+    },
+    "card": {
+      "bestWindow": "Mejor {{start}}–{{end}}",
+      "forecast": "Pronóstico de 3 días",
+      "hide": "Ocultar",
+      "noWindow": "Hoy no hay una ventana clara",
+      "peak": "máx. {{peak}} kn"
+    },
+    "colors": {
+      "title": "Qué significan los colores"
+    },
+    "featured": {
+      "yourBeach": "Tu playa"
+    },
+    "history": {
+      "empty": "Grabando: el historial se completa a medida que informa la estación.",
+      "error": "Historial no disponible en este momento.",
+      "range": {
+        "1h": "1 h"
+      },
+      "recent": "Últ. {{range}}",
+      "title": "Historial del viento"
+    },
+    "live": {
+      "dewpoint": "Punto de rocío",
+      "dir": "Dirección",
+      "feelsLike": "Sensación",
+      "gust": "Racha",
+      "gusty": "Racheado (racha {{gust}})",
+      "hrsAgo_one": "hace {{count}} h",
+      "hrsAgo_other": "hace {{count}} h",
+      "humidity": "Humedad",
+      "justNow": "ahora mismo",
+      "label": "En directo",
+      "lull": "Calma",
+      "minsAgo_one": "hace {{count}} min",
+      "minsAgo_other": "hace {{count}} min",
+      "more": "Más condiciones",
+      "offline": "Estación en directo sin conexión: se muestra el pronóstico abajo.",
+      "precipAccum": "Precip. (hoy)",
+      "precipRate": "Intensidad de precip.",
+      "pressure": "Presión",
+      "rigNow": "{{size}} m²",
+      "station": "Urla Kite Center · Gülbahçe",
+      "temp": "Temp.",
+      "updated": "Actualizado {{time}}",
+      "uv": "UV",
+      "viaStation": "Estación UKC #{{id}}",
+      "viaStationPws": "Estación UKC {{id}}"
+    },
+    "region": {
+      "away": "lejos"
     }
+  },
+  "add": "Añadir",
+  "customerSelf": {
+    "activateWarning": "⚠️ Abre ese correo y haz clic en «Establecer tu contraseña» para elegir una contraseña y activar tu cuenta. No podrás iniciar sesión hasta hacerlo.",
+    "activationSentTo": "Hemos enviado un enlace de activación a:",
+    "registerAnother": "Registrar a otra persona",
+    "submit": "Registrarse",
+    "submitting": "Registrando…",
+    "successSubtitle": "Te hemos enviado un enlace para establecer tu contraseña y activar tu cuenta.",
+    "successTitle": "Casi listo: revisa tu correo 📧",
+    "welcomeSubtitle": "Rellena tus datos a continuación. Solo te llevará un minuto.",
+    "welcomeTitle": "¡Bienvenido! 👋"
+  },
+  "invalid": "No válido",
+  "invalidDate": "Fecha no válida",
+  "packages": {
+    "hoursUnit": "horas",
+    "rescue": {
+      "label": "Rescate",
+      "totalTrips": "Total de salidas",
+      "totalTripsTooltip": "Número de salidas de rescate incluidas en este paquete: 1 salida = 1 unidad (opcional)",
+      "tripsUnit": "salidas",
+      "tripsUnitShort": "salidas",
+      "tripsUnitTitle": "Salidas",
+      "tripUnitSingular": "salida"
+    },
+    "totalLessonHours": "Total de horas de clase",
+    "totalLessonHoursTooltip": "Número de horas de clase incluidas en este paquete (opcional)"
   }
 }

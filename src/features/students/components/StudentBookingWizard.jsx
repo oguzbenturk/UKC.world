@@ -1699,7 +1699,7 @@ const StudentBookingWizard = ({ open, onClose, initialData = EMPTY_INITIAL_DATA 
     // Get payment method display label
     const getPaymentMethodLabel = () => {
       if (paymentMethod === 'wallet') return t('bookingWizard.paymentOptions.walletLabel');
-      if (paymentMethod === 'package') return selectedPackage ? getPackageDisplayName(selectedPackage) : t('steps.package', { ns: 'student' });
+      if (paymentMethod === 'package') return selectedPackage ? getPackageDisplayName(selectedPackage) : t('bookingWizard.steps.package');
       if (paymentMethod === 'pay_later') return t('bookingWizard.paymentSummary.payLaterTitle');
       if (paymentMethod === 'credit_card') return t('bookingWizard.paymentSummary.creditCardTitle');
       return paymentMethod;

@@ -9,7 +9,8 @@
     "earningsFocus": "Обзор заработка",
     "personalFinanceSummary": "Личная финансовая сводка",
     "createBooking": "Создать бронирование",
-    "quickLinks": "Быстрые ссылки"
+    "quickLinks": "Быстрые ссылки",
+    "view": "Открыть"
   },
   "hero": {
     "pendingEarnings": "Ожидающий заработок",
@@ -112,7 +113,8 @@
     "upcomingLessons": "Предстоящие уроки",
     "session": "занятие",
     "sessions": "занятий",
-    "noLessonsScheduled": "На данный момент будущих уроков не запланировано."
+    "noLessonsScheduled": "На данный момент будущих уроков не запланировано.",
+    "category": "Категория"
   },
   "ratings": {
     "rating": "оценка",
@@ -253,7 +255,15 @@
     "connectedChats_other": "{{count}} подключённых чатов",
     "confirmUnlink": "Прекратить отправку уведомлений в этот чат?",
     "cancel": "Отмена",
-    "linkedSuccess": "Telegram подключён!"
+    "linkedSuccess": "Telegram подключён!",
+    "inactive": "Требуется повторное подключение",
+    "sendTest": "Отправить тестовое сообщение",
+    "testFailed": "Не удалось отправить тестовое сообщение.",
+    "testNoActiveChats": "Нет активных чатов Telegram для отправки.",
+    "testSent_one": "Тестовое сообщение отправлено — проверьте Telegram.",
+    "testSent_few": "Тестовое сообщение отправлено в {{count}} чата — проверьте Telegram.",
+    "testSent_many": "Тестовое сообщение отправлено в {{count}} чатов — проверьте Telegram.",
+    "testSent_other": "Тестовое сообщение отправлено в {{count}} чата — проверьте Telegram."
   },
   "profile": {
     "navItems": {

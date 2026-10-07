@@ -227,7 +227,10 @@
       "placeholders": {
         "name": "Ayşe Yıldız",
         "product": "örn. Duotone Juice 11m",
-        "purchase": "Mağaza veya sipariş #"
+        "purchase": "Mağaza veya sipariş #",
+        "brand": "Marka seçin",
+        "model": "Model seçin",
+        "year": "Yıl"
       },
       "fields": {
         "name": "Ad soyad",
@@ -241,7 +244,8 @@
         "purchaseLocation": "Satın alındığı yer",
         "issue": "Sorunu anlatın",
         "issuePlaceholder": "Ne olduğunu, ne zaman olduğunu ve ürünün şu an nasıl davrandığını yazın.",
-        "media": "Sorunla ilgili fotoğraf ve videolar"
+        "media": "Sorunla ilgili fotoğraf ve videolar",
+        "year": "Model yılı"
       }
     },
     "track": {
@@ -282,7 +286,9 @@
         "claimNumber": "Üretici talep no",
         "submittedAt": "Gönderildi",
         "issue": "Sorun"
-      }
+      },
+      "teamUploads": "UKC ekibinden",
+      "yourUploads": "Yüklemeleriniz"
     },
     "staff": {
       "eyebrow": "UKC.Care · Garanti ekibi",
@@ -312,7 +318,12 @@
       "uploadDone": "Dosyalar yüklendi.",
       "timelineSection": "Aktivite",
       "galleryHeading": "Mevcut medya",
-      "opened": "{{when}} tarihinde açıldı"
+      "opened": "{{when}} tarihinde açıldı",
+      "anotherMember": "başka bir ekip üyesi",
+      "claimNumberLocked": "Bu üretici talep numarası {{name}} tarafından girildi ve kilitlendi. Değiştirilmesi gerekiyorsa bir yöneticiye başvurun.",
+      "claimNumberLockedTitle": "Talep no. {{value}}",
+      "claimNumberUpdate": "Güncelle",
+      "downloadZip": "Tümünü indir (ZIP)"
     },
     "timeline": {
       "empty": "Henüz bir güncelleme yok.",
@@ -325,11 +336,15 @@
       "staffRevoked": "Garanti ekibinin erişimi kapatıldı.",
       "linkResent": "Takip bağlantısı yeniden gönderildi.",
       "closed": "Talep kapatıldı.",
-      "deleted": "Talep silindi."
+      "deleted": "Talep silindi.",
+      "claimNumberSet": "Üretici talep numarası kaydedildi: {{value}}"
     },
     "media": {
       "empty": "Henüz fotoğraf veya video yüklenmedi.",
-      "viewDocument": "PDF'i aç"
+      "viewDocument": "PDF'i aç",
+      "customerSection": "Müşteri yüklemeleri",
+      "otherSection": "Diğer",
+      "teamSection": "Ekip yüklemeleri"
     },
     "uploader": {
       "cta": "Fotoğraf veya video eklemek için tıklayın",
@@ -347,6 +362,15 @@
       "errorVideos": "Talep başına en fazla {{n}} video.",
       "errorDocuments": "Talep başına en fazla {{n}} belge.",
       "errorFileCount": "Çok fazla dosya (en fazla {{n}})."
+    },
+    "upload": {
+      "errorGeneric": "Yükleme başarısız oldu. Lütfen tekrar deneyin.",
+      "errorNetwork": "Yükleme sırasında bağlantı kesildi. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+      "errorRateLimit": "Bu bağlantıdan çok fazla deneme yapıldı. Lütfen bir süre bekleyip tekrar deneyin.",
+      "errorServer": "Sunucumuz yüklemeyi kabul edemedi. Lütfen birazdan tekrar deneyin.",
+      "errorTimeout": "Yükleme zaman aşımına uğradı. Büyük videolar için stabil bir bağlantı gerekir — Wi-Fi üzerinden tekrar deneyin veya daha kısa bir video ekleyin.",
+      "errorTooLarge": "Dosyalar yüklenemeyecek kadar büyük. Her video en fazla {{video}} MB, her fotoğraf en fazla {{photo}} MB olabilir.",
+      "errorType": "Dosyalardan birinin türü kabul edilmiyor. Fotoğraflar: JPG, PNG, WEBP, HEIC. Videolar: MP4, MOV, WEBM."
     }
   }
 }

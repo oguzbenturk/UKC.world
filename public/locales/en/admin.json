@@ -1169,7 +1169,8 @@
       "purchased": "Purchased",
       "expires": "Expires",
       "amount": "Amount",
-      "never": "Never"
+      "never": "Never",
+      "actions": "Actions"
     },
     "status": {
       "active": "Active",
@@ -1189,7 +1190,8 @@
       "neverExpires": "Never expires",
       "amountPaid": "Amount Paid",
       "paymentMethod": "Payment Method",
-      "notes": "Notes"
+      "notes": "Notes",
+      "storageBox": "Storage Box"
     },
     "empty": {
       "noMembers": "No members found"
@@ -1211,7 +1213,16 @@
     "count_plural": "{{count}} members",
     "totalMembers": "{{total}} members",
     "toast": {
-      "assigned": "Membership assigned successfully!"
+      "assigned": "Membership assigned successfully!",
+      "updated": "Membership updated",
+      "updateFailed": "Failed to update"
+    },
+    "edit": {
+      "expires": "Expires at",
+      "notes": "Notes",
+      "paymentStatus": "Payment status",
+      "status": "Status",
+      "title": "Edit membership"
     }
   },
   "community": {
@@ -1423,7 +1434,8 @@
         "media": "Media ({{n}})",
         "staff": "Staff links",
         "notes": "Notes & messages",
-        "danger": "Danger zone"
+        "danger": "Danger zone",
+        "emails": "Emails"
       },
       "fields": {
         "customer": "Customer",
@@ -1442,7 +1454,8 @@
       "addTitle": "Add files or Product Bill",
       "addHint": "Attach photos, videos or a PDF — including the manufacturer Product Bill / proof of purchase. Documents are kept internal to the UKC team and are not shown to the customer.",
       "uploadCta": "Upload {{n}} file(s)",
-      "uploaded": "Files uploaded."
+      "uploaded": "Files uploaded.",
+      "downloadZip": "Download all (ZIP)"
     },
     "create": {
       "eyebrow": "UKC.Care",
@@ -1490,7 +1503,10 @@
       "staffRevoked": "Staff link revoked.",
       "mediaDeleted": "Media deleted.",
       "closed": "Claim closed.",
-      "deleted": "Claim deleted."
+      "deleted": "Claim deleted.",
+      "resendStaffEmail": "Resend email",
+      "save": "Save",
+      "staffLinkResent": "Tracking email resent to staff member."
     },
     "danger": {
       "headsUp": "These actions are permanent.",
@@ -1500,6 +1516,21 @@
       "delete": "Delete claim",
       "deleteConfirm": "Permanently delete this claim and remove all uploaded media?",
       "copyCustomer": "Copy customer link"
+    },
+    "claimNumber": {
+      "override": "Override",
+      "placeholder": "e.g. RMA-1234",
+      "saved": "Manufacturer claim # saved.",
+      "set": "Set",
+      "setBy": "set by {{name}}{{when}}"
+    },
+    "emails": {
+      "hint": "Every email this case has sent, with live delivery status from the mail provider (Resend). \"Delivered\" = it reached the recipient's mail server; \"Bounced\" = it was rejected; \"Sent\" = handed off, awaiting confirmation.",
+      "none": "No emails sent for this case yet.",
+      "recipient": "Recipient",
+      "status": "Status",
+      "subject": "Subject",
+      "when": "Last update"
     }
   }
 }

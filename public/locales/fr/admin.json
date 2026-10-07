@@ -1149,7 +1149,9 @@
       "expired": "Expiré",
       "cancelled": "Annulé",
       "from": "De",
-      "to": "À"
+      "to": "À",
+      "allCategories": "Tous les types",
+      "allDurations": "Toutes les durées"
     },
     "table": {
       "member": "Membre",
@@ -1158,7 +1160,8 @@
       "purchased": "Acheté",
       "expires": "Expire",
       "amount": "Montant",
-      "never": "Jamais"
+      "never": "Jamais",
+      "actions": "Actions"
     },
     "status": {
       "active": "Actif",
@@ -1178,7 +1181,8 @@
       "neverExpires": "N'expire jamais",
       "amountPaid": "Montant payé",
       "paymentMethod": "Mode de paiement",
-      "notes": "Notes"
+      "notes": "Notes",
+      "storageBox": "Casier de rangement"
     },
     "empty": {
       "noMembers": "Aucun membre trouvé"
@@ -1187,7 +1191,30 @@
     "count_plural": "{{count}} membres",
     "totalMembers": "{{total}} membres",
     "toast": {
-      "assigned": "Abonnement attribué avec succès !"
+      "assigned": "Abonnement attribué avec succès !",
+      "updated": "Abonnement mis à jour",
+      "updateFailed": "Échec de la mise à jour"
+    },
+    "actions": {
+      "delete": "Supprimer",
+      "discount": "Appliquer une remise",
+      "edit": "Modifier",
+      "view": "Voir"
+    },
+    "activeTitle": "Abonnements actifs",
+    "delete": {
+      "confirm": "Supprimer « {{name}} » ? Tout paiement effectué via le portefeuille est remboursé au client et le casier de rangement est libéré. L'abonnement est conservé avec le statut « annulé » pour l'historique.",
+      "failed": "Impossible de supprimer l'abonnement",
+      "noRefund": "Abonnement supprimé. Aucun débit du portefeuille à rembourser n'a été trouvé — ajustez le solde manuellement si nécessaire.",
+      "refunded": "Abonnement supprimé · {{amount}} remboursé sur le portefeuille",
+      "title": "Supprimer l'abonnement"
+    },
+    "edit": {
+      "expires": "Expire le",
+      "notes": "Notes",
+      "paymentStatus": "Statut du paiement",
+      "status": "Statut",
+      "title": "Modifier l'abonnement"
     }
   },
   "community": {
@@ -1348,6 +1375,154 @@
         "digit": "Un chiffre",
         "special": "Un caractère spécial (@$!%*?&)"
       }
+    }
+  },
+  "warranty": {
+    "actions": {
+      "apply": "Appliquer",
+      "cancel": "Annuler",
+      "changeStatus": "Changer le statut",
+      "closed": "Réclamation clôturée.",
+      "copied": "Lien copié.",
+      "copyLink": "Copier le lien",
+      "customerUpdated": "Mise à jour envoyée au client.",
+      "delete": "Supprimer",
+      "deleted": "Réclamation supprimée.",
+      "linkResent": "Lien de suivi renvoyé.",
+      "mediaDeleted": "Média supprimé.",
+      "newClaim": "Nouvelle réclamation",
+      "noteSaved": "Note enregistrée.",
+      "open": "Ouvrir",
+      "refresh": "Actualiser",
+      "resendLink": "Renvoyer le lien client",
+      "resendStaffEmail": "Renvoyer l'e-mail",
+      "revoke": "Révoquer",
+      "revokeConfirm": "Révoquer ce lien d'équipe ?",
+      "save": "Enregistrer",
+      "staffInvited": "Invitation envoyée au membre de l'équipe.",
+      "staffLinkResent": "E-mail de suivi renvoyé au membre de l'équipe.",
+      "staffRevoked": "Lien d'équipe révoqué.",
+      "statusNote": "Note facultative pour le client",
+      "statusNotePlaceholder": "Ex. « En attente de la confirmation du fabricant… »",
+      "statusUpdated": "Statut mis à jour. Client informé."
+    },
+    "claimNumber": {
+      "override": "Remplacer",
+      "placeholder": "ex. RMA-1234",
+      "saved": "N° de réclamation fabricant enregistré.",
+      "set": "Définir",
+      "setBy": "défini par {{name}}{{when}}"
+    },
+    "create": {
+      "errorGeneric": "Impossible de créer la réclamation.",
+      "eyebrow": "UKC.Care",
+      "fields": {
+        "externalClaim": "N° de réclamation fabricant",
+        "externalClaimHint": "si vous en avez déjà un",
+        "language": "Langue du client"
+      },
+      "notify": {
+        "body": "Recommandé. Le client recevra un e-mail aux couleurs d'UKC.Care avec le lien de suivi.",
+        "title": "Envoyer le lien de suivi au client par e-mail"
+      },
+      "section": {
+        "case": "Dossier",
+        "customer": "Client",
+        "media": "Médias (facultatif)",
+        "product": "Produit"
+      },
+      "submit": "Créer la réclamation",
+      "subtitle": "Enregistrez une réclamation au nom d'un client. Le client recevra un lien de suivi par e-mail.",
+      "success": "Réclamation de garantie créée.",
+      "title": "Nouvelle réclamation de garantie"
+    },
+    "danger": {
+      "close": "Clôturer la réclamation",
+      "closeConfirm": "Clôturer cette réclamation et en informer le client par e-mail ?",
+      "copyCustomer": "Copier le lien client",
+      "delete": "Supprimer la réclamation",
+      "deleteConfirm": "Supprimer définitivement cette réclamation et tous les médias téléversés ?",
+      "description": "Clôturer une réclamation informe le client et supprime du disque les photos et vidéos téléversées une fois le dossier terminé. Supprimer une réclamation la masque du tableau de bord et purge immédiatement les médias. L'historique d'audit est conservé.",
+      "headsUp": "Ces actions sont définitives."
+    },
+    "detail": {
+      "activeStaff": "Liens d'équipe actifs",
+      "customerUpdate": "Envoyer un message au client",
+      "customerUpdatePlaceholder": "Saisissez un message — le client le verra sur sa page de suivi et recevra un e-mail.",
+      "customerUpdateSend": "Envoyer au client",
+      "fields": {
+        "closed": "Clôturée le",
+        "customer": "Client",
+        "issue": "Description du problème",
+        "mfrClaim": "N° de réclamation fabricant",
+        "model": "Modèle / N° de série",
+        "phone": "Téléphone",
+        "product": "Produit",
+        "purchase": "Achat",
+        "submitted": "Soumise"
+      },
+      "internalNote": "Ajouter une note",
+      "inviteStaff": "Inviter un membre de l'équipe garantie",
+      "loading": "Réclamation de garantie",
+      "noStaffLinks": "Aucun lien d'équipe actif pour l'instant.",
+      "notePlaceholder": "Rédigez une note…",
+      "noteSubmit": "Ajouter la note",
+      "noteVisible": "Visible par le client",
+      "openTracking": "Ouvrir la page de suivi",
+      "revokedHidden": "Les liens révoqués restent dans la chronologie pour l'historique d'audit.",
+      "sendStaffInvite": "Envoyer l'invitation",
+      "sentAt": "Envoyé {{when}}",
+      "staffEmail": "E-mail",
+      "staffName": "Nom",
+      "tabs": {
+        "danger": "Zone de danger",
+        "emails": "E-mails",
+        "media": "Médias ({{n}})",
+        "notes": "Notes et messages",
+        "overview": "Aperçu",
+        "staff": "Liens d'équipe",
+        "timeline": "Chronologie"
+      }
+    },
+    "emails": {
+      "hint": "Tous les e-mails envoyés pour ce dossier, avec le statut de livraison en temps réel du fournisseur (Resend). « Livré » = arrivé sur le serveur de messagerie du destinataire ; « Rejeté » = refusé ; « Envoyé » = transmis, en attente de confirmation.",
+      "none": "Aucun e-mail envoyé pour ce dossier pour l'instant.",
+      "recipient": "Destinataire",
+      "status": "Statut",
+      "subject": "Objet",
+      "when": "Dernière mise à jour"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "customer": "Client",
+        "media": "Médias",
+        "product": "Produit",
+        "status": "Statut",
+        "submitted": "Soumise"
+      },
+      "empty": "Aucune réclamation de garantie pour l'instant.",
+      "searchPlaceholder": "Rechercher par nom, e-mail, code, produit…",
+      "statusFilter": "Tous les statuts",
+      "title": "Réclamations de garantie"
+    },
+    "media": {
+      "addHint": "Joignez des photos, des vidéos ou un PDF — y compris la facture produit du fabricant / la preuve d'achat. Les documents restent internes à l'équipe UKC et ne sont pas montrés au client.",
+      "addTitle": "Ajouter des fichiers ou la facture produit",
+      "deletePrompt": "Supprimer définitivement ce fichier ?",
+      "downloadZip": "Tout télécharger (ZIP)",
+      "uploadCta": "Téléverser {{n}} fichier(s)",
+      "uploaded": "Fichiers téléversés."
+    },
+    "stats": {
+      "awaitingCustomer": "En attente du client",
+      "last7": "7 derniers jours",
+      "open": "Réclamations ouvertes",
+      "withManufacturer": "Chez le fabricant"
+    },
+    "tabs": {
+      "claims": "Réclamations",
+      "spareParts": "Pièces détachées"
     }
   }
 }

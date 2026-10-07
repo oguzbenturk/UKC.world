@@ -1015,6 +1015,11 @@
     "adminCta": {
       "text": "Has iniciado sesión — ve todas tus solicitudes en un solo lugar",
       "button": "Ir al panel de reparaciones"
+    },
+    "warrantyCta": {
+      "eyebrow": "Garantía",
+      "subtitle": "Abre una reclamación de garantía con fotos y vídeos: recibirás un enlace de seguimiento por correo electrónico.",
+      "title": "¿Un defecto de fabricación en garantía?"
     }
   },
   "shop": {
@@ -1624,5 +1629,15 @@
       "uploadReceipt": "Por favor selecciona una cuenta bancaria y sube tu comprobante de depósito.",
       "overlapBooking": "El rango seleccionado se superpone con una reserva existente."
     }
+  },
+  "rescue": {
+    "empty": "No hay servicios de rescate disponibles en este momento.",
+    "loadError": "No se pudieron cargar los servicios de rescate. Inténtalo de nuevo más tarde.",
+    "membersBadge": "⭐ Socios: {{pct}} % de descuento",
+    "priceOnRequest": "Precio a consultar",
+    "seoDescription": "Apoyo con lancha de rescate en el agua. Los socios activos ahorran con el descuento para socios.",
+    "seoTitle": "Lancha de rescate — Duotone Pro Center Urla",
+    "subtitle": "Rescate y apoyo con lancha en el agua cuando lo necesites. Los socios activos disfrutan de un descuento para socios.",
+    "title": "🚤 Lancha de rescate"
   }
 }
