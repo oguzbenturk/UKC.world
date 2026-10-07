@@ -111,6 +111,7 @@ Migration kuralı: yeni migration dosyası sonrası daima `npm run migrate:up` (
 
 ## Dikkat / Tuzaklar
 
+- **Frontend healthcheck `127.0.0.1` olmalı (2026-10-07 fix):** container içinde `localhost` → `::1` (IPv6) çözülüyor, nginx yalnız IPv4 dinliyor → `wget` "Connection refused", container sürekli `unhealthy` görünüyordu (site çalışırken). `docker-compose.production.yml`, `docker-compose.yml`, `infrastructure/Dockerfile*` güncellendi.
 - **Host nginx'i ASLA durdurma:** Public TLS sonlandırması host üzerindeki nginx'te. Container nginx yalnızca `127.0.0.1:8080/8443` dinler. SSL cert yenilemesi sonrası `systemctl reload nginx` (host) gerekir (ZeroSSL 90-günlük manuel yenileme).
 - **Compose v1 (1.29) only:** Sunucuda yalnızca `docker-compose` (v1) var. Deploy script `--project-name plannivo` ve tam `down`/`up` kullanır; `docker compose` (v2 alt-komut) varsayma.
 - **push-all env swap penceresi:** `backend/.env` commit/push aralığında geçici olarak PROD kimlik bilgilerine geçer. `finally` her durumda `.env.development`'a geri döner — yine de bu pencerede lokal `npm run dev` çalıştırma. Pre-flight, placeholder/`:password@` DATABASE_URL'i fatal sayar.

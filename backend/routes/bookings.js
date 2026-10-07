@@ -2913,9 +2913,19 @@ router.post('/',
     
     if (voucherId && use_package === false && finalAmount > 0) {
       try {
+        // The voucher is validated against the CUSTOMER (student_user_id), not the
+        // staff member placing the booking. users has no `role` column — the role
+        // lives in roles.name via users.role_id (a `SELECT role FROM users` here
+        // threw, the catch below turned it into a 400 for every staff+voucher booking).
         let userRoleForVoucher = req.user?.role || 'student';
-        if (student_user_id && student_user_id !== req.user?.id) {
-          const ur = await client.query('SELECT role FROM users WHERE id = $1', [student_user_id]);
+        if (student_user_id && String(student_user_id) !== String(req.user?.id)) {
+          const ur = await client.query(
+            `SELECT r.name AS role
+               FROM users u
+               LEFT JOIN roles r ON r.id = u.role_id
+              WHERE u.id = $1`,
+            [student_user_id]
+          );
           userRoleForVoucher = ur.rows[0]?.role || 'student';
         }
 

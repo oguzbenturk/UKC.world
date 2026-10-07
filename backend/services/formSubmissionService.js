@@ -649,8 +649,9 @@ async function sendFormSubmissionNotifications(submission, formTemplateId, quick
   // If no recipients configured, get admin emails
   if (recipients.length === 0) {
     const adminQuery = `
-      SELECT email FROM users 
-      WHERE role = 'admin' AND deleted_at IS NULL 
+      SELECT u.email FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE r.name = 'admin' AND u.deleted_at IS NULL
       LIMIT 3
     `;
     const adminResult = await pool.query(adminQuery);

@@ -317,7 +317,8 @@ export async function sendAdminAlert(submission, formTemplate) {
       } else {
         // Get admin users
         const admins = await pool.query(
-          `SELECT email FROM users WHERE role IN ('admin', 'manager') AND deleted_at IS NULL LIMIT 5`
+          `SELECT u.email FROM users u JOIN roles r ON r.id = u.role_id
+           WHERE r.name IN ('admin', 'manager') AND u.deleted_at IS NULL LIMIT 5`
         );
         recipients = admins.rows.map(r => r.email);
       }

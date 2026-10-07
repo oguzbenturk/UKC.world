@@ -33,6 +33,8 @@ import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from '../services/managerCommission
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
 import { invalidateInstructorDashboardCache } from '../services/instructorService.js';
+import Decimal from 'decimal.js';
+import { REFUND_TYPES } from '../constants/transactions.js';
 
 const router = express.Router();
 const NET_REVENUE_ENABLED = process.env.NET_REVENUE_ENABLED === 'true';
@@ -3303,6 +3305,21 @@ router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
  * GET /api/finances/overview
  * Comprehensive financial overview using wallet_transactions as the source of truth.
  * Returns: headline stats, service breakdown, monthly trend, expense breakdown.
+ *
+ * Ledger conventions this handler relies on (see walletService.recordTransaction):
+ *  - `direction` is authoritative for credit vs debit. `amount` is SIGNED by
+ *    convention (debits negative) but that is not enforced — e.g.
+ *    discount_adjustment_reversal rows are direction='debit' with a positive
+ *    amount. Every sum therefore uses ABS(amount) and takes its sign from the
+ *    direction / type bucket: income and charges are both positive magnitudes
+ *    and net = income − charges. (Summing the raw signed amount made
+ *    totalCharges / serviceRevenue negative and net = income − (−charges).)
+ *  - Amounts are stored in the wallet's own currency (EUR/TRY/USD). They are
+ *    normalised to EUR with currency_settings.exchange_rate (units per EUR),
+ *    the same pattern as /summary and /wallet-deposits, otherwise TRY face
+ *    values are added to EUR totals.
+ *  - JS-side arithmetic is Decimal.js (2 dp, half-up); PG NUMERIC strings are
+ *    never added as floats.
  */
 router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:overview:${req.query.start_date || 'all'}:${req.query.end_date || 'all'}`), async (req, res) => {
   try {
@@ -3311,45 +3328,55 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
     const startDate = start_date || '2020-01-01';
     const endDate = end_date || new Date().toISOString().slice(0, 10);
 
+    // |amount| in EUR. wallet_transactions is aliased `wt` because
+    // currency_settings also has created_at / is_active columns.
+    const amountEur = `(ABS(wt.amount) / COALESCE(cs.exchange_rate, 1))`;
+    const rateJoin = `LEFT JOIN currency_settings cs ON cs.currency_code = wt.currency AND cs.is_active = true`;
+    // PG NUMERIC string → Decimal rounded to cents. Only money() values are
+    // ever added/subtracted below; .toNumber() happens at the JSON boundary.
+    const money = (value) => new Decimal(value ?? 0).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+
     // ── Headline stats: credits vs debits from wallet_transactions ──────────
     const headlineResult = await pool.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount ELSE 0 END), 0)   AS total_income,
-        COALESCE(SUM(CASE WHEN direction = 'debit'  THEN amount ELSE 0 END), 0)   AS total_charges,
-        COUNT(*)::int                                                               AS total_transactions,
+        COALESCE(SUM(CASE WHEN wt.direction = 'credit' THEN ${amountEur} ELSE 0 END), 0)   AS total_income,
+        COALESCE(SUM(CASE WHEN wt.direction = 'debit'  THEN ${amountEur} ELSE 0 END), 0)   AS total_charges,
+        COUNT(*)::int                                                                       AS total_transactions,
         -- money deposited by customers (wallet top-ups)
-        COALESCE(SUM(CASE WHEN transaction_type IN ('wallet_deposit','manual_credit','credit') THEN amount ELSE 0 END), 0) AS total_deposits,
+        COALESCE(SUM(CASE WHEN wt.transaction_type IN ('wallet_deposit','manual_credit','credit') THEN ${amountEur} ELSE 0 END), 0) AS total_deposits,
         -- actual service charges collected
-        COALESCE(SUM(CASE WHEN transaction_type IN ('booking_charge','rental_charge','rental_payment','service_payment') THEN amount ELSE 0 END), 0) AS service_revenue,
+        COALESCE(SUM(CASE WHEN wt.transaction_type IN ('booking_charge','rental_charge','rental_payment','service_payment') THEN ${amountEur} ELSE 0 END), 0) AS service_revenue,
         -- shop sales
-        COALESCE(SUM(CASE WHEN transaction_type IN ('payment','charge') AND direction='debit' THEN amount ELSE 0 END), 0) AS shop_revenue,
-        -- refunds issued
-        COALESCE(SUM(CASE WHEN transaction_type IN ('refund','booking_deleted_refund','package_refund') THEN amount ELSE 0 END), 0) AS total_refunds,
+        COALESCE(SUM(CASE WHEN wt.transaction_type IN ('payment','charge') AND wt.direction='debit' THEN ${amountEur} ELSE 0 END), 0) AS shop_revenue,
+        -- refunds issued (canonical REFUND_TYPES — same list /summary uses)
+        COALESCE(SUM(CASE WHEN wt.transaction_type = ANY($3::text[]) THEN ${amountEur} ELSE 0 END), 0) AS total_refunds,
         -- package purchases
-        COALESCE(SUM(CASE WHEN transaction_type = 'package_purchase' THEN amount ELSE 0 END), 0) AS package_revenue
-      FROM wallet_transactions
-      WHERE status = 'completed'
-        AND created_at::date BETWEEN $1 AND $2
-        AND ${activeFinanceTxnFilter()}
-    `, [startDate, endDate]);
+        COALESCE(SUM(CASE WHEN wt.transaction_type = 'package_purchase' THEN ${amountEur} ELSE 0 END), 0) AS package_revenue
+      FROM wallet_transactions wt
+      ${rateJoin}
+      WHERE wt.status = 'completed'
+        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter('wt')}
+    `, [startDate, endDate, REFUND_TYPES]);
 
     const h = headlineResult.rows[0];
-    const totalIncome  = parseFloat(h.total_income)   || 0;
-    const totalCharges = parseFloat(h.total_charges)  || 0;
-    const net = totalIncome - totalCharges;
+    const totalIncome  = money(h.total_income);
+    const totalCharges = money(h.total_charges);
+    const net = totalIncome.minus(totalCharges);
 
     // ── Service revenue breakdown ─────────────────────────────────────────
     const serviceBreakdownResult = await pool.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN transaction_type = 'booking_charge' THEN amount ELSE 0 END), 0)                               AS lesson_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type IN ('rental_charge','rental_payment') THEN amount ELSE 0 END), 0)            AS rental_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type = 'package_purchase' THEN amount ELSE 0 END), 0)                             AS membership_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type IN ('payment','charge') AND direction='debit' THEN amount ELSE 0 END), 0)    AS shop_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type IN ('wallet_deposit','manual_credit','credit') THEN amount ELSE 0 END), 0)   AS deposits
-      FROM wallet_transactions
-      WHERE status = 'completed'
-        AND created_at::date BETWEEN $1 AND $2
-        AND ${activeFinanceTxnFilter()}
+        COALESCE(SUM(CASE WHEN wt.transaction_type = 'booking_charge' THEN ${amountEur} ELSE 0 END), 0)                               AS lesson_revenue,
+        COALESCE(SUM(CASE WHEN wt.transaction_type IN ('rental_charge','rental_payment') THEN ${amountEur} ELSE 0 END), 0)            AS rental_revenue,
+        COALESCE(SUM(CASE WHEN wt.transaction_type = 'package_purchase' THEN ${amountEur} ELSE 0 END), 0)                             AS membership_revenue,
+        COALESCE(SUM(CASE WHEN wt.transaction_type IN ('payment','charge') AND wt.direction='debit' THEN ${amountEur} ELSE 0 END), 0) AS shop_revenue,
+        COALESCE(SUM(CASE WHEN wt.transaction_type IN ('wallet_deposit','manual_credit','credit') THEN ${amountEur} ELSE 0 END), 0)   AS deposits
+      FROM wallet_transactions wt
+      ${rateJoin}
+      WHERE wt.status = 'completed'
+        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter('wt')}
     `, [startDate, endDate]);
 
     const sb = serviceBreakdownResult.rows[0];
@@ -3357,14 +3384,15 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
     // ── Monthly trend ──────────────────────────────────────────────────────
     const trendResult = await pool.query(`
       SELECT
-        TO_CHAR(created_at, 'YYYY-MM') AS month,
-        COALESCE(SUM(CASE WHEN direction='credit' THEN amount ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN direction='debit'  THEN amount ELSE 0 END), 0) AS charges
-      FROM wallet_transactions
-      WHERE status = 'completed'
-        AND created_at::date BETWEEN $1 AND $2
-        AND ${activeFinanceTxnFilter()}
-      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+        TO_CHAR(wt.created_at, 'YYYY-MM') AS month,
+        COALESCE(SUM(CASE WHEN wt.direction='credit' THEN ${amountEur} ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN wt.direction='debit'  THEN ${amountEur} ELSE 0 END), 0) AS charges
+      FROM wallet_transactions wt
+      ${rateJoin}
+      WHERE wt.status = 'completed'
+        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter('wt')}
+      GROUP BY TO_CHAR(wt.created_at, 'YYYY-MM')
       ORDER BY month
     `, [startDate, endDate]);
 
@@ -3380,7 +3408,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
         AND b.deleted_at IS NULL
     `, [startDate, endDate]);
 
-    const commission = parseFloat(commissionResult.rows[0]?.instructor_commission) || 0;
+    const commission = money(commissionResult.rows[0]?.instructor_commission);
 
     // ── Manager commission (already calculated and stored) ─────────────────
     // commission_amount is stored in EUR. Reading stored values respects whatever
@@ -3397,36 +3425,38 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
     `, [startDate, endDate]);
 
     const managerCommissionByType = managerCommissionResult.rows.reduce((acc, row) => {
-      acc[row.source_type] = parseFloat(row.total) || 0;
+      acc[row.source_type] = money(row.total).toNumber();
       return acc;
     }, {});
-    const managerCommissionTotal = Object.values(managerCommissionByType)
-      .reduce((sum, value) => sum + value, 0);
+    const managerCommissionTotal = managerCommissionResult.rows
+      .reduce((sum, row) => sum.plus(money(row.total)), new Decimal(0))
+      .toNumber();
 
     // ── Expense breakdown by transaction type ──────────────────────────────
     const expenseResult = await pool.query(`
       SELECT
-        transaction_type,
-        COALESCE(SUM(amount), 0) AS total,
-        COUNT(*)::int            AS count
-      FROM wallet_transactions
-      WHERE status = 'completed'
-        AND direction = 'debit'
-        AND created_at::date BETWEEN $1 AND $2
-        AND ${activeFinanceTxnFilter()}
-      GROUP BY transaction_type
+        wt.transaction_type,
+        COALESCE(SUM(${amountEur}), 0) AS total,
+        COUNT(*)::int                  AS count
+      FROM wallet_transactions wt
+      ${rateJoin}
+      WHERE wt.status = 'completed'
+        AND wt.direction = 'debit'
+        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${activeFinanceTxnFilter('wt')}
+      GROUP BY wt.transaction_type
       ORDER BY total DESC
     `, [startDate, endDate]);
 
     res.json({
       headline: {
-        totalIncome,
-        totalCharges,
-        net,
-        totalRefunds:     parseFloat(h.total_refunds)    || 0,
-        totalDeposits:    parseFloat(h.total_deposits)   || 0,
-        serviceRevenue:   parseFloat(h.service_revenue)  || 0,
-        instructorCommission: commission,
+        totalIncome:  totalIncome.toNumber(),
+        totalCharges: totalCharges.toNumber(),
+        net:          net.toNumber(),
+        totalRefunds:     money(h.total_refunds).toNumber(),
+        totalDeposits:    money(h.total_deposits).toNumber(),
+        serviceRevenue:   money(h.service_revenue).toNumber(),
+        instructorCommission: commission.toNumber(),
         managerCommission: managerCommissionTotal,
         totalTransactions: h.total_transactions
       },
@@ -3435,21 +3465,25 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
         byServiceType: managerCommissionByType
       },
       serviceBreakdown: {
-        lessons:    parseFloat(sb.lesson_revenue)      || 0,
-        rentals:    parseFloat(sb.rental_revenue)      || 0,
-        memberships: parseFloat(sb.membership_revenue) || 0,
-        shop:       parseFloat(sb.shop_revenue)        || 0,
-        deposits:   parseFloat(sb.deposits)            || 0
+        lessons:    money(sb.lesson_revenue).toNumber(),
+        rentals:    money(sb.rental_revenue).toNumber(),
+        memberships: money(sb.membership_revenue).toNumber(),
+        shop:       money(sb.shop_revenue).toNumber(),
+        deposits:   money(sb.deposits).toNumber()
       },
-      monthlyTrend: trendResult.rows.map(r => ({
-        month:   r.month,
-        income:  parseFloat(r.income)  || 0,
-        charges: parseFloat(r.charges) || 0,
-        net:     (parseFloat(r.income) || 0) - (parseFloat(r.charges) || 0)
-      })),
+      monthlyTrend: trendResult.rows.map(r => {
+        const income = money(r.income);
+        const charges = money(r.charges);
+        return {
+          month:   r.month,
+          income:  income.toNumber(),
+          charges: charges.toNumber(),
+          net:     income.minus(charges).toNumber()
+        };
+      }),
       expenseBreakdown: expenseResult.rows.map(r => ({
         type:  r.transaction_type,
-        total: parseFloat(r.total) || 0,
+        total: money(r.total).toNumber(),
         count: r.count
       }))
     });

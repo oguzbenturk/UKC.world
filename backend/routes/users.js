@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
-import { sanitizeUser } from '../utils/sanitizeUser.js';
+import { sanitizeUser, sanitizeUsers } from '../utils/sanitizeUser.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
 import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { sendVerificationEmail } from '../services/emailVerificationService.js';
@@ -191,9 +191,8 @@ router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'reception
     // previous behaviour (welcome email with a password-reset link) was misleading to staff
     // who'd already set the password explicitly.
 
-    // Don't return the password_hash in the response
-    const { password_hash, ...userWithoutPassword } = createdUser;
-    res.status(201).json({ ...userWithoutPassword, send_verification: sendVerification });
+    // Don't return password_hash or any other secret column in the response
+    res.status(201).json({ ...sanitizeUser(createdUser), send_verification: sendVerification });
   } catch (err) {
     logger.error('User creation failed', err);
 
@@ -230,7 +229,7 @@ router.get('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'receptioni
 
   try {
     const { rows } = await pool.query(query, params);
-    res.json(rows);
+    res.json(sanitizeUsers(rows));
   } catch (err) {
     logger.error('Failed to fetch users', err);
     res.status(500).json({ error: 'Query failed' });
@@ -826,11 +825,13 @@ router.put('/:id', authenticateJWT, async (req, res) => {
         const roleRes = await pool.query('SELECT name FROM roles WHERE id = $1', [updatedUser.role_id]);
         const roleName = roleRes.rows[0]?.name;
         
+        // 'general' channel reaches every connected client — never broadcast secret columns
+        const safeUser = sanitizeUser(updatedUser);
         if (roleName === 'instructor' || roleName === 'manager') {
-          req.socketService.emitInstructorUpdated(updatedUser);
+          req.socketService.emitInstructorUpdated(safeUser);
         } else {
           req.socketService.emitToChannel('general', 'user:updated', {
-            user: updatedUser,
+            user: safeUser,
             role: roleName
           });
         }
@@ -1521,10 +1522,10 @@ router.get('/:id/student-details', authenticateJWT, authorizeRoles(['admin', 'ma
     
     const rentalsResult = await pool.query(rentalsQuery, [req.params.id]);
     
-    const user = userResult.rows[0];
+    const user = sanitizeUser(userResult.rows[0]);
     user.bookings = bookingsResult.rows;
     user.rentals = rentalsResult.rows;
-    
+
     res.json(user);
   } catch (err) {
     logger.error('Failed to fetch user details', err);
@@ -1561,7 +1562,7 @@ router.post('/import-students', authenticateJWT, async (req, res) => {
         RETURNING *`;
       const params = [userData.first_name || userData.name, userData.last_name || '', userData.email, userData.phone, studentRoleId];
       const result = await pool.query(query, params);
-      if (result.rows[0]) inserted.push(result.rows[0]);
+      if (result.rows[0]) inserted.push(sanitizeUser(result.rows[0]));
     }
     res.json({ importedCount: inserted.length, users: inserted });
   } catch (err) {
@@ -1630,7 +1631,7 @@ router.post('/:id/promote-role', authenticateJWT, authorizeRoles(['admin', 'mana
       [targetRoleId, id]
     );
     
-    const updatedUser = updateResult.rows[0];
+    const updatedUser = sanitizeUser(updateResult.rows[0]);
 
     // Role changed → invalidate the user's existing sessions so their stale access
     // token (still encoding the OLD role) can't keep hitting role-gated routes with

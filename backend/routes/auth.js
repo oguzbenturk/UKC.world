@@ -22,6 +22,7 @@ import {
 import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { cacheService } from '../services/cacheService.js';
 import { isAuthCreationDisabled } from '../utils/loginLock.js';
+import { sanitizeUser } from '../utils/sanitizeUser.js';
 import { ERROR_CODES } from '../shared/errorCodes.js';
 import {
   issueRefreshToken,
@@ -1191,11 +1192,9 @@ async function completeLogin(user, req, res) {
       logger.error('Failed to issue refresh token at login', refreshErr);
     }
 
-    // Remove sensitive data
-    delete user.password_hash;
-    delete user.two_factor_secret;
-    delete user.two_factor_backup_codes;
-    
+    // Remove sensitive data (password hash, 2FA secrets, card key, lockout/IP fields, ...)
+    user = sanitizeUser(user);
+
     // Normalize role field
     user.role = user.role_name;
     delete user.role_name;

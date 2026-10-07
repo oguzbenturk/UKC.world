@@ -741,7 +741,9 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
               referenceId: String(order.id),
               originalAmount: new Decimal(order.subtotal || 0).toNumber(),
               discountAmount: new Decimal(order.discount_amount || 0).toNumber(),
-              currency: order.currency || 'EUR'
+              currency: order.currency || 'EUR',
+              // shop_orders.id is SERIAL — kept in metadata, not the UUID applied_to_id
+              metadata: { orderId: String(order.id), orderNumber: order.order_number }
             });
             logger.info(`Voucher ${order.voucher_code} redeemed via Iyzico callback for order ${order.order_number}`);
           } catch (voucherErr) {
@@ -1190,7 +1192,7 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
 
           // Upgrade outsider → student now that a paid package exists
           try {
-            const userRow = await pool.query(`SELECT role FROM users WHERE id = $1`, [cp.user_id]);
+            const userRow = await pool.query(`SELECT r.name AS role FROM users u LEFT JOIN roles r ON r.id = u.role_id WHERE u.id = $1`, [cp.user_id]);
             if (userRow.rows[0]?.role === 'outsider') {
               const { upgradeOutsiderToStudent } = await import('./services/roleUpgradeService.js');
               await upgradeOutsiderToStudent(cp.user_id);

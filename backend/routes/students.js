@@ -4,6 +4,7 @@ import { pool } from '../db.js';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
 import { logger } from '../middlewares/errorHandler.js';
+import { sanitizeUser, sanitizeUsers } from '../utils/sanitizeUser.js';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.get('/', authorizeRoles(['admin', 'manager', 'instructor'], 'users:read')
     `;
     
     const { rows } = await pool.query(query);
-    res.json(rows);
+    res.json(sanitizeUsers(rows));
   } catch (err) {
     logger.error('Error fetching students:', err);
     res.status(500).json({ error: 'Failed to fetch students' });
@@ -63,7 +64,7 @@ router.get('/:id', authorizeRoles(['admin', 'manager', 'instructor']), async (re
     
     const rentalsResult = await pool.query(rentalsQuery, [req.params.id]);
     
-    const student = userResult.rows[0];
+    const student = sanitizeUser(userResult.rows[0]);
     student.bookings = bookingsResult.rows;
     student.rentals = rentalsResult.rows;
     
@@ -123,7 +124,7 @@ router.post('/import', authenticateJWT, authorizeRoles(['admin', 'manager']), as
         RETURNING *`;
       const params = [student.name, student.email, student.phone, studentRoleId];
       const result = await pool.query(query, params);
-      if (result.rows[0]) inserted.push(result.rows[0]);
+      if (result.rows[0]) inserted.push(sanitizeUser(result.rows[0]));
     }
     res.json({ importedCount: inserted.length, students: inserted });
   } catch (err) {

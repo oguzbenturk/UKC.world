@@ -920,7 +920,9 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
           referenceId: String(order.id),
           originalAmount: subtotal,
           discountAmount: voucherDiscount,
-          currency: 'EUR'
+          currency: 'EUR',
+          // shop_orders.id is SERIAL — redeemVoucher keeps it in metadata, not the UUID applied_to_id
+          metadata: { orderId: String(order.id), orderNumber: order.order_number }
         });
         logger.info(`Voucher ${appliedVoucher.code} redeemed for shop order ${order.order_number}`);
       } catch (err) {

@@ -65,6 +65,7 @@ export async function getVoucherById(id) {
 }
 
 /** voucher_codes.id UUID — distinguish from promo code strings */
+const ANY_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VOUCHER_ROW_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
@@ -402,6 +403,7 @@ export function calculateDiscount(voucher, amount, currency = 'EUR') {
  * @param {number} params.discountAmount - Discount applied
  * @param {number} [params.finalAmount] - Amount after discount (defaults to originalAmount - discountAmount)
  * @param {string} [params.currency] - Currency code
+ * @param {Object} [params.metadata] - Extra context stored in voucher_redemptions.metadata
  * @param {Object} [client] - Database client for transaction
  * @returns {Object} Redemption record
  */
@@ -414,9 +416,18 @@ export async function redeemVoucher({
   discountAmount,
   finalAmount: finalAmountParam,
   currency = 'EUR',
+  metadata = null,
   client = null 
 }) {
   const db = client || pool;
+  // voucher_redemptions.applied_to_id is UUID, but some entities (shop_orders)
+  // use INTEGER/SERIAL ids. Non-UUID references go to metadata.referenceId
+  // (same pattern as wallet_transactions metadata.orderId) instead of making
+  // the INSERT fail with "invalid input syntax for type uuid".
+  const refStr = referenceId === undefined || referenceId === null ? null : String(referenceId);
+  const appliedToId = refStr && ANY_UUID_RE.test(refStr) ? refStr : null;
+  const redemptionMeta = { ...(metadata || {}) };
+  if (refStr && !appliedToId) redemptionMeta.referenceId = refStr;
   const orig = Number(originalAmount) || 0;
   const disc = Number(discountAmount) || 0;
   const finalAmt =
@@ -429,10 +440,10 @@ export async function redeemVoucher({
     const redemptionResult = await db.query(
       `INSERT INTO voucher_redemptions (
         voucher_code_id, user_id, applied_to_type, applied_to_id,
-        original_amount, discount_amount, final_amount, currency, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'applied')
+        original_amount, discount_amount, final_amount, currency, status, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'applied', $9::jsonb)
       RETURNING *`,
-      [voucherId, userId, referenceType, referenceId, orig, disc, finalAmt, currency]
+      [voucherId, userId, referenceType, appliedToId, orig, disc, finalAmt, currency, JSON.stringify(redemptionMeta)]
     );
     
     // Increment total_uses counter
