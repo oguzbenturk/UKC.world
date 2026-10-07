@@ -89,12 +89,15 @@ function RatingValue({ average, isDesktop }) {
 /** Average rating + review count + latest feedback quote. */
 export function RatingMiniCard({ isDesktop }) {
   const { t } = useTranslation(['instructor']);
-  const { ratings, summary, isLoading, error } = useInstructorRatings({ limit: 5 });
+  const { ratings, summary, stats, isLoading, error } = useInstructorRatings({ limit: 5 });
 
   if (isLoading) return <SkeletonBlock className="h-28 rounded-2xl" />;
 
-  const total = Number(summary?.totalRatings) || 0;
-  const average = Number(summary?.averageRating) || 0;
+  // GET /ratings/instructor/:id returns summary.ratingCount; /ratings/stats/:id returns
+  // totalRatings. Reading only `totalRatings` from the summary showed "no ratings" for
+  // every instructor.
+  const total = Number(summary?.ratingCount ?? summary?.totalRatings ?? stats?.totalRatings) || 0;
+  const average = Number(summary?.averageRating ?? stats?.averageRating) || 0;
   const latest = ratings.find((r) => r.feedbackText) || null;
   const anonymous = t('instructor:ratings.anonymous');
   const author = latest && (latest.isAnonymous ? anonymous : latest.studentName);

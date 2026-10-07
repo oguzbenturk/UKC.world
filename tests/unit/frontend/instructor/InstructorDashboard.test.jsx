@@ -148,7 +148,7 @@ describe('InstructorDashboard ("My day")', () => {
     apiMock.get.mockImplementation((url) => {
       if (responders[url]) return responders[url]();
       if (url.startsWith('/ratings/instructor/')) {
-        return Promise.resolve({ data: { ratings: [{ id: 'r1', rating: 5, feedbackText: 'Super patient!', studentName: 'Nazlı E.' }], summary: { averageRating: 4.7, totalRatings: 50 } } });
+        return Promise.resolve({ data: { ratings: [{ id: 'r1', rating: 5, feedbackText: 'Super patient!', studentName: 'Nazlı E.' }], summary: { averageRating: 4.7, ratingCount: 50 } } });
       }
       if (url.startsWith('/ratings/stats/')) return Promise.resolve({ data: { distribution: {} } });
       return Promise.reject(new Error(`unexpected GET ${url}`));
