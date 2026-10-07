@@ -5,6 +5,7 @@ import { getRecommendedProductsForRole } from './recommendationService.js';
 import { getUnratedBookings as fetchUnratedBookings } from './ratingService.js';
 import bookingNotificationService from './bookingNotificationService.js';
 import { recordTransaction as recordWalletTransaction, recordLegacyTransaction, getEntityNetCharges, getAllBalances } from './walletService.js';
+import { REFUND_TYPES as SHARED_REFUND_TYPES } from '../constants/transactions.js';
 
 const DEFAULT_PAGE_SIZE = 20;
 // Business/base wallet currency — mirrors walletService's DEFAULT_CURRENCY. Used
@@ -84,7 +85,9 @@ const buildLocalTimeIso = (dateValue, hourDecimal, durationHours) => {
 };
 
 const PAYMENT_TYPES = new Set(['payment', 'credit']);
-const REFUND_TYPES = new Set(['package_refund', 'refund', 'booking_deleted_refund', 'booking_cancelled_refund', 'rental_cancelled_refund']);
+// Shared canonical list (constants/transactions.js) — a local copy here had
+// drifted and missed rental_refund (rental force-delete refunds).
+const REFUND_TYPES = new Set(SHARED_REFUND_TYPES);
 const CHARGE_TYPES = new Set([
   'package_purchase',
   'booking_charge',

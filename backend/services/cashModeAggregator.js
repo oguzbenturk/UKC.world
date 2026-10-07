@@ -90,7 +90,7 @@ async function fetchTransactions(client, { dateStart, dateEnd, includeTypes }) {
   const { rows } = await client.query(
     `SELECT id, amount, transaction_type AS type, payment_method, booking_id, rental_id, transaction_date
      FROM wallet_transactions
-     WHERE transaction_date >= $1::date AND transaction_date <= $2::date
+     WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
        AND transaction_type = ANY($3)
        AND status = 'completed'`,
     [dateStart, dateEnd, includeTypes]
@@ -102,7 +102,7 @@ async function fetchRefundsTotal(client, { dateStart, dateEnd, REFUND_TYPES }) {
   const { rows } = await client.query(
     `SELECT COALESCE(SUM(amount),0) as total_refunds
      FROM wallet_transactions
-     WHERE transaction_date >= $1::date AND transaction_date <= $2::date
+     WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
        AND transaction_type = ANY($3)
        AND status = 'completed'`,
     [dateStart, dateEnd, REFUND_TYPES]

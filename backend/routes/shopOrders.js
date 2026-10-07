@@ -22,6 +22,12 @@ import { applyDiscount, computeDiscountAmount, reverseOpenDiscountCreditsForEnti
 
 const router = express.Router();
 
+// payment_status a card / hybrid (Iyzico) order is created with and keeps until the
+// gateway callback settles it (server.js /api/finances/callback/iyzico -> completed |
+// deposit_paid, or failed + stock released). shop_orders' CHECK constraint has NO
+// 'pending_payment' (that status belongs to bookings / packages / memberships).
+export const SHOP_ORDER_AWAITING_GATEWAY_STATUS = 'pending';
+
 // Adjust per-variant stock inside products.variants JSONB for one order line.
 //
 // A variant is identified by size label AND colour, so a colour×size matrix
@@ -33,7 +39,7 @@ const router = express.Router();
 //   restore=false → sale: floor at 0 (GREATEST). restore=true → cancel/refund.
 //
 // No-ops when no size was recorded or the product has no variants array.
-async function adjustVariantStock(client, { productId, size, color, qty, restore }) {
+export async function adjustVariantStock(client, { productId, size, color, qty, restore }) {
   if (!size) return;
   const quantityExpr = restore
     ? `(elem->>'quantity')::int + $1`
@@ -80,7 +86,7 @@ function resolveVariantUnitPrice(product, selectedSize, selectedColor) {
 }
 
 // Helper to notify admins and managers about a new shop order
-async function notifyAdminsNewOrder(order, items, buyerName) {
+export async function notifyAdminsNewOrder(order, items, buyerName) {
   try {
     const itemSummary = items.length <= 3
       ? items.map(i => `${i.product_name} x${i.quantity}`).join(', ')
@@ -1277,7 +1283,10 @@ router.get('/admin/all', authenticateJWT, authorizeRoles(['admin', 'manager']), 
     }
 
     if (date_to) {
-      whereConditions.push(`o.created_at <= $${paramIndex++}`);
+      // A plain YYYY-MM-DD end date must include the whole day (created_at is a timestamp).
+      whereConditions.push(/^\d{4}-\d{2}-\d{2}$/.test(String(date_to))
+        ? `o.created_at < ($${paramIndex++}::date + INTERVAL '1 day')`
+        : `o.created_at <= $${paramIndex++}`);
       params.push(date_to);
     }
 

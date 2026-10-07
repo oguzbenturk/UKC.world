@@ -2396,7 +2396,10 @@ export async function listWithdrawalRequests({
 
   if (endDate) {
     params.push(endDate);
-    clauses.push(`wr.requested_at <= $${params.length}`);
+    // A plain YYYY-MM-DD end date must include the whole day (timestamp column).
+    clauses.push(/^\d{4}-\d{2}-\d{2}$/.test(String(endDate))
+      ? `wr.requested_at < ($${params.length}::date + INTERVAL '1 day')`
+      : `wr.requested_at <= $${params.length}`);
   }
 
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
@@ -3403,7 +3406,9 @@ export async function listUserDepositRequests({
 
   if (endDate) {
     params.push(endDate);
-    clauses.push(`created_at <= $${params.length}`);
+    clauses.push(/^\d{4}-\d{2}-\d{2}$/.test(String(endDate))
+      ? `created_at < ($${params.length}::date + INTERVAL '1 day')`
+      : `created_at <= $${params.length}`);
   }
 
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
@@ -3722,7 +3727,9 @@ export async function listDepositRequests({
 
   if (endDate) {
     params.push(endDate);
-    clauses.push(`dr.created_at <= $${params.length}`);
+    clauses.push(/^\d{4}-\d{2}-\d{2}$/.test(String(endDate))
+      ? `dr.created_at < ($${params.length}::date + INTERVAL '1 day')`
+      : `dr.created_at <= $${params.length}`);
   }
 
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);

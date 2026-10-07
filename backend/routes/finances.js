@@ -582,7 +582,7 @@ router.get('/transactions/payments', authenticateJWT, authorizeRoles(['admin', '
         mp.payment_method
       FROM member_purchases mp
       JOIN users u ON u.id = mp.user_id
-      WHERE mp.purchased_at >= $1::date AND mp.purchased_at <= $2::date
+      WHERE mp.purchased_at >= $1::date AND mp.purchased_at < ($2::date + interval '1 day')
         AND mp.payment_status = 'completed'
       ORDER BY mp.purchased_at DESC
     `;
@@ -603,7 +603,7 @@ router.get('/transactions/payments', authenticateJWT, authorizeRoles(['admin', '
         wt.payment_method
       FROM wallet_transactions wt
       JOIN users u ON u.id = wt.user_id
-      WHERE wt.transaction_date >= $1::date AND wt.transaction_date <= $2::date
+      WHERE wt.transaction_date >= $1::date AND wt.transaction_date < ($2::date + interval '1 day')
         AND wt.status = 'completed'
         AND wt.transaction_type = 'package_purchase'
       ORDER BY wt.transaction_date DESC
@@ -2472,7 +2472,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           COUNT(*) AS total_transactions
         FROM wallet_transactions
         LEFT JOIN currency_settings cs ON cs.currency_code = wallet_transactions.currency AND cs.is_active = true
-        WHERE transaction_date >= $1::date AND transaction_date <= $2::date
+        WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
           AND status = 'completed'
           AND NOT (transaction_type = ANY($5))
           AND ${activeFinanceTxnFilter()}
@@ -2502,8 +2502,8 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           (rental_date IS NOT NULL AND rental_date >= $1::date AND rental_date <= $2::date)
           OR (
             rental_date IS NULL AND (
-              (start_date >= $1::date AND start_date <= $2::date) OR
-              (end_date   >= $1::date AND end_date   <= $2::date) OR
+              (start_date >= $1::date AND start_date < ($2::date + interval '1 day')) OR
+              (end_date   >= $1::date AND end_date   < ($2::date + interval '1 day')) OR
               (start_date <  $1::date AND end_date   >  $2::date)
             )
           )
@@ -2602,7 +2602,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
           COALESCE(SUM(CASE WHEN transaction_type = 'rental_charge' THEN ABS(amount) ELSE 0 END), 0) AS rental_charges,
           COALESCE(SUM(CASE WHEN transaction_type = 'accommodation_charge' THEN ABS(amount) ELSE 0 END), 0) AS accommodation_charges
         FROM wallet_transactions
-        WHERE transaction_date >= $1::date AND transaction_date <= $2::date
+        WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
           AND status = 'completed'
           AND ${activeFinanceTxnFilter()}
       `, [dateStart, dateEnd]),
@@ -2625,7 +2625,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         SELECT COALESCE(SUM(GREATEST(COALESCE(purchase_price, 0) - cp_disc.amt, 0)), 0) AS package_revenue
         FROM customer_packages
         ${discountSumLateral('cp_disc', 'customer_package', 'customer_packages.id')}
-        WHERE purchase_date >= $1::date AND purchase_date <= $2::date
+        WHERE purchase_date >= $1::date AND purchase_date < ($2::date + interval '1 day')
           AND status IN ('active', 'completed', 'expired')
       `, [dateStart, dateEnd]),
 
@@ -2634,7 +2634,7 @@ router.get('/summary', authenticateJWT, authorizeRoles(['admin', 'manager']), ca
         SELECT COALESCE(SUM(ABS(amount)), 0) AS shop_revenue,
           COUNT(*) AS shop_order_count
         FROM wallet_transactions
-        WHERE transaction_date >= $1::date AND transaction_date <= $2::date
+        WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
           AND status = 'completed'
           AND (
             transaction_type IN ('product_purchase', 'shop_purchase', 'merchandise_purchase')
@@ -2909,8 +2909,8 @@ router.get('/rental-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
         (r.rental_date IS NOT NULL AND r.rental_date >= $1::date AND r.rental_date <= $2::date)
         OR (
           r.rental_date IS NULL AND (
-            (r.start_date >= $1::date AND r.start_date <= $2::date) OR
-            (r.end_date   >= $1::date AND r.end_date   <= $2::date) OR
+            (r.start_date >= $1::date AND r.start_date < ($2::date + interval '1 day')) OR
+            (r.end_date   >= $1::date AND r.end_date   < ($2::date + interval '1 day')) OR
             (r.start_date <  $1::date AND r.end_date   >  $2::date)
           )
         )
@@ -3320,6 +3320,8 @@ router.get('/events-breakdown', authenticateJWT, authorizeRoles(['admin', 'manag
  *    values are added to EUR totals.
  *  - JS-side arithmetic is Decimal.js (2 dp, half-up); PG NUMERIC strings are
  *    never added as floats.
+ *  - Rows are windowed and bucketed by transaction_date (the business date),
+ *    the same column /summary filters on — not created_at (insert time).
  */
 router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), cacheMiddleware(120, (req) => `api:finances:overview:${req.query.start_date || 'all'}:${req.query.end_date || 'all'}`), async (req, res) => {
   try {
@@ -3332,6 +3334,11 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
     // currency_settings also has created_at / is_active columns.
     const amountEur = `(ABS(wt.amount) / COALESCE(cs.exchange_rate, 1))`;
     const rateJoin = `LEFT JOIN currency_settings cs ON cs.currency_code = wt.currency AND cs.is_active = true`;
+    // Business-date basis, same column as /summary (transaction_date — NOT NULL,
+    // defaults to NOW() but back-dated entries carry the real business date;
+    // created_at is only the insert time). End date is inclusive of the whole day,
+    // and the range form keeps the (user_id, transaction_date) index usable.
+    const inDateRange = `wt.transaction_date >= $1::date AND wt.transaction_date < ($2::date + 1)`;
     // PG NUMERIC string → Decimal rounded to cents. Only money() values are
     // ever added/subtracted below; .toNumber() happens at the JSON boundary.
     const money = (value) => new Decimal(value ?? 0).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
@@ -3355,7 +3362,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       FROM wallet_transactions wt
       ${rateJoin}
       WHERE wt.status = 'completed'
-        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${inDateRange}
         AND ${activeFinanceTxnFilter('wt')}
     `, [startDate, endDate, REFUND_TYPES]);
 
@@ -3375,7 +3382,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       FROM wallet_transactions wt
       ${rateJoin}
       WHERE wt.status = 'completed'
-        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${inDateRange}
         AND ${activeFinanceTxnFilter('wt')}
     `, [startDate, endDate]);
 
@@ -3384,15 +3391,15 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
     // ── Monthly trend ──────────────────────────────────────────────────────
     const trendResult = await pool.query(`
       SELECT
-        TO_CHAR(wt.created_at, 'YYYY-MM') AS month,
+        TO_CHAR(wt.transaction_date, 'YYYY-MM') AS month,
         COALESCE(SUM(CASE WHEN wt.direction='credit' THEN ${amountEur} ELSE 0 END), 0) AS income,
         COALESCE(SUM(CASE WHEN wt.direction='debit'  THEN ${amountEur} ELSE 0 END), 0) AS charges
       FROM wallet_transactions wt
       ${rateJoin}
       WHERE wt.status = 'completed'
-        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${inDateRange}
         AND ${activeFinanceTxnFilter('wt')}
-      GROUP BY TO_CHAR(wt.created_at, 'YYYY-MM')
+      GROUP BY TO_CHAR(wt.transaction_date, 'YYYY-MM')
       ORDER BY month
     `, [startDate, endDate]);
 
@@ -3442,7 +3449,7 @@ router.get('/overview', authenticateJWT, authorizeRoles(['admin', 'manager']), c
       ${rateJoin}
       WHERE wt.status = 'completed'
         AND wt.direction = 'debit'
-        AND wt.created_at::date BETWEEN $1 AND $2
+        AND ${inDateRange}
         AND ${activeFinanceTxnFilter('wt')}
       GROUP BY wt.transaction_type
       ORDER BY total DESC
@@ -3742,7 +3749,7 @@ router.get('/revenue-analytics', authenticateJWT, authorizeRoles(['admin', 'mana
           COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN ABS(amount) ELSE 0 END), 0) as revenue,
           COUNT(CASE WHEN transaction_type = ANY($3) THEN 1 END) as transaction_count
         FROM wallet_transactions
-        WHERE transaction_date >= $1::date AND transaction_date <= $2::date
+        WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
           AND status = 'completed'
           AND NOT (transaction_type = ANY($4))
           AND ${activeFinanceTxnFilter()}
@@ -3984,7 +3991,7 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
         COALESCE(SUM(total_price), 0) as total_rental_revenue,
         COALESCE(AVG(total_price), 0) as average_rental_value
       FROM rentals
-      WHERE start_date <= $2::timestamp
+      WHERE start_date < ($2::date + interval '1 day')
         AND end_date >= $1::timestamp
         AND status NOT IN ('cancelled', 'canceled')
     `;
@@ -4121,7 +4128,7 @@ router.get('/reports/:type', authenticateJWT, authorizeRoles(['admin', 'manager'
             COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN amount ELSE 0 END), 0) as amount
           FROM wallet_transactions
           WHERE transaction_date >= $1::date
-            AND transaction_date <= $2::date
+            AND transaction_date < ($2::date + interval '1 day')
             AND status = 'completed'
             AND ${activeFinanceTxnFilter()}
           UNION ALL
@@ -4130,7 +4137,7 @@ router.get('/reports/:type', authenticateJWT, authorizeRoles(['admin', 'manager'
             COALESCE(SUM(CASE WHEN transaction_type = ANY($4) THEN -amount ELSE 0 END), 0) as amount
           FROM wallet_transactions
           WHERE transaction_date >= $1::date
-            AND transaction_date <= $2::date
+            AND transaction_date < ($2::date + interval '1 day')
             AND status = 'completed'
             AND ${activeFinanceTxnFilter()}
         `;
@@ -4331,8 +4338,13 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
       params.push(start_date);
     }
 
+    // A bare YYYY-MM-DD end date covers the whole day (created_at is TIMESTAMPTZ;
+    // `<= '2026-10-07'` stopped at 00:00). A full timestamp keeps its exact cutoff.
+    const endIsDateOnly = typeof end_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(end_date);
     if (end_date) {
-      query += ` AND wt.created_at <= $${paramCount++}`;
+      query += endIsDateOnly
+        ? ` AND wt.created_at < ($${paramCount++}::date + interval '1 day')`
+        : ` AND wt.created_at <= $${paramCount++}`;
       params.push(end_date);
     }
 
@@ -4368,7 +4380,9 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
       WHERE amount < 0
         AND ${activeFinanceTxnFilter()}
       ${start_date ? `AND created_at >= $1` : ''}
-      ${end_date ? `AND created_at <= $${start_date ? '2' : '1'}` : ''}
+      ${end_date ? (endIsDateOnly
+        ? `AND created_at < ($${start_date ? '2' : '1'}::date + interval '1 day')`
+        : `AND created_at <= $${start_date ? '2' : '1'}`) : ''}
       GROUP BY transaction_type
       ORDER BY total DESC
     `;

@@ -9,11 +9,35 @@ export const PAYMENT_TYPES = [
   'accommodation_payment' // accommodation payment (future-proof)
 ];
 
+// Every wallet_transactions.transaction_type that is a customer refund CREDIT
+// (direction 'credit', positive amount) reversing a sale. Consumers
+// (/finances/summary, /overview, P&L report, cashModeAggregator,
+// dailyOperationsService, studentPortalService) sum these, so each real refund
+// type must be listed exactly once. Writers:
+//   refund                   — manual/finances refund, shop order + member
+//                              purchase refunds (told apart by
+//                              related_entity_type 'shop_order_refund' /
+//                              'member_purchase_refund', NOT by type), group
+//                              booking refunds
+//   booking_cancelled_refund — bookings / group bookings / agent / student portal cancel
+//   booking_deleted_refund   — DELETE /bookings/:id
+//   rental_cancelled_refund  — rentals.js cancel
+//   rental_refund            — rentalCleanupService force-delete of a rental
+//   package_refund           — customerPackageService / bookings package refund
+// Deliberately NOT listed:
+//   iyzico_refund — a DEBIT (negative amount) sending wallet money back to the
+//     card; it reverses a deposit, not a sale. Summing it here would subtract it
+//     from the credit refunds. dailyOperationsService adds it locally (with ABS)
+//     as cash-out.
+//   *_reversal (booking_deleted_credit_reversal, discount_adjustment_reversal,
+//     payment_reversal, withdrawal_reversal, package_purchase_reversal) —
+//     ledger undo rows, already excluded from stats by the '_reversal' suffix.
 export const REFUND_TYPES = [
   'refund',
   'booking_cancelled_refund',
   'booking_deleted_refund',
   'rental_cancelled_refund',
+  'rental_refund',
   'package_refund'
 ];
 

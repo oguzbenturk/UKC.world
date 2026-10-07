@@ -91,7 +91,8 @@ import proposalsRouter from './routes/proposals.js';
 import publicProposalsRouter from './routes/publicProposals.js';
 import userRelationshipsRouter from './routes/userRelationships.js';
 import chatRouter from './routes/chat.js';
-import shopOrdersRouter from './routes/shopOrders.js';
+import shopOrdersRouter, { adjustVariantStock, notifyAdminsNewOrder, SHOP_ORDER_AWAITING_GATEWAY_STATUS } from './routes/shopOrders.js';
+import { addTag } from './services/userTagService.js';
 import businessExpensesRouter from './routes/businessExpenses.js';
 import formTemplatesRouter from './routes/formTemplates.js';
 import formSubmissionsRouter from './routes/formSubmissions.js';
@@ -525,6 +526,73 @@ const iyzicoCallbackLimiter = rateLimit({
   message: { error: 'Too many payment callback attempts. Please wait.' }
 });
 
+// A declined / failed Iyzico payment for a card or hybrid shop order: mark the order
+// failed + cancelled and put back the stock POST /shop-orders reserved at creation.
+// Nothing else needs undoing — the wallet portion and the voucher redemption are
+// both deferred to the success callback. Atomic + idempotent: only an order still
+// awaiting the gateway is touched, so a replayed failure callback is a no-op.
+// Returns the order_number when an order was released, else null.
+async function releaseFailedShopGatewayOrder(token, reason) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: [order] } = await client.query(`
+      UPDATE shop_orders
+         SET payment_status = 'failed',
+             status = 'cancelled',
+             cancelled_at = NOW(),
+             updated_at = NOW(),
+             wallet_deduction_data = NULL
+       WHERE gateway_token = $1
+         AND payment_method IN ('credit_card', 'wallet_hybrid')
+         AND payment_status = $2
+         AND status NOT IN ('cancelled', 'refunded')
+       RETURNING id, order_number, status, user_id
+    `, [token, SHOP_ORDER_AWAITING_GATEWAY_STATUS]);
+    if (!order) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const { rows: items } = await client.query(
+      'SELECT product_id, quantity, selected_size, selected_color FROM shop_order_items WHERE order_id = $1',
+      [order.id]
+    );
+    for (const item of items) {
+      if (!item.product_id) continue;
+      await client.query(
+        'UPDATE products SET stock_quantity = stock_quantity + $1, updated_at = NOW() WHERE id = $2',
+        [item.quantity, item.product_id]
+      );
+      await adjustVariantStock(client, {
+        productId: item.product_id,
+        size: item.selected_size,
+        color: item.selected_color,
+        qty: item.quantity,
+        restore: true,
+      });
+    }
+
+    await client.query(`
+      INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+      VALUES ($1, 'pending', 'cancelled', $2, $3)
+    `, [order.id, resolveSystemActorId() || order.user_id, `Iyzico payment failed (${reason}) — order cancelled, stock released`]);
+
+    await client.query('COMMIT');
+    logger.info('Shop order released after Iyzico payment failure', { orderId: order.id, orderNumber: order.order_number });
+    try {
+      await cacheService.del('api:shop:orders:*');
+      await cacheService.del('api:shop:stats:*');
+    } catch (_) { /* cache is best-effort */ }
+    return order.order_number;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlencoded({ extended: true }), async (req, res) => {
   try {
     const { token } = req.body;
@@ -616,15 +684,60 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
           return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
         }
 
+        // Claim the order FIRST — atomic: only succeeds while it is still awaiting the
+        // gateway, so a duplicate/concurrent callback (or webhook + browser return) is
+        // processed exactly once. POST /shop-orders writes card / hybrid orders as
+        // payment_status 'pending' + status 'pending' (the DB CHECK has no
+        // 'pending_payment' for shop_orders — the old filter matched nothing, so a paid
+        // card order was never confirmed and its voucher never redeemed). Claiming
+        // before the deferred wallet debits also keeps a cancelled order from being
+        // charged to the wallet.
+        const isDepositOrder = parseFloat(order.deposit_percent || 0) > 0;
+        const newPaymentStatus = isDepositOrder ? 'deposit_paid' : 'completed';
+        const orderUpdateResult = await pool.query(`
+          UPDATE shop_orders
+          SET payment_status = $2,
+              status = 'confirmed',
+              confirmed_at = NOW(),
+              updated_at = NOW(),
+              wallet_deduction_data = NULL
+          WHERE id = $1 AND payment_status = $3 AND status NOT IN ('cancelled', 'refunded')
+          RETURNING id, confirmed_at
+        `, [order.id, newPaymentStatus, SHOP_ORDER_AWAITING_GATEWAY_STATUS]);
+        if (orderUpdateResult.rowCount === 0) {
+          const { rows: [current] } = await pool.query(
+            'SELECT payment_status, status FROM shop_orders WHERE id = $1',
+            [order.id]
+          );
+          if (current && (current.payment_status === 'completed' || current.payment_status === 'deposit_paid')) {
+            logger.warn('Iyzico Callback: Shop order already processed by concurrent request, skipping', { orderId: order.id, token });
+            return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
+          }
+          // The card was charged but the order is no longer payable (cancelled by the
+          // customer, or already failed). Do not confirm it — flag it for a manual refund.
+          logger.error('Iyzico Callback: card charged for a shop order that is no longer payable — refund required', {
+            orderId: order.id, orderNumber: order.order_number, paymentStatus: current?.payment_status, status: current?.status, paymentId: payment.paymentId
+          });
+          try {
+            await pool.query(
+              `UPDATE shop_orders SET admin_notes = COALESCE(admin_notes, '') || ' | PAID_AFTER_CANCEL: Iyzico paymentId ' || $2 || ' — refund the card', updated_at = NOW() WHERE id = $1`,
+              [order.id, String(payment.paymentId ?? '')]
+            );
+          } catch (_) { /* best-effort */ }
+          return res.redirect(`${frontendUrl}/payment/callback?status=failed&type=shop&order=${order.order_number}&reason=order_not_payable`);
+        }
+        order.confirmed_at = orderUpdateResult.rows[0].confirmed_at;
+
+        const orderItemsResult = await pool.query(
+          'SELECT product_name, quantity FROM shop_order_items WHERE order_id = $1',
+          [order.id]
+        );
+        const orderItems = orderItemsResult.rows;
+
         // Execute deferred wallet deductions now that card payment is confirmed
         if (order.wallet_deduction_data && order.wallet_deduction_data.plan) {
           try {
             const { recordTransaction: recordWalletTx } = await import('./services/walletService.js');
-            const orderItemsResult = await pool.query(
-              'SELECT product_name, quantity FROM shop_order_items WHERE order_id = $1',
-              [order.id]
-            );
-            const orderItems = orderItemsResult.rows;
             const itemSummary = orderItems.length <= 3
               ? orderItems.map(i => `${i.product_name} x${i.quantity}`).join(', ')
               : `${orderItems.slice(0, 2).map(i => `${i.product_name} x${i.quantity}`).join(', ')} +${orderItems.length - 2} more`;
@@ -659,24 +772,6 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
               );
             } catch (_) { /* best-effort */ }
           }
-        }
-
-        // Update shop order — atomic: only succeeds if still pending_payment (prevents double-processing)
-        const isDepositOrder = parseFloat(order.deposit_percent || 0) > 0;
-        const newPaymentStatus = isDepositOrder ? 'deposit_paid' : 'completed';
-        const orderUpdateResult = await pool.query(`
-          UPDATE shop_orders
-          SET payment_status = $2,
-              status = 'confirmed',
-              confirmed_at = NOW(),
-              updated_at = NOW(),
-              wallet_deduction_data = NULL
-          WHERE id = $1 AND payment_status = 'pending_payment'
-          RETURNING id
-        `, [order.id, newPaymentStatus]);
-        if (orderUpdateResult.rowCount === 0) {
-          logger.warn('Iyzico Callback: Shop order already processed by concurrent request, skipping', { orderId: order.id, token });
-          return res.redirect(`${frontendUrl}/payment/callback?status=success&type=shop&order=${order.order_number}`);
         }
 
         // Log status change in history
@@ -720,6 +815,23 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
             orderNumber: order.order_number
           });
         } catch (_) { /* non-critical */ }
+
+        // POST /shop-orders returns early for gateway orders (before its staff
+        // notification + shop_customer tag), so do both here once the card is paid.
+        // notifyAdminsNewOrder swallows its own errors and is idempotent per order.
+        try {
+          const { rows: [buyer] } = await pool.query(
+            'SELECT first_name, last_name, email FROM users WHERE id = $1',
+            [order.user_id]
+          );
+          const buyerName = buyer
+            ? [buyer.first_name, buyer.last_name].filter(Boolean).join(' ') || buyer.email || 'A customer'
+            : 'A customer';
+          notifyAdminsNewOrder(order, orderItems, buyerName);
+          addTag(order.user_id, 'shop_customer', 'Shop Customer', { firstOrderId: order.id });
+        } catch (notifyErr) {
+          logger.warn('Failed to notify staff / tag buyer for card-paid shop order', { orderId: order.id, error: notifyErr.message });
+        }
 
         // Redeem voucher if one was applied to this order
         if (order.voucher_id) {
@@ -1397,7 +1509,20 @@ app.post('/api/finances/callback/iyzico', iyzicoCallbackLimiter, express.urlenco
       }
     }
 
+    // Same for a card / hybrid shop order: mark it failed and release its reserved stock.
+    let failedShopOrderNumber = null;
+    if (failedToken && error.message?.includes('Payment not successful')) {
+      try {
+        failedShopOrderNumber = await releaseFailedShopGatewayOrder(failedToken, error.message);
+      } catch (shopErr) {
+        logger.warn('Failed to release shop order after Iyzico payment failure', { error: shopErr.message });
+      }
+    }
+
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    if (failedShopOrderNumber) {
+      return res.redirect(`${frontendUrl}/payment/callback?status=failed&type=shop&order=${failedShopOrderNumber}`);
+    }
     res.redirect(`${frontendUrl}/payment/callback?status=failed`);
   }
 });
@@ -1893,15 +2018,18 @@ if (shouldStartServer) {
           }
           if (orderIds.length > 0) {
             await client.query(
-              `UPDATE shop_orders SET payment_status = 'cancelled', status = 'cancelled', updated_at = NOW()
-                WHERE id = ANY($1::uuid[]) AND payment_status = 'waiting_payment'`,
+              // shop_orders.id is INTEGER and payment_status has no 'cancelled' value (CHECK
+              // constraint) — the old uuid[] cast / value made this statement throw and roll
+              // back the whole batch, including the package cancellations above.
+              `UPDATE shop_orders SET payment_status = 'failed', status = 'cancelled', updated_at = NOW()
+                WHERE id = ANY($1::int[]) AND payment_status = 'waiting_payment'`,
               [orderIds]
             );
           }
           if (memberPurchaseIds.length > 0) {
             await client.query(
               `UPDATE member_purchases SET status = 'cancelled', payment_status = 'cancelled', updated_at = NOW()
-                WHERE id = ANY($1::uuid[]) AND status = 'waiting_payment'`,
+                WHERE id = ANY($1::int[]) AND status = 'waiting_payment'`,
               [memberPurchaseIds]
             );
           }
