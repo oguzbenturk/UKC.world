@@ -1186,16 +1186,14 @@
     "lastNoteUndated": "Última nota: «{{text}}»",
     "openCalendar": "Abrir calendario",
     "calendar": "Calendario",
+    "closeHint": "Tu responsable cierra la clase cuando termina.",
     "attention": {
       "title": "Requiere atención",
       "waiver": "{{name}} ({{time}}) no tiene la exención firmada",
-      "unpaid": "{{name}} ({{time}}) aún no ha pagado",
       "unread_one": "{{count}} mensaje sin leer",
       "unread_other": "{{count}} mensajes sin leer",
       "waiverChip_one": "{{count}} exención pendiente",
-      "waiverChip_other": "{{count}} exenciones pendientes",
-      "unpaidChip_one": "{{count}} clase sin pagar",
-      "unpaidChip_other": "{{count}} clases sin pagar"
+      "waiverChip_other": "{{count}} exenciones pendientes"
     },
     "wind": {
       "title": "Viento",

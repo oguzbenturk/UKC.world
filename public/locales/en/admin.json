@@ -1089,6 +1089,21 @@
         "error": "Failed to update booking defaults",
         "durationMismatch": "Default duration must be one of the allowed durations"
       }
+    },
+    "instructorWind": {
+      "title": "Instructor dashboard wind",
+      "description": "The spot shown on the wind card of the instructors' “My day” dashboard and the wind range it calls good for lessons.",
+      "spot": "Spot",
+      "minKn": "Minimum (kn)",
+      "maxKn": "Maximum (kn)",
+      "rangeHint": "Between {{min}} and {{max}} knots; the minimum must be lower than the maximum.",
+      "errorRange": "Enter a value between {{min}} and {{max}} knots.",
+      "errorOrder": "The minimum must be lower than the maximum.",
+      "save": "Save wind settings",
+      "saving": "Saving…",
+      "saved": "Instructor dashboard wind saved",
+      "saveError": "Couldn't save the wind settings. Please try again.",
+      "loadError": "Couldn't load the current wind settings — showing the defaults."
     }
   },
   "legal": {

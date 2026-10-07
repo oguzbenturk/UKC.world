@@ -15,6 +15,7 @@ import { logger } from '@/shared/utils/logger';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
 import eventBus from '@/shared/utils/eventBus';
+import { canCloseLessons } from '@/shared/utils/roleUtils';
 import { filterServicesByCapacity } from '@/shared/utils/serviceCapacityFilter';
 
 const EnhancedCustomerDetailModal = lazy(() => import('@/features/customers/components/EnhancedCustomerDetailModal'));
@@ -109,6 +110,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const canModifyBooking = ['manager', 'admin', 'developer', 'front_desk', 'receptionist', 'owner'].includes(user?.role?.toLowerCase?.() || '');
   // Instructors see duration/rate/commission but not the total booking amount.
   const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
+  // Closing a lesson (complete / check out / no-show) is staff-only — instructors
+  // may check in but the manager closes the lesson (owner decision 2026-10-08;
+  // backend answers 403 INSTRUCTOR_CANNOT_COMPLETE).
+  const canClose = canCloseLessons(user?.role);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -476,6 +481,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
     }));
   };  // Handle checkout with actual duration and proper error handling
   const handleCheckout = async () => {
+    if (!canClose) return;
     if (!booking || isProcessing) return;
     
     // Validation
@@ -1979,8 +1985,8 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                   </button>
                                 )}
 
-                                {/* Check-Out Button - always available for group bookings unless already completed */}
-                                {checkInStatus !== 'completed' && (
+                                {/* Check-Out Button - staff only; available for group bookings unless already completed */}
+                                {canClose && checkInStatus !== 'completed' && (
                                   <button
                                     type="button"
                                     className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
@@ -2045,6 +2051,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                       )}
                                     </button>
 
+                                    {canClose && (
                                     <button
                                       type="button"
                                       className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
@@ -2060,10 +2067,11 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                                         </>
                                       )}
                                     </button>
+                                    )}
                                   </>
                                 )}
 
-                                {checkInStatus === 'checked-in' && (
+                                {canClose && checkInStatus === 'checked-in' && (
                                   <button
                                     type="button"
                                     className="flex items-center justify-center px-3 py-1.5 border border-transparent rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 transition-all duration-200"
@@ -2085,6 +2093,11 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           }
                         })()}
                       </div>
+                      {!canClose && !['completed', 'no_show', 'no-show', 'cancelled', 'checked-out'].includes(String(checkInStatus || '').toLowerCase()) && (
+                        <p data-testid="close-by-manager-hint" className="mt-2 text-xs text-slate-500">
+                          {t('common:bookings.detail.closedByManagerHint')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

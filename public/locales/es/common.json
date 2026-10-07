@@ -741,7 +741,8 @@
       "serviceCapacityHintSingle": "Reserva de un solo participante: solo se pueden seleccionar servicios privados.",
       "startTimeLabel": "Hora de inicio",
       "startTimeRequired": "La hora de inicio es obligatoria (HH:MM)",
-      "useDefaultRate": "Tarifa predeterminada"
+      "useDefaultRate": "Tarifa predeterminada",
+      "closedByManagerHint": "Tu responsable cierra la clase cuando termina."
     },
     "groupDetail": {
       "title": "Reserva grupal",
@@ -829,6 +830,9 @@
       "paidCount": "{{count}} pagado(s)",
       "enterEmailsLabel": "Introduzca correos (separados por coma o nueva línea)",
       "atLeastOneEmail": "Introduzca al menos un correo"
+    },
+    "drawer": {
+      "instructorSelfOnly": "Solo puedes reservar clases para ti, con alumnos que ya tienen cuenta."
     }
   },
   "calendars": {

@@ -740,7 +740,8 @@
       "serviceCapacityHintSingle": "Single-participant booking — only private services can be selected.",
       "startTimeLabel": "Start time",
       "startTimeRequired": "Start time is required (HH:MM)",
-      "useDefaultRate": "Default rate"
+      "useDefaultRate": "Default rate",
+      "closedByManagerHint": "Your manager closes the lesson after it ends."
     },
     "groupDetail": {
       "title": "Group Booking",
@@ -828,6 +829,9 @@
       "paidCount": "{{count}} paid",
       "enterEmailsLabel": "Enter emails (comma or newline separated)",
       "atLeastOneEmail": "Enter at least one email"
+    },
+    "drawer": {
+      "instructorSelfOnly": "You can book lessons only for yourself, with students who already have an account."
     }
   },
   "calendars": {

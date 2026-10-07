@@ -1184,16 +1184,14 @@
     "lastNoteUndated": "Son not: “{{text}}”",
     "openCalendar": "Takvimi aç",
     "calendar": "Takvim",
+    "closeHint": "Ders bittikten sonra dersi yöneticiniz kapatır.",
     "attention": {
       "title": "İlgilenmen gerekenler",
       "waiver": "{{name}} ({{time}}) feragatnameyi imzalamamış",
-      "unpaid": "{{name}} ({{time}}) henüz ödeme yapmamış",
       "unread_one": "{{count}} okunmamış mesaj",
       "unread_other": "{{count}} okunmamış mesaj",
       "waiverChip_one": "{{count}} eksik feragatname",
-      "waiverChip_other": "{{count}} eksik feragatname",
-      "unpaidChip_one": "{{count}} ödenmemiş ders",
-      "unpaidChip_other": "{{count}} ödenmemiş ders"
+      "waiverChip_other": "{{count}} eksik feragatname"
     },
     "wind": {
       "title": "Rüzgar",

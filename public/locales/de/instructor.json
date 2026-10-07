@@ -1184,16 +1184,14 @@
     "lastNoteUndated": "Letzte Notiz: „{{text}}“",
     "openCalendar": "Kalender öffnen",
     "calendar": "Kalender",
+    "closeHint": "Die Stunde wird nach dem Ende von der Leitung abgeschlossen.",
     "attention": {
       "title": "Braucht Aufmerksamkeit",
       "waiver": "{{name}} ({{time}}) hat keinen unterschriebenen Haftungsverzicht",
-      "unpaid": "{{name}} ({{time}}) hat noch nicht bezahlt",
       "unread_one": "{{count}} ungelesene Nachricht",
       "unread_other": "{{count}} ungelesene Nachrichten",
       "waiverChip_one": "{{count}} fehlender Haftungsverzicht",
-      "waiverChip_other": "{{count}} fehlende Haftungsverzichte",
-      "unpaidChip_one": "{{count}} unbezahlte Stunde",
-      "unpaidChip_other": "{{count}} unbezahlte Stunden"
+      "waiverChip_other": "{{count}} fehlende Haftungsverzichte"
     },
     "wind": {
       "title": "Wind",

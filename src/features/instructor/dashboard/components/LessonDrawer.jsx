@@ -123,7 +123,7 @@ function ParticipantRow({ lesson, participant, noteOpen, onToggleNote, onMessage
   );
 }
 
-function DrawerBody({ lesson, initialNote, busy, onCheckIn, onCheckOut, onMessage, openingFor }) {
+function DrawerBody({ lesson, initialNote, busy, canClose, onCheckIn, onCheckOut, onMessage, openingFor }) {
   const { t } = useTranslation(['instructor']);
   const subtitle = useLessonSubtitle(lesson, { withPackage: true });
   const [noteFor, setNoteFor] = useState(() => (initialNote && lesson.participants.length === 1 ? lesson.participants[0].userId : null));
@@ -154,11 +154,14 @@ function DrawerBody({ lesson, initialNote, busy, onCheckIn, onCheckOut, onMessag
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
         <CheckStatus lesson={lesson} />
-        {!done && (checkedIn ? (
+        {/* Closing a lesson (check out) is staff-only; instructors get a hint instead. */}
+        {!done && (checkedIn ? (canClose ? (
           <button type="button" onClick={() => onCheckOut(lesson)} disabled={busy} className={`${primaryButtonClass} h-11 text-sm`}>
             {busy ? t('instructor:myDay.actions.saving') : t('instructor:myDay.actions.checkOut')}
           </button>
         ) : (
+          <p data-testid="close-hint" className="text-sm text-slate-600">{t('instructor:myDay.closeHint')}</p>
+        )) : (
           <button type="button" onClick={() => onCheckIn(lesson)} disabled={busy} className={`${primaryButtonClass} h-11 text-sm`}>
             {busy ? t('instructor:myDay.actions.saving') : t('instructor:myDay.actions.checkIn')}
           </button>

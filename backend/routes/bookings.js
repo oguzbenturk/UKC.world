@@ -13,6 +13,11 @@ import {
   requireSwapOwnership,
   requireBookingStaff,
   findBlockedInstructorFieldChanges,
+  findInstructorLessonClosingChanges,
+  instructorCannotComplete,
+  isLessonClosingStatus,
+  enforceInstructorBookingCreate,
+  requireStaffOrInstructor,
   sanitizeBookingForViewer,
 } from '../middlewares/bookingOwnership.js';
 import { bookingService } from '../services/bookingService.js';
@@ -2528,9 +2533,10 @@ router.get('/:id', authenticateJWT, requireBookingOwnership({ access: 'read' }),
 
 // CREATE a new booking
 // POST /bookings - Create booking with proper package/individual lesson logic
-router.post('/', 
-  authenticateJWT, 
+router.post('/',
+  authenticateJWT,
   authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student', 'outsider'], 'bookings:write'),
+  enforceInstructorBookingCreate('single'),
   async (req, res) => {
   const client = await pool.connect();
   
@@ -3791,9 +3797,10 @@ router.post('/',
 
 // CREATE a new GROUP booking with multiple participants
 // POST /bookings/group - Create group booking with multiple participants
-router.post('/group', 
-  authenticateJWT, 
+router.post('/group',
+  authenticateJWT,
   authorizeRoles(['admin', 'manager', 'instructor', 'front_desk', 'student'], 'bookings:write'),
+  enforceInstructorBookingCreate('group'),
   async (req, res) => {
   const client = await pool.connect();
   
@@ -4589,7 +4596,7 @@ router.post('/group',
 });
 
 // POST create a new booking from the calendar
-router.post('/calendar', authenticateJWT, async (req, res) => {
+router.post('/calendar', authenticateJWT, requireStaffOrInstructor(), enforceInstructorBookingCreate('calendar'), async (req, res) => {
   try {
     const {
       date, time, duration, instructorId, serviceId, user,
@@ -5296,6 +5303,14 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
         code: 'INSTRUCTOR_FIELD_FORBIDDEN',
         fields: blockedInstructorFields,
       });
+    }
+
+    // Closing the lesson (completed / no-show / check-out fields) is staff-only;
+    // instructors may still check in (status 'checked-in' + checkin_* fields).
+    const closingFields = findInstructorLessonClosingChanges(req, currentBooking);
+    if (closingFields.length > 0) {
+      await client.query('ROLLBACK');
+      return instructorCannotComplete(res, closingFields);
     }
 
     const {
@@ -7944,7 +7959,12 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
     }
-    
+
+    // Completing / no-show (any spelling) closes the lesson — staff-only.
+    if (isInstructorScopedRequest(req) && isLessonClosingStatus(status)) {
+      return instructorCannotComplete(res, ['status']);
+    }
+
     // Validate status
     const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed', 'no_show', 'pending_partner'];
     if (!validStatuses.includes(status)) {

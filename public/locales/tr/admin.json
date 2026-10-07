@@ -1089,6 +1089,21 @@
         "error": "Rezervasyon varsayılanları güncellenemedi",
         "durationMismatch": "Varsayılan süre, izin verilen sürelerden biri olmalıdır"
       }
+    },
+    "instructorWind": {
+      "title": "Eğitmen paneli rüzgârı",
+      "description": "Eğitmenlerin “Günüm” panelindeki rüzgâr kartında gösterilen spot ve ders için uygun sayılan rüzgâr aralığı.",
+      "spot": "Spot",
+      "minKn": "En az (kn)",
+      "maxKn": "En çok (kn)",
+      "rangeHint": "{{min}} ile {{max}} knot arasında; en az değer en çok değerden küçük olmalı.",
+      "errorRange": "{{min}} ile {{max}} knot arasında bir değer girin.",
+      "errorOrder": "En az değer en çok değerden küçük olmalı.",
+      "save": "Rüzgâr ayarlarını kaydet",
+      "saving": "Kaydediliyor…",
+      "saved": "Eğitmen paneli rüzgâr ayarları kaydedildi",
+      "saveError": "Rüzgâr ayarları kaydedilemedi. Lütfen tekrar deneyin.",
+      "loadError": "Mevcut rüzgâr ayarları yüklenemedi — varsayılanlar gösteriliyor."
     }
   },
   "legal": {

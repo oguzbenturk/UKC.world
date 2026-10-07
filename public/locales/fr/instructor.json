@@ -1186,16 +1186,14 @@
     "lastNoteUndated": "Dernière note : « {{text}} »",
     "openCalendar": "Ouvrir le calendrier",
     "calendar": "Calendrier",
+    "closeHint": "Votre responsable clôture le cours une fois terminé.",
     "attention": {
       "title": "À traiter",
       "waiver": "{{name}} ({{time}}) n'a pas signé de décharge",
-      "unpaid": "{{name}} ({{time}}) n'a pas encore payé",
       "unread_one": "{{count}} message non lu",
       "unread_other": "{{count}} messages non lus",
       "waiverChip_one": "{{count}} décharge manquante",
-      "waiverChip_other": "{{count}} décharges manquantes",
-      "unpaidChip_one": "{{count}} cours impayé",
-      "unpaidChip_other": "{{count}} cours impayés"
+      "waiverChip_other": "{{count}} décharges manquantes"
     },
     "wind": {
       "title": "Vent",

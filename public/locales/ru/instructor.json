@@ -1196,10 +1196,10 @@
     "lastNoteUndated": "Последняя заметка: «{{text}}»",
     "openCalendar": "Открыть календарь",
     "calendar": "Календарь",
+    "closeHint": "Урок закрывает ваш менеджер после его окончания.",
     "attention": {
       "title": "Требует внимания",
       "waiver": "{{name}} ({{time}}) не подписал(а) отказ от претензий",
-      "unpaid": "{{name}} ({{time}}) ещё не оплатил(а)",
       "unread_one": "{{count}} непрочитанное сообщение",
       "unread_few": "{{count}} непрочитанных сообщения",
       "unread_many": "{{count}} непрочитанных сообщений",
@@ -1207,11 +1207,7 @@
       "waiverChip_one": "{{count}} отказ не подписан",
       "waiverChip_few": "{{count}} отказа не подписаны",
       "waiverChip_many": "{{count}} отказов не подписаны",
-      "waiverChip_other": "{{count}} отказа не подписаны",
-      "unpaidChip_one": "{{count}} неоплаченное занятие",
-      "unpaidChip_few": "{{count}} неоплаченных занятия",
-      "unpaidChip_many": "{{count}} неоплаченных занятий",
-      "unpaidChip_other": "{{count}} неоплаченного занятия"
+      "waiverChip_other": "{{count}} отказа не подписаны"
     },
     "wind": {
       "title": "Ветер",

@@ -1184,16 +1184,14 @@
     "lastNoteUndated": "Last note: “{{text}}”",
     "openCalendar": "Open calendar",
     "calendar": "Calendar",
+    "closeHint": "Your manager closes the lesson after it ends.",
     "attention": {
       "title": "Needs attention",
       "waiver": "{{name}} ({{time}}) has no signed waiver",
-      "unpaid": "{{name}} ({{time}}) hasn’t paid yet",
       "unread_one": "{{count}} unread message",
       "unread_other": "{{count}} unread messages",
       "waiverChip_one": "{{count}} missing waiver",
-      "waiverChip_other": "{{count}} missing waivers",
-      "unpaidChip_one": "{{count}} unpaid lesson",
-      "unpaidChip_other": "{{count}} unpaid lessons"
+      "waiverChip_other": "{{count}} missing waivers"
     },
     "wind": {
       "title": "Wind",

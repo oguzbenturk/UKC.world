@@ -5,7 +5,9 @@ import {
   hasPermission,
   getPermissionsForRole,
   canEditUser,
-  PAY_AT_CENTER_ALLOWED_ROLES
+  PAY_AT_CENTER_ALLOWED_ROLES,
+  isInstructorScopedRole,
+  canCloseLessons,
 } from '@/shared/utils/roleUtils';
 
 // ============================================
@@ -260,5 +262,23 @@ describe('PAY_AT_CENTER_ALLOWED_ROLES', () => {
 
   it('does not include instructor', () => {
     expect(PAY_AT_CENTER_ALLOWED_ROLES).not.toContain(ROLES.INSTRUCTOR);
+  });
+});
+
+describe('booking role model (mirrors backend bookingOwnership)', () => {
+  it('instructor and freelancer are instructor-scoped', () => {
+    expect(isInstructorScopedRole('instructor')).toBe(true);
+    expect(isInstructorScopedRole('Freelancer')).toBe(true);
+    expect(isInstructorScopedRole('manager')).toBe(false);
+    expect(isInstructorScopedRole(undefined)).toBe(false);
+  });
+
+  it('only booking staff may close (complete / check out) a lesson', () => {
+    for (const role of ['admin', 'manager', 'owner', 'super_admin', 'developer', 'receptionist', 'front_desk', 'Front Desk']) {
+      expect(canCloseLessons(role)).toBe(true);
+    }
+    for (const role of ['instructor', 'freelancer', 'student', 'outsider', 'custom_role', undefined, null]) {
+      expect(canCloseLessons(role)).toBe(false);
+    }
   });
 });

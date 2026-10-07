@@ -743,7 +743,8 @@
       "serviceCapacityHintSingle": "Бронирование на одного участника — можно выбрать только индивидуальные услуги.",
       "startTimeLabel": "Время начала",
       "startTimeRequired": "Укажите время начала (ЧЧ:ММ)",
-      "useDefaultRate": "Ставка по умолчанию"
+      "useDefaultRate": "Ставка по умолчанию",
+      "closedByManagerHint": "Урок закрывает ваш менеджер после его окончания."
     },
     "groupDetail": {
       "title": "Групповое бронирование",
@@ -831,6 +832,9 @@
       "paidCount": "Оплачено: {{count}}",
       "enterEmailsLabel": "Введите email адреса (через запятую или новую строку)",
       "atLeastOneEmail": "Введите хотя бы один email"
+    },
+    "drawer": {
+      "instructorSelfOnly": "Вы можете бронировать уроки только для себя и только для учеников, у которых уже есть аккаунт."
     }
   },
   "calendars": {

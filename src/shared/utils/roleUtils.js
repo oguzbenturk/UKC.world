@@ -13,6 +13,25 @@ export const ROLES = {
 };
 
 /**
+ * Booking role model — mirrors backend/middlewares/bookingOwnership.js +
+ * backend/constants/roles.js BOOKING_STAFF_ROLES.
+ * Instructor-scoped roles work only on their own lessons, may check a lesson in
+ * but never close it (complete / check out / no-show), and create bookings only
+ * for themselves with already registered students.
+ */
+export const INSTRUCTOR_SCOPED_ROLES = Object.freeze(['instructor', 'freelancer']);
+export const BOOKING_STAFF_ROLES = Object.freeze([
+  'admin', 'manager', 'owner', 'super_admin', 'developer', 'receptionist', 'front_desk',
+]);
+
+const normalizeRole = (role) => String(role || '').trim().toLowerCase().replace(/[-\s]+/g, '_');
+
+export const isInstructorScopedRole = (role) => INSTRUCTOR_SCOPED_ROLES.includes(normalizeRole(role));
+
+/** Deny-by-default: only booking staff may complete / check out / no-show a lesson. */
+export const canCloseLessons = (role) => BOOKING_STAFF_ROLES.includes(normalizeRole(role));
+
+/**
  * Roles that can use "Pay at Center" option
  */
 export const PAY_AT_CENTER_ALLOWED_ROLES = [ROLES.ADMIN, ROLES.MANAGER, ROLES.TRUSTED_CUSTOMER];

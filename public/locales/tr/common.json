@@ -744,7 +744,8 @@
       "serviceCapacityHintSingle": "Tek katılımcılı rezervasyon — yalnızca özel hizmetler seçilebilir.",
       "startTimeLabel": "Başlangıç saati",
       "startTimeRequired": "Başlangıç saati zorunludur (SS:DD)",
-      "useDefaultRate": "Varsayılan oran"
+      "useDefaultRate": "Varsayılan oran",
+      "closedByManagerHint": "Ders bittikten sonra dersi yöneticiniz kapatır."
     },
     "groupDetail": {
       "title": "Grup Rezervasyonu",
@@ -832,6 +833,9 @@
       "paidCount": "{{count}} ödedi",
       "enterEmailsLabel": "E-postaları girin (virgül veya yeni satırla ayırın)",
       "atLeastOneEmail": "En az bir e-posta girin"
+    },
+    "drawer": {
+      "instructorSelfOnly": "Yalnızca kendiniz için ve hesabı olan öğrencilerle ders oluşturabilirsiniz."
     }
   },
   "calendars": {

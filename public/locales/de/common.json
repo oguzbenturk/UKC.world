@@ -737,7 +737,8 @@
       "serviceCapacityHintSingle": "Buchung für eine Person — nur Privatleistungen sind wählbar.",
       "startTimeLabel": "Startzeit",
       "startTimeRequired": "Startzeit ist erforderlich (HH:MM)",
-      "useDefaultRate": "Standardsatz"
+      "useDefaultRate": "Standardsatz",
+      "closedByManagerHint": "Die Stunde wird nach dem Ende von der Leitung abgeschlossen."
     },
     "groupDetail": {
       "title": "Gruppenbuchung",
@@ -825,6 +826,9 @@
       "paidCount": "{{count}} bezahlt",
       "enterEmailsLabel": "E-Mail-Adressen eingeben (durch Komma oder Zeilenumbruch getrennt)",
       "atLeastOneEmail": "Mindestens eine E-Mail-Adresse eingeben"
+    },
+    "drawer": {
+      "instructorSelfOnly": "Du kannst Stunden nur für dich selbst und nur mit bereits registrierten Schülern buchen."
     }
   },
   "calendars": {

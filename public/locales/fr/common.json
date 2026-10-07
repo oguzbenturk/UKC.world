@@ -741,7 +741,8 @@
       "serviceCapacityHintSingle": "Réservation pour un seul participant — seules les prestations privées peuvent être sélectionnées.",
       "startTimeLabel": "Heure de début",
       "startTimeRequired": "L'heure de début est obligatoire (HH:MM)",
-      "useDefaultRate": "Taux par défaut"
+      "useDefaultRate": "Taux par défaut",
+      "closedByManagerHint": "Votre responsable clôture le cours une fois terminé."
     },
     "groupDetail": {
       "title": "Réservation de groupe",
@@ -829,6 +830,9 @@
       "paidCount": "{{count}} payé(s)",
       "enterEmailsLabel": "Saisir les e-mails (séparés par virgule ou retour à la ligne)",
       "atLeastOneEmail": "Saisir au moins un e-mail"
+    },
+    "drawer": {
+      "instructorSelfOnly": "Vous ne pouvez réserver des cours que pour vous-même, avec des élèves déjà inscrits."
     }
   },
   "calendars": {

@@ -409,3 +409,24 @@ describe('socket fan-out (no booking rows on the general channel)', () => {
     expect(previous.data.instructor_user_id).toBe(ids.instructor2);
   });
 });
+
+// Calendar create is a staff tool (can create users and book any instructor):
+// customer-scoped roles must be refused before any work happens.
+describe('POST /api/bookings/calendar is staff/instructor only', () => {
+  test('requireStaffOrInstructor blocks customer roles and allows staff/instructor', async () => {
+    const { requireStaffOrInstructor } = await import('../../../../backend/middlewares/bookingOwnership.js');
+    const mw = requireStaffOrInstructor();
+    const run = (role) => {
+      let status = null; let nextCalled = false;
+      const res = { status(c) { status = c; return this; }, json() { return this; } };
+      mw({ user: { id: 'u1', role } }, res, () => { nextCalled = true; });
+      return { status, nextCalled };
+    };
+    for (const role of ['student', 'outsider', 'trusted_customer', 'customer', 'some_custom_role']) {
+      expect(run(role)).toEqual({ status: 403, nextCalled: false });
+    }
+    for (const role of ['admin', 'manager', 'receptionist', 'instructor', 'freelancer']) {
+      expect(run(role).nextCalled).toBe(true);
+    }
+  });
+});

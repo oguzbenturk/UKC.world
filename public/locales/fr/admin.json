@@ -1089,6 +1089,21 @@
         "error": "Impossible de mettre à jour les valeurs par défaut",
         "durationMismatch": "La durée par défaut doit être l'une des durées autorisées"
       }
+    },
+    "instructorWind": {
+      "title": "Vent du tableau de bord moniteur",
+      "description": "Le spot affiché sur la carte vent du tableau de bord « Ma journée » des moniteurs et la plage de vent considérée comme bonne pour les cours.",
+      "spot": "Spot",
+      "minKn": "Minimum (nd)",
+      "maxKn": "Maximum (nd)",
+      "rangeHint": "Entre {{min}} et {{max}} nœuds ; le minimum doit être inférieur au maximum.",
+      "errorRange": "Saisissez une valeur entre {{min}} et {{max}} nœuds.",
+      "errorOrder": "Le minimum doit être inférieur au maximum.",
+      "save": "Enregistrer les réglages du vent",
+      "saving": "Enregistrement…",
+      "saved": "Vent du tableau de bord moniteur enregistré",
+      "saveError": "Impossible d'enregistrer les réglages du vent. Veuillez réessayer.",
+      "loadError": "Impossible de charger les réglages actuels du vent — valeurs par défaut affichées."
     }
   },
   "legal": {

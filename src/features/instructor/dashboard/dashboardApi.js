@@ -6,6 +6,16 @@ import { fetchSpotReport } from '@/features/wind-report/services/windReportServi
 
 const BASE = '/instructors/me';
 
+// TanStack Query keys (here, not in useDashboard.js, so Settings can invalidate
+// the wind settings without pulling in the dashboard hooks).
+export const dashboardKeys = {
+  all: ['instructor-dashboard'],
+  today: () => ['instructor-dashboard', 'today'],
+  week: () => ['instructor-dashboard', 'week'],
+  settings: ['instructor-dashboard', 'settings'],
+  wind: (spot) => ['instructor-dashboard', 'wind', spot],
+};
+
 export const fetchToday = async (date) => {
   const { data } = await apiClient.get(`${BASE}/today`, date ? { params: { date } } : undefined);
   return data;
@@ -36,6 +46,8 @@ export const checkInLesson = async (bookingId) => {
   return data;
 };
 
+// Staff-only (the backend answers 403 INSTRUCTOR_CANNOT_COMPLETE to instructors);
+// the dashboard only offers it to booking staff — see canCloseLessons().
 export const checkOutLesson = async (bookingId) => {
   const { data } = await apiClient.put(`/bookings/${bookingId}`, {
     status: 'completed',

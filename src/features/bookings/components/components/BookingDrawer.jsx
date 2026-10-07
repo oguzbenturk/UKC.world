@@ -16,6 +16,8 @@ import { getAvailableSlots } from '../api/calendarApi';
 import { useToast } from '@/shared/contexts/ToastContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useTranslation } from 'react-i18next';
+import { isInstructorScopedRole } from '@/shared/utils/roleUtils';
 import { useBookingForm } from '../../hooks/useBookingForm';
 import { computeBookingPrice } from '@/shared/utils/pricing';
 import { filterServicesByCapacity, isGroupService } from '@/shared/utils/serviceCapacityFilter';
@@ -320,7 +322,16 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   const { showSuccess, showError, showInfo } = useToast();
   const { formatCurrency, businessCurrency } = useCurrency();
   const { user: authUser } = useAuth();
-  const isInstructorBooker = authUser?.role?.toLowerCase?.() === 'instructor';
+  const { t: tDrawer } = useTranslation(['common']);
+  // Instructor-scoped bookers (instructor/freelancer) book ONLY themselves as the
+  // instructor and ONLY students who already have an account — no "+ New"
+  // customer, no instructor picker, no staff discount (owner decision 2026-10-08;
+  // backend enforces it: INSTRUCTOR_OWN_BOOKINGS_ONLY / _EXISTING_STUDENTS_ONLY).
+  const isInstructorBooker = isInstructorScopedRole(authUser?.role);
+  const selfInstructor = useMemo(() => (isInstructorBooker && authUser?.id ? {
+    id: authUser.id,
+    name: authUser.name || `${authUser.first_name || ''} ${authUser.last_name || ''}`.trim(),
+  } : null), [isInstructorBooker, authUser?.id, authUser?.name, authUser?.first_name, authUser?.last_name]);
   const { modal } = App.useApp();
 
   // ── Form state ──────────────────────────────────────────────────
@@ -371,13 +382,18 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
       serviceId: prefilledServiceId || '',
       participants,
     };
+    // Instructors are always the instructor of what they book (even from a
+    // colleague's calendar column).
+    const pinSelf = (data) => (selfInstructor
+      ? { ...data, instructorId: selfInstructor.id, instructorName: selfInstructor.name }
+      : data);
     if (selectedSlot) {
-      return { ...base, date: selectedSlot.date || '', startTime: selectedSlot.startTime || '', endTime: selectedSlot.endTime || '', instructorId: selectedSlot.instructorId || base.instructorId, instructorName: selectedSlot.instructorName || base.instructorName };
+      return pinSelf({ ...base, date: selectedSlot.date || '', startTime: selectedSlot.startTime || '', endTime: selectedSlot.endTime || '', instructorId: selectedSlot.instructorId || base.instructorId, instructorName: selectedSlot.instructorName || base.instructorName });
     }
-    if (prefilledDate) return { ...base, date: prefilledDate };
+    if (prefilledDate) return pinSelf({ ...base, date: prefilledDate });
     // Default to today's date
-    return { ...base, date: dayjs().format('YYYY-MM-DD') };
-  }, [prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, selectedSlot]);
+    return pinSelf({ ...base, date: dayjs().format('YYYY-MM-DD') });
+  }, [prefilledCustomer, prefilledParticipants, prefilledServiceId, prefilledInstructor, prefilledDate, selectedSlot, selfInstructor]);
 
   const { formData, updateFormData, resetFormData, validateStep, hasUnsavedChanges } = useBookingForm(initialFormData);
 
@@ -1470,7 +1486,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
   // A staff "Custom total" (exact target price, single-participant bookings
   // only) takes precedence over the percent discount; the UI keeps the two
   // mutually exclusive.
-  const canCustomTotal = (formData.participants?.length || 1) <= 1 && effectiveTotal > 0;
+  const canCustomTotal = !isInstructorBooker && (formData.participants?.length || 1) <= 1 && effectiveTotal > 0;
   const hasCustomTotal = canCustomTotal
     && formData.customTotal !== null && formData.customTotal !== undefined && formData.customTotal !== ''
     && Number.isFinite(Number(formData.customTotal));
@@ -1642,12 +1658,19 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                     className="flex-1 [&_.ant-select-selector]:!min-h-[38px] [&_.ant-select-selection-item]:!text-sm [&_.ant-select-selection-placeholder]:!text-sm"
                     maxTagCount="responsive"
                   />
+                  {!isInstructorBooker && (
                   <button
                     type="button"
                     onClick={() => setShowNewUserModal(true)}
                     className="px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-colors shrink-0"
                   >+ New</button>
+                  )}
                 </div>
+                {isInstructorBooker && (
+                  <p data-testid="instructor-self-only-hint" className="text-[11px] text-slate-500 mt-1.5 mb-0">
+                    {tDrawer('common:bookings.drawer.instructorSelfOnly')}
+                  </p>
+                )}
 
                 {formData.participants?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -1692,7 +1715,12 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
             <SectionErrorBoundary section="Instructor">
             <div className="px-5 py-3">
               {/* Collapsed summary */}
-              {hasInstructor && activeSection !== 'instructor' && !slotPreFilled ? (
+              {isInstructorBooker ? (
+                <div className="flex items-center gap-2" data-testid="instructor-fixed-self">
+                  <CheckCircleFilled className="text-green-500 text-sm shrink-0" />
+                  <span className="text-sm text-slate-700">{formData.instructorName || selfInstructor?.name}</span>
+                </div>
+              ) : hasInstructor && activeSection !== 'instructor' && !slotPreFilled ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircleFilled className="text-green-500 text-sm shrink-0" />
@@ -2231,7 +2259,9 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
               </div>
             </div>
 
-            {/* Discount — applied at booking time, same mechanism as the customer drawer */}
+            {/* Discount — applied at booking time, same mechanism as the customer drawer.
+                Staff only: instructors never set prices (backend: INSTRUCTOR_FIELD_FORBIDDEN). */}
+            {!isInstructorBooker && (
             <div className="flex items-center justify-between gap-3">
               <label className="text-sm font-medium text-slate-600">Discount</label>
               <div className="flex items-center gap-2">
@@ -2253,6 +2283,7 @@ const BookingDrawer = ({ isOpen, onClose, onBookingCreated, prefilledCustomer, p
                 )}
               </div>
             </div>
+            )}
 
             {/* Custom total — staff sets the exact price to charge (e.g. 190 → 120).
                 Single-participant bookings only; overrides the % discount. */}

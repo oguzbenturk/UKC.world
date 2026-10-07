@@ -1089,6 +1089,21 @@
         "error": "Fehler beim Aktualisieren der Standards",
         "durationMismatch": "Standarddauer muss eine der erlaubten Dauern sein"
       }
+    },
+    "instructorWind": {
+      "title": "Wind im Lehrer-Dashboard",
+      "description": "Der Spot auf der Windkarte des „Mein Tag“-Dashboards der Lehrer und der Windbereich, der als gut für Stunden gilt.",
+      "spot": "Spot",
+      "minKn": "Minimum (kn)",
+      "maxKn": "Maximum (kn)",
+      "rangeHint": "Zwischen {{min}} und {{max}} Knoten; das Minimum muss kleiner als das Maximum sein.",
+      "errorRange": "Gib einen Wert zwischen {{min}} und {{max}} Knoten ein.",
+      "errorOrder": "Das Minimum muss kleiner als das Maximum sein.",
+      "save": "Windeinstellungen speichern",
+      "saving": "Speichern…",
+      "saved": "Wind für das Lehrer-Dashboard gespeichert",
+      "saveError": "Die Windeinstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+      "loadError": "Die aktuellen Windeinstellungen konnten nicht geladen werden — Standardwerte werden angezeigt."
     }
   },
   "legal": {

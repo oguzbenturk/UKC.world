@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { CardIcon, ChevronRightIcon, MessageIcon, WarningIcon } from './DashboardIcons';
+
+// Attention items: missing waivers (server) + unread messages (chat widget).
+// No payment items — instructors never see a lesson's payment state.
+import { ChevronRightIcon, MessageIcon, WarningIcon } from './DashboardIcons';
 
 const rowBase = 'flex min-h-[48px] w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00798c] motion-safe:transition-colors';
 
@@ -8,14 +11,12 @@ function useItemText() {
   return (item) => {
     const name = item.name || t('instructor:myDay.unknownStudent');
     if (item.kind === 'waiver_missing') return t('instructor:myDay.attention.waiver', { name, time: item.startHour });
-    if (item.kind === 'unpaid_checkin') return t('instructor:myDay.attention.unpaid', { name, time: item.startHour });
     return t('instructor:myDay.attention.unread', { count: item.count });
   };
 }
 
 const ITEM_STYLE = {
   waiver_missing: { className: 'bg-orange-50 text-orange-950 hover:bg-orange-100', Icon: WarningIcon, iconClass: 'text-orange-800' },
-  unpaid_checkin: { className: 'bg-amber-50 text-amber-950 hover:bg-amber-100', Icon: CardIcon, iconClass: 'text-amber-800' },
   unread_messages: { className: 'border border-slate-200 bg-white text-slate-900 shadow-sm hover:bg-slate-50', Icon: MessageIcon, iconClass: 'text-[#00798c]' },
 };
 
@@ -44,14 +45,13 @@ export function AttentionList({ items, onSelect }) {
 export function AttentionChips({ items, onSelect }) {
   const { t } = useTranslation(['instructor']);
   if (!items.length) return null;
-  const groups = ['waiver_missing', 'unpaid_checkin', 'unread_messages']
+  const groups = ['waiver_missing', 'unread_messages']
     .map((kind) => {
       const matching = items.filter((i) => i.kind === kind);
       if (!matching.length) return null;
       const count = kind === 'unread_messages' ? matching[0].count : matching.length;
       const label = {
         waiver_missing: t('instructor:myDay.attention.waiverChip', { count }),
-        unpaid_checkin: t('instructor:myDay.attention.unpaidChip', { count }),
         unread_messages: t('instructor:myDay.attention.unread', { count }),
       }[kind];
       return { kind, first: matching[0], label };

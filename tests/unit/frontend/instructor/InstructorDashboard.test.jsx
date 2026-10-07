@@ -12,13 +12,14 @@ import { ChatWidgetContext } from '@/features/chat/context/chatWidgetContextInst
 const apiMock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
 const realTime = vi.hoisted(() => ({ on: vi.fn(), off: vi.fn() }));
 const messageMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const authState = vi.hoisted(() => ({ role: 'instructor' }));
 
 vi.mock('@/shared/services/apiClient', () => ({ default: apiMock }));
 vi.mock('@/shared/services/realTimeService', () => ({ default: realTime, realTimeService: realTime }));
 vi.mock('@/shared/utils/antdStatic', () => ({ message: messageMock }));
 vi.mock('@/shared/services/analyticsService', () => ({ analyticsService: { track: vi.fn() } }));
 vi.mock('@/shared/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'ins-1', first_name: 'Mira', last_name: 'Janssens', name: 'Mira Janssens' } }),
+  useAuth: () => ({ user: { id: 'ins-1', first_name: 'Mira', last_name: 'Janssens', name: 'Mira Janssens', role: authState.role } }),
 }));
 vi.mock('@/shared/contexts/CurrencyContext', () => ({
   useCurrency: () => ({
@@ -135,6 +136,7 @@ const renderPage = ({ chat = null } = {}) => {
 describe('InstructorDashboard ("My day")', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.role = 'instructor';
     setViewport('mobile');
     responders = {
       [TODAY_URL]: () => Promise.resolve({ data: makeDay() }),
@@ -238,18 +240,50 @@ describe('InstructorDashboard ("My day")', () => {
     await waitFor(() => expect(apiMock.get.mock.calls.filter(([url]) => url === TODAY_URL).length).toBeGreaterThan(1));
   });
 
-  it('a checked-in lesson offers Check out (status completed + checkout fields)', async () => {
+  it('instructor: a checked-in lesson has NO Check out (hero + drawer) — the manager closes it', async () => {
     const day = makeDay();
     day.lessons[1] = { ...day.lessons[1], status: 'checked-in', checkinStatus: 'checked-in' };
     responders[TODAY_URL] = () => Promise.resolve({ data: day });
     renderPage();
     const hero = await screen.findByTestId('next-lesson');
     expect(within(hero).getByText('Next lesson · in progress')).toBeInTheDocument();
+    expect(within(hero).queryByRole('button', { name: 'Check out' })).not.toBeInTheDocument();
+    expect(within(hero).getByTestId('close-hint')).toHaveTextContent('Your manager closes the lesson after it ends.');
+
+    fireEvent.click(screen.getByTestId('timeline-row-b-2'));
+    expect(await screen.findByText('Participants (1)')).toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: 'Check out' })).toHaveLength(0);
+    expect(screen.getAllByTestId('close-hint').length).toBeGreaterThanOrEqual(2);
+    expect(apiMock.put).not.toHaveBeenCalled();
+  });
+
+  it('instructor drawer still offers Check in for a lesson that has not started', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId('timeline-row-b-3'));
+    expect(await screen.findByText('Participants (2)')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Check in' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'Check out' })).not.toBeInTheDocument();
+  });
+
+  it('staff (manager) viewing the page keeps Check out (status completed + checkout fields)', async () => {
+    authState.role = 'manager';
+    const day = makeDay();
+    day.lessons[1] = { ...day.lessons[1], status: 'checked-in', checkinStatus: 'checked-in' };
+    responders[TODAY_URL] = () => Promise.resolve({ data: day });
+    renderPage();
+    const hero = await screen.findByTestId('next-lesson');
     fireEvent.click(within(hero).getByRole('button', { name: 'Check out' }));
     await waitFor(() => expect(apiMock.put).toHaveBeenCalledWith('/bookings/b-2', expect.objectContaining({
       status: 'completed',
       checkout_status: 'checked-out',
     })));
+  });
+
+  it('never shows payment / unpaid attention items', async () => {
+    responders[TODAY_URL] = () => Promise.resolve({ data: makeDay() });
+    renderPage({ chat: { unreadTotal: 0, isOpen: false, toggleOpen: vi.fn(), openConversationWith: vi.fn() } });
+    await screen.findByTestId('next-lesson');
+    expect(screen.queryByText(/paid/i)).not.toBeInTheDocument();
   });
 
   it('timeline row opens the lesson drawer; notes are saved through the instructor notes API', async () => {

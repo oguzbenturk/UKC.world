@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { usePullToRefresh } from '@/shared/hooks/usePullToRefresh';
 import { analyticsService } from '@/shared/services/analyticsService';
+import { canCloseLessons } from '@/shared/utils/roleUtils';
 import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
 import { ErrorState } from '../earnings/components/ui';
 import { primaryButtonClass } from '../earnings/components/earningsStyles';
@@ -196,8 +197,11 @@ export default function InstructorDashboard() {
     setBookingOpen(true);
   }, []);
 
+  // Only staff (e.g. a manager viewing this page) may check a lesson out.
+  const canClose = canCloseLessons(user?.role);
   const lessonActions = {
     busy,
+    canClose,
     onCheckIn: (lesson) => checkIn.mutate(lesson.id),
     onCheckOut: (lesson) => checkOut.mutate(lesson.id),
     onMessage: chat.messageStudent,
@@ -214,6 +218,7 @@ export default function InstructorDashboard() {
           isDesktop={isDesktop}
           hadLessons={lessons.length > 0}
           busy={busy}
+          canClose={canClose}
           openingChat={chat.openingFor}
           onCheckIn={lessonActions.onCheckIn}
           onCheckOut={lessonActions.onCheckOut}

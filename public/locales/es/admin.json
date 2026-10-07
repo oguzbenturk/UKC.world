@@ -1089,6 +1089,21 @@
         "error": "Error al actualizar los valores predeterminados",
         "durationMismatch": "La duración predeterminada debe ser una de las duraciones permitidas"
       }
+    },
+    "instructorWind": {
+      "title": "Viento del panel de instructores",
+      "description": "El spot que muestra la tarjeta de viento del panel «Mi día» de los instructores y el rango de viento que se considera bueno para clases.",
+      "spot": "Spot",
+      "minKn": "Mínimo (kn)",
+      "maxKn": "Máximo (kn)",
+      "rangeHint": "Entre {{min}} y {{max}} nudos; el mínimo debe ser menor que el máximo.",
+      "errorRange": "Introduce un valor entre {{min}} y {{max}} nudos.",
+      "errorOrder": "El mínimo debe ser menor que el máximo.",
+      "save": "Guardar ajustes de viento",
+      "saving": "Guardando…",
+      "saved": "Viento del panel de instructores guardado",
+      "saveError": "No se pudieron guardar los ajustes de viento. Inténtalo de nuevo.",
+      "loadError": "No se pudieron cargar los ajustes de viento actuales; se muestran los valores por defecto."
     }
   },
   "legal": {

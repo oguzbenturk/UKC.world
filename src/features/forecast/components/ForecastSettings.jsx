@@ -9,12 +9,19 @@ import {
   TrashIcon 
 } from '@heroicons/react/24/outline';
 import { logger } from '@/shared/utils/logger';
+import { useAuth } from '@/shared/hooks/useAuth';
+import InstructorDashboardWindSettings from './InstructorDashboardWindSettings';
+
+// Who may edit settings.instructor_dashboard (mirrors backend/routes/settings.js).
+const INSTRUCTOR_WIND_EDITORS = ['admin', 'manager', 'owner', 'super_admin'];
 
 /**
  * Forecast Settings Component
  * Allows users to configure wind forecast preferences
  */
 const ForecastSettings = ({ onSave }) => {
+  const { user } = useAuth();
+  const canEditInstructorWind = INSTRUCTOR_WIND_EDITORS.includes(String(user?.role || user?.role_name || '').toLowerCase());
   const [isLoading, setIsLoading] = useState(false);
   const [locations, setLocations] = useState([]);
   const [newLocationUrl, setNewLocationUrl] = useState('');
@@ -164,6 +171,9 @@ const ForecastSettings = ({ onSave }) => {
 
   return (
     <div className="space-y-6">
+      {/* Server-side, shared: wind card of the instructor "My day" dashboard */}
+      {canEditInstructorWind && <InstructorDashboardWindSettings />}
+
       <div className="flex items-center space-x-3">
         <ChartBarIcon className="h-6 w-6 text-blue-600" />
         <h3 className="text-lg font-medium text-gray-900">Forecast Settings</h3>

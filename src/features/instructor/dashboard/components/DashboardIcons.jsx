@@ -64,6 +64,3 @@ export const BoxIcon = (props) => (
   <Icon {...props}><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" /></Icon>
 );
 
-export const CardIcon = (props) => (
-  <Icon {...props}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></Icon>
-);

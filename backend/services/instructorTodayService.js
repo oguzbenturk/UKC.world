@@ -6,6 +6,10 @@
 // only ever looked up for participants of those lessons — there is no way to ask
 // this service about an arbitrary user.
 //
+// No payment data: instructors never see a lesson's payment status or amounts
+// here (owner decision 2026-10-08 — the former 'unpaid_checkin' attention item
+// was removed). Package info is lesson progress (lesson n of m, hours left) only.
+//
 // Dates are plain 'YYYY-MM-DD' strings in the business timezone (pg DATE is parsed
 // as a string, see db.js) — never round-tripped through a UTC Date, so a lesson at
 // 02:30 local is never filed under the previous day.
@@ -20,7 +24,6 @@ const BUSINESS_TZ = process.env.BUSINESS_TIMEZONE || 'Europe/Istanbul';
 const EXCLUDED_STATUSES = ['cancelled', 'pending_payment'];
 const DONE_STATUSES = new Set(['completed', 'done', 'checked-out', 'checked_out', 'no_show', 'no-show']);
 const DONE_CHECKOUT = new Set(['checked-out', 'early-checkout']);
-const UNPAID_STATUSES = new Set(['unpaid', 'waiting_payment', 'pending_payment', 'failed']);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // ─── Plain-date helpers ──────────────────────────────────────────────────────
@@ -97,7 +100,7 @@ const SKILL_LEVEL_SQL = `COALESCE(NULLIF(TRIM(u.level), ''), (
 async function loadLessons(executor, instructorId, date) {
   const { rows } = await executor.query(
     `SELECT b.id, b.date::text AS date, b.start_hour, b.duration, b.status,
-            b.checkin_status, b.checkout_status, b.payment_status, b.group_size,
+            b.checkin_status, b.checkout_status, b.group_size,
             NULLIF(NULLIF(TRIM(b.location), ''), 'TBD') AS location,
             b.student_user_id, b.family_member_id,
             s.name AS service_name,
@@ -268,7 +271,6 @@ function mapLesson(row, participants, equipment) {
     status: row.status || 'pending',
     checkinStatus: row.checkin_status || 'pending',
     checkoutStatus: row.checkout_status || 'pending',
-    paymentStatus: row.payment_status || null,
     service: { name: row.service_name || null, category: row.service_category || null },
     groupSize: Math.max(Number(row.group_size) || 1, participants.length || 1),
     packageInfo: row.package_id ? {
@@ -310,14 +312,6 @@ function buildAttention(lessons) {
       if (p.waiverSigned === false) {
         items.push({ kind: 'waiver_missing', bookingId: lesson.id, userId: p.userId, name: p.name, startHour: lesson.startHour });
       }
-    }
-    if (!lesson.packageInfo && UNPAID_STATUSES.has(String(lesson.paymentStatus || '').toLowerCase())) {
-      items.push({
-        kind: 'unpaid_checkin',
-        bookingId: lesson.id,
-        name: lesson.participants.map((p) => p.name).filter(Boolean).join(', ') || null,
-        startHour: lesson.startHour,
-      });
     }
   }
   return items;

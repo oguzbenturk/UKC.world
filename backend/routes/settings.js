@@ -4,8 +4,40 @@ import { authorizeRoles } from '../middlewares/authorize.js';
 import { pool } from '../db.js';
 import { logger } from '../middlewares/errorHandler.js';
 import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cache.js';
+import { cacheService } from '../services/cacheService.js';
+import { getSpot, SPOT_LIST } from '../services/weather/spots.js';
 
 const SETTINGS_CACHE_PATTERNS = ['api:GET:/api/settings*'];
+
+// ─── instructor_dashboard: wind card on the instructor "My day" dashboard ────
+// { wind_spot, wind_min_kn, wind_max_kn } — the spot whose /weather/report feeds
+// the card and the knots range the card calls "good". Editable by admin/manager
+// (owner/super_admin as their superset) only — NOT through the roles JSONB
+// `settings:write` fallback that authorizeRoles applies to other roles.
+export const INSTRUCTOR_DASHBOARD_DEFAULTS = Object.freeze({ wind_spot: 'gulbahce', wind_min_kn: 12, wind_max_kn: 25 });
+export const WIND_KN_RANGE = Object.freeze({ min: 5, max: 40 });
+const INSTRUCTOR_DASHBOARD_EDITORS = new Set(['admin', 'manager', 'owner', 'super_admin']);
+
+/** Returns { value } (normalised) or { error }. */
+export function validateInstructorDashboardSetting(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { error: 'instructor_dashboard must be an object { wind_spot, wind_min_kn, wind_max_kn }' };
+  }
+  const spot = typeof raw.wind_spot === 'string' ? raw.wind_spot.trim() : '';
+  if (!getSpot(spot)) {
+    return { error: `wind_spot must be one of: ${SPOT_LIST.map((s) => s.id).join(', ')}` };
+  }
+  const toKn = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
+  const min = toKn(raw.wind_min_kn);
+  const max = toKn(raw.wind_max_kn);
+  for (const [name, v] of [['wind_min_kn', min], ['wind_max_kn', max]]) {
+    if (!Number.isFinite(v) || v < WIND_KN_RANGE.min || v > WIND_KN_RANGE.max) {
+      return { error: `${name} must be a number between ${WIND_KN_RANGE.min} and ${WIND_KN_RANGE.max} knots` };
+    }
+  }
+  if (min >= max) return { error: 'wind_min_kn must be lower than wind_max_kn' };
+  return { value: { wind_spot: spot, wind_min_kn: min, wind_max_kn: max } };
+}
 
 const router = express.Router();
 
@@ -113,8 +145,18 @@ router.get('/', authenticateJWT, cacheMiddleware(1800), async (req, res) => {
 router.put('/:key', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner', 'super_admin']), cacheInvalidationMiddleware(SETTINGS_CACHE_PATTERNS), async (req, res) => {
   try {
     const { key } = req.params;
-    const { value } = req.body;
-    
+    let { value } = req.body || {};
+
+    if (key === 'instructor_dashboard') {
+      const role = String(req.user?.role || '').toLowerCase();
+      if (!INSTRUCTOR_DASHBOARD_EDITORS.has(role)) {
+        return res.status(403).json({ error: 'Only an admin or manager can change the instructor dashboard settings' });
+      }
+      const checked = validateInstructorDashboardSetting(value);
+      if (checked.error) return res.status(400).json({ error: checked.error, code: 'VALIDATION_ERROR' });
+      value = checked.value;
+    }
+
     // Validate booking_defaults if that's what we're updating
     if (key === 'booking_defaults') {
       if (!value.defaultDuration || !Array.isArray(value.allowedDurations)) {
@@ -138,6 +180,11 @@ router.put('/:key', authenticateJWT, authorizeRoles(['admin', 'manager', 'owner'
        RETURNING *`,
       [key, JSON.stringify(value), `${key} configuration`]
     );
+
+    // Drop the cached GET /settings BEFORE answering (the invalidation middleware
+    // runs fire-and-forget), so a client refetching right after the save — e.g.
+    // the instructor dashboard's wind card — never reads the old value.
+    await cacheService.del('api:GET:/api/settings*');
     
     res.json({ 
       success: true, 

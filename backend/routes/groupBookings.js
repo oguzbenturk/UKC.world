@@ -6,7 +6,7 @@
 import express from 'express';
 import { authenticateJWT } from './auth.js';
 import { authorizeRoles } from '../middlewares/authorize.js';
-import { requireBookingStaff } from '../middlewares/bookingOwnership.js';
+import { requireBookingStaff, denyInstructorScopedCreate } from '../middlewares/bookingOwnership.js';
 import { logger } from '../middlewares/errorHandler.js';
 import {
   createGroupBooking,
@@ -269,7 +269,7 @@ export async function ensureGroupCalendarBooking(groupBookingId, socketService, 
  * Create a new group booking
  * POST /api/group-bookings
  */
-router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student', 'outsider']), async (req, res, next) => {
+router.post('/', authenticateJWT, authorizeRoles(['admin', 'manager', 'student', 'outsider']), denyInstructorScopedCreate(), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const {

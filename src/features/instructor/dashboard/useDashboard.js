@@ -11,6 +11,7 @@ import {
   addStudentNote,
   checkInLesson,
   checkOutLesson,
+  dashboardKeys,
   fetchDashboardSettings,
   fetchToday,
   fetchWeek,
@@ -18,13 +19,7 @@ import {
 } from './dashboardApi';
 import { resolveWindSettings } from './dashboardFormat';
 
-export const dashboardKeys = {
-  all: ['instructor-dashboard'],
-  today: () => ['instructor-dashboard', 'today'],
-  week: () => ['instructor-dashboard', 'week'],
-  settings: ['instructor-dashboard', 'settings'],
-  wind: (spot) => ['instructor-dashboard', 'wind', spot],
-};
+export { dashboardKeys };
 
 export function useToday() {
   return useQuery({
@@ -43,12 +38,16 @@ export function useWeek() {
   });
 }
 
-/** Wind spot + verdict thresholds from settings; defaults when unset or unreadable. */
+/**
+ * Wind spot + verdict thresholds from settings; defaults when unset or unreadable.
+ * Admins change them in Settings → Forecast ("Instructor dashboard wind"), which
+ * invalidates `dashboardKeys.settings`; other devices pick it up within 5 min.
+ */
 export function useWindSettings() {
   const query = useQuery({
     queryKey: dashboardKeys.settings,
     queryFn: fetchDashboardSettings,
-    staleTime: 30 * 60_000,
+    staleTime: 5 * 60_000,
     retry: false,
   });
   return { settings: resolveWindSettings(query.data), ready: !query.isLoading };

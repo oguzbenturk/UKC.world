@@ -209,6 +209,18 @@ export function requireBookingStaff(code = 'STAFF_ONLY') {
 /** @deprecated old name (instructor-only era) — identical to requireBookingStaff. */
 export const denyInstructorScopedRoles = requireBookingStaff;
 
+/**
+ * Staff or instructor-scoped only. Customer-scoped roles (student, outsider,
+ * trusted_customer, custom roles) get 403 — used for staff tools such as the
+ * calendar create endpoint, which can create users and book any instructor.
+ */
+export function requireStaffOrInstructor(code = 'STAFF_OR_INSTRUCTOR_ONLY') {
+  return (req, res, next) => {
+    if (isBookingStaffRequest(req) || isInstructorScopedRequest(req)) return next();
+    return res.status(403).json({ error: 'Not allowed for your role', code });
+  };
+}
+
 const CUSTOMER_HIDDEN_BOOKING_FIELDS = [
   'created_by_email', 'updated_by_email', 'createdByEmail', 'updatedByEmail',
   'instructor_email', 'instructorEmail',
@@ -331,5 +343,215 @@ export function requireSwapOwnership() {
       logger.error('Swap ownership check failed', { error: err?.message });
       return res.status(500).json({ error: 'Ownership check failed' });
     }
+  };
+}
+
+// ─── Lesson closing (complete / check-out / no-show) is STAFF-ONLY ───────────
+//
+// Owner decision 2026-10-08: instructors run the lesson (check-in stays allowed)
+// but never close it — completing, checking out or marking a no-show is what
+// triggers earnings, commissions and package/billing finalisation, so the
+// manager does it after the lesson ends.
+
+export const INSTRUCTOR_CANNOT_COMPLETE = 'INSTRUCTOR_CANNOT_COMPLETE';
+
+/**
+ * Booking statuses that complete/close a lesson, normalised (lower-case,
+ * '-'/' ' → '_'): covers 'completed', 'done', 'checked_out'/'checked-out'
+ * (DB constraint value) and 'no_show'/'no-show'. 'checked-in' is NOT closing.
+ */
+export const LESSON_CLOSING_STATUSES = Object.freeze(['completed', 'done', 'checked_out', 'no_show']);
+
+/** Check-out columns on bookings — written only when a lesson is closed. */
+export const CHECKOUT_FIELDS = Object.freeze(['checkout_status', 'checkout_time', 'checkout_notes']);
+
+const normaliseStatus = (value) => String(value ?? '').trim().toLowerCase().replace(/[-\s]+/g, '_');
+
+export const isLessonClosingStatus = (status) => LESSON_CLOSING_STATUSES.includes(normaliseStatus(status));
+
+const sameInstant = (a, b) => {
+  if (a == null || b == null) return false;
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  return Number.isFinite(ta) && ta === tb;
+};
+
+/**
+ * PUT /bookings/:id body check for instructor-scoped callers: the fields that
+ * would close the lesson (a closing `status`, or any change to the check-out
+ * columns). Echoing the current value back is allowed. [] = allowed; always []
+ * for every other role.
+ */
+export function findInstructorLessonClosingChanges(req, currentBooking, body = req.body || {}) {
+  if (!isInstructorScopedRequest(req)) return [];
+  const current = currentBooking || {};
+  const blocked = [];
+  if (body.status != null && body.status !== '' && isLessonClosingStatus(body.status)
+      && normaliseStatus(body.status) !== normaliseStatus(current.status)) {
+    blocked.push('status');
+  }
+  if (body.checkout_status != null && body.checkout_status !== ''
+      && normaliseStatus(body.checkout_status) !== normaliseStatus(current.checkout_status || 'pending')) {
+    blocked.push('checkout_status');
+  }
+  if (body.checkout_time != null && body.checkout_time !== ''
+      && !sameInstant(body.checkout_time, current.checkout_time)) {
+    blocked.push('checkout_time');
+  }
+  if (body.checkout_notes != null
+      && String(body.checkout_notes) !== String(current.checkout_notes ?? '')) {
+    blocked.push('checkout_notes');
+  }
+  return blocked;
+}
+
+/** 403 for an instructor-scoped attempt to complete / check out / no-show a lesson. */
+export const instructorCannotComplete = (res, fields = ['status']) =>
+  res.status(403).json({
+    error: 'Only staff can complete, check out or mark a lesson as no-show. Your manager closes the lesson after it ends.',
+    code: INSTRUCTOR_CANNOT_COMPLETE,
+    fields,
+  });
+
+// ─── Booking creation by instructor-scoped roles ─────────────────────────────
+//
+// Owner decision 2026-10-08: an instructor may create a booking ONLY for
+// themselves (they are the instructor) and ONLY for students who already have
+// an active account — no inline customer/guest creation, no booking a colleague.
+
+export const INSTRUCTOR_OWN_BOOKINGS_ONLY = 'INSTRUCTOR_OWN_BOOKINGS_ONLY';
+export const INSTRUCTOR_EXISTING_STUDENTS_ONLY = 'INSTRUCTOR_EXISTING_STUDENTS_ONLY';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Staff price overrides an instructor may never send on create. */
+const INSTRUCTOR_CREATE_PRICE_OVERRIDES = ['discount_percent', 'discount_amount', 'custom_total'];
+
+/**
+ * Where each create endpoint carries the instructor, the students and the
+ * check-out state:
+ *  - single   POST /bookings           instructor_user_id, student_user_id (+ partner_user_id)
+ *  - calendar POST /bookings/calendar  instructorId, user.id
+ *  - group    POST /bookings/group     instructor_user_id, participants[].userId
+ */
+const CREATE_SHAPES = {
+  single: {
+    instructorKey: 'instructor_user_id',
+    students: (b) => [b.student_user_id, ...(b.partner_user_id ? [b.partner_user_id] : [])],
+    requireStudents: true,
+    checkout: (b) => b.checkout_status,
+  },
+  calendar: {
+    instructorKey: 'instructorId',
+    students: (b) => (b.user && typeof b.user === 'object' ? [b.user.id] : []),
+    requireStudents: false, // no `user` at all → the route answers 400
+    checkout: (b) => b.checkoutStatus ?? b.checkout_status,
+  },
+  group: {
+    instructorKey: 'instructor_user_id',
+    students: (b) => (Array.isArray(b.participants) ? b.participants.map((p) => p?.userId ?? p?.user_id) : []),
+    requireStudents: false, // empty participants → the route answers 400
+    checkout: (b) => b.checkout_status,
+  },
+};
+
+/** The ids (of `ids`) that are existing, non-deleted, non-suspended user accounts. */
+async function findActiveUserIds(ids, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id FROM users
+      WHERE id = ANY($1::uuid[])
+        AND deleted_at IS NULL
+        AND COALESCE(account_status, 'active') NOT IN ('deleted', 'suspended', 'banned', 'disabled')`,
+    [ids],
+  );
+  return new Set(rows.map((r) => String(r.id)));
+}
+
+const existingStudentsOnly = (res) =>
+  res.status(403).json({
+    error: 'Instructors can only book students who already have an account',
+    code: INSTRUCTOR_EXISTING_STUDENTS_ONLY,
+  });
+
+/**
+ * Create-route middleware for instructor-scoped callers (no-op for every other
+ * role): pins the instructor to req.user.id (403 INSTRUCTOR_OWN_BOOKINGS_ONLY
+ * when a colleague is named; filled in when missing), requires every student /
+ * participant to be an existing active user (403
+ * INSTRUCTOR_EXISTING_STUDENTS_ONLY — no inline new customers or guests),
+ * rejects closing statuses / a check-out state (403 INSTRUCTOR_CANNOT_COMPLETE)
+ * and staff price overrides (403 INSTRUCTOR_FIELD_FORBIDDEN). On the single
+ * route a client-sent `amount`/`final_amount` is dropped so the server prices
+ * the lesson from the service (the calendar route already re-prices).
+ */
+export function enforceInstructorBookingCreate(shapeName) {
+  const shape = CREATE_SHAPES[shapeName];
+  if (!shape) throw new Error(`Unknown booking create shape: ${shapeName}`);
+  return async (req, res, next) => {
+    if (!isInstructorScopedRequest(req)) return next();
+    if (!req.body || typeof req.body !== 'object') req.body = {};
+    const body = req.body;
+    const me = req.user.id;
+
+    const named = body[shape.instructorKey];
+    if (named != null && named !== '' && !sameId(named, me)) {
+      return res.status(403).json({
+        error: 'Instructors can only create bookings for themselves',
+        code: INSTRUCTOR_OWN_BOOKINGS_ONLY,
+      });
+    }
+    body[shape.instructorKey] = me;
+
+    if (isLessonClosingStatus(body.status)) return instructorCannotComplete(res, ['status']);
+    const checkout = shape.checkout(body);
+    if (checkout != null && checkout !== '' && normaliseStatus(checkout) !== 'pending') {
+      return instructorCannotComplete(res, ['checkout_status']);
+    }
+
+    const priceOverrides = INSTRUCTOR_CREATE_PRICE_OVERRIDES.filter((f) => {
+      const v = body[f];
+      if (v === undefined || v === null || v === '') return false;
+      return f === 'custom_total' ? true : Number(v) > 0;
+    });
+    if (priceOverrides.length > 0) {
+      return res.status(403).json({
+        error: `Instructors cannot set: ${priceOverrides.join(', ')}`,
+        code: 'INSTRUCTOR_FIELD_FORBIDDEN',
+        fields: priceOverrides,
+      });
+    }
+    if (shapeName === 'single') {
+      delete body.amount;
+      delete body.final_amount;
+    }
+
+    const studentIds = shape.students(body);
+    if (studentIds.length === 0) {
+      return shape.requireStudents ? existingStudentsOnly(res) : next();
+    }
+    if (studentIds.some((id) => id == null || !UUID_RE.test(String(id)))) return existingStudentsOnly(res);
+    try {
+      const active = await findActiveUserIds([...new Set(studentIds.map(String))]);
+      if (!studentIds.every((id) => active.has(String(id)))) return existingStudentsOnly(res);
+      return next();
+    } catch (err) {
+      logger.error('Instructor booking create check failed', { error: err?.message });
+      return res.status(500).json({ error: 'Booking validation failed' });
+    }
+  };
+}
+
+/**
+ * For create routes instructors must not use at all (e.g. the student-organised
+ * POST /group-bookings flow: free-form invitees by e-mail and a caller-set
+ * price). Instructor-scoped → 403 INSTRUCTOR_OWN_BOOKINGS_ONLY.
+ */
+export function denyInstructorScopedCreate() {
+  return (req, res, next) => {
+    if (!isInstructorScopedRequest(req)) return next();
+    return res.status(403).json({
+      error: 'Instructors create their own lessons from the calendar, for existing students only',
+      code: INSTRUCTOR_OWN_BOOKINGS_ONLY,
+    });
   };
 }

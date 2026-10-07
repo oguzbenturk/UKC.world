@@ -27,6 +27,11 @@ import { extractUnitMeta, calculateTotalPrice } from '../services/accommodationP
 import { restoreBookingPackageHours, refundBookingNetChargesPerUser, clearInstructorEarningsForBooking } from './bookings.js';
 import BookingUpdateCascadeService from '../services/bookingUpdateCascadeService.js';
 import { recordBookingCommission } from '../services/managerCommissionService.js';
+import {
+  isInstructorScopedRole,
+  isLessonClosingStatus,
+  INSTRUCTOR_CANNOT_COMPLETE,
+} from '../middlewares/bookingOwnership.js';
 
 const router = express.Router();
 
@@ -1964,6 +1969,15 @@ router.post(
       const ALLOWED = ['confirmed', 'completed', 'pending', 'cancelled'];
       if (!ALLOWED.includes(status)) {
         return res.status(400).json({ error: `Invalid status. Must be one of: ${ALLOWED.join(', ')}` });
+      }
+
+      // Completing a lesson is staff-only (owner decision 2026-10-08) — same rule
+      // as PATCH /bookings/:id/status for instructor-scoped roles.
+      if (isInstructorScopedRole(role) && isLessonClosingStatus(status)) {
+        return res.status(403).json({
+          error: 'Only staff can complete a lesson. Your manager closes the lesson after it ends.',
+          code: INSTRUCTOR_CANNOT_COMPLETE,
+        });
       }
 
       const bookingRes = await pool.query(

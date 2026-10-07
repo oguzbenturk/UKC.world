@@ -4,6 +4,8 @@ import { message } from '@/shared/utils/antdStatic';
 import { EditOutlined, DeleteOutlined, StopOutlined } from '@ant-design/icons';
 import DataService from '../../../shared/services/dataService';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { canCloseLessons } from '@/shared/utils/roleUtils';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -13,6 +15,9 @@ const { TextArea } = Input;
 const BookingDetailModal = ({ visible, onClose, bookingId, onBookingUpdated, onBookingDeleted }) => {
   const [form] = Form.useForm();
   const { formatCurrency, businessCurrency } = useCurrency();
+  const { user } = useAuth();
+  // Completing a lesson is staff-only (backend: 403 INSTRUCTOR_CANNOT_COMPLETE).
+  const canClose = canCloseLessons(user?.role);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -380,7 +385,7 @@ const BookingDetailModal = ({ visible, onClose, bookingId, onBookingUpdated, onB
               >
                 <Select>
                   <Option value="scheduled">Scheduled</Option>
-                  <Option value="completed">Completed</Option>
+                  <Option value="completed" disabled={!canClose}>Completed</Option>
                   <Option value="cancelled">Cancelled</Option>
                 </Select>
               </Form.Item>

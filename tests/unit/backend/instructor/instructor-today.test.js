@@ -73,7 +73,7 @@ beforeAll(async () => {
   ids.s3 = await createUser('student', 'Other');
   signedWaivers.add(ids.s1);
 
-  // Alice on DAY: 09:00 (Hazal, paid) and 13:00 (Nina, unpaid); a cancelled one that must not show.
+  // Alice on DAY: 09:00 (Hazal, paid) and 13:00 (Nina, unpaid — must NOT surface); a cancelled one that must not show.
   ids.l1 = await addLesson(ids.a, ids.s1, { date: DAY, startHour: 9 });
   ids.l2 = await addLesson(ids.a, ids.s2, { date: DAY, startHour: 13, paymentStatus: 'unpaid' });
   ids.lCancelled = await addLesson(ids.a, ids.s1, { date: DAY, startHour: 16, status: 'cancelled' });
@@ -157,23 +157,32 @@ describe('GET /api/instructors/me/today', () => {
     expect(nina).toMatchObject({ userId: ids.s2, waiverSigned: false });
   });
 
-  test('attention lists the missing waiver and the unpaid lesson; they disappear once resolved', async () => {
+  test('attention lists only the missing waiver (no unpaid item); it disappears once signed', async () => {
+    // l2 is unpaid in the DB — instructors must not be told about payment state.
     const res = await api(`/api/instructors/me/today?date=${DAY}`, 'a');
-    expect(res.body.attention).toEqual(expect.arrayContaining([
+    expect(res.body.attention).toEqual([
       expect.objectContaining({ kind: 'waiver_missing', bookingId: ids.l2, userId: ids.s2, name: 'Nina Today', startHour: '13:00' }),
-      expect.objectContaining({ kind: 'unpaid_checkin', bookingId: ids.l2 }),
-    ]));
-    expect(res.body.attention).toHaveLength(2);
+    ]);
+    expect(res.body.attention.some((i) => i.kind === 'unpaid_checkin')).toBe(false);
 
     signedWaivers.add(ids.s2);
-    await pool.query(`UPDATE bookings SET payment_status = 'paid' WHERE id = $1`, [ids.l2]);
     try {
       const after = await api(`/api/instructors/me/today?date=${DAY}`, 'a');
       expect(after.body.attention).toEqual([]);
     } finally {
       signedWaivers.delete(ids.s2);
-      await pool.query(`UPDATE bookings SET payment_status = 'unpaid' WHERE id = $1`, [ids.l2]);
     }
+  });
+
+  test('returns no payment fields anywhere (payment status / amounts are not part of the instructor view)', async () => {
+    const res = await api(`/api/instructors/me/today?date=${DAY}`, 'a');
+    expect(res.status).toBe(200);
+    for (const lesson of res.body.lessons) {
+      expect(lesson).not.toHaveProperty('paymentStatus');
+      expect(lesson).not.toHaveProperty('payment_status');
+    }
+    const json = JSON.stringify(res.body);
+    expect(json).not.toMatch(/payment|unpaid|amount|price/i);
   });
 
   test('includes the latest note the instructor wrote for the student', async () => {

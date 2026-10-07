@@ -180,9 +180,16 @@ describe('PATCH /api/bookings/:id/status', () => {
     expect(res.body.code).toBe('NOT_YOUR_BOOKING');
   });
 
-  test('instructor A can change status of own booking', async () => {
+  test('instructor A cannot complete own booking (closing a lesson is staff-only)', async () => {
     const res = await request(app).patch(`/api/bookings/${ids.aCompleted}/status`).set(auth(tok.a))
       .send({ status: 'completed' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('INSTRUCTOR_CANNOT_COMPLETE');
+  });
+
+  test('instructor A can still change a non-closing status of own booking', async () => {
+    const res = await request(app).patch(`/api/bookings/${ids.aCompleted}/status`).set(auth(tok.a))
+      .send({ status: 'confirmed' });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -299,7 +306,9 @@ describe('findBlockedInstructorFieldChanges (unit)', () => {
     expect(ownership.findBlockedInstructorFieldChanges(req, current)).toEqual(['service_id']);
   });
 
-  test('schedule / check-in / checkout fields are allowed for instructors', () => {
+  // Closing fields (status completed, checkout_*) are rejected separately by
+  // findInstructorLessonClosingChanges — see instructor-lesson-closing.test.js.
+  test('schedule / check-in / checkout fields are not money fields', () => {
     const req = { user: { id: 'i1', role: 'instructor' }, body: {
       date: '2031-01-01', start_hour: 11, duration: 1.5, status: 'completed', notes: 'n',
       checkout_status: 'checked-out', checkin_status: 'checked-in', instructor_user_id: 'i1',
