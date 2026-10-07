@@ -77,14 +77,14 @@ function HeroTrend({ summary, isDesktop }) {
   const weekly = summary.weekly ?? [];
   if (!weekly.length) return null;
   const latestWeek = weekly[weekly.length - 1].total;
-  const threshold = isDesktop ? summary.threshold?.amount ?? null : null;
+  // No payout-minimum line here: the minimum applies to the available BALANCE,
+  // not to weekly earnings, so drawing it on this chart was misleading. The
+  // payout card shows progress towards the minimum instead.
   return (
     <TrendSparkline
       points={weekly}
       width={isDesktop ? 640 : 320}
       height={isDesktop ? 110 : 64}
-      threshold={threshold}
-      thresholdLabel={threshold != null ? t('instructor:earnings.hero.thresholdLine', { amount: money(threshold) }) : ''}
       label={t('instructor:earnings.hero.trendLabel', { amount: money(latestWeek) })}
     />
   );
