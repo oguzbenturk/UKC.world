@@ -1029,7 +1029,8 @@
     "periodCurrentYear": "Текущий год",
     "periodAllTime": "За всё время",
     "failedToDashboardData": "Не удалось загрузить данные панели управления.",
-    "spentInAppTag": "Потрачено в приложении"
+    "spentInAppTag": "Потрачено в приложении",
+    "methodEarnings": "Мой заработок"
   },
   "skills": {
     "teachingSkills": "Педагогические навыки",

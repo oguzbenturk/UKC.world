@@ -1539,5 +1539,161 @@
       "claims": "Reclamaciones",
       "spareParts": "Repuestos"
     }
+  },
+  "membersPage": {
+    "title": "Socios",
+    "titleActive": "Membresías activas",
+    "summary_one": "{{count}} membresía · {{active}} activas · {{people}} personas",
+    "summary_other": "{{count}} membresías · {{active}} activas · {{people}} personas",
+    "export": "Exportar CSV",
+    "sell": "Vender membresía",
+    "loading": "Cargando membresías…",
+    "search": "Buscar socios",
+    "searchPlaceholder": "Nombre, email, teléfono, membresía o #taquilla",
+    "filterLabel": "Filtrar por estado",
+    "typeLabel": "Tipo",
+    "allTypes": "Todos los tipos",
+    "sort": {
+      "label": "Ordenar",
+      "attention": "Primero lo urgente",
+      "expiry": "Terminan antes",
+      "purchased": "Venta más reciente",
+      "name": "Nombre A–Z"
+    },
+    "view": {
+      "all": "Todas",
+      "active": "Activas",
+      "expiring": "Terminan esta semana",
+      "expired": "Caducadas",
+      "storage": "Taquillas",
+      "beach": "Pases de playa"
+    },
+    "kpi": {
+      "active": "Activas",
+      "activePeople_one": "{{count}} persona",
+      "activePeople_other": "{{count}} personas",
+      "expiring7": "Terminan en 7 días",
+      "expiring30_one": "{{count}} en 30 días",
+      "expiring30_other": "{{count}} en 30 días",
+      "expired": "Caducadas",
+      "expiredRecent_one": "{{count}} en los últimos 30 días",
+      "expiredRecent_other": "{{count}} en los últimos 30 días",
+      "storage": "Taquillas",
+      "storageFree_one": "{{count}} taquilla libre",
+      "storageFree_other": "{{count}} taquillas libres",
+      "storageNoCapacity": "En uso (sin capacidad definida)",
+      "beach": "Pases de playa",
+      "beachTotal_one": "activos · {{count}} vendido",
+      "beachTotal_other": "activos · {{count}} vendidos",
+      "newThisMonth": "Nuevas este mes",
+      "sold": "{{month}} este mes · {{year}} este año"
+    },
+    "state": {
+      "endsToday": "Termina hoy",
+      "endsTomorrow": "Termina mañana",
+      "daysLeft_one": "Queda {{count}} día",
+      "daysLeft_other": "Quedan {{count}} días",
+      "expiredToday": "Caducó hoy",
+      "expiredAgo_one": "Caducó hace {{count}} día",
+      "expiredAgo_other": "Caducó hace {{count}} días",
+      "startsIn_one": "Empieza en {{count}} día",
+      "startsIn_other": "Empieza en {{count}} días",
+      "pending": "Pago pendiente",
+      "cancelled": "Cancelada",
+      "activeNoEnd": "Activa · sin fecha de fin",
+      "activeDays_one": "Activa · queda {{count}} día",
+      "activeDays_other": "Activa · quedan {{count}} días"
+    },
+    "family": {
+      "beach": "Playa",
+      "storage": "Taquilla",
+      "membership": "Membresía",
+      "freerider": "Freerider",
+      "other": "Otro"
+    },
+    "duration": {
+      "day": "día",
+      "week": "semana",
+      "month": "mes",
+      "season": "temporada",
+      "year": "año",
+      "other": "otro"
+    },
+    "actions": {
+      "renew": "Renovar",
+      "winBack": "Recuperar",
+      "openCustomer": "Abrir cliente",
+      "edit": "Editar membresía",
+      "discount": "Aplicar descuento",
+      "delete": "Eliminar",
+      "more": "Más acciones para {{name}}"
+    },
+    "boxFreed": "liberada",
+    "boxShared": "compartida",
+    "selectAll": "Seleccionar todo lo mostrado",
+    "selectOne": "Seleccionar a {{name}}",
+    "col": {
+      "member": "Socio",
+      "membership": "Membresía",
+      "status": "Estado",
+      "period": "Periodo",
+      "box": "Taquilla",
+      "paid": "Pagado",
+      "actions": "Acciones"
+    },
+    "boxes": {
+      "title": "Taquillas",
+      "summary": "{{used}} de {{capacity}} en uso · {{free}} libres",
+      "summaryNoCapacity": "{{used}} en uso",
+      "cellFree": "Taquilla {{unit}}: libre",
+      "cell": "Taquilla {{unit}}: {{state}} · {{name}} · hasta {{date}}",
+      "state": {
+        "used": "En uso",
+        "ending": "Termina esta semana",
+        "starting": "Empieza pronto",
+        "free": "Libre"
+      }
+    },
+    "renewals": {
+      "title": "Renovaciones de esta semana",
+      "remind": "Recordar",
+      "remindAll_one": "Recordar a {{count}}",
+      "remindAll_other": "Recordar a los {{count}}",
+      "remindOne": "Enviar recordatorio de renovación a {{name}}",
+      "empty": "Nada termina en los próximos 7 días."
+    },
+    "bulk": {
+      "label": "Acciones en bloque",
+      "selected_one": "{{count}} seleccionada",
+      "selected_other": "{{count}} seleccionadas",
+      "remind": "Enviar recordatorio de renovación",
+      "clear": "Limpiar"
+    },
+    "remind": {
+      "sent_one": "Recordatorio enviado a {{count}} socio",
+      "sent_other": "Recordatorios enviados a {{count}} socios",
+      "skipped_one": "{{count}} omitido (cancelada o ya recordado hoy)",
+      "skipped_other": "{{count}} omitidos (canceladas o ya recordados hoy)",
+      "failed": "No se pudieron enviar los recordatorios"
+    },
+    "payment": {
+      "completed": "Completado",
+      "pending": "Pendiente",
+      "failed": "Fallido",
+      "refunded": "Reembolsado"
+    },
+    "error": {
+      "title": "No se pudieron cargar las membresías",
+      "body": "Revisa la conexión e inténtalo de nuevo.",
+      "retry": "Reintentar"
+    },
+    "empty": {
+      "filtered": "Ninguna membresía coincide",
+      "filteredHint": "Prueba otro filtro o borra la búsqueda.",
+      "none": "Aún no hay membresías",
+      "noneHint": "Vende la primera membresía para verla aquí."
+    },
+    "showing": "Mostrando {{shown}} de {{total}}",
+    "showMore": "Mostrar más"
   }
 }

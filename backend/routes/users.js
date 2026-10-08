@@ -13,6 +13,14 @@ import { cacheMiddleware, cacheInvalidationMiddleware } from '../middlewares/cac
 import { sendWelcomeEmailWithResetLink } from '../services/welcomeEmailService.js';
 import { sendVerificationEmail } from '../services/emailVerificationService.js';
 import { invalidateUserSessions } from '../services/sessionService.js';
+import {
+  CUSTOMER_SEGMENTS,
+  active30Sql,
+  businessDates,
+  customerActivitySql,
+  getCustomerSegmentCounts,
+  segmentWhere,
+} from '../services/customerInsightsService.js';
 
 // Any user create/update must bust the /students and /for-booking caches so
 // freshly-added customers show up in booking/rental search immediately.
@@ -340,9 +348,25 @@ router.get('/for-booking', authorizeRoles(['admin', 'manager', 'instructor']), c
   }
 });
 
+// GET /users/customers/segments — counts for the Customers page tiles (lessons, shop,
+// beach & storage, rentals, stays, active in 30 days, owe money, have credit, new).
+router.get('/customers/segments', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
+  try {
+    res.json(await getCustomerSegmentCounts());
+  } catch (err) {
+    logger.error('Error fetching customer segments:', err);
+    res.status(500).json({ error: 'Failed to fetch customer segments' });
+  }
+});
+
 // === HIGH-PERFORMANCE CUSTOMERS LIST (Keyset pagination + aggregated fields) ===
 // GET /users/customers/list?q=&limit=&cursor=&balance=&friendsOnly=true
-// Returns: { items: [...], nextCursor: string|null, totalHint?: number }
+// Returns: { items: [...], nextCursor: string|null, total?: number }
+//   &insights=1  → each item also gets segments[], last_activity_at, lifetime_spend,
+//                  and these filters / sorts become available:
+//                  segment=lessons|shop|members|rentals|stays|owes|credit|new|none,
+//                  activity=active|inactive (30 days), sortBy=lifetime_spend|last_activity
+//   &withTotal=1 → `total` = count of ALL customers matching the filters (not the page)
 router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor']), async (req, res) => {
   try {
     const q = (req.query.q || '').toString().trim();
@@ -352,6 +376,9 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     const cursor = req.query.cursor ? req.query.cursor.toString() : null; // last seen id for keyset
     const defaultCurrency = (process.env.DEFAULT_WALLET_CURRENCY || 'EUR').toUpperCase();
     const currentUserId = req.user?.id; // The authenticated user
+    const withInsights = req.query.insights === '1' || req.query.insights === 'true';
+    const withTotal = req.query.withTotal === '1' || req.query.withTotal === 'true';
+    const dates = businessDates();
 
     // Base filters: students, outsiders, trusted_customers, exclude soft-deleted users
     // balanceColumn MUST be byte-identical to the SELECT balance expression so the
@@ -381,6 +408,10 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       role:       { expr: 'r.name',                              cast: '::text' },
       balance:    { expr: `ROUND(${balanceColumn}::numeric, 2)`, cast: '::numeric' },
       created_at: { expr: 'u.created_at',                        cast: '::timestamptz' },
+      ...(withInsights ? {
+        lifetime_spend: { expr: 'ROUND(COALESCE(ca.lifetime_spend, 0)::numeric, 2)', cast: '::numeric' },
+        last_activity:  { expr: "COALESCE(ca.last_activity, '1900-01-01'::date)",  cast: '::date' },
+      } : {}),
     };
     const sortBy = SORTABLE[(req.query.sortBy || '').toString()] ? req.query.sortBy.toString() : 'id';
     const sortDir = (req.query.sortDir || 'desc').toString().toLowerCase() === 'asc' ? 'ASC' : 'DESC';
@@ -448,6 +479,22 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       whereClauses.push(`(${balanceColumn} >= 0 AND COALESCE(pb.pending_count, 0) = 0)`);
     }
 
+    // Segment / activity filters (need the activity join → only with ?insights=1).
+    if (withInsights) {
+      const segment = (req.query.segment || '').toString();
+      if (segment && segment !== 'all') {
+        if (!CUSTOMER_SEGMENTS.includes(segment)) return res.status(400).json({ error: 'Invalid segment' });
+        whereClauses.push(segmentWhere(segment, { balanceExpr: balanceColumn, monthStart: dates.monthStart }));
+      }
+      const activity = (req.query.activity || '').toString();
+      if (activity === 'active') whereClauses.push(active30Sql(dates.minus30));
+      else if (activity === 'inactive') whereClauses.push(`NOT ${active30Sql(dates.minus30)}`);
+    }
+
+    // Real total for the current filters (before the keyset cursor is applied).
+    const totalWhere = [...whereClauses];
+    const totalParams = [...params];
+
     // Keyset pagination. When a sort is active we keyset on (sortExpr, u.id) so that
     // "Load more" keeps appending in the SAME global order rather than restarting.
     // The cursor is an opaque base64url token { v: <last sort value>, id: <last id> }.
@@ -480,31 +527,8 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
 
     const currencyParamIndex = params.length + 1;
 
-    // Compose SQL - balance = sum of EVERY wallet_balances row converted to EUR
-    // (wbal LATERAL, same math as GET /finances/accounts/:id so wallet customers match
-    // the customer drawer), falling back to legacy users.balance only for pre-wallet
-    // customers whose imported debt lives solely in users.balance (no wallet rows).
-    const sql = `
-      SELECT 
-        u.id,
-        ${nameExpr} AS name,
-        u.email,
-        u.phone,
-        r.name AS role,
-        -- Primary = sum of every wallet row → EUR (wbal LATERAL below), identical to
-        -- the drawer's GET /finances/accounts/:id so wallet customers match exactly.
-        -- bal_eur is NULL only when there are NO wallet rows; it is 0 when a wallet
-        -- exists but nets to zero. So plain COALESCE uses legacy users.balance ONLY for
-        -- pre-wallet customers (imported debt with no wallet rows), while a customer who
-        -- HAS a wallet — even a €0 one — trusts the wallet and ignores the (possibly
-        -- stale) users.balance mirror. No NULLIF: a €0 wallet must NOT fall through.
-        ROUND(COALESCE(wbal.bal_eur, u.balance, 0)::numeric, 2) AS balance,
-        COALESCE(u.preferred_currency, $${currencyParamIndex}) AS preferred_currency,
-        u.created_at,
-        COALESCE(pb.pending_count, 0)::int AS pending_count,
-        -- Exact value the rows are ordered by; used to build the next keyset cursor so
-        -- it always matches the ORDER BY / WHERE expression (rounding, COALESCE, etc.).
-        ${sortExpr} AS _sortval
+    // FROM + joins shared by the page query and the total count.
+    const fromSql = `
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN LATERAL (
@@ -531,6 +555,45 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
         WHERE b.payment_status = 'pending' AND b.deleted_at IS NULL
         GROUP BY b.student_user_id
       ) pb ON pb.uid = u.id
+      ${withInsights ? `LEFT JOIN (${customerActivitySql(dates)}) ca ON ca.uid = u.id` : ''}
+    `;
+
+    // Compose SQL - balance = sum of EVERY wallet_balances row converted to EUR
+    // (wbal LATERAL, same math as GET /finances/accounts/:id so wallet customers match
+    // the customer drawer), falling back to legacy users.balance only for pre-wallet
+    // customers whose imported debt lives solely in users.balance (no wallet rows).
+    const sql = `
+      SELECT 
+        u.id,
+        ${nameExpr} AS name,
+        u.email,
+        u.phone,
+        r.name AS role,
+        -- Primary = sum of every wallet row → EUR (wbal LATERAL below), identical to
+        -- the drawer's GET /finances/accounts/:id so wallet customers match exactly.
+        -- bal_eur is NULL only when there are NO wallet rows; it is 0 when a wallet
+        -- exists but nets to zero. So plain COALESCE uses legacy users.balance ONLY for
+        -- pre-wallet customers (imported debt with no wallet rows), while a customer who
+        -- HAS a wallet — even a €0 one — trusts the wallet and ignores the (possibly
+        -- stale) users.balance mirror. No NULLIF: a €0 wallet must NOT fall through.
+        ROUND(COALESCE(wbal.bal_eur, u.balance, 0)::numeric, 2) AS balance,
+        COALESCE(u.preferred_currency, $${currencyParamIndex}) AS preferred_currency,
+        u.created_at,
+        COALESCE(pb.pending_count, 0)::int AS pending_count,
+        u.profile_image_url,
+        ${withInsights ? `
+        COALESCE(ca.has_lessons, false) AS has_lessons,
+        COALESCE(ca.has_shop, false) AS has_shop,
+        COALESCE(ca.has_member, false) AS has_member,
+        COALESCE(ca.active_member, false) AS active_member,
+        COALESCE(ca.has_rentals, false) AS has_rentals,
+        COALESCE(ca.has_stays, false) AS has_stays,
+        to_char(ca.last_activity, 'YYYY-MM-DD') AS last_activity_at,
+        ROUND(COALESCE(ca.lifetime_spend, 0)::numeric, 2) AS lifetime_spend,` : ''}
+        -- Exact value the rows are ordered by; used to build the next keyset cursor so
+        -- it always matches the ORDER BY / WHERE expression (rounding, COALESCE, etc.).
+        ${sortExpr} AS _sortval
+      ${fromSql}
       WHERE ${whereClauses.join(' AND ')}
       ORDER BY ${orderByClause}
       LIMIT $${params.length + 2}
@@ -540,7 +603,12 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
     // SEC-013 FIX: Use parameterized query for LIMIT value
     params.push(limit + 1);
 
-    const { rows } = await pool.query(sql, params);
+    const [{ rows }, totalRes] = await Promise.all([
+      pool.query(sql, params),
+      withTotal
+        ? pool.query(`SELECT COUNT(*)::int AS total ${fromSql} WHERE ${totalWhere.join(' AND ')}`, totalParams)
+        : Promise.resolve(null),
+    ]);
 
     // Determine next cursor
     let nextCursor = null;
@@ -570,9 +638,21 @@ router.get('/customers/list', authorizeRoles(['admin', 'manager', 'instructor'])
       balance: Number(r.balance) || 0,
       preferred_currency: r.preferred_currency,
       payment_status: (Number(r.balance) || 0) < 0 ? 'overdue' : ((r.pending_count || 0) > 0 ? 'pending' : 'paid'),
+      ...(withInsights ? {
+        profile_image_url: r.profile_image_url || null,
+        segments: [
+          r.has_lessons && 'lessons',
+          r.has_shop && 'shop',
+          r.has_member && (r.active_member ? 'member_active' : 'member'),
+          r.has_rentals && 'rentals',
+          r.has_stays && 'stays',
+        ].filter(Boolean),
+        last_activity_at: r.last_activity_at || null,
+        lifetime_spend: Number(r.lifetime_spend) || 0,
+      } : {}),
     }));
 
-    res.json({ items: mapped, nextCursor });
+    res.json({ items: mapped, nextCursor, ...(totalRes ? { total: totalRes.rows[0]?.total ?? 0 } : {}) });
   } catch (err) {
     logger.error('Error fetching customers list:', err);
     res.status(500).json({ error: 'Failed to fetch customers list', details: err.message });

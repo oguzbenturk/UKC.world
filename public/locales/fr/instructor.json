@@ -1019,7 +1019,8 @@
     "periodCurrentYear": "Cette année",
     "periodAllTime": "Tout le temps",
     "failedToDashboardData": "Impossible de charger les données du tableau de bord.",
-    "spentInAppTag": "Dépensé dans l’app"
+    "spentInAppTag": "Dépensé dans l’app",
+    "methodEarnings": "Mes gains"
   },
   "skills": {
     "teachingSkills": "Compétences pédagogiques",

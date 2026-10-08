@@ -12,6 +12,13 @@ import { dispatchNotification } from '../services/notificationDispatcherUnified.
 import { recordMembershipCommission, cancelCommission } from '../services/managerCommissionService.js';
 import { METHOD_PAYMENT_TX_TYPE } from '../constants/transactions.js';
 import { applyDiscount, computeDiscountAmount } from '../services/discountService.js';
+import {
+  durationBucketSql,
+  effectiveStatusSql,
+  familySql,
+  getMembershipStats,
+  purchaseStatusWhere,
+} from '../services/membershipStatsService.js';
 
 const router = Router();
 
@@ -951,18 +958,86 @@ router.delete('/:id', authenticateJWT, authorizeRoles(ADMIN_ROLES), async (req, 
 });
 
 /**
+ * GET /member-offerings/admin/stats
+ * Members page overview: effective-status counts (expiry-aware), storage boxes,
+ * beach passes, new / sold this month, per-type counts and renewals due this week.
+ */
+router.get('/admin/stats', authenticateJWT, authorizeRoles(ADMIN_ROLES), async (req, res) => {
+  try {
+    res.json(await getMembershipStats());
+  } catch (error) {
+    logger.error('Error fetching membership stats:', error);
+    res.status(500).json({ error: 'Failed to fetch membership stats' });
+  }
+});
+
+/**
+ * POST /member-offerings/admin/purchases/remind  { purchaseIds: number[] }
+ * In-app renewal reminder to each member (one per membership per day — idempotent).
+ */
+router.post('/admin/purchases/remind', authenticateJWT, authorizeRoles(ADMIN_ROLES), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.purchaseIds)
+      ? [...new Set(req.body.purchaseIds.map((v) => parseInt(v, 10)).filter((v) => Number.isInteger(v) && v > 0))]
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: 'purchaseIds is required' });
+    if (ids.length > 200) return res.status(400).json({ error: 'Too many memberships (max 200)' });
+
+    const { rows } = await pool.query(
+      `SELECT mp.id, mp.user_id, mp.expires_at, COALESCE(mp.offering_name, mo.name) AS offering_name
+         FROM member_purchases mp
+         LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
+        WHERE mp.id = ANY($1::int[]) AND mp.status <> 'cancelled'`,
+      [ids]
+    );
+    const day = new Date().toISOString().slice(0, 10);
+    let sent = 0;
+    let skipped = ids.length - rows.length;
+    for (const row of rows) {
+      const ends = row.expires_at ? new Date(row.expires_at) : null;
+      const expired = ends && ends.getTime() < Date.now();
+      const when = ends ? ends.toISOString().slice(0, 10) : null;
+      try {
+        const result = await dispatchNotification({
+          userId: row.user_id,
+          type: 'general',
+          title: expired ? 'Your membership has ended' : 'Your membership ends soon',
+          message: expired
+            ? `${row.offering_name || 'Your membership'} ended on ${when}. Renew it at the reception or in the app.`
+            : `${row.offering_name || 'Your membership'} ends on ${when}. Renew it at the reception or in the app to keep your access.`,
+          data: { memberPurchaseId: row.id, kind: 'membership_renewal' },
+          idempotencyKey: `membership-renewal:${row.id}:${day}`,
+        });
+        if (result?.sent === false) skipped += 1; else sent += 1;
+      } catch (err) {
+        skipped += 1;
+        logger.warn('Membership renewal reminder failed', { purchaseId: row.id, error: err?.message });
+      }
+    }
+    res.json({ requested: ids.length, sent, skipped });
+  } catch (error) {
+    logger.error('Error sending membership reminders:', error);
+    res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
+/**
  * GET /member-offerings/admin/purchases
- * Get all purchases (Admin only)
+ * Get all purchases (Admin only).
+ * ?status= filters on the EFFECTIVE status (expiry-aware): active | expiring |
+ * expired | pending | cancelled | upcoming. The stored status never becomes
+ * 'expired', so filtering on mp.status returned expired memberships as active.
  */
 router.get('/admin/purchases', authenticateJWT, authorizeRoles(ADMIN_ROLES), async (req, res) => {
   try {
-    const { status, userId, from, to } = req.query;
+    const { status, userId, from, to, expiringDays } = req.query;
     const filters = [];
     const values = [];
 
-    if (status) {
-      values.push(status);
-      filters.push(`mp.status = $${values.length}`);
+    if (status && status !== 'all') {
+      const where = purchaseStatusWhere(String(status), { expiringDays });
+      if (!where) return res.status(400).json({ error: 'Invalid status filter' });
+      filters.push(where);
     }
     if (userId) {
       values.push(userId);
@@ -982,17 +1057,17 @@ router.get('/admin/purchases', authenticateJWT, authorizeRoles(ADMIN_ROLES), asy
     const { rows } = await pool.query(`
       SELECT
         mp.*,
-        u.name as user_name,
+        COALESCE(NULLIF(TRIM(u.first_name || ' ' || u.last_name), ''), u.name) as user_name,
         u.email as user_email,
+        u.phone as user_phone,
+        u.profile_image_url as user_avatar,
         mo.name as current_offering_name,
         mo.category as offering_category,
         mo.period as offering_period,
-        CASE
-          WHEN mp.status = 'cancelled' THEN 'cancelled'
-          WHEN mp.expires_at IS NULL THEN mp.status
-          WHEN mp.expires_at < NOW() THEN 'expired'
-          ELSE mp.status
-        END as computed_status
+        mo.duration_days as offering_duration_days,
+        ${familySql('mo')} as offering_family,
+        ${durationBucketSql('mo')} as offering_duration,
+        ${effectiveStatusSql('mp')} as computed_status
       FROM member_purchases mp
       JOIN users u ON mp.user_id = u.id
       LEFT JOIN member_offerings mo ON mp.offering_id = mo.id

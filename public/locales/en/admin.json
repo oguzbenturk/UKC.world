@@ -1547,5 +1547,161 @@
       "subject": "Subject",
       "when": "Last update"
     }
+  },
+  "membersPage": {
+    "title": "Members",
+    "titleActive": "Active memberships",
+    "summary_one": "{{count}} membership · {{active}} active · {{people}} people",
+    "summary_other": "{{count}} memberships · {{active}} active · {{people}} people",
+    "export": "Export CSV",
+    "sell": "Sell membership",
+    "loading": "Loading memberships…",
+    "search": "Search members",
+    "searchPlaceholder": "Name, email, phone, membership or #box",
+    "filterLabel": "Filter by status",
+    "typeLabel": "Type",
+    "allTypes": "All types",
+    "sort": {
+      "label": "Sort",
+      "attention": "Needs attention first",
+      "expiry": "Ends soonest",
+      "purchased": "Newest sale",
+      "name": "Name A–Z"
+    },
+    "view": {
+      "all": "All",
+      "active": "Active",
+      "expiring": "Ending this week",
+      "expired": "Expired",
+      "storage": "Storage",
+      "beach": "Beach passes"
+    },
+    "kpi": {
+      "active": "Active",
+      "activePeople_one": "{{count}} person",
+      "activePeople_other": "{{count}} people",
+      "expiring7": "Ending in 7 days",
+      "expiring30_one": "{{count}} in 30 days",
+      "expiring30_other": "{{count}} in 30 days",
+      "expired": "Expired",
+      "expiredRecent_one": "{{count}} in the last 30 days",
+      "expiredRecent_other": "{{count}} in the last 30 days",
+      "storage": "Storage boxes",
+      "storageFree_one": "{{count}} box free",
+      "storageFree_other": "{{count}} boxes free",
+      "storageNoCapacity": "In use (no capacity set)",
+      "beach": "Beach passes",
+      "beachTotal_one": "active · {{count}} sold",
+      "beachTotal_other": "active · {{count}} sold",
+      "newThisMonth": "New this month",
+      "sold": "{{month}} this month · {{year}} this year"
+    },
+    "state": {
+      "endsToday": "Ends today",
+      "endsTomorrow": "Ends tomorrow",
+      "daysLeft_one": "{{count}} day left",
+      "daysLeft_other": "{{count}} days left",
+      "expiredToday": "Expired today",
+      "expiredAgo_one": "Expired {{count}} day ago",
+      "expiredAgo_other": "Expired {{count}} days ago",
+      "startsIn_one": "Starts in {{count}} day",
+      "startsIn_other": "Starts in {{count}} days",
+      "pending": "Payment pending",
+      "cancelled": "Cancelled",
+      "activeNoEnd": "Active · no end date",
+      "activeDays_one": "Active · {{count}} day left",
+      "activeDays_other": "Active · {{count}} days left"
+    },
+    "family": {
+      "beach": "Beach",
+      "storage": "Storage",
+      "membership": "Membership",
+      "freerider": "Freerider",
+      "other": "Other"
+    },
+    "duration": {
+      "day": "day",
+      "week": "week",
+      "month": "month",
+      "season": "season",
+      "year": "year",
+      "other": "other"
+    },
+    "actions": {
+      "renew": "Renew",
+      "winBack": "Win back",
+      "openCustomer": "Open customer",
+      "edit": "Edit membership",
+      "discount": "Apply discount",
+      "delete": "Delete",
+      "more": "More actions for {{name}}"
+    },
+    "boxFreed": "freed",
+    "boxShared": "shared",
+    "selectAll": "Select all shown",
+    "selectOne": "Select {{name}}",
+    "col": {
+      "member": "Member",
+      "membership": "Membership",
+      "status": "Status",
+      "period": "Period",
+      "box": "Box",
+      "paid": "Paid",
+      "actions": "Actions"
+    },
+    "boxes": {
+      "title": "Storage boxes",
+      "summary": "{{used}} of {{capacity}} in use · {{free}} free",
+      "summaryNoCapacity": "{{used}} in use",
+      "cellFree": "Box {{unit}}: free",
+      "cell": "Box {{unit}}: {{state}} · {{name}} · until {{date}}",
+      "state": {
+        "used": "In use",
+        "ending": "Ends this week",
+        "starting": "Starts soon",
+        "free": "Free"
+      }
+    },
+    "renewals": {
+      "title": "Renewals due this week",
+      "remind": "Remind",
+      "remindAll_one": "Remind {{count}}",
+      "remindAll_other": "Remind all {{count}}",
+      "remindOne": "Send a renewal reminder to {{name}}",
+      "empty": "Nothing ends in the next 7 days."
+    },
+    "bulk": {
+      "label": "Bulk actions",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected",
+      "remind": "Send renewal reminder",
+      "clear": "Clear"
+    },
+    "remind": {
+      "sent_one": "Reminder sent to {{count}} member",
+      "sent_other": "Reminders sent to {{count}} members",
+      "skipped_one": "{{count}} skipped (cancelled or already reminded today)",
+      "skipped_other": "{{count}} skipped (cancelled or already reminded today)",
+      "failed": "Could not send reminders"
+    },
+    "payment": {
+      "completed": "Completed",
+      "pending": "Pending",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "error": {
+      "title": "Memberships could not load",
+      "body": "Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "empty": {
+      "filtered": "No memberships match",
+      "filteredHint": "Try another filter or clear the search.",
+      "none": "No memberships yet",
+      "noneHint": "Sell the first membership to see it here."
+    },
+    "showing": "Showing {{shown}} of {{total}}",
+    "showMore": "Show more"
   }
 }

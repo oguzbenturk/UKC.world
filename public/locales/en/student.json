@@ -1010,7 +1010,9 @@
     "depositApproved": "Your bank transfer deposit has been approved!",
     "depositDeclined": "Your bank transfer deposit request was declined.",
     "depositSuccess": "Deposit successful! Your wallet has been updated.",
-    "bankTransferSubmitted": "Bank transfer request submitted successfully!"
+    "bankTransferSubmitted": "Bank transfer request submitted successfully!",
+    "totalToSpend": "Total you can spend",
+    "staffSplit": "{{wallet}} wallet credit · {{earnings}} earnings"
   },
   "bookingTrigger": {
     "label": "Book Lesson",

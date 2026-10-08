@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Drawer, Select, Spin, message, Tooltip, InputNumber, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -156,7 +156,7 @@ const StorageUnitPicker = ({ units, unitsLoading, selectedUnit, onSelect }) => {
   );
 };
 
-function useMemberDrawer(isOpen, onClose, isElevated) {
+function useMemberDrawer(isOpen, onClose, isElevated, initial) {
   const queryClient = useQueryClient();
   const [customers, setCustomers] = useState([]);
   const [offerings, setOfferings] = useState([]);
@@ -226,6 +226,24 @@ function useMemberDrawer(isOpen, onClose, isElevated) {
       .catch(() => message.error('Failed to load data'))
       .finally(() => setLoadingData(false));
   }, [isOpen]);
+
+  // Renew / win back from the Members page: preselect the member, the plan and a start
+  // date once the lists are loaded (staff can still change everything).
+  const prefilledFor = useRef(null);
+  useEffect(() => {
+    if (!isOpen) { prefilledFor.current = null; return; }
+    if (!initial || loadingData || offerings.length === 0) return;
+    const key = `${initial.userId || ''}:${initial.offeringId || ''}:${initial.startDate || ''}`;
+    if (prefilledFor.current === key) return;
+    prefilledFor.current = key;
+    if (initial.userId) setSelectedCustomers([initial.userId]);
+    const offering = offerings.find((o) => String(o.id) === String(initial.offeringId));
+    if (offering) setSelectedOffering(offering);
+    if (initial.startDate) {
+      const d = dayjs(initial.startDate).startOf('day');
+      if (d.isValid()) setStartDate(d);
+    }
+  }, [isOpen, initial, loadingData, offerings]);
 
   // Load the storage-box grid whenever a storage offering is selected; clear for non-storage.
   useEffect(() => {
@@ -462,7 +480,7 @@ const DrawerFooter = ({ canSubmit, submitting, count, onClose, onSubmit }) => (
   </div>
 );
 
-export default function NewMemberDrawer({ isOpen, onClose }) {
+export default function NewMemberDrawer({ isOpen, onClose, initial = null }) {
   const { formatCurrency } = useCurrency();
   const { user } = useAuth();
   const isElevated = ELEVATED_ROLES.includes(user?.role?.toLowerCase());
@@ -481,7 +499,7 @@ export default function NewMemberDrawer({ isOpen, onClose }) {
     endDate, setEndDate,
     canSubmit,
     handleClose, handleSubmit,
-  } = useMemberDrawer(isOpen, onClose, isElevated);
+  } = useMemberDrawer(isOpen, onClose, isElevated, initial);
 
   return (
     <Drawer

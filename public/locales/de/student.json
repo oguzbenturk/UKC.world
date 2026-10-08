@@ -1010,7 +1010,9 @@
     "depositApproved": "Ihre Banküberweisung wurde genehmigt!",
     "depositDeclined": "Ihre Anfrage zur Banküberweisung wurde abgelehnt.",
     "depositSuccess": "Einzahlung erfolgreich! Ihre Geldbörse wurde aktualisiert.",
-    "bankTransferSubmitted": "Banküberweisungsanfrage erfolgreich eingereicht!"
+    "bankTransferSubmitted": "Banküberweisungsanfrage erfolgreich eingereicht!",
+    "totalToSpend": "Insgesamt verfügbar",
+    "staffSplit": "{{wallet}} Guthaben · {{earnings}} Einnahmen"
   },
   "bookingTrigger": {
     "label": "Stunde buchen",

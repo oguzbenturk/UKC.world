@@ -1019,7 +1019,8 @@
     "periodCurrentYear": "Este año",
     "periodAllTime": "Todo el tiempo",
     "failedToDashboardData": "No se pudieron cargar los datos del panel.",
-    "spentInAppTag": "Gastado en la app"
+    "spentInAppTag": "Gastado en la app",
+    "methodEarnings": "Mis ganancias"
   },
   "skills": {
     "teachingSkills": "Habilidades de enseñanza",

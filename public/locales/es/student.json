@@ -1010,7 +1010,9 @@
     "depositApproved": "¡Tu depósito por transferencia bancaria ha sido aprobado!",
     "depositDeclined": "Tu solicitud de depósito por transferencia bancaria fue rechazada.",
     "depositSuccess": "¡Depósito exitoso! Tu monedero ha sido actualizado.",
-    "bankTransferSubmitted": "¡Solicitud de transferencia bancaria enviada correctamente!"
+    "bankTransferSubmitted": "¡Solicitud de transferencia bancaria enviada correctamente!",
+    "totalToSpend": "Total disponible para gastar",
+    "staffSplit": "{{wallet}} saldo del monedero · {{earnings}} ganancias"
   },
   "bookingTrigger": {
     "label": "Reservar clase",

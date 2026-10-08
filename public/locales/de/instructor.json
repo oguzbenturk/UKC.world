@@ -1019,7 +1019,8 @@
     "periodCurrentYear": "Dieses Jahr",
     "periodAllTime": "Gesamte Zeit",
     "failedToDashboardData": "Dashboard-Daten konnten nicht geladen werden.",
-    "spentInAppTag": "In der App ausgegeben"
+    "spentInAppTag": "In der App ausgegeben",
+    "methodEarnings": "Meine Einnahmen"
   },
   "skills": {
     "teachingSkills": "Lehrfähigkeiten",

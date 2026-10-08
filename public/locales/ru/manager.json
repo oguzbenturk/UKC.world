@@ -2499,5 +2499,111 @@
       "body": "Проверьте соединение и попробуйте ещё раз.",
       "retry": "Повторить"
     }
+  },
+  "customersPage": {
+    "title": "Клиенты",
+    "loading": "Загрузка клиентов…",
+    "loadingMore": "Загрузка…",
+    "loadMore": "Загрузить ещё",
+    "summary": {
+      "total_one": "{{count}} клиент",
+      "total_few": "{{count}} клиента",
+      "total_many": "{{count}} клиентов",
+      "total_other": "{{count}} клиента",
+      "active_one": "{{count}} активен за 30 дней",
+      "active_few": "{{count}} активны за 30 дней",
+      "active_many": "{{count}} активны за 30 дней",
+      "active_other": "{{count}} активны за 30 дней",
+      "roles": "ученики: {{students}}, доверенные: {{trusted}}, внешние: {{outsiders}}"
+    },
+    "newCustomer": "Новый клиент",
+    "close": "Закрыть",
+    "tiles": {
+      "total": "Все клиенты",
+      "newThisMonth_one": "{{count}} новый в этом месяце",
+      "newThisMonth_few": "{{count}} новых в этом месяце",
+      "newThisMonth_many": "{{count}} новых в этом месяце",
+      "newThisMonth_other": "{{count}} новых в этом месяце",
+      "share": "{{pct}}% клиентов",
+      "membersActive_one": "{{count}} активен сейчас",
+      "membersActive_few": "{{count}} активны сейчас",
+      "membersActive_many": "{{count}} активны сейчас",
+      "membersActive_other": "{{count}} активны сейчас",
+      "active30": "Активны 30 дней",
+      "inactive_one": "{{count}} неактивен",
+      "inactive_few": "{{count}} неактивны",
+      "inactive_many": "{{count}} неактивны",
+      "inactive_other": "{{count}} неактивны"
+    },
+    "seg": {
+      "all": "Все",
+      "lessons": "Занятия",
+      "shop": "Магазин",
+      "members": "Абонементы",
+      "rentals": "Прокат",
+      "stays": "Проживание",
+      "owes": "Есть долг",
+      "credit": "Есть баланс",
+      "new": "Новые в этом месяце"
+    },
+    "activity": {
+      "active": "Активны 30 дней",
+      "inactive": "Неактивные"
+    },
+    "search": "Поиск клиентов",
+    "searchPlaceholder": "Имя, email или телефон",
+    "filterLabel": "Фильтр клиентов",
+    "sort": {
+      "label": "Сортировка",
+      "spend": "Сумма покупок",
+      "recent": "Последняя активность",
+      "name": "Имя А–Я",
+      "owes": "Наибольший долг",
+      "newest": "Новые"
+    },
+    "col": {
+      "customer": "Клиент",
+      "uses": "Пользуется",
+      "lastActivity": "Последняя активность",
+      "spend": "Сумма покупок",
+      "balance": "Баланс",
+      "actions": "Действия"
+    },
+    "uses": {
+      "lessons": "Занятия",
+      "shop": "Магазин",
+      "member_active": "Абонемент",
+      "member": "Бывший абонемент",
+      "rentals": "Прокат",
+      "stays": "Проживание",
+      "none": "Покупок пока нет"
+    },
+    "balance": {
+      "owes": "долг",
+      "credit": "баланс"
+    },
+    "never": "Нет активности",
+    "spent": "потрачено {{amount}}",
+    "actions": {
+      "open": "Открыть профиль",
+      "book": "Записать",
+      "collect": "Получить оплату",
+      "edit": "Изменить",
+      "delete": "Удалить",
+      "message": "Написать: {{name}}",
+      "more": "Другие действия для {{name}}"
+    },
+    "error": {
+      "title": "Не удалось загрузить клиентов",
+      "body": "Проверьте подключение и попробуйте снова.",
+      "retry": "Повторить"
+    },
+    "empty": {
+      "filtered": "Нет подходящих клиентов",
+      "filteredHint": "Выберите другой фильтр или очистите поиск.",
+      "none": "Клиентов пока нет",
+      "noneHint": "Добавьте первого клиента, чтобы увидеть его здесь."
+    },
+    "showing": "Показано {{shown}} из {{total}}"
   }
 }

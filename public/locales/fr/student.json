@@ -1010,7 +1010,9 @@
     "depositApproved": "Votre dépôt par virement bancaire a été approuvé !",
     "depositDeclined": "Votre demande de dépôt par virement bancaire a été refusée.",
     "depositSuccess": "Dépôt réussi ! Votre portefeuille a été mis à jour.",
-    "bankTransferSubmitted": "Demande de virement bancaire soumise avec succès !"
+    "bankTransferSubmitted": "Demande de virement bancaire soumise avec succès !",
+    "totalToSpend": "Total disponible",
+    "staffSplit": "{{wallet}} crédit portefeuille · {{earnings}} gains"
   },
   "bookingTrigger": {
     "label": "Réserver une leçon",

@@ -1010,7 +1010,9 @@
     "depositApproved": "Banka havalesi depozitonuz onaylandı!",
     "depositDeclined": "Banka havalesi depozitonuz reddedildi.",
     "depositSuccess": "Para yatırma başarılı! Cüzdanınız güncellendi.",
-    "bankTransferSubmitted": "Banka transferi talebi başarıyla gönderildi!"
+    "bankTransferSubmitted": "Banka transferi talebi başarıyla gönderildi!",
+    "totalToSpend": "Harcayabileceğin toplam",
+    "staffSplit": "{{wallet}} cüzdan bakiyesi · {{earnings}} kazanç"
   },
   "bookingTrigger": {
     "label": "Ders Rezervasyonu",

@@ -2455,5 +2455,101 @@
       "body": "Bağlantını kontrol edip tekrar dene.",
       "retry": "Tekrar dene"
     }
+  },
+  "customersPage": {
+    "title": "Müşteriler",
+    "loading": "Müşteriler yükleniyor…",
+    "loadingMore": "Yükleniyor…",
+    "loadMore": "Daha fazla yükle",
+    "summary": {
+      "total_one": "{{count}} müşteri",
+      "total_other": "{{count}} müşteri",
+      "active_one": "son 30 günde {{count}} aktif",
+      "active_other": "son 30 günde {{count}} aktif",
+      "roles": "{{students}} öğrenci, {{trusted}} güvenilir, {{outsiders}} dış müşteri"
+    },
+    "newCustomer": "Yeni müşteri",
+    "close": "Kapat",
+    "tiles": {
+      "total": "Toplam",
+      "newThisMonth_one": "bu ay {{count}} yeni",
+      "newThisMonth_other": "bu ay {{count}} yeni",
+      "share": "müşterilerin %{{pct}}",
+      "membersActive_one": "şu an {{count}} aktif",
+      "membersActive_other": "şu an {{count}} aktif",
+      "active30": "30 günde aktif",
+      "inactive_one": "{{count}} pasif",
+      "inactive_other": "{{count}} pasif"
+    },
+    "seg": {
+      "all": "Tümü",
+      "lessons": "Dersler",
+      "shop": "Mağaza",
+      "members": "Üyeler",
+      "rentals": "Kiralama",
+      "stays": "Konaklama",
+      "owes": "Borçlu",
+      "credit": "Bakiyesi var",
+      "new": "Bu ay yeni"
+    },
+    "activity": {
+      "active": "30 günde aktif",
+      "inactive": "Pasif"
+    },
+    "search": "Müşteri ara",
+    "searchPlaceholder": "Ad, e-posta veya telefon",
+    "filterLabel": "Müşterileri filtrele",
+    "sort": {
+      "label": "Sırala",
+      "spend": "Toplam harcama",
+      "recent": "Son hareket",
+      "name": "Ad A–Z",
+      "owes": "En çok borçlu",
+      "newest": "En yeni"
+    },
+    "col": {
+      "customer": "Müşteri",
+      "uses": "Kullandıkları",
+      "lastActivity": "Son hareket",
+      "spend": "Toplam harcama",
+      "balance": "Bakiye",
+      "actions": "İşlemler"
+    },
+    "uses": {
+      "lessons": "Ders",
+      "shop": "Mağaza",
+      "member_active": "Üye",
+      "member": "Eski üye",
+      "rentals": "Kiralama",
+      "stays": "Konaklama",
+      "none": "Henüz alışveriş yok"
+    },
+    "balance": {
+      "owes": "borç",
+      "credit": "bakiye"
+    },
+    "never": "Hareket yok",
+    "spent": "{{amount}} harcadı",
+    "actions": {
+      "open": "Profili aç",
+      "book": "Rezervasyon",
+      "collect": "Tahsil et",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "message": "{{name}} kişisine mesaj",
+      "more": "{{name}} için diğer işlemler"
+    },
+    "error": {
+      "title": "Müşteriler yüklenemedi",
+      "body": "Bağlantınızı kontrol edip tekrar deneyin.",
+      "retry": "Tekrar dene"
+    },
+    "empty": {
+      "filtered": "Eşleşen müşteri yok",
+      "filteredHint": "Başka bir filtre deneyin veya aramayı temizleyin.",
+      "none": "Henüz müşteri yok",
+      "noneHint": "İlk müşteriyi eklediğinizde burada görünür."
+    },
+    "showing": "{{total}} kayıttan {{shown}} gösteriliyor"
   }
 }

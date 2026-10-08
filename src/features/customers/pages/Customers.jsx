@@ -1,726 +1,327 @@
-// src/pages/Customers.jsx
-/* eslint-disable no-unused-vars */
-import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+// src/features/customers/pages/Customers.jsx
+// Staff Customers page: segment tiles (who buys lessons, shop, memberships,
+// rentals, stays; who owes / has credit), filter chips with counts, search,
+// a server-paged list with a real total, and quick actions (message, book,
+// collect, edit, delete). Segment / activity / search / sort live in the URL.
+
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { 
-  Button, Space, Modal, Input, Card, 
-  Avatar, Row, Col, Tag, Segmented, Tooltip, Empty, Spin, Dropdown, Drawer
-} from 'antd';
-import { message } from '@/shared/utils/antdStatic';
-import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { Drawer } from 'antd';
 import { useAuth } from '@/shared/hooks/useAuth';
-import { 
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender
-} from '@tanstack/react-table';
-import { useNavigate, useLocation } from 'react-router-dom';
-import UnifiedTable from '@/shared/components/tables/UnifiedTable';
-import DataService from '@/shared/services/dataService';
-import { 
-  SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
-  UserOutlined, AppstoreOutlined, BarsOutlined,
-  CheckCircleOutlined, ClockCircleOutlined,
-  FilterOutlined
- } from '@ant-design/icons';
+import apiClient from '@/shared/services/apiClient';
+import UserForm from '@/shared/components/ui/UserForm';
+import { CalendarProvider } from '@/features/bookings/components/contexts/CalendarContext';
+import { useIsDesktop } from '@/features/instructor/earnings/useEarnings';
+import { useChatBridge } from '@/features/instructor/dashboard/useDashboard';
+import { cardClass, primaryButtonClass, secondaryButtonClass } from '@/features/instructor/earnings/components/earningsStyles';
+import { EmptyState, ErrorState, SkeletonBlock } from '@/features/instructor/earnings/components/ui';
+import { SearchIcon } from '@/features/instructor/earnings/components/EarningsIcons';
+import { PlusIcon } from '@/features/instructor/dashboard/components/DashboardIcons';
+import CustomerTiles from '../components/overview/CustomerTiles';
+import CustomersList from '../components/overview/CustomersList';
+import {
+  CUSTOMER_ACTIVITY, CUSTOMER_FILTERS, CUSTOMER_SORTS,
+  useCustomerList, useCustomerSegments, useInvalidateCustomers,
+} from '../useCustomerInsights';
 
 const CustomerDeleteModal = lazy(() => import('../components/CustomerDeleteModal'));
 const EnhancedCustomerDetailModal = lazy(() => import('../components/EnhancedCustomerDetailModal'));
+const BookingDrawer = lazy(() => import('@/features/bookings/components/components/BookingDrawer'));
 
-import UserForm from '@/shared/components/ui/UserForm';
-import apiClient from '@/shared/services/apiClient';
+const pick = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
+
+const chipCls = (active) => [
+  'inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm whitespace-nowrap',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00798c] focus-visible:ring-offset-1',
+  active ? 'border-slate-900 bg-slate-900 font-semibold text-white' : 'border-slate-200 bg-white font-medium text-slate-700 hover:border-slate-300',
+].join(' ');
+const countCls = (active) => `min-w-[1.25rem] rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`;
+
+function filterCount(data, key) {
+  if (!data) return null;
+  if (key === 'all') return data.total;
+  if (key === 'owes') return data.owes.count;
+  if (key === 'credit') return data.credit.count;
+  if (key === 'new') return data.newThisMonth;
+  return data.segments[key] ?? null;
+}
+
+function useDebounced(value, ms = 300) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const h = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(h);
+  }, [value, ms]);
+  return v;
+}
+
+function NewBookingFor({ customer, onClose, onCreated }) {
+  if (!customer) return null;
+  return (
+    <Suspense fallback={null}>
+      <CalendarProvider>
+        <BookingDrawer isOpen onClose={onClose} onBookingCreated={onCreated} prefilledCustomer={customer} />
+      </CalendarProvider>
+    </Suspense>
+  );
+}
 
 const Customers = () => {
   const { t } = useTranslation(['manager']);
   const navigate = useNavigate();
   const location = useLocation();
-  const { formatCurrency, businessCurrency, convertCurrency, userCurrency } = useCurrency();
   const { user: currentUser } = useAuth();
-  
-  // Staff (admin/manager/instructor/developer) see EUR, customers see their preferred currency
-  const isStaff = useMemo(() => {
-    const staffRoles = ['admin', 'manager', 'developer', 'instructor'];
-    return currentUser && staffRoles.includes(currentUser.role?.toLowerCase());
-  }, [currentUser]);
-  
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchText, setSearchText] = useState('');
-  const [q, setQ] = useState(''); // debounced query sent to server
-  // Top-level quick filters and load-time display removed per request
-  const [limit, setLimit] = useState(200);
-  const [nextCursor, setNextCursor] = useState(null);
-  const nextCursorRef = useRef(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const lastVisibilityRefetchAt = useRef(0);
-  // Always use compact density
-  const density = 'small';
-  // Column-level filters
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all'); // 'all' | 'paid' | 'package' | 'pending'
-  const [balanceSignFilter, setBalanceSignFilter] = useState('all'); // 'all' | 'negative' | 'zero' | 'positive'
+  const isDesktop = useIsDesktop();
+  const chat = useChatBridge();
+  const invalidate = useInvalidateCustomers();
+  const canManage = ['admin', 'manager', 'developer', 'owner'].includes((currentUser?.role || '').toLowerCase());
 
-  // Sorting is server-side (manualSorting) so ordering reflects ALL customers in the DB,
-  // not just the page already loaded in the browser. sortField/sortDirection feed the API;
-  // setSorting is wired to the TanStack table below.
-  const [sorting, setSorting] = useState([]);
-  const sortField = sorting[0]?.id || 'id';
-  const sortDirection = sorting.length ? (sorting[0].desc ? 'desc' : 'asc') : 'desc';
-  
-  // Delete modal state
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState(null);
-  
-  // Side panel state
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  
-  // Add/Edit customer drawer
-  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
-  const [formRoles, setFormRoles] = useState([]);
-  
-  const [stats, setStats] = useState({
-    total: 0,
-    shopCustomers: 0,
-    schoolCustomers: 0
-  });
-  
-  // Component render state monitoring (removed for production)
-  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const segment = pick(searchParams.get('segment'), CUSTOMER_FILTERS, 'all');
+  const activity = pick(searchParams.get('activity'), CUSTOMER_ACTIVITY, 'any');
+  const sort = pick(searchParams.get('sort'), Object.keys(CUSTOMER_SORTS), 'spend');
+  const urlQuery = searchParams.get('q') || '';
+  const [search, setSearch] = useState(urlQuery);
+  const q = useDebounced(search.trim());
+
+  const setParam = (key, value, fallback) => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev);
+    if (!value || value === fallback) next.delete(key);
+    else next.set(key, value);
+    return next;
+  }, { replace: true });
+
   useEffect(() => {
-    nextCursorRef.current = nextCursor;
-  }, [nextCursor]);
+    if (q !== urlQuery) setParam('q', q, '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
-  // Stable callback: do NOT depend on nextCursor — it changed after every "load more" and
-  // recreated this function, retriggering effects and resetting the list / refetching.
-  const fetchCustomers = useCallback(async ({ reset = false, append = false } = {}) => {
-    try {
-      const showSpinner = !append;
-      if (showSpinner) setLoading(true);
-      else setIsLoadingMore(true);
+  const segmentsQuery = useCustomerSegments();
+  const listQuery = useCustomerList({ segment, activity, q, sort });
+  const items = useMemo(() => (listQuery.data?.pages || []).flatMap((p) => p.items || []), [listQuery.data]);
+  const total = listQuery.data?.pages?.[0]?.total ?? items.length;
+  const seg = segmentsQuery.data;
 
-      const params = {
-        q: q || undefined,
-        limit,
-        cursor: append ? nextCursorRef.current || undefined : undefined,
-        balanceSign: balanceSignFilter !== 'all' ? balanceSignFilter : undefined,
-        paymentStatus: paymentStatusFilter !== 'all' ? paymentStatusFilter : undefined,
-        sortBy: sortField,
-        sortDir: sortDirection,
-      };
+  const [openCustomer, setOpenCustomer] = useState(null);
+  const [bookFor, setBookFor] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [roles, setRoles] = useState([]);
 
-      const res = await DataService.getCustomersList(params);
+  const refresh = () => invalidate();
 
-      setCustomers((prev) => {
-        const nextList = reset
-          ? (res.items || [])
-          : append
-            ? [...prev, ...(res.items || [])]
-            : (res.items || []);
-        setStats({ total: nextList.length, shopCustomers: 0, schoolCustomers: nextList.length });
-        return nextList;
-      });
-
-      setNextCursor(res.nextCursor || null);
-    } catch {
-      message.error(t('manager:customers.loadFailed'));
-    } finally {
-      setLoading(false);
-      setIsLoadingMore(false);
-    }
-  }, [q, limit, balanceSignFilter, paymentStatusFilter, sortField, sortDirection]);
-
-  // Detect return from user creation and refresh data
+  // Return from /customers/:id/edit or user creation → refresh.
   useEffect(() => {
     if (location.state?.userCreated) {
-      fetchCustomers({ reset: true });
+      invalidate();
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, location.pathname, navigate, fetchCustomers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
-  // Throttled refresh when returning to the tab (avoid hammering API + React tree on every focus)
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) return;
-      const now = Date.now();
-      if (now - lastVisibilityRefetchAt.current < 120_000) return;
-      lastVisibilityRefetchAt.current = now;
-      fetchCustomers({ reset: true });
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [fetchCustomers]);
-
-  // Debounce search input -> server query (q)
-  useEffect(() => {
-    const h = setTimeout(() => {
-      setQ(searchText.trim());
-    }, 300);
-    return () => clearTimeout(h);
-  }, [searchText]);
-
-  // Initial + refetch when server query or page size changes
-  useEffect(() => {
-    fetchCustomers({ reset: true });
-  }, [q, limit, fetchCustomers]);
-  
-  
-  // Manual refresh button removed; data auto-refreshes on visibility/focus
-  
-  const handleDelete = useCallback((customer) => {
-    // Open the delete modal with customer data
-    setCustomerToDelete(customer);
-    setDeleteModalVisible(true);
-  }, []);
-  
-  const handleDeleteModalClose = useCallback(() => {
-    setDeleteModalVisible(false);
-    setCustomerToDelete(null);
-  }, []);
-  
-  const handleDeleteSuccess = useCallback(() => {
-    fetchCustomers({ reset: true });
-  }, [fetchCustomers]);
-  
-  const handleAddClick = useCallback(() => {
-    // Fetch roles if not loaded yet
-    if (formRoles.length === 0) {
-      apiClient.get('/roles').then(res => setFormRoles(res.data || [])).catch(() => {});
-    }
-    setIsFormDrawerOpen(true);
-  }, [formRoles.length]);
-  
-  const handleFormSuccess = useCallback(() => {
-    setIsFormDrawerOpen(false);
-    fetchCustomers({ reset: true });
-  }, [fetchCustomers]);
-  
-  // Quick filter handled via Segmented in toolbar
-
-  const getPaymentStatusTag = useCallback((status) => {
-    switch (status) {
-      case 'paid':
-        return <Tag color="green">{t('manager:customers.paymentStatus.paid')}</Tag>;
-      case 'package':
-        return <Tag color="blue">{t('manager:customers.paymentStatus.package')}</Tag>;
-      case 'partial':
-        return <Tag color="orange">{t('manager:customers.paymentStatus.partial')}</Tag>;
-      case 'pending':
-        return <Tag color="orange">{t('manager:customers.paymentStatus.pending')}</Tag>;
-      case 'overdue':
-        return <Tag color="red">{t('manager:customers.paymentStatus.overdue')}</Tag>;
-      case 'loading':
-        return <Tag color="blue">{t('manager:customers.paymentStatus.loading')}</Tag>;
-      case 'timeout':
-        return <Tag color="orange">{t('manager:customers.paymentStatus.timeout')}</Tag>;
-      case 'error':
-        return <Tag color="red">{t('manager:customers.paymentStatus.error')}</Tag>;
-      default:
-        return <Tag color="default">{t('manager:customers.paymentStatus.na')}</Tag>;
-    }
-  }, [t]);
-  
-  // Headless table column defs (TanStack)
-  const columns = useMemo(
-    () => [
-      {
-        id: 'name',
-        accessorKey: 'name',
-        header: () => t('manager:customers.columns.name'),
-        enableSorting: true,
-        cell: ({ row, getValue }) => {
-          const record = row.original;
-          const rawName = (getValue() ?? '').toString();
-          const displayName = rawName.replace(/\s+/g, ' ').trim();
-
-          return (
-            <div className="flex items-center gap-2">
-              <div className="shrink-0">
-                <Avatar size={28} src={record.profile_image_url || record.avatar} icon={<UserOutlined />} />
-              </div>
-              <div className="min-w-0">
-                <a
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedCustomer(record);
-                    setIsDetailOpen(true);
-                  }}
-                  className="text-gray-900 font-medium truncate block hover:text-blue-600 text-sm cursor-pointer"
-                  title={displayName}
-                >
-                  {displayName}
-                </a>
-                {record.email && (
-                  <span className="block text-[10px] text-gray-500 truncate" title={record.email}>
-                    {record.email}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        }
-      },
-      {
-        id: 'role',
-        accessorKey: 'role',
-        header: () => t('manager:customers.columns.role'),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const role = getValue();
-          const roleConfig = {
-            student: { color: 'blue', label: t('manager:customers.roles.student') },
-            outsider: { color: 'orange', label: t('manager:customers.roles.outsider') },
-            trusted_customer: { color: 'green', label: t('manager:customers.roles.trusted') },
-          };
-          const config = roleConfig[role] || { color: 'default', label: role };
-          return <Tag color={config.color}>{config.label}</Tag>;
-        }
-      },
-      {
-        id: 'email',
-        accessorKey: 'email',
-        header: () => t('manager:customers.columns.email'),
-        enableSorting: true,
-        cell: info => info.getValue()
-      },
-      {
-        id: 'phone',
-        accessorKey: 'phone',
-        header: () => t('manager:customers.columns.phone'),
-        enableSorting: false,
-        cell: info => info.getValue() || '—'
-      },
-      {
-        id: 'balance',
-        accessorKey: 'balance',
-        header: () => (
-          <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-            <span>{t('manager:customers.columns.balance')}</span>
-            <Dropdown
-              trigger={['click']}
-              menu={{
-                selectedKeys: [balanceSignFilter],
-                items: [
-                  { key: 'all', label: 'All' },
-                  { key: 'negative', label: '< 0' },
-                  { key: 'zero', label: '= 0' },
-                  { key: 'positive', label: '> 0' },
-                ],
-                onClick: ({ key, domEvent }) => { domEvent.stopPropagation(); setBalanceSignFilter(key); }
-              }}
-            >
-              <Button size="small" type={balanceSignFilter !== 'all' ? 'primary' : 'text'} icon={<FilterOutlined />} />
-            </Dropdown>
-          </div>
-        ),
-        enableSorting: true,
-        cell: ({ getValue, row }) => {
-          const value = Number(getValue() || 0);
-          const color = value < 0 ? 'text-red-600' : 'text-green-600';
-          
-          // balance is always returned in EUR by the backend (converted from wallet currency).
-          // Never use businessCurrency here — that could be TRY, USD, etc. and would show
-          // the EUR amount with the wrong symbol.
-          const displayCurrencyCode = 'EUR';
-          
-          return (
-            <div className="text-right w-full">
-              <span className={`font-medium ${color}`}>
-                {formatCurrency(value, displayCurrencyCode)}
-              </span>
-            </div>
-          );
-        }
-      },
-      {
-        id: 'payment_status',
-        accessorKey: 'payment_status',
-        header: () => (
-          <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-            <span>{t('manager:customers.columns.paymentStatus')}</span>
-            <Dropdown
-              trigger={['click']}
-              menu={{
-                selectedKeys: [paymentStatusFilter],
-                items: [
-                  { key: 'all', label: 'All' },
-                  { key: 'pending', label: 'Pending' },
-                  { key: 'paid', label: 'Paid' },
-                  { key: 'package', label: 'Package' },
-                  { key: 'overdue', label: 'Overdue' },
-                ],
-                onClick: ({ key, domEvent }) => { domEvent.stopPropagation(); setPaymentStatusFilter(key); }
-              }}
-            >
-              <Button size="small" type={paymentStatusFilter !== 'all' ? 'primary' : 'text'} icon={<FilterOutlined />} />
-            </Dropdown>
-          </div>
-        ),
-        enableSorting: false,
-        cell: ({ getValue }) => (
-          <div className="flex justify-center w-full">
-            {getPaymentStatusTag(getValue())}
-          </div>
-        )
-      },
-      {
-        id: 'actions',
-        header: () => <div className="text-center w-full">{t('manager:customers.columns.actions')}</div>,
-        enableSorting: false,
-        cell: ({ row }) => {
-          const record = row.original;
-          return (
-            <div className="flex items-center justify-center w-full gap-2">
-              <Tooltip title={t('manager:customers.actions.edit')}>
-                <Button type="text" shape="circle" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); navigate(`/customers/${record.id}/edit`); }} />
-              </Tooltip>
-              <Tooltip title={t('manager:customers.actions.delete')}>
-                <Button type="text" danger shape="circle" icon={<DeleteOutlined />} onClick={(e) => { e.stopPropagation(); handleDelete(record); }} />
-              </Tooltip>
-            </div>
-          );
-        }
-      }
-    ],
-  [navigate, getPaymentStatusTag, handleDelete, paymentStatusFilter, balanceSignFilter, formatCurrency, businessCurrency]
-  );
-  
-  // Customers are server-filtered by q; column-level filters apply client-side
-  const visibleCustomers = useMemo(() => {
-    let data = customers;
-    if (paymentStatusFilter !== 'all') {
-      data = data.filter(c => c.payment_status === paymentStatusFilter);
-    }
-    if (balanceSignFilter !== 'all') {
-      const val = (v) => Number(v || 0);
-      if (balanceSignFilter === 'negative') data = data.filter(c => val(c.balance) < 0);
-      if (balanceSignFilter === 'zero') data = data.filter(c => val(c.balance) === 0);
-      if (balanceSignFilter === 'positive') data = data.filter(c => val(c.balance) > 0);
-    }
-    return data;
-  }, [customers, paymentStatusFilter, balanceSignFilter]);
-  
-  const renderCards = () => {
-  if (visibleCustomers.length === 0) {
-      return <Empty description="{t('manager:customers.notFound')}" />;
-    }
-    
-    return (
-      <Row gutter={[16, 16]}>
-    {visibleCustomers.map(customer => (
-          <Col xs={24} sm={12} md={8} lg={6} key={customer.id}>
-            <Card 
-              hoverable
-              onClick={() => { setSelectedCustomer(customer); setIsDetailOpen(true); }}
-              title={
-                <Space>
-                  <Avatar src={customer.profile_image_url || customer.avatar} icon={<UserOutlined />} />
-                  <span>{customer.name}</span>
-                </Space>
-              }
-              actions={[
-                <Tooltip key="edit-tooltip" title={t('manager:customers.actions.edit')}>
-                  <EditOutlined
-                    key="edit"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/customers/${customer.id}/edit`);
-                    }}
-                  />
-                </Tooltip>,
-                <Tooltip key="delete-tooltip" title={t('manager:customers.actions.delete')}>
-                  <Button
-                    key="delete"
-                    type="text"
-                    danger
-                    shape="circle"
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(customer);
-                    }}
-                  />
-                </Tooltip>,
-              ]}
-            >
-        <Spin spinning={loading && customers.length === 0} size="small">
-                <p><strong>{t('manager:customers.columns.email')}:</strong> {customer.email}</p>
-                <p><strong>{t('manager:customers.columns.phone')}:</strong> {customer.phone || 'N/A'}</p>
-                <div>
-                  <strong>{t('manager:customers.columns.balance')}:</strong>
-                  <span style={{ color: (customer.balance || 0) < 0 ? 'red' : 'green' }}>
-          {(() => {
-            // IMPORTANT: All balances in DB are stored in EUR (base currency)
-            const storageCurrency = businessCurrency || 'EUR';
-            const customerPreferredCurrency = customer.preferred_currency || storageCurrency;
-            let displayAmount = Number(customer.balance || 0);
-            let displayCurrencyCode = storageCurrency;
-            
-            // Only convert for customers viewing (staff sees EUR)
-            if (!isStaff && customerPreferredCurrency !== storageCurrency && convertCurrency) {
-              displayAmount = convertCurrency(displayAmount, storageCurrency, customerPreferredCurrency);
-              displayCurrencyCode = customerPreferredCurrency;
-            }
-            return ` ${formatCurrency(displayAmount, displayCurrencyCode)}`;
-          })()}
-                  </span>
-                </div>
-                <p><strong>{t('manager:customers.columns.paymentStatus')}</strong> {getPaymentStatusTag(customer.payment_status)}</p>
-              </Spin>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    );
+  const openNewCustomer = () => {
+    if (!roles.length) apiClient.get('/roles').then((res) => setRoles(res.data || [])).catch(() => {});
+    setFormOpen(true);
   };
-  
-  // Build TanStack table instance. manualSorting: true — the server does the ordering
-  // (DB-wide, before pagination) via sortField/sortDirection, so the table must NOT
-  // re-sort only the loaded rows. It still tracks `sorting` for the header arrows + to
-  // drive the next fetch. `sorting`/`setSorting` are declared above (needed by fetch).
-  const table = useReactTable({
-    data: visibleCustomers,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    manualSorting: true
-  });
 
-  const tableRows = table.getRowModel().rows;
-  const scrollParentRef = useRef(null);
-  const rowVirtualizer = useVirtualizer({
-    count: tableRows.length,
-    getScrollElement: () => scrollParentRef.current,
-    estimateSize: () => 46,
-    overscan: 12,
-  });
-  const virtualItems = rowVirtualizer.getVirtualItems();
-  const padTop = virtualItems.length ? virtualItems[0].start : 0;
-  const padBot = virtualItems.length
-    ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
-    : 0;
-  const colCount = columns.length;
+  const actions = {
+    onOpen: (c) => setOpenCustomer({ id: c.id, name: c.name, email: c.email }),
+    onBook: (c) => setBookFor({ id: c.id, name: c.name, email: c.email, phone: c.phone }),
+    onEdit: (c) => navigate(`/customers/${c.id}/edit`),
+    onDelete: (c) => setDeleteTarget(c),
+    onMessage: chat.messageStudent,
+    opening: chat.openingFor,
+  };
 
-  // Density -> padding/text classes
-  const densityRow = density === 'small' ? 'text-sm py-1' : density === 'large' ? 'text-base py-3' : 'text-sm py-2';
-  const densityHead = density === 'small' ? 'py-2' : density === 'large' ? 'py-4' : 'py-3';
+  const filtersActive = segment !== 'all' || activity !== 'any' || q;
+  let listBody;
+  if (listQuery.isError) {
+    listBody = (
+      <ErrorState
+        title={t('manager:customersPage.error.title')}
+        body={t('manager:customersPage.error.body')}
+        retryLabel={t('manager:customersPage.error.retry')}
+        onRetry={() => listQuery.refetch()}
+      />
+    );
+  } else if (listQuery.isLoading) {
+    listBody = (
+      <div role="status" aria-label={t('manager:customersPage.loading')} className="flex flex-col gap-2">
+        {Array.from({ length: 6 }, (_, i) => <SkeletonBlock key={i} className="h-16 rounded-2xl" />)}
+      </div>
+    );
+  } else if (items.length === 0) {
+    listBody = (
+      <div className={cardClass}>
+        <EmptyState
+          title={filtersActive ? t('manager:customersPage.empty.filtered') : t('manager:customersPage.empty.none')}
+          hint={filtersActive ? t('manager:customersPage.empty.filteredHint') : t('manager:customersPage.empty.noneHint')}
+        />
+      </div>
+    );
+  } else {
+    listBody = (
+      <>
+        <CustomersList
+          items={items}
+          isDesktop={isDesktop}
+          canManage={canManage}
+          sort={sort}
+          onSort={(s) => setParam('sort', s, 'spend')}
+          {...actions}
+        />
+        <div className="flex items-center justify-between gap-2 px-1 text-sm text-slate-600">
+          <span className="tabular-nums" data-testid="customers-showing">
+            {t('manager:customersPage.showing', { shown: items.length, total })}
+          </span>
+          {listQuery.hasNextPage && (
+            <button
+              type="button"
+              disabled={listQuery.isFetchingNextPage}
+              onClick={() => listQuery.fetchNextPage()}
+              className={`${secondaryButtonClass} h-10 text-sm`}
+            >
+              {listQuery.isFetchingNextPage ? t('manager:customersPage.loadingMore') : t('manager:customersPage.loadMore')}
+            </button>
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center mb-6" style={{ justifyContent: 'space-between' }}>
-        <div style={{ flex: '1' }}>
-          <Input
-            placeholder={t('manager:customers.searchPlaceholder')}
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={e => setSearchText(e.target.value)}
-            allowClear
-            style={{ maxWidth: '300px' }}
-          />
-        </div>
-        
-        <div className="flex justify-end gap-3 items-center" style={{ flex: '1' }}>
-          {/* View modes removed - only table view now */}
-          
-          <Button 
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddClick}
-            size="middle"
-          >
-            {t('manager:customers.addCustomer')}
-          </Button>
-        </div>
-      </div>
-      
-      {/* Always show table view */}
-      <>
-        <UnifiedTable density="comfortable">
-            <div ref={scrollParentRef} className="max-h-[min(70vh,720px)] overflow-auto">
-              <table className="min-w-full text-left border-separate border-spacing-0">
-                  <thead className="bg-white">
-                    {table.getHeaderGroups().map(headerGroup => (
-                      <tr key={headerGroup.id}>
-                        {headerGroup.headers.map(header => {
-                          const sorted = header.column.getIsSorted();
-                          
-                          // Determine alignment class based on column
-                          let headerAlignmentClass = '';
-                          if (header.column.id === 'balance') {
-                            headerAlignmentClass = 'text-right';
-                          } else if (header.column.id === 'payment_status' || header.column.id === 'actions') {
-                            headerAlignmentClass = 'text-center';
-                          } else {
-                            headerAlignmentClass = 'text-left';
-                          }
-                          
-                          return (
-                            <th
-                              key={header.id}
-                              className={`sticky top-0 z-20 bg-white border-b border-gray-300 px-4 ${densityHead} ${headerAlignmentClass} font-semibold text-gray-800 select-none ${header.column.id === 'email' || header.column.id === 'payment_status' ? 'hidden md:table-cell' : ''}`}
-                              onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
-                            >
-                              <div className={`flex items-center gap-1 ${headerAlignmentClass === 'text-right' ? 'justify-end' : headerAlignmentClass === 'text-center' ? 'justify-center' : 'justify-start'}`}>
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {sorted === 'asc' && <span className="text-gray-400">▲</span>}
-                                {sorted === 'desc' && <span className="text-gray-400">▼</span>}
-                              </div>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {loading && customers.length === 0 ? (
-                      <tr>
-                        <td colSpan={colCount} className="text-center py-8">
-                          <Spin />
-                        </td>
-                      </tr>
-                    ) : !loading && tableRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={colCount} className="py-12">
-                          <div className="flex flex-col items-center justify-center text-gray-500">
-                            <Empty description="{t('manager:customers.notFound')}">
-                              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddClick}>{t('manager:customers.addCustomer')}</Button>
-                            </Empty>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      <>
-                        {padTop > 0 && (
-                          <tr aria-hidden="true">
-                            <td colSpan={colCount} style={{ height: padTop, padding: 0, border: 'none' }} />
-                          </tr>
-                        )}
-                        {virtualItems.map((vRow) => {
-                          const row = tableRows[vRow.index];
-                          const idx = vRow.index;
-                          return (
-                            <tr
-                              key={row.id}
-                              data-index={vRow.index}
-                              ref={rowVirtualizer.measureElement}
-                              className={`${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors cursor-pointer`}
-                              onClick={(e) => {
-                                const interactiveSelectors = 'button, a, input, [role="button"], .ant-dropdown-trigger, .ant-select, .ant-tooltip-open';
-                                if (e.target.closest(interactiveSelectors)) return;
-                                setSelectedCustomer(row.original);
-                                setIsDetailOpen(true);
-                              }}
-                            >
-                              {row.getVisibleCells().map((cell) => {
-                                let alignmentClass = '';
-                                if (cell.column.id === 'balance') {
-                                  alignmentClass = 'text-right';
-                                } else if (cell.column.id === 'payment_status' || cell.column.id === 'actions') {
-                                  alignmentClass = 'text-center';
-                                } else {
-                                  alignmentClass = 'text-left';
-                                }
-                                return (
-                                  <td
-                                    key={cell.id}
-                                    className={`px-4 ${densityRow} align-middle border-t border-gray-200 ${alignmentClass} ${cell.column.id === 'email' || cell.column.id === 'payment_status' ? 'hidden md:table-cell' : ''}`}
-                                  >
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          );
-                        })}
-                        {padBot > 0 && (
-                          <tr aria-hidden="true">
-                            <td colSpan={colCount} style={{ height: padBot, padding: 0, border: 'none' }} />
-                          </tr>
-                        )}
-                      </>
-                    )}
-                  </tbody>
-                </table>
-      </div>
-    </UnifiedTable>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 12 }}>
-            <Space>
-              <span style={{ color: '#888' }}>{t('manager:customers.pageSize')}</span>
-              <Segmented
-                options={[25, 50, 100, 200].map(v => ({ label: String(v), value: v }))}
-                value={limit}
-                onChange={(v) => { setLimit(v); setNextCursor(null); }}
-              />
-              <Button
-                onClick={() => fetchCustomers({ append: true })}
-                disabled={!nextCursor}
-                loading={isLoadingMore}
-                type="default"
-              >
-                {nextCursor ? t('manager:customers.loadMore') : t('manager:customers.allLoaded')}
-              </Button>
-              <span className="text-gray-400 text-xs max-w-[200px] hidden sm:inline">
-                Large lists stay smooth via virtual scrolling; use search to narrow results.
-              </span>
-            </Space>
-          </div>
-        </>
-        
-        {/* Customer Delete Modal */}
-        <Suspense fallback={null}>
-          {deleteModalVisible && (
-            <CustomerDeleteModal
-              visible={deleteModalVisible}
-              onClose={handleDeleteModalClose}
-              userId={customerToDelete?.id}
-              userName={customerToDelete?.name || `${customerToDelete?.first_name || ''} ${customerToDelete?.last_name || ''}`.trim()}
-              onDeleted={handleDeleteSuccess}
-            />
+    <div
+      data-testid="customers-page"
+      data-layout={isDesktop ? 'desktop' : 'mobile'}
+      className={`mx-auto flex w-full flex-col ${isDesktop ? 'max-w-7xl gap-5 p-6 xl:p-8' : 'max-w-xl gap-3.5 px-4 pb-24 pt-4'}`}
+    >
+      <header className={`flex gap-3 ${isDesktop ? 'flex-row flex-wrap items-end justify-between' : 'flex-col px-1'}`}>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="font-duotone-bold-extended text-2xl tracking-tight text-slate-900 lg:text-3xl">{t('manager:customersPage.title')}</h1>
+          {seg && (
+            <span className="text-sm tabular-nums text-slate-600 lg:text-base" data-testid="customers-summary">
+              {[
+                t('manager:customersPage.summary.total', { count: seg.total }),
+                t('manager:customersPage.summary.active', { count: seg.active30 }),
+                t('manager:customersPage.summary.roles', { students: seg.roles.students, trusted: seg.roles.trusted, outsiders: seg.roles.outsiders }),
+              ].join(' · ')}
+            </span>
           )}
-        </Suspense>
-        
-        {/* Customer Side Panel */}
-        <Suspense fallback={null}>
-          <EnhancedCustomerDetailModal
-            customer={selectedCustomer}
-            isOpen={isDetailOpen}
-            onClose={() => { setIsDetailOpen(false); setSelectedCustomer(null); }}
-            onUpdate={() => fetchCustomers({ reset: true })}
-          />
-        </Suspense>
-        
-        {/* {t('manager:customers.addCustomer')} Drawer */}
-        <Drawer
-          open={isFormDrawerOpen}
-          onClose={() => setIsFormDrawerOpen(false)}
-          width={520}
-          closable={false}
-          destroyOnHidden
-          styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
-        >
-          <div className="flex-shrink-0 border-b border-slate-200 bg-white px-5 py-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-800 m-0">{t('manager:customers.newCustomer')}</h2>
-              <button
-                onClick={() => setIsFormDrawerOpen(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 border-0 cursor-pointer transition-colors text-base"
-              >
-                &times;
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-5">
-            <UserForm
-              user={null}
-              roles={formRoles}
-              onSuccess={handleFormSuccess}
-              onCancel={() => setIsFormDrawerOpen(false)}
+        </div>
+        <button type="button" onClick={openNewCustomer} className={`${primaryButtonClass} h-11 text-sm ${isDesktop ? '' : 'w-full'}`}>
+          <PlusIcon size={17} />
+          {t('manager:customersPage.newCustomer')}
+        </button>
+      </header>
+
+      <CustomerTiles
+        data={seg}
+        loading={segmentsQuery.isLoading}
+        segment={segment}
+        activity={activity}
+        onSegment={(s) => setParam('segment', s, 'all')}
+        onActivity={(a) => setParam('activity', a, 'any')}
+        isDesktop={isDesktop}
+      />
+
+      <div className="flex flex-col gap-2.5">
+        <div className="flex gap-2">
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">{t('manager:customersPage.search')}</span>
+            <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-500"><SearchIcon size={18} /></span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('manager:customersPage.searchPlaceholder')}
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-[15px] text-slate-900 shadow-sm placeholder:text-slate-500 focus:border-[#00798c] focus:outline-none focus:ring-2 focus:ring-[#00798c]/30"
             />
-          </div>
-        </Drawer>
+          </label>
+          <label className={`flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white pl-3 pr-2 text-sm font-semibold text-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-[#00798c] ${isDesktop ? 'shrink-0' : 'min-w-0 max-w-[40%]'}`}>
+            <span className={isDesktop ? 'text-slate-500' : 'sr-only'}>{t('manager:customersPage.sort.label')}</span>
+            <select value={sort} onChange={(e) => setParam('sort', e.target.value, 'spend')} className="h-full min-w-0 cursor-pointer truncate bg-transparent pr-1 focus:outline-none">
+              {Object.keys(CUSTOMER_SORTS).map((s) => <option key={s} value={s}>{t(`manager:customersPage.sort.${s}`)}</option>)}
+            </select>
+          </label>
+        </div>
+        <div role="group" aria-label={t('manager:customersPage.filterLabel')} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0">
+          {CUSTOMER_FILTERS.map((f) => {
+            const n = filterCount(seg, f);
+            return (
+              <button key={f} type="button" aria-pressed={segment === f} onClick={() => setParam('segment', f, 'all')} className={chipCls(segment === f)}>
+                {t(`manager:customersPage.seg.${f}`)}
+                {n != null && <span className={countCls(segment === f)}>{n}</span>}
+              </button>
+            );
+          })}
+          <span aria-hidden="true" className="mx-1 w-px shrink-0 self-stretch bg-slate-200" />
+          {CUSTOMER_ACTIVITY.filter((a) => a !== 'any').map((a) => (
+            <button key={a} type="button" aria-pressed={activity === a} onClick={() => setParam('activity', activity === a ? 'any' : a, 'any')} className={chipCls(activity === a)}>
+              {t(`manager:customersPage.activity.${a}`)}
+              {seg && <span className={countCls(activity === a)}>{a === 'active' ? seg.active30 : seg.inactive30}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">{listBody}</div>
+
+      <Suspense fallback={null}>
+        {deleteTarget && (
+          <CustomerDeleteModal
+            visible
+            onClose={() => setDeleteTarget(null)}
+            userId={deleteTarget.id}
+            userName={deleteTarget.name}
+            onDeleted={() => { setDeleteTarget(null); refresh(); }}
+          />
+        )}
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <EnhancedCustomerDetailModal
+          customer={openCustomer}
+          isOpen={!!openCustomer}
+          onClose={() => setOpenCustomer(null)}
+          onUpdate={refresh}
+        />
+      </Suspense>
+
+      <NewBookingFor
+        customer={bookFor}
+        onClose={() => setBookFor(null)}
+        onCreated={() => { setBookFor(null); refresh(); }}
+      />
+
+      <Drawer
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        width={isDesktop ? 520 : '100%'}
+        closable={false}
+        destroyOnHidden
+        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, header: { display: 'none' } }}
+      >
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+          <h2 className="m-0 text-base font-semibold text-slate-900">{t('manager:customersPage.newCustomer')}</h2>
+          <button
+            type="button"
+            onClick={() => setFormOpen(false)}
+            aria-label={t('manager:customersPage.close')}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          >
+            &times;
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          <UserForm
+            user={null}
+            roles={roles}
+            onSuccess={() => { setFormOpen(false); refresh(); }}
+            onCancel={() => setFormOpen(false)}
+          />
+        </div>
+      </Drawer>
     </div>
   );
 };

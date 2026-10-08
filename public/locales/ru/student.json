@@ -1020,7 +1020,9 @@
     "depositApproved": "Ваш банковский перевод одобрен!",
     "depositDeclined": "Ваш запрос на банковский перевод отклонён.",
     "depositSuccess": "Пополнение прошло успешно! Ваш кошелёк обновлён.",
-    "bankTransferSubmitted": "Запрос на банковский перевод успешно отправлен!"
+    "bankTransferSubmitted": "Запрос на банковский перевод успешно отправлен!",
+    "totalToSpend": "Всего доступно",
+    "staffSplit": "{{wallet}} на балансе · {{earnings}} заработок"
   },
   "bookingTrigger": {
     "label": "Забронировать урок",

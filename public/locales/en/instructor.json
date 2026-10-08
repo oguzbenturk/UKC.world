@@ -1019,7 +1019,8 @@
     "periodCurrentYear": "This Year",
     "periodAllTime": "All Time",
     "failedToDashboardData": "Failed to load dashboard data.",
-    "spentInAppTag": "Spent in app"
+    "spentInAppTag": "Spent in app",
+    "methodEarnings": "My earnings"
   },
   "skills": {
     "teachingSkills": "Teaching Skills",

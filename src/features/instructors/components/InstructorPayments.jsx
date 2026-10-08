@@ -20,6 +20,9 @@ const { Option } = Select;
 
 const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly = false }, ref) => {
   const { t } = useTranslation(['instructor']);
+  // Translated payout method; 'earnings' = paid with earnings in the shop (staff wallet).
+  const METHOD_KEYS = { bank_transfer: 'bankTransfer', cash: 'cash', paypal: 'paypal', other: 'other', earnings: 'methodEarnings' };
+  const methodLabel = (v) => (v ? (METHOD_KEYS[v] ? t(`instructor:payroll.${METHOD_KEYS[v]}`) : v) : '—');
   const { apiClient } = useData();
   const { businessCurrency, getCurrencySymbol } = useCurrency();
   const { user } = useAuth();
@@ -200,7 +203,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     const rows = payrollHistory.map(p => [
       p.payment_date ? moment(p.payment_date).format('YYYY-MM-DD') : '—',
       formatCurrency(p.amount), p.amount < 0 ? 'Deduction' : (p.payment_method === 'earnings' ? 'Spent in app' : 'Payment'),
-      p.payment_method || '—', p.notes || '',
+      methodLabel(p.payment_method), p.notes || '',
     ]);
     doc.text(`Payment History — ${instructor.name}`, 14, 15);
     doc.autoTable(cols, rows, { startY: 20 });
@@ -328,7 +331,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
                   return <Tag color="green" bordered={false} className="rounded-full m-0">{t('instructor:payroll.paymentTag')}</Tag>;
                 }
               },
-              { title: t('instructor:payroll.columns.method'), dataIndex: 'payment_method', key: 'method', render: v => v || '—', width: 110 },
+              { title: t('instructor:payroll.columns.method'), dataIndex: 'payment_method', key: 'method', render: v => methodLabel(v), width: 110 },
               { title: t('instructor:payroll.columns.notes'), dataIndex: 'notes', key: 'notes', ellipsis: true },
               ...(managementEnabled ? [{
                 title: '', key: 'actions', width: 100,

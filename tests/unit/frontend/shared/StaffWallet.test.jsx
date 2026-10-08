@@ -42,7 +42,16 @@ vi.mock('@/shared/hooks/useAuth', () => ({
   useAuth: () => authState.value,
 }));
 
+vi.mock('@/shared/hooks/useWalletTransactions', () => ({
+  useWalletTransactions: () => ({ data: { results: [] }, isLoading: false, refetch: vi.fn() }),
+}));
+vi.mock('@/shared/hooks/useRealTime', () => ({ useRealTimeSync: () => {} }));
+vi.mock('@/features/finances/components/WalletDepositModal', () => ({ WalletDepositModal: () => null }));
+vi.mock('@/features/finances/components/BankTransferModal', () => ({ BankTransferModal: () => null }));
+
+import { App } from 'antd';
 import StaffEarningsPanel from '@/shared/components/wallet/StaffEarningsPanel';
+import StudentWalletModal from '@/features/students/components/StudentWalletModal';
 import CheckoutModal from '@/features/students/components/CheckoutModal';
 
 const EARNINGS = { currency: 'EUR', earned: 300, paidOut: 100, spentInApp: 50, deducted: 20, available: 130, startDate: '2026-10-08' };
@@ -110,5 +119,22 @@ describe('CheckoutModal — Pay with my earnings', () => {
     expect(screen.getByText('Not enough')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Pay with my earnings'));
     expect(screen.getByRole('button', { name: /Pay €50/ })).toBeDisabled();
+  });
+});
+
+describe('My Wallet header for staff', () => {
+  const renderModal = (props) => wrap(<App><StudentWalletModal open onClose={() => {}} currency={{ code: 'EUR' }} {...props} /></App>);
+
+  it('shows wallet credit + earnings as one total, with the split', async () => {
+    renderModal({ balance: 20, earnings: EARNINGS });
+    expect(await screen.findByText('Total you can spend')).toBeInTheDocument();
+    expect(screen.getByText('€150.00')).toBeInTheDocument();
+    expect(screen.getByText('€20.00 wallet credit · €130.00 earnings')).toBeInTheDocument();
+  });
+
+  it('keeps the plain balance for customers', async () => {
+    renderModal({ balance: 20, earnings: null });
+    expect(await screen.findByText('Available Balance')).toBeInTheDocument();
+    expect(screen.queryByText('Total you can spend')).not.toBeInTheDocument();
   });
 });

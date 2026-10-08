@@ -1539,5 +1539,161 @@
       "claims": "Fälle",
       "spareParts": "Ersatzteile"
     }
+  },
+  "membersPage": {
+    "title": "Mitglieder",
+    "titleActive": "Aktive Mitgliedschaften",
+    "summary_one": "{{count}} Mitgliedschaft · {{active}} aktiv · {{people}} Personen",
+    "summary_other": "{{count}} Mitgliedschaften · {{active}} aktiv · {{people}} Personen",
+    "export": "CSV exportieren",
+    "sell": "Mitgliedschaft verkaufen",
+    "loading": "Mitgliedschaften werden geladen…",
+    "search": "Mitglieder suchen",
+    "searchPlaceholder": "Name, E-Mail, Telefon, Mitgliedschaft oder #Box",
+    "filterLabel": "Nach Status filtern",
+    "typeLabel": "Typ",
+    "allTypes": "Alle Typen",
+    "sort": {
+      "label": "Sortieren",
+      "attention": "Handlungsbedarf zuerst",
+      "expiry": "Endet zuerst",
+      "purchased": "Neuester Verkauf",
+      "name": "Name A–Z"
+    },
+    "view": {
+      "all": "Alle",
+      "active": "Aktiv",
+      "expiring": "Endet diese Woche",
+      "expired": "Abgelaufen",
+      "storage": "Lager",
+      "beach": "Strandpässe"
+    },
+    "kpi": {
+      "active": "Aktiv",
+      "activePeople_one": "{{count}} Person",
+      "activePeople_other": "{{count}} Personen",
+      "expiring7": "Endet in 7 Tagen",
+      "expiring30_one": "{{count}} in 30 Tagen",
+      "expiring30_other": "{{count}} in 30 Tagen",
+      "expired": "Abgelaufen",
+      "expiredRecent_one": "{{count}} in den letzten 30 Tagen",
+      "expiredRecent_other": "{{count}} in den letzten 30 Tagen",
+      "storage": "Lagerboxen",
+      "storageFree_one": "{{count}} Box frei",
+      "storageFree_other": "{{count}} Boxen frei",
+      "storageNoCapacity": "Belegt (keine Kapazität hinterlegt)",
+      "beach": "Strandpässe",
+      "beachTotal_one": "aktiv · {{count}} verkauft",
+      "beachTotal_other": "aktiv · {{count}} verkauft",
+      "newThisMonth": "Neu diesen Monat",
+      "sold": "{{month}} diesen Monat · {{year}} dieses Jahr"
+    },
+    "state": {
+      "endsToday": "Endet heute",
+      "endsTomorrow": "Endet morgen",
+      "daysLeft_one": "Noch {{count}} Tag",
+      "daysLeft_other": "Noch {{count}} Tage",
+      "expiredToday": "Heute abgelaufen",
+      "expiredAgo_one": "Vor {{count}} Tag abgelaufen",
+      "expiredAgo_other": "Vor {{count}} Tagen abgelaufen",
+      "startsIn_one": "Beginnt in {{count}} Tag",
+      "startsIn_other": "Beginnt in {{count}} Tagen",
+      "pending": "Zahlung ausstehend",
+      "cancelled": "Storniert",
+      "activeNoEnd": "Aktiv · ohne Enddatum",
+      "activeDays_one": "Aktiv · noch {{count}} Tag",
+      "activeDays_other": "Aktiv · noch {{count}} Tage"
+    },
+    "family": {
+      "beach": "Strand",
+      "storage": "Lager",
+      "membership": "Mitgliedschaft",
+      "freerider": "Freerider",
+      "other": "Sonstige"
+    },
+    "duration": {
+      "day": "Tag",
+      "week": "Woche",
+      "month": "Monat",
+      "season": "Saison",
+      "year": "Jahr",
+      "other": "sonstige"
+    },
+    "actions": {
+      "renew": "Verlängern",
+      "winBack": "Zurückgewinnen",
+      "openCustomer": "Kunde öffnen",
+      "edit": "Mitgliedschaft bearbeiten",
+      "discount": "Rabatt anwenden",
+      "delete": "Löschen",
+      "more": "Weitere Aktionen für {{name}}"
+    },
+    "boxFreed": "frei",
+    "boxShared": "geteilt",
+    "selectAll": "Alle angezeigten auswählen",
+    "selectOne": "{{name}} auswählen",
+    "col": {
+      "member": "Mitglied",
+      "membership": "Mitgliedschaft",
+      "status": "Status",
+      "period": "Zeitraum",
+      "box": "Box",
+      "paid": "Bezahlt",
+      "actions": "Aktionen"
+    },
+    "boxes": {
+      "title": "Lagerboxen",
+      "summary": "{{used}} von {{capacity}} belegt · {{free}} frei",
+      "summaryNoCapacity": "{{used}} belegt",
+      "cellFree": "Box {{unit}}: frei",
+      "cell": "Box {{unit}}: {{state}} · {{name}} · bis {{date}}",
+      "state": {
+        "used": "Belegt",
+        "ending": "Endet diese Woche",
+        "starting": "Beginnt bald",
+        "free": "Frei"
+      }
+    },
+    "renewals": {
+      "title": "Verlängerungen diese Woche",
+      "remind": "Erinnern",
+      "remindAll_one": "{{count}} erinnern",
+      "remindAll_other": "Alle {{count}} erinnern",
+      "remindOne": "Verlängerungserinnerung an {{name}} senden",
+      "empty": "In den nächsten 7 Tagen endet nichts."
+    },
+    "bulk": {
+      "label": "Sammelaktionen",
+      "selected_one": "{{count}} ausgewählt",
+      "selected_other": "{{count}} ausgewählt",
+      "remind": "Verlängerungserinnerung senden",
+      "clear": "Leeren"
+    },
+    "remind": {
+      "sent_one": "Erinnerung an {{count}} Mitglied gesendet",
+      "sent_other": "Erinnerungen an {{count}} Mitglieder gesendet",
+      "skipped_one": "{{count}} übersprungen (storniert oder heute schon erinnert)",
+      "skipped_other": "{{count}} übersprungen (storniert oder heute schon erinnert)",
+      "failed": "Erinnerungen konnten nicht gesendet werden"
+    },
+    "payment": {
+      "completed": "Abgeschlossen",
+      "pending": "Ausstehend",
+      "failed": "Fehlgeschlagen",
+      "refunded": "Erstattet"
+    },
+    "error": {
+      "title": "Mitgliedschaften konnten nicht geladen werden",
+      "body": "Prüfe die Verbindung und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    },
+    "empty": {
+      "filtered": "Keine passenden Mitgliedschaften",
+      "filteredHint": "Anderen Filter wählen oder Suche leeren.",
+      "none": "Noch keine Mitgliedschaften",
+      "noneHint": "Verkaufe die erste Mitgliedschaft, um sie hier zu sehen."
+    },
+    "showing": "{{shown}} von {{total}} angezeigt",
+    "showMore": "Mehr anzeigen"
   }
 }

@@ -2455,5 +2455,101 @@
       "body": "Prüfe deine Verbindung und versuche es erneut.",
       "retry": "Erneut versuchen"
     }
+  },
+  "customersPage": {
+    "title": "Kunden",
+    "loading": "Kunden werden geladen…",
+    "loadingMore": "Wird geladen…",
+    "loadMore": "Mehr laden",
+    "summary": {
+      "total_one": "{{count}} Kunde",
+      "total_other": "{{count}} Kunden",
+      "active_one": "{{count}} aktiv in den letzten 30 Tagen",
+      "active_other": "{{count}} aktiv in den letzten 30 Tagen",
+      "roles": "{{students}} Schüler, {{trusted}} vertrauenswürdig, {{outsiders}} extern"
+    },
+    "newCustomer": "Neuer Kunde",
+    "close": "Schließen",
+    "tiles": {
+      "total": "Alle Kunden",
+      "newThisMonth_one": "{{count}} neu diesen Monat",
+      "newThisMonth_other": "{{count}} neu diesen Monat",
+      "share": "{{pct}} % der Kunden",
+      "membersActive_one": "{{count}} aktuell aktiv",
+      "membersActive_other": "{{count}} aktuell aktiv",
+      "active30": "Aktiv 30 Tage",
+      "inactive_one": "{{count}} inaktiv",
+      "inactive_other": "{{count}} inaktiv"
+    },
+    "seg": {
+      "all": "Alle",
+      "lessons": "Unterricht",
+      "shop": "Shop",
+      "members": "Mitglieder",
+      "rentals": "Verleih",
+      "stays": "Unterkunft",
+      "owes": "Schuldet Geld",
+      "credit": "Hat Guthaben",
+      "new": "Neu diesen Monat"
+    },
+    "activity": {
+      "active": "Aktiv 30 Tage",
+      "inactive": "Inaktiv"
+    },
+    "search": "Kunden suchen",
+    "searchPlaceholder": "Name, E-Mail oder Telefon",
+    "filterLabel": "Kunden filtern",
+    "sort": {
+      "label": "Sortieren",
+      "spend": "Gesamtumsatz",
+      "recent": "Letzte Aktivität",
+      "name": "Name A–Z",
+      "owes": "Höchste Schulden",
+      "newest": "Neueste"
+    },
+    "col": {
+      "customer": "Kunde",
+      "uses": "Nutzt",
+      "lastActivity": "Letzte Aktivität",
+      "spend": "Gesamtumsatz",
+      "balance": "Saldo",
+      "actions": "Aktionen"
+    },
+    "uses": {
+      "lessons": "Unterricht",
+      "shop": "Shop",
+      "member_active": "Mitglied",
+      "member": "Ex-Mitglied",
+      "rentals": "Verleih",
+      "stays": "Unterkunft",
+      "none": "Noch keine Käufe"
+    },
+    "balance": {
+      "owes": "offen",
+      "credit": "Guthaben"
+    },
+    "never": "Keine Aktivität",
+    "spent": "{{amount}} ausgegeben",
+    "actions": {
+      "open": "Profil öffnen",
+      "book": "Buchen",
+      "collect": "Kassieren",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "message": "Nachricht an {{name}}",
+      "more": "Weitere Aktionen für {{name}}"
+    },
+    "error": {
+      "title": "Kunden konnten nicht geladen werden",
+      "body": "Prüfe die Verbindung und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    },
+    "empty": {
+      "filtered": "Keine passenden Kunden",
+      "filteredHint": "Anderen Filter wählen oder Suche leeren.",
+      "none": "Noch keine Kunden",
+      "noneHint": "Lege den ersten Kunden an, um ihn hier zu sehen."
+    },
+    "showing": "{{shown}} von {{total}} angezeigt"
   }
 }

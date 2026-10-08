@@ -2456,5 +2456,101 @@
       "body": "Check your connection and try again.",
       "retry": "Try again"
     }
+  },
+  "customersPage": {
+    "title": "Customers",
+    "loading": "Loading customers…",
+    "loadingMore": "Loading…",
+    "loadMore": "Load more",
+    "summary": {
+      "total_one": "{{count}} customer",
+      "total_other": "{{count}} customers",
+      "active_one": "{{count}} active in the last 30 days",
+      "active_other": "{{count}} active in the last 30 days",
+      "roles": "{{students}} students, {{trusted}} trusted, {{outsiders}} outsiders"
+    },
+    "newCustomer": "New customer",
+    "close": "Close",
+    "tiles": {
+      "total": "All customers",
+      "newThisMonth_one": "{{count}} new this month",
+      "newThisMonth_other": "{{count}} new this month",
+      "share": "{{pct}}% of customers",
+      "membersActive_one": "{{count}} active now",
+      "membersActive_other": "{{count}} active now",
+      "active30": "Active 30 days",
+      "inactive_one": "{{count}} inactive",
+      "inactive_other": "{{count}} inactive"
+    },
+    "seg": {
+      "all": "All",
+      "lessons": "Lessons",
+      "shop": "Shop",
+      "members": "Members",
+      "rentals": "Rentals",
+      "stays": "Stays",
+      "owes": "Owes money",
+      "credit": "Has credit",
+      "new": "New this month"
+    },
+    "activity": {
+      "active": "Active 30 days",
+      "inactive": "Inactive"
+    },
+    "search": "Search customers",
+    "searchPlaceholder": "Name, email or phone",
+    "filterLabel": "Filter customers",
+    "sort": {
+      "label": "Sort",
+      "spend": "Lifetime spend",
+      "recent": "Last activity",
+      "name": "Name A–Z",
+      "owes": "Owes most",
+      "newest": "Newest"
+    },
+    "col": {
+      "customer": "Customer",
+      "uses": "Uses",
+      "lastActivity": "Last activity",
+      "spend": "Lifetime spend",
+      "balance": "Balance",
+      "actions": "Actions"
+    },
+    "uses": {
+      "lessons": "Lessons",
+      "shop": "Shop",
+      "member_active": "Member",
+      "member": "Ex-member",
+      "rentals": "Rentals",
+      "stays": "Stays",
+      "none": "No purchases yet"
+    },
+    "balance": {
+      "owes": "owes",
+      "credit": "credit"
+    },
+    "never": "No activity",
+    "spent": "{{amount}} spent",
+    "actions": {
+      "open": "Open profile",
+      "book": "Book",
+      "collect": "Collect",
+      "edit": "Edit",
+      "delete": "Delete",
+      "message": "Message {{name}}",
+      "more": "More actions for {{name}}"
+    },
+    "error": {
+      "title": "Customers could not load",
+      "body": "Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "empty": {
+      "filtered": "No customers match",
+      "filteredHint": "Try another filter or clear the search.",
+      "none": "No customers yet",
+      "noneHint": "Add the first customer to see them here."
+    },
+    "showing": "Showing {{shown}} of {{total}}"
   }
 }

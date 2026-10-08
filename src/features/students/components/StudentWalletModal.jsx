@@ -90,6 +90,14 @@ const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance =
 
   const isNegative = numericBalance < 0;
 
+  // Staff (instructor / manager): the headline is what they can spend in total —
+  // wallet credit + earnings available — so it matches the amount in the top bar.
+  const isStaff = earnings != null && Number.isFinite(Number(earnings.available));
+  const staffEarnings = isStaff ? Number(earnings.available) : 0;
+  const formatAmount = (amount) => (showDualCurrency
+    ? `${formatCurrency(amount, storageCurrency)} / ${formatCurrency(convertCurrency(amount, storageCurrency, resolvedCurrencyCode), resolvedCurrencyCode)}`
+    : formatCurrency(amount, resolvedCurrencyCode));
+
   const handleRedeemWalletVoucher = useCallback(async (voucherData) => {
     try {
       const response = await apiClient.post('/vouchers/redeem-wallet', { code: voucherData.code, currency: storageCurrency });
@@ -171,11 +179,18 @@ const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance =
           {/* Balance */}
           <div>
             <p className="text-xs text-slate-500">
-              {hasPending ? t('student:walletModal.totalBalance') : t('student:walletModal.availableBalance')}
+              {isStaff
+                ? t('student:walletModal.totalToSpend')
+                : (hasPending ? t('student:walletModal.totalBalance') : t('student:walletModal.availableBalance'))}
             </p>
             <p className={`text-2xl font-bold mt-1 ${isNegative ? 'text-rose-600' : 'text-slate-900'}`}>
-              {hasPending ? formattedTotal : formattedBalance}
+              {isStaff ? formatAmount(totalBalance + staffEarnings) : (hasPending ? formattedTotal : formattedBalance)}
             </p>
+            {isStaff && (
+              <p className="text-xs text-slate-500 mt-1">
+                {t('student:walletModal.staffSplit', { wallet: formatAmount(numericBalance), earnings: formatAmount(staffEarnings) })}
+              </p>
+            )}
             {hasPending && (
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-xs text-emerald-600">
@@ -200,7 +215,9 @@ const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance =
           <button
             type="button"
             onClick={() => setAddFundsOpen(prev => !prev)}
-            className="w-full px-4 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-medium shadow-sm hover:bg-sky-500 transition-colors flex items-center justify-center gap-2"
+            className={isStaff
+              ? 'w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-2'
+              : 'w-full px-4 py-2.5 rounded-xl bg-sky-600 text-white text-sm font-medium shadow-sm hover:bg-sky-500 transition-colors flex items-center justify-center gap-2'}
           >
             {t('student:walletModal.addFunds')}
             <svg className={`h-3.5 w-3.5 transition-transform ${addFundsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

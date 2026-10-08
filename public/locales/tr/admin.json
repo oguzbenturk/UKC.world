@@ -1547,5 +1547,161 @@
       "subject": "Konu",
       "when": "Son güncelleme"
     }
+  },
+  "membersPage": {
+    "title": "Üyeler",
+    "titleActive": "Aktif üyelikler",
+    "summary_one": "{{count}} üyelik · {{active}} aktif · {{people}} kişi",
+    "summary_other": "{{count}} üyelik · {{active}} aktif · {{people}} kişi",
+    "export": "CSV indir",
+    "sell": "Üyelik sat",
+    "loading": "Üyelikler yükleniyor…",
+    "search": "Üye ara",
+    "searchPlaceholder": "Ad, e-posta, telefon, üyelik veya #dolap",
+    "filterLabel": "Duruma göre filtrele",
+    "typeLabel": "Tür",
+    "allTypes": "Tüm türler",
+    "sort": {
+      "label": "Sırala",
+      "attention": "Önce ilgi gerekenler",
+      "expiry": "En yakın bitiş",
+      "purchased": "En yeni satış",
+      "name": "Ad A–Z"
+    },
+    "view": {
+      "all": "Tümü",
+      "active": "Aktif",
+      "expiring": "Bu hafta bitiyor",
+      "expired": "Süresi doldu",
+      "storage": "Depolama",
+      "beach": "Plaj kartları"
+    },
+    "kpi": {
+      "active": "Aktif",
+      "activePeople_one": "{{count}} kişi",
+      "activePeople_other": "{{count}} kişi",
+      "expiring7": "7 gün içinde bitiyor",
+      "expiring30_one": "30 günde {{count}}",
+      "expiring30_other": "30 günde {{count}}",
+      "expired": "Süresi doldu",
+      "expiredRecent_one": "Son 30 günde {{count}}",
+      "expiredRecent_other": "Son 30 günde {{count}}",
+      "storage": "Depolama dolapları",
+      "storageFree_one": "{{count}} dolap boş",
+      "storageFree_other": "{{count}} dolap boş",
+      "storageNoCapacity": "Kullanımda (kapasite girilmedi)",
+      "beach": "Plaj kartları",
+      "beachTotal_one": "aktif · {{count}} satıldı",
+      "beachTotal_other": "aktif · {{count}} satıldı",
+      "newThisMonth": "Bu ay yeni",
+      "sold": "Bu ay {{month}} · bu yıl {{year}}"
+    },
+    "state": {
+      "endsToday": "Bugün bitiyor",
+      "endsTomorrow": "Yarın bitiyor",
+      "daysLeft_one": "{{count}} gün kaldı",
+      "daysLeft_other": "{{count}} gün kaldı",
+      "expiredToday": "Bugün doldu",
+      "expiredAgo_one": "{{count}} gün önce doldu",
+      "expiredAgo_other": "{{count}} gün önce doldu",
+      "startsIn_one": "{{count}} gün sonra başlıyor",
+      "startsIn_other": "{{count}} gün sonra başlıyor",
+      "pending": "Ödeme bekliyor",
+      "cancelled": "İptal edildi",
+      "activeNoEnd": "Aktif · bitiş tarihi yok",
+      "activeDays_one": "Aktif · {{count}} gün kaldı",
+      "activeDays_other": "Aktif · {{count}} gün kaldı"
+    },
+    "family": {
+      "beach": "Plaj",
+      "storage": "Depolama",
+      "membership": "Üyelik",
+      "freerider": "Freerider",
+      "other": "Diğer"
+    },
+    "duration": {
+      "day": "günlük",
+      "week": "haftalık",
+      "month": "aylık",
+      "season": "sezonluk",
+      "year": "yıllık",
+      "other": "diğer"
+    },
+    "actions": {
+      "renew": "Yenile",
+      "winBack": "Geri kazan",
+      "openCustomer": "Müşteriyi aç",
+      "edit": "Üyeliği düzenle",
+      "discount": "İndirim uygula",
+      "delete": "Sil",
+      "more": "{{name}} için diğer işlemler"
+    },
+    "boxFreed": "boşaldı",
+    "boxShared": "paylaşımlı",
+    "selectAll": "Gösterilenlerin tümünü seç",
+    "selectOne": "{{name}} seç",
+    "col": {
+      "member": "Üye",
+      "membership": "Üyelik",
+      "status": "Durum",
+      "period": "Dönem",
+      "box": "Dolap",
+      "paid": "Ödenen",
+      "actions": "İşlemler"
+    },
+    "boxes": {
+      "title": "Depolama dolapları",
+      "summary": "{{capacity}} dolabın {{used}} tanesi dolu · {{free}} boş",
+      "summaryNoCapacity": "{{used}} kullanımda",
+      "cellFree": "Dolap {{unit}}: boş",
+      "cell": "Dolap {{unit}}: {{state}} · {{name}} · {{date}} tarihine kadar",
+      "state": {
+        "used": "Kullanımda",
+        "ending": "Bu hafta bitiyor",
+        "starting": "Yakında başlıyor",
+        "free": "Boş"
+      }
+    },
+    "renewals": {
+      "title": "Bu hafta yenilenecekler",
+      "remind": "Hatırlat",
+      "remindAll_one": "Hatırlat ({{count}})",
+      "remindAll_other": "Tümüne hatırlat ({{count}})",
+      "remindOne": "{{name}} kişisine yenileme hatırlatması gönder",
+      "empty": "Önümüzdeki 7 günde biten üyelik yok."
+    },
+    "bulk": {
+      "label": "Toplu işlemler",
+      "selected_one": "{{count}} seçildi",
+      "selected_other": "{{count}} seçildi",
+      "remind": "Yenileme hatırlatması gönder",
+      "clear": "Temizle"
+    },
+    "remind": {
+      "sent_one": "{{count}} üyeye hatırlatma gönderildi",
+      "sent_other": "{{count}} üyeye hatırlatma gönderildi",
+      "skipped_one": "{{count}} atlandı (iptal veya bugün zaten hatırlatıldı)",
+      "skipped_other": "{{count}} atlandı (iptal veya bugün zaten hatırlatıldı)",
+      "failed": "Hatırlatmalar gönderilemedi"
+    },
+    "payment": {
+      "completed": "Tamamlandı",
+      "pending": "Bekliyor",
+      "failed": "Başarısız",
+      "refunded": "İade edildi"
+    },
+    "error": {
+      "title": "Üyelikler yüklenemedi",
+      "body": "Bağlantınızı kontrol edip tekrar deneyin.",
+      "retry": "Tekrar dene"
+    },
+    "empty": {
+      "filtered": "Eşleşen üyelik yok",
+      "filteredHint": "Başka bir filtre deneyin veya aramayı temizleyin.",
+      "none": "Henüz üyelik yok",
+      "noneHint": "İlk üyeliği sattığınızda burada görünür."
+    },
+    "showing": "{{total}} kayıttan {{shown}} gösteriliyor",
+    "showMore": "Daha fazla göster"
   }
 }

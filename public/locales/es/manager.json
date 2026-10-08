@@ -2455,5 +2455,101 @@
       "body": "Revisa tu conexión e inténtalo de nuevo.",
       "retry": "Reintentar"
     }
+  },
+  "customersPage": {
+    "title": "Clientes",
+    "loading": "Cargando clientes…",
+    "loadingMore": "Cargando…",
+    "loadMore": "Cargar más",
+    "summary": {
+      "total_one": "{{count}} cliente",
+      "total_other": "{{count}} clientes",
+      "active_one": "{{count}} activo en los últimos 30 días",
+      "active_other": "{{count}} activos en los últimos 30 días",
+      "roles": "{{students}} alumnos, {{trusted}} de confianza, {{outsiders}} externos"
+    },
+    "newCustomer": "Nuevo cliente",
+    "close": "Cerrar",
+    "tiles": {
+      "total": "Todos los clientes",
+      "newThisMonth_one": "{{count}} nuevo este mes",
+      "newThisMonth_other": "{{count}} nuevos este mes",
+      "share": "{{pct}} % de los clientes",
+      "membersActive_one": "{{count}} activo ahora",
+      "membersActive_other": "{{count}} activos ahora",
+      "active30": "Activos 30 días",
+      "inactive_one": "{{count}} inactivo",
+      "inactive_other": "{{count}} inactivos"
+    },
+    "seg": {
+      "all": "Todos",
+      "lessons": "Clases",
+      "shop": "Tienda",
+      "members": "Socios",
+      "rentals": "Alquileres",
+      "stays": "Estancias",
+      "owes": "Debe dinero",
+      "credit": "Tiene saldo",
+      "new": "Nuevos este mes"
+    },
+    "activity": {
+      "active": "Activos 30 días",
+      "inactive": "Inactivos"
+    },
+    "search": "Buscar clientes",
+    "searchPlaceholder": "Nombre, email o teléfono",
+    "filterLabel": "Filtrar clientes",
+    "sort": {
+      "label": "Ordenar",
+      "spend": "Gasto total",
+      "recent": "Última actividad",
+      "name": "Nombre A–Z",
+      "owes": "Más deuda",
+      "newest": "Más recientes"
+    },
+    "col": {
+      "customer": "Cliente",
+      "uses": "Usa",
+      "lastActivity": "Última actividad",
+      "spend": "Gasto total",
+      "balance": "Saldo",
+      "actions": "Acciones"
+    },
+    "uses": {
+      "lessons": "Clases",
+      "shop": "Tienda",
+      "member_active": "Socio",
+      "member": "Ex socio",
+      "rentals": "Alquileres",
+      "stays": "Estancias",
+      "none": "Sin compras aún"
+    },
+    "balance": {
+      "owes": "debe",
+      "credit": "a favor"
+    },
+    "never": "Sin actividad",
+    "spent": "{{amount}} gastado",
+    "actions": {
+      "open": "Abrir perfil",
+      "book": "Reservar",
+      "collect": "Cobrar",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "message": "Mensaje a {{name}}",
+      "more": "Más acciones para {{name}}"
+    },
+    "error": {
+      "title": "No se pudieron cargar los clientes",
+      "body": "Revisa la conexión e inténtalo de nuevo.",
+      "retry": "Reintentar"
+    },
+    "empty": {
+      "filtered": "Ningún cliente coincide",
+      "filteredHint": "Prueba otro filtro o borra la búsqueda.",
+      "none": "Aún no hay clientes",
+      "noneHint": "Añade el primer cliente para verlo aquí."
+    },
+    "showing": "Mostrando {{shown}} de {{total}}"
   }
 }

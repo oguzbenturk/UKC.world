@@ -1539,5 +1539,189 @@
       "claims": "Заявки",
       "spareParts": "Запчасти"
     }
+  },
+  "membersPage": {
+    "title": "Участники",
+    "titleActive": "Активные абонементы",
+    "summary_one": "{{count}} абонемент · {{active}} активных · {{people}} чел.",
+    "summary_few": "{{count}} абонемента · {{active}} активных · {{people}} чел.",
+    "summary_many": "{{count}} абонементов · {{active}} активных · {{people}} чел.",
+    "summary_other": "{{count}} абонемента · {{active}} активных · {{people}} чел.",
+    "export": "Экспорт CSV",
+    "sell": "Продать абонемент",
+    "loading": "Загрузка абонементов…",
+    "search": "Поиск участников",
+    "searchPlaceholder": "Имя, email, телефон, абонемент или #ячейка",
+    "filterLabel": "Фильтр по статусу",
+    "typeLabel": "Тип",
+    "allTypes": "Все типы",
+    "sort": {
+      "label": "Сортировка",
+      "attention": "Сначала требующие внимания",
+      "expiry": "Скоро заканчиваются",
+      "purchased": "Новые продажи",
+      "name": "Имя А–Я"
+    },
+    "view": {
+      "all": "Все",
+      "active": "Активные",
+      "expiring": "Заканчиваются на неделе",
+      "expired": "Истекшие",
+      "storage": "Хранение",
+      "beach": "Пляжные пропуска"
+    },
+    "kpi": {
+      "active": "Активные",
+      "activePeople_one": "{{count}} человек",
+      "activePeople_few": "{{count}} человека",
+      "activePeople_many": "{{count}} человек",
+      "activePeople_other": "{{count}} человека",
+      "expiring7": "Заканчиваются за 7 дней",
+      "expiring30_one": "{{count}} за 30 дней",
+      "expiring30_few": "{{count}} за 30 дней",
+      "expiring30_many": "{{count}} за 30 дней",
+      "expiring30_other": "{{count}} за 30 дней",
+      "expired": "Истекшие",
+      "expiredRecent_one": "{{count}} за последние 30 дней",
+      "expiredRecent_few": "{{count}} за последние 30 дней",
+      "expiredRecent_many": "{{count}} за последние 30 дней",
+      "expiredRecent_other": "{{count}} за последние 30 дней",
+      "storage": "Ячейки хранения",
+      "storageFree_one": "{{count}} ячейка свободна",
+      "storageFree_few": "{{count}} ячейки свободны",
+      "storageFree_many": "{{count}} ячеек свободно",
+      "storageFree_other": "{{count}} ячейки свободно",
+      "storageNoCapacity": "Заняты (вместимость не задана)",
+      "beach": "Пляжные пропуска",
+      "beachTotal_one": "активны · продан {{count}}",
+      "beachTotal_few": "активны · продано {{count}}",
+      "beachTotal_many": "активны · продано {{count}}",
+      "beachTotal_other": "активны · продано {{count}}",
+      "newThisMonth": "Новые в этом месяце",
+      "sold": "{{month}} в этом месяце · {{year}} в этом году"
+    },
+    "state": {
+      "endsToday": "Заканчивается сегодня",
+      "endsTomorrow": "Заканчивается завтра",
+      "daysLeft_one": "Остался {{count}} день",
+      "daysLeft_few": "Осталось {{count}} дня",
+      "daysLeft_many": "Осталось {{count}} дней",
+      "daysLeft_other": "Осталось {{count}} дня",
+      "expiredToday": "Истёк сегодня",
+      "expiredAgo_one": "Истёк {{count}} день назад",
+      "expiredAgo_few": "Истёк {{count}} дня назад",
+      "expiredAgo_many": "Истёк {{count}} дней назад",
+      "expiredAgo_other": "Истёк {{count}} дня назад",
+      "startsIn_one": "Начнётся через {{count}} день",
+      "startsIn_few": "Начнётся через {{count}} дня",
+      "startsIn_many": "Начнётся через {{count}} дней",
+      "startsIn_other": "Начнётся через {{count}} дня",
+      "pending": "Ожидает оплаты",
+      "cancelled": "Отменён",
+      "activeNoEnd": "Активен · без даты окончания",
+      "activeDays_one": "Активен · остался {{count}} день",
+      "activeDays_few": "Активен · осталось {{count}} дня",
+      "activeDays_many": "Активен · осталось {{count}} дней",
+      "activeDays_other": "Активен · осталось {{count}} дня"
+    },
+    "family": {
+      "beach": "Пляж",
+      "storage": "Хранение",
+      "membership": "Абонемент",
+      "freerider": "Фрирайдер",
+      "other": "Другое"
+    },
+    "duration": {
+      "day": "день",
+      "week": "неделя",
+      "month": "месяц",
+      "season": "сезон",
+      "year": "год",
+      "other": "другое"
+    },
+    "actions": {
+      "renew": "Продлить",
+      "winBack": "Вернуть",
+      "openCustomer": "Открыть клиента",
+      "edit": "Изменить абонемент",
+      "discount": "Применить скидку",
+      "delete": "Удалить",
+      "more": "Другие действия для {{name}}"
+    },
+    "boxFreed": "освобождена",
+    "boxShared": "общая",
+    "selectAll": "Выбрать все показанные",
+    "selectOne": "Выбрать {{name}}",
+    "col": {
+      "member": "Участник",
+      "membership": "Абонемент",
+      "status": "Статус",
+      "period": "Период",
+      "box": "Ячейка",
+      "paid": "Оплачено",
+      "actions": "Действия"
+    },
+    "boxes": {
+      "title": "Ячейки хранения",
+      "summary": "Занято {{used}} из {{capacity}} · свободно {{free}}",
+      "summaryNoCapacity": "Занято {{used}}",
+      "cellFree": "Ячейка {{unit}}: свободна",
+      "cell": "Ячейка {{unit}}: {{state}} · {{name}} · до {{date}}",
+      "state": {
+        "used": "Занята",
+        "ending": "Освобождается на неделе",
+        "starting": "Скоро начнётся",
+        "free": "Свободна"
+      }
+    },
+    "renewals": {
+      "title": "Продления на этой неделе",
+      "remind": "Напомнить",
+      "remindAll_one": "Напомнить {{count}}",
+      "remindAll_few": "Напомнить всем {{count}}",
+      "remindAll_many": "Напомнить всем {{count}}",
+      "remindAll_other": "Напомнить всем {{count}}",
+      "remindOne": "Отправить напоминание о продлении: {{name}}",
+      "empty": "В ближайшие 7 дней ничего не заканчивается."
+    },
+    "bulk": {
+      "label": "Массовые действия",
+      "selected_one": "Выбран {{count}}",
+      "selected_few": "Выбрано {{count}}",
+      "selected_many": "Выбрано {{count}}",
+      "selected_other": "Выбрано {{count}}",
+      "remind": "Отправить напоминание о продлении",
+      "clear": "Сбросить"
+    },
+    "remind": {
+      "sent_one": "Напоминание отправлено {{count}} участнику",
+      "sent_few": "Напоминания отправлены {{count}} участникам",
+      "sent_many": "Напоминания отправлены {{count}} участникам",
+      "sent_other": "Напоминания отправлены {{count}} участникам",
+      "skipped_one": "Пропущен {{count}} (отменён или уже напомнили сегодня)",
+      "skipped_few": "Пропущено {{count}} (отменены или уже напомнили сегодня)",
+      "skipped_many": "Пропущено {{count}} (отменены или уже напомнили сегодня)",
+      "skipped_other": "Пропущено {{count}} (отменены или уже напомнили сегодня)",
+      "failed": "Не удалось отправить напоминания"
+    },
+    "payment": {
+      "completed": "Завершён",
+      "pending": "Ожидает",
+      "failed": "Ошибка",
+      "refunded": "Возвращён"
+    },
+    "error": {
+      "title": "Не удалось загрузить абонементы",
+      "body": "Проверьте подключение и попробуйте снова.",
+      "retry": "Повторить"
+    },
+    "empty": {
+      "filtered": "Нет подходящих абонементов",
+      "filteredHint": "Выберите другой фильтр или очистите поиск.",
+      "none": "Абонементов пока нет",
+      "noneHint": "Продайте первый абонемент, чтобы увидеть его здесь."
+    },
+    "showing": "Показано {{shown}} из {{total}}",
+    "showMore": "Показать ещё"
   }
 }

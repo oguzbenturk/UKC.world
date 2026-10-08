@@ -1539,5 +1539,161 @@
       "claims": "Réclamations",
       "spareParts": "Pièces détachées"
     }
+  },
+  "membersPage": {
+    "title": "Membres",
+    "titleActive": "Adhésions actives",
+    "summary_one": "{{count}} adhésion · {{active}} actives · {{people}} personnes",
+    "summary_other": "{{count}} adhésions · {{active}} actives · {{people}} personnes",
+    "export": "Exporter CSV",
+    "sell": "Vendre une adhésion",
+    "loading": "Chargement des adhésions…",
+    "search": "Rechercher des membres",
+    "searchPlaceholder": "Nom, e-mail, téléphone, adhésion ou #casier",
+    "filterLabel": "Filtrer par statut",
+    "typeLabel": "Type",
+    "allTypes": "Tous les types",
+    "sort": {
+      "label": "Trier",
+      "attention": "À traiter d’abord",
+      "expiry": "Fin la plus proche",
+      "purchased": "Vente la plus récente",
+      "name": "Nom A–Z"
+    },
+    "view": {
+      "all": "Toutes",
+      "active": "Actives",
+      "expiring": "Finissent cette semaine",
+      "expired": "Expirées",
+      "storage": "Casiers",
+      "beach": "Pass plage"
+    },
+    "kpi": {
+      "active": "Actives",
+      "activePeople_one": "{{count}} personne",
+      "activePeople_other": "{{count}} personnes",
+      "expiring7": "Finissent sous 7 jours",
+      "expiring30_one": "{{count}} sous 30 jours",
+      "expiring30_other": "{{count}} sous 30 jours",
+      "expired": "Expirées",
+      "expiredRecent_one": "{{count}} ces 30 derniers jours",
+      "expiredRecent_other": "{{count}} ces 30 derniers jours",
+      "storage": "Casiers",
+      "storageFree_one": "{{count}} casier libre",
+      "storageFree_other": "{{count}} casiers libres",
+      "storageNoCapacity": "Occupés (capacité non définie)",
+      "beach": "Pass plage",
+      "beachTotal_one": "actifs · {{count}} vendu",
+      "beachTotal_other": "actifs · {{count}} vendus",
+      "newThisMonth": "Nouvelles ce mois",
+      "sold": "{{month}} ce mois · {{year}} cette année"
+    },
+    "state": {
+      "endsToday": "Finit aujourd’hui",
+      "endsTomorrow": "Finit demain",
+      "daysLeft_one": "{{count}} jour restant",
+      "daysLeft_other": "{{count}} jours restants",
+      "expiredToday": "Expirée aujourd’hui",
+      "expiredAgo_one": "Expirée il y a {{count}} jour",
+      "expiredAgo_other": "Expirée il y a {{count}} jours",
+      "startsIn_one": "Commence dans {{count}} jour",
+      "startsIn_other": "Commence dans {{count}} jours",
+      "pending": "Paiement en attente",
+      "cancelled": "Annulée",
+      "activeNoEnd": "Active · sans date de fin",
+      "activeDays_one": "Active · {{count}} jour restant",
+      "activeDays_other": "Active · {{count}} jours restants"
+    },
+    "family": {
+      "beach": "Plage",
+      "storage": "Casier",
+      "membership": "Adhésion",
+      "freerider": "Freerider",
+      "other": "Autre"
+    },
+    "duration": {
+      "day": "jour",
+      "week": "semaine",
+      "month": "mois",
+      "season": "saison",
+      "year": "année",
+      "other": "autre"
+    },
+    "actions": {
+      "renew": "Renouveler",
+      "winBack": "Reconquérir",
+      "openCustomer": "Ouvrir le client",
+      "edit": "Modifier l’adhésion",
+      "discount": "Appliquer une remise",
+      "delete": "Supprimer",
+      "more": "Plus d’actions pour {{name}}"
+    },
+    "boxFreed": "libéré",
+    "boxShared": "partagé",
+    "selectAll": "Tout sélectionner",
+    "selectOne": "Sélectionner {{name}}",
+    "col": {
+      "member": "Membre",
+      "membership": "Adhésion",
+      "status": "Statut",
+      "period": "Période",
+      "box": "Casier",
+      "paid": "Payé",
+      "actions": "Actions"
+    },
+    "boxes": {
+      "title": "Casiers",
+      "summary": "{{used}} sur {{capacity}} occupés · {{free}} libres",
+      "summaryNoCapacity": "{{used}} occupés",
+      "cellFree": "Casier {{unit}} : libre",
+      "cell": "Casier {{unit}} : {{state}} · {{name}} · jusqu’au {{date}}",
+      "state": {
+        "used": "Occupé",
+        "ending": "Finit cette semaine",
+        "starting": "Commence bientôt",
+        "free": "Libre"
+      }
+    },
+    "renewals": {
+      "title": "Renouvellements cette semaine",
+      "remind": "Relancer",
+      "remindAll_one": "Relancer {{count}}",
+      "remindAll_other": "Relancer les {{count}}",
+      "remindOne": "Envoyer un rappel de renouvellement à {{name}}",
+      "empty": "Rien ne finit dans les 7 prochains jours."
+    },
+    "bulk": {
+      "label": "Actions groupées",
+      "selected_one": "{{count}} sélectionnée",
+      "selected_other": "{{count}} sélectionnées",
+      "remind": "Envoyer un rappel de renouvellement",
+      "clear": "Effacer"
+    },
+    "remind": {
+      "sent_one": "Rappel envoyé à {{count}} membre",
+      "sent_other": "Rappels envoyés à {{count}} membres",
+      "skipped_one": "{{count}} ignorée (annulée ou déjà relancée aujourd’hui)",
+      "skipped_other": "{{count}} ignorées (annulées ou déjà relancées aujourd’hui)",
+      "failed": "Impossible d’envoyer les rappels"
+    },
+    "payment": {
+      "completed": "Terminé",
+      "pending": "En attente",
+      "failed": "Échoué",
+      "refunded": "Remboursé"
+    },
+    "error": {
+      "title": "Impossible de charger les adhésions",
+      "body": "Vérifiez la connexion et réessayez.",
+      "retry": "Réessayer"
+    },
+    "empty": {
+      "filtered": "Aucune adhésion ne correspond",
+      "filteredHint": "Essayez un autre filtre ou effacez la recherche.",
+      "none": "Aucune adhésion pour l’instant",
+      "noneHint": "Vendez la première adhésion pour la voir ici."
+    },
+    "showing": "{{shown}} sur {{total}} affichées",
+    "showMore": "Afficher plus"
   }
 }

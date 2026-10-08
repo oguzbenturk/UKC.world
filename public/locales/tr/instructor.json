@@ -1019,7 +1019,8 @@
     "periodCurrentYear": "Bu Yıl",
     "periodAllTime": "Tüm Zamanlar",
     "failedToDashboardData": "Dashboard verisi yüklenemedi.",
-    "spentInAppTag": "Uygulamada harcandı"
+    "spentInAppTag": "Uygulamada harcandı",
+    "methodEarnings": "Kazançlarım"
   },
   "skills": {
     "teachingSkills": "Öğretim Becerileri",
