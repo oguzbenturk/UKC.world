@@ -260,6 +260,10 @@ describe('getManagerPayrollEarnings', () => {
     // Paid/deducted totals come from wallet_transactions (manager_payment rows)
     // since 2026-07-03 (291c02f), not from manager_commissions.paid_amount.
     mockPool.query.mockResolvedValueOnce({ rows: [{ total_paid: '2250', total_deducted: '0' }] });
+    // Pending = FIFO-unsettled part of the year's commissions (getManagerUnsettledInRange):
+    // all-time settled total, then the unsettled sum for 2024.
+    mockPool.query.mockResolvedValueOnce({ rows: [{ settled: '2250' }] });
+    mockPool.query.mockResolvedValueOnce({ rows: [{ unsettled: '250' }] });
 
     const result = await managerCommissionService.getManagerPayrollEarnings('mgr1', { year: 2024 });
 

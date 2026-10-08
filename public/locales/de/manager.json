@@ -4,7 +4,8 @@
     "subtitle": "Run your academy and track your earnings.",
     "earnings": {
       "title": "My Earnings",
-      "viewDetails": "View earnings details"
+      "viewDetails": "View earnings details",
+      "managersOnly": "Persönliche Einnahmen werden nur Managern angezeigt."
     },
     "quickLinks": {
       "title": "Quick Links",
@@ -73,6 +74,7 @@
       "transactions": "{{count}} Transaktionen",
       "bookingsRentals": "{{bookings}} Buchungen · {{rentals}} Vermietungen",
       "prevMonth": "Vormonat: {{amount}}",
+      "prevSameDays": "Gleiche Tage im Vormonat: {{amount}}",
       "items": "{{count}} Positionen"
     },
     "categoryBreakdown": {

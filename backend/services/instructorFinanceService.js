@@ -374,6 +374,9 @@ export async function getLessonFinanceBreakdown({
 
   const instructorMap = new Map();
   const serviceMap = new Map();
+  // Lesson revenue per lesson date ("YYYY-MM-DD" — DATE columns are returned as
+  // strings), so the revenue trend can bucket the same per-booking derivation.
+  const byDate = new Map();
   let totalRevenue = 0;
   let totalCommission = 0;
   let totalBookings = 0;
@@ -389,6 +392,14 @@ export async function getLessonFinanceBreakdown({
     totalCommission += commission;
     totalBookings += 1;
     totalHours += hours;
+
+    const dayKey = String(row.lesson_date || '').slice(0, 10);
+    if (dayKey) {
+      const day = byDate.get(dayKey) || { revenue: 0, count: 0 };
+      day.revenue += revenue;
+      day.count += 1;
+      byDate.set(dayKey, day);
+    }
 
     const instId = row.instructor_user_id;
     if (!instructorMap.has(instId)) {
@@ -452,6 +463,8 @@ export async function getLessonFinanceBreakdown({
       bookings: totalBookings,
       hours: round2(totalHours),
     },
+    // Unrounded per-day lesson revenue: { 'YYYY-MM-DD': { revenue, count } }.
+    byDate: Object.fromEntries(byDate),
   };
 }
 

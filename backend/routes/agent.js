@@ -31,6 +31,7 @@ import {
   isInstructorScopedRole,
   isLessonClosingStatus,
   INSTRUCTOR_CANNOT_COMPLETE,
+  INSTRUCTOR_LESSON_STAFF_ONLY,
 } from '../middlewares/bookingOwnership.js';
 
 const router = express.Router();
@@ -1162,14 +1163,22 @@ router.get(
 
       const summary = await getDashboardSummary({ startDate: start, endDate: end });
 
-      // Return only the AI-relevant fields; strip internal UI specifics
+      // Return only the AI-relevant fields; strip internal UI specifics.
+      // summary.revenue is an object (same totals as /finances/summary, EUR-normalised).
+      const revenue = summary.revenue || {};
       res.json({
         period,
         startDate: start,
         endDate: end,
-        totalRevenue: summary.totalRevenue ?? summary.revenue ?? 0,
-        bookingsCount: summary.bookingsCount ?? summary.totalBookings ?? 0,
-        byServiceType: summary.byServiceType ?? summary.revenueByType ?? {},
+        totalRevenue: toNum(revenue.income),
+        netRevenue: toNum(revenue.net),
+        refunds: toNum(revenue.refunds),
+        bookingsCount: toNum(summary.lessons?.total),
+        completedLessons: toNum(summary.lessons?.completed),
+        byServiceType: {
+          lessons: toNum(revenue.serviceRevenue),
+          rentals: toNum(revenue.rentalRevenue),
+        },
         currency: 'EUR',
       });
     } catch (err) {
@@ -1972,13 +1981,13 @@ router.post(
         return res.status(400).json({ error: `Invalid status. Must be one of: ${ALLOWED.join(', ')}` });
       }
 
-      // Completing a lesson is staff-only (owner decision 2026-10-08) — same rule
-      // as PATCH /bookings/:id/status for instructor-scoped roles.
-      if (isInstructorScopedRole(role) && isLessonClosingStatus(status)) {
-        return res.status(403).json({
-          error: 'Only staff can complete a lesson. Your manager closes the lesson after it ends.',
-          code: INSTRUCTOR_CANNOT_COMPLETE,
-        });
+      // Lesson status is staff-only for instructors (owner decision 2026-10-08):
+      // they book lessons as pending; staff confirm, check in and close them —
+      // same rule as PATCH /bookings/:id/status.
+      if (isInstructorScopedRole(role)) {
+        return res.status(403).json(isLessonClosingStatus(status)
+          ? { error: 'Only staff can complete a lesson. Your manager closes the lesson after it ends.', code: INSTRUCTOR_CANNOT_COMPLETE }
+          : { error: 'Instructors can book lessons as pending only. Your manager confirms lessons and checks students in.', code: INSTRUCTOR_LESSON_STAFF_ONLY });
       }
 
       const bookingRes = await pool.query(

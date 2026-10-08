@@ -111,9 +111,10 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
   const canModifyBooking = ['manager', 'admin', 'developer', 'front_desk', 'receptionist', 'owner'].includes(user?.role?.toLowerCase?.() || '');
   // Instructors see duration/rate/commission but not the total booking amount.
   const isInstructor = user?.role?.toLowerCase?.() === 'instructor';
-  // Closing a lesson (complete / check out / no-show) is staff-only — instructors
-  // may check in but the manager closes the lesson (owner decision 2026-10-08;
-  // backend answers 403 INSTRUCTOR_CANNOT_COMPLETE).
+  // Every lesson status change (confirm / check in / complete / check out /
+  // no-show) is staff-only — instructors book lessons as pending and the manager
+  // does the rest (owner decision 2026-10-08; backend answers 403
+  // INSTRUCTOR_LESSON_STAFF_ONLY / INSTRUCTOR_CANNOT_COMPLETE).
   const canClose = canCloseLessons(user?.role);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -1922,7 +1923,9 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                       </div>
                       )}
 
-                      {/* Status Actions */}
+                      {/* Status Actions — staff only: instructors book lessons as pending,
+                          the manager confirms, checks in and closes them (owner decision 2026-10-08). */}
+                      {canClose && (
                       <div className="flex flex-wrap gap-2">
                         {(() => {
                           // Check if this is a group booking (multiple participants)
@@ -2084,6 +2087,7 @@ const BookingDetailModal = ({ isOpen, onClose, booking, onServiceUpdate }) => {
                           }
                         })()}
                       </div>
+                      )}
                       {!canClose && !['completed', 'no_show', 'no-show', 'cancelled', 'checked-out'].includes(String(checkInStatus || '').toLowerCase()) && (
                         <p data-testid="close-by-manager-hint" className="mt-2 text-xs text-slate-500">
                           {t('common:bookings.detail.closedByManagerHint')}

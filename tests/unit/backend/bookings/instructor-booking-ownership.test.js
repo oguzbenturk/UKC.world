@@ -122,13 +122,17 @@ describe('PUT /api/bookings/:id', () => {
     expect(row.notes).toBe('seed');
   });
 
-  test('instructor A can update notes / check-in on own booking', async () => {
+  test('instructor A can update notes on own booking, but not check in (staff only)', async () => {
     const res = await request(app).put(`/api/bookings/${ids.aBooking}`).set(auth(tok.a))
-      .send({ notes: 'own note', checkin_status: 'checked-in' });
+      .send({ notes: 'own note' });
     expect(res.status).toBe(200);
+    const checkIn = await request(app).put(`/api/bookings/${ids.aBooking}`).set(auth(tok.a))
+      .send({ checkin_status: 'checked-in' });
+    expect(checkIn.status).toBe(403);
+    expect(checkIn.body.code).toBe('INSTRUCTOR_LESSON_STAFF_ONLY');
     const { rows: [row] } = await pool.query('SELECT notes, checkin_status FROM bookings WHERE id = $1', [ids.aBooking]);
     expect(row.notes).toBe('own note');
-    expect(row.checkin_status).toBe('checked-in');
+    expect(row.checkin_status).not.toBe('checked-in');
   });
 
   test.each([
@@ -187,11 +191,11 @@ describe('PATCH /api/bookings/:id/status', () => {
     expect(res.body.code).toBe('INSTRUCTOR_CANNOT_COMPLETE');
   });
 
-  test('instructor A can still change a non-closing status of own booking', async () => {
+  test('instructor A cannot change the status of own booking either (staff only)', async () => {
     const res = await request(app).patch(`/api/bookings/${ids.aCompleted}/status`).set(auth(tok.a))
       .send({ status: 'confirmed' });
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('INSTRUCTOR_LESSON_STAFF_ONLY');
   });
 
   test("manager can change status of any instructor's booking", async () => {

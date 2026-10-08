@@ -14,7 +14,9 @@ import {
   requireBookingStaff,
   findBlockedInstructorFieldChanges,
   findInstructorLessonClosingChanges,
+  findInstructorLessonStatusChanges,
   instructorCannotComplete,
+  instructorLessonStaffOnly,
   isLessonClosingStatus,
   enforceInstructorBookingCreate,
   requireStaffOrInstructor,
@@ -5305,12 +5307,18 @@ router.put('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'instruc
       });
     }
 
-    // Closing the lesson (completed / no-show / check-out fields) is staff-only;
-    // instructors may still check in (status 'checked-in' + checkin_* fields).
+    // Closing the lesson (completed / no-show / check-out fields) is staff-only,
+    // and so is every other status change and check-in (checkin_* fields):
+    // instructors book lessons as pending, staff confirm and check in.
     const closingFields = findInstructorLessonClosingChanges(req, currentBooking);
     if (closingFields.length > 0) {
       await client.query('ROLLBACK');
       return instructorCannotComplete(res, closingFields);
+    }
+    const statusFields = findInstructorLessonStatusChanges(req, currentBooking);
+    if (statusFields.length > 0) {
+      await client.query('ROLLBACK');
+      return instructorLessonStaffOnly(res, statusFields);
     }
 
     const {
@@ -7960,9 +7968,12 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager',
       return res.status(400).json({ error: 'Status is required' });
     }
 
-    // Completing / no-show (any spelling) closes the lesson — staff-only.
-    if (isInstructorScopedRequest(req) && isLessonClosingStatus(status)) {
-      return instructorCannotComplete(res, ['status']);
+    // Status changes are staff-only for instructors: closing statuses keep their
+    // specific error, anything else (confirm, decline…) is INSTRUCTOR_LESSON_STAFF_ONLY.
+    if (isInstructorScopedRequest(req)) {
+      return isLessonClosingStatus(status)
+        ? instructorCannotComplete(res, ['status'])
+        : instructorLessonStaffOnly(res, ['status']);
     }
 
     // Validate status

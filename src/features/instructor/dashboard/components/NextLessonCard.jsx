@@ -62,14 +62,16 @@ function HeroActions({ lesson, single, isDesktop, busy, openingChat, canClose, o
   const checkedIn = isCheckedIn(lesson);
   const primaryLabel = checkedIn ? t('instructor:myDay.actions.checkOut') : t('instructor:myDay.actions.checkIn');
   const primaryClass = `${primaryButtonClass} h-12 text-base ${isDesktop ? 'px-7' : ''}`;
-  // Instructors check a lesson in but never close it — the manager checks it out
-  // after it ends (owner decision 2026-10-08). Staff keep the Check out button.
-  const closedByManager = checkedIn && !canClose;
+  // Lesson status is staff-only (owner decision 2026-10-08): the manager checks
+  // the student in and closes the lesson; instructors see a hint instead.
   return (
     <div className={isDesktop ? 'flex flex-wrap gap-2.5' : 'grid grid-cols-[2fr_1fr_1fr] gap-2'}>
-      {closedByManager ? (
-        <p data-testid="close-hint" className={`flex min-h-[48px] items-center rounded-lg bg-slate-50 px-3 text-sm font-medium text-slate-700 ${isDesktop ? 'px-4' : ''}`}>
-          {t('instructor:myDay.closeHint')}
+      {!canClose ? (
+        <p
+          data-testid={checkedIn ? 'close-hint' : 'checkin-hint'}
+          className={`flex min-h-[48px] items-center rounded-lg bg-slate-50 px-3 text-sm font-medium text-slate-700 ${isDesktop ? 'px-4' : ''}`}
+        >
+          {checkedIn ? t('instructor:myDay.closeHint') : t('instructor:myDay.checkInHint')}
         </p>
       ) : (
         <button type="button" onClick={() => (checkedIn ? onCheckOut(lesson) : onCheckIn(lesson))} disabled={busy} className={primaryClass}>
@@ -95,7 +97,7 @@ function HeroActions({ lesson, single, isDesktop, busy, openingChat, canClose, o
 
 /**
  * Hero for the next (or in-progress) lesson: who, what, level / equipment /
- * waiver, last note, and the primary actions (Check in — Check out for staff only —, Notes, Message).
+ * waiver, last note, and the primary actions (Check in / Check out for staff only, Notes, Message).
  */
 export default function NextLessonCard({ lesson, date, isDesktop, hadLessons, ...actions }) {
   const { t } = useTranslation(['instructor']);

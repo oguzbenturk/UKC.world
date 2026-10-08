@@ -1276,14 +1276,142 @@ export async function recordPackageCommission(pkg) {
   });
 }
 
+// Manager payouts / deductions live in wallet_transactions. Both reduce what the
+// manager is still owed: payments are money paid out, deductions are amounts
+// forgiven/clawed back.
+const MANAGER_PAYMENT_FILTER_SQL = `user_id = $1
+         AND entity_type = 'manager_payment'
+         AND transaction_type IN ('payment', 'deduction')
+         AND status != 'cancelled'`;
+
+/** First and last day ('YYYY-MM-DD') of a 'YYYY-MM' period. */
+function periodMonthRange(periodMonth) {
+  const [y, m] = String(periodMonth).split('-').map(Number);
+  if (!y || !m) return null;
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const mm = String(m).padStart(2, '0');
+  return { start: `${y}-${mm}-01`, end: `${y}-${mm}-${String(last).padStart(2, '0')}` };
+}
+
 /**
- * Get manager's commission summary for a period
+ * What the manager is still owed right now — the single "pending payout" figure.
+ *
+ * owed = all-time earned (non-cancelled, live source, source_date <= asOf)
+ *        − all-time payouts − all-time deductions   (floored at 0)
+ *
+ * Payouts are lump sums (manager_payout_items is not used), so the item count is
+ * derived FIFO: commission rows are covered oldest-first (source_date, created_at,
+ * id) by the paid + deducted total; `count` is the number of rows not (fully)
+ * covered yet. Future-dated rows (source_date > asOf) are not owed yet.
+ *
+ * @param {string} managerUserId
+ * @param {{asOf?: string}} [options] - 'YYYY-MM-DD', default CURRENT_DATE
+ * @returns {Promise<{amount:number,count:number,earned:number,paid:number,deducted:number,asOf:string}>}
+ */
+export async function getManagerOwedBalance(managerUserId, { asOf } = {}, db = pool) {
+  const paymentsRes = await db.query(
+    `SELECT
+       COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS total_paid,
+       COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) AS total_deducted
+     FROM wallet_transactions
+     WHERE ${MANAGER_PAYMENT_FILTER_SQL}`,
+    [managerUserId]
+  );
+  const paid = paymentsRes.rows[0]?.total_paid ?? '0';
+  const deducted = paymentsRes.rows[0]?.total_deducted ?? '0';
+
+  const earnedRes = await db.query(
+    `WITH owed_rows AS (
+       SELECT mc.commission_amount,
+              SUM(mc.commission_amount) OVER (
+                ORDER BY mc.source_date, mc.created_at, mc.id
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+              ) AS running_total
+         FROM manager_commissions mc
+        WHERE mc.manager_user_id = $1
+          AND mc.status != 'cancelled'
+          AND mc.source_date <= COALESCE($2::date, CURRENT_DATE)
+          AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
+     )
+     SELECT COALESCE(SUM(commission_amount), 0) AS earned,
+            COUNT(*) FILTER (WHERE running_total > ($3::numeric + $4::numeric)) AS uncovered_count,
+            TO_CHAR(COALESCE($2::date, CURRENT_DATE), 'YYYY-MM-DD') AS as_of
+       FROM owed_rows`,
+    [managerUserId, asOf || null, paid, deducted]
+  );
+  const row = earnedRes.rows[0] || {};
+  // numeric math in SQL strings → round to cents once here.
+  const earnedNum = Number(row.earned) || 0;
+  const paidNum = Number(paid) || 0;
+  const deductedNum = Number(deducted) || 0;
+  const owedCents = Math.round(earnedNum * 100) - Math.round(paidNum * 100) - Math.round(deductedNum * 100);
+  const amount = Math.max(owedCents, 0) / 100;
+  return {
+    amount,
+    count: amount > 0 ? parseInt(row.uncovered_count, 10) || 0 : 0,
+    earned: earnedNum,
+    paid: paidNum,
+    deducted: deductedNum,
+    asOf: row.as_of,
+  };
+}
+
+/**
+ * Part of a date range's commission that is still unpaid, using the same FIFO
+ * settlement as getManagerOwedBalance: all-time payouts + deductions cover the
+ * oldest commission rows first, so a December commission paid in January counts
+ * as settled for December's year. Rows after asOf (default today) are not owed yet.
+ *
+ * @param {string} managerUserId
+ * @param {{start: string, end: string, asOf?: string}} range - 'YYYY-MM-DD', inclusive
+ * @returns {Promise<number>} unsettled amount in the range (≥ 0, cents-rounded)
+ */
+export async function getManagerUnsettledInRange(managerUserId, { start, end, asOf } = {}, db = pool) {
+  const paymentsRes = await db.query(
+    `SELECT COALESCE(SUM(ABS(amount)), 0) AS settled
+       FROM wallet_transactions
+      WHERE ${MANAGER_PAYMENT_FILTER_SQL}`,
+    [managerUserId]
+  );
+  const settled = paymentsRes.rows[0]?.settled ?? '0';
+  const res = await db.query(
+    `WITH owed_rows AS (
+       SELECT mc.commission_amount, mc.source_date,
+              SUM(mc.commission_amount) OVER (
+                ORDER BY mc.source_date, mc.created_at, mc.id
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+              ) AS running_total
+         FROM manager_commissions mc
+        WHERE mc.manager_user_id = $1
+          AND mc.status != 'cancelled'
+          AND mc.source_date <= COALESCE($2::date, CURRENT_DATE)
+          AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
+     )
+     SELECT COALESCE(SUM(GREATEST(LEAST(running_total - $3::numeric, commission_amount), 0))
+              FILTER (WHERE source_date BETWEEN $4::date AND $5::date), 0) AS unsettled
+       FROM owed_rows`,
+    [managerUserId, asOf || null, settled, start, end]
+  );
+  return Math.max(Math.round((Number(res.rows[0]?.unsettled) || 0) * 100), 0) / 100;
+}
+
+/**
+ * Get manager's commission summary for a period.
+ *
+ * - `totalEarned` / `breakdown`: commission rows in the window (periodMonth and/or
+ *   startDate–endDate; both may be combined, e.g. "this month up to today").
+ * - `paid` / `deducted`: manager payouts made inside the window (by payout date);
+ *   all-time when no window is given.
+ * - `pending` (and `owed`): what is still owed overall as of today — NOT scoped to
+ *   the window (see getManagerOwedBalance). The old per-period math subtracted
+ *   all-time payouts from one period's earnings, so it was €0 for every period.
+ *
  * @param {string} managerUserId - Manager user ID
- * @param {Object} options - Filter options
+ * @param {Object} options - { startDate?, endDate?, periodMonth?, asOf? }
  * @returns {Promise<Object>} Commission summary
  */
 export async function getManagerCommissionSummary(managerUserId, options = {}) {
-  const { startDate, endDate, periodMonth } = options;
+  const { startDate, endDate, periodMonth, asOf } = options;
 
   try {
     let whereClause = 'WHERE mc.manager_user_id = $1';
@@ -1294,17 +1422,16 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
       whereClause += ` AND mc.period_month = $${paramIndex}`;
       params.push(periodMonth);
       paramIndex++;
-    } else {
-      if (startDate) {
-        whereClause += ` AND mc.source_date >= $${paramIndex}`;
-        params.push(startDate);
-        paramIndex++;
-      }
-      if (endDate) {
-        whereClause += ` AND mc.source_date <= $${paramIndex}`;
-        params.push(endDate);
-        paramIndex++;
-      }
+    }
+    if (startDate) {
+      whereClause += ` AND mc.source_date >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+    if (endDate) {
+      whereClause += ` AND mc.source_date <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
     }
 
     // Lesson commissions: only rows whose booking still exists, is not soft-deleted, and is completed
@@ -1327,15 +1454,18 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
         COALESCE(SUM(mc.commission_amount) FILTER (WHERE mc.source_type = 'accommodation' AND mc.status != 'cancelled'), 0) as accommodation_commission,
         COALESCE(SUM(mc.commission_amount) FILTER (WHERE mc.source_type = 'shop' AND mc.status != 'cancelled'), 0) as shop_commission,
         COALESCE(SUM(mc.commission_amount) FILTER (WHERE mc.source_type = 'membership' AND mc.status != 'cancelled'), 0) as membership_commission,
-        COALESCE(SUM(mc.commission_amount) FILTER (WHERE mc.source_type = 'package' AND mc.status != 'cancelled'), 0) as package_commission
+        COALESCE(SUM(mc.commission_amount) FILTER (WHERE mc.source_type = 'package' AND mc.status != 'cancelled'), 0) as package_commission,
+        MIN(mc.commission_currency) as commission_currency
        FROM manager_commissions mc
        ${whereClause}`,
       params
     );
 
-    // Get actual payments + deductions from wallet_transactions.
-    // Both reduce what the manager is still owed: payments are money paid out,
-    // deductions are amounts forgiven/clawed back. Pending must subtract both.
+    // Payouts + deductions made inside the window (by payout date); all-time when
+    // the summary has no window.
+    const monthRange = periodMonth ? periodMonthRange(periodMonth) : null;
+    const windowStart = [startDate, monthRange?.start].filter(Boolean).sort().pop() || null;
+    const windowEnd = [endDate, monthRange?.end].filter(Boolean).sort()[0] || null;
     const paymentsResult = await pool.query(
       `SELECT
          COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as total_paid,
@@ -1343,24 +1473,26 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
          COUNT(*) FILTER (WHERE amount > 0) as payment_count,
          COUNT(*) FILTER (WHERE amount < 0) as deduction_count
        FROM wallet_transactions
-       WHERE user_id = $1
-         AND entity_type = 'manager_payment'
-         AND transaction_type IN ('payment', 'deduction')
-         AND status != 'cancelled'`,
-      [managerUserId]
+       WHERE ${MANAGER_PAYMENT_FILTER_SQL}
+         AND ($2::date IS NULL OR created_at::date >= $2::date)
+         AND ($3::date IS NULL OR created_at::date <= $3::date)`,
+      [managerUserId, windowStart, windowEnd]
     );
+
+    const owed = await getManagerOwedBalance(managerUserId, { asOf });
 
     const row = result.rows[0];
     const totalEarned = parseFloat(row.total_earned) || 0;
     const totalPaid = parseFloat(paymentsResult.rows[0]?.total_paid) || 0;
     const totalDeducted = parseFloat(paymentsResult.rows[0]?.total_deducted) || 0;
-    const pendingAmount = Math.max(totalEarned - totalPaid - totalDeducted, 0);
 
     return {
+      // Still owed overall as of today (not scoped to the window) — see above.
       pending: {
-        count: parseInt(row.active_count) || 0,
-        amount: pendingAmount
+        count: owed.count,
+        amount: owed.amount
       },
+      owed,
       paid: {
         count: parseInt(paymentsResult.rows[0]?.payment_count) || 0,
         amount: totalPaid
@@ -1400,7 +1532,9 @@ export async function getManagerCommissionSummary(managerUserId, options = {}) {
           amount: parseFloat(row.package_commission) || 0
         }
       },
-      currency: 'EUR'
+      // Commission rows are stored converted to EUR (commission_currency); report
+      // the currency the amounts are actually in instead of a hard-coded label.
+      currency: row.commission_currency || 'EUR'
     };
   } catch (error) {
     logger.error('Error fetching manager commission summary:', { error: error.message, managerUserId });
@@ -1861,6 +1995,8 @@ export async function getAllManagersWithCommissionSettings() {
           FROM manager_commissions mc
           WHERE mc.manager_user_id = u.id
             AND mc.status != 'cancelled'
+            -- future-dated rows are not earned/owed yet (same as getManagerOwedBalance)
+            AND mc.source_date <= CURRENT_DATE
             AND ${MANAGER_COMMISSION_LIVE_GUARD_SQL}
         ) as total_commission,
         (
@@ -2034,6 +2170,11 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
     });
 
     const yearTotal = months.reduce((sum, m) => sum + m.grossAmount, 0);
+    // Commission managers: FIFO-settled commission rows. Fixed-salary / per-lesson
+    // managers have no per-row ledger to settle against, so keep year gross − year payouts.
+    const yearUnsettled = salaryType === 'commission'
+      ? await getManagerUnsettledInRange(managerUserId, { start: `${year}-01-01`, end: `${year}-12-31` })
+      : Math.max(yearTotal - yearTotalPaid - yearTotalDeducted, 0);
 
     return {
       year,
@@ -2050,7 +2191,11 @@ export async function getManagerPayrollEarnings(managerUserId, options = {}) {
         gross: yearTotal,
         paid: yearTotalPaid,
         deducted: yearTotalDeducted,
-        pending: Math.max(yearTotal - yearTotalPaid - yearTotalDeducted, 0)
+        // Still unpaid out of THIS year's commissions. Payouts settle the oldest
+        // earnings first, so payouts made in the year are not simply subtracted
+        // from the year's earnings (a December commission paid in January belongs
+        // to December's year).
+        pending: yearUnsettled
       },
       currency: 'EUR'
     };
@@ -2567,6 +2712,7 @@ export default {
   recordRentalCommission,
   cancelCommission,
   getManagerCommissionSummary,
+  getManagerOwedBalance,
   getManagerCommissions,
   upsertManagerCommissionSettings,
   getAllManagersWithCommissionSettings,

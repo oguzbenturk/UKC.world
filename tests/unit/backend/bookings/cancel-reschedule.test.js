@@ -109,12 +109,13 @@ describe('Booking status change — PATCH /api/bookings/:id/status', () => {
     expectAllowed(res);
   });
 
-  test('allows instructor to change a non-closing booking status', async () => {
+  test('instructor cannot change a booking status at all (owner decision 2026-10-08)', async () => {
     const res = await request(app)
       .patch(`/api/bookings/${FAKE_UUID}/status`)
       .set('Authorization', `Bearer ${tokens.instructor}`)
       .send({ status: 'confirmed' });
-    expectAllowed(res);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('INSTRUCTOR_LESSON_STAFF_ONLY');
   });
 
   test('instructor cannot complete a lesson (owner decision 2026-10-08)', async () => {

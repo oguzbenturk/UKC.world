@@ -4,7 +4,8 @@
     "subtitle": "Run your academy and track your earnings.",
     "earnings": {
       "title": "My Earnings",
-      "viewDetails": "View earnings details"
+      "viewDetails": "View earnings details",
+      "managersOnly": "Личный доход виден только менеджерам."
     },
     "quickLinks": {
       "title": "Quick Links",
@@ -73,6 +74,7 @@
       "transactions": "{{count}} транзакций",
       "bookingsRentals": "{{bookings}} бронирований · {{rentals}} аренд",
       "prevMonth": "Пред.: {{amount}}",
+      "prevSameDays": "Те же дни прошлого месяца: {{amount}}",
       "items": "{{count}} позиций"
     },
     "categoryBreakdown": {

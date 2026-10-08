@@ -31,6 +31,52 @@ import {
 
 const router = express.Router();
 
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const lastDayOfMonth = (y, m0) => new Date(y, m0 + 1, 0).getDate();
+
+/**
+ * Periods for the manager earnings dashboard (local server dates).
+ * When the requested period is the current month, the comparison is
+ * month-to-date: day 1..today vs day 1..same day of the previous month
+ * (capped at that month's last day, e.g. Mar 1–31 → Feb 1–28).
+ * Exported for tests.
+ */
+export function dashboardPeriods(now = new Date(), requestedPeriod) {
+  const today = isoDate(now);
+  const thisMonth = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  const currentPeriod = /^\d{4}-\d{2}$/.test(requestedPeriod || '') ? requestedPeriod : thisMonth;
+
+  const [cy, cm] = currentPeriod.split('-').map(Number);
+  const prevStart = new Date(cy, cm - 2, 1);
+  const py = prevStart.getFullYear();
+  const pm0 = prevStart.getMonth();
+  const prevPeriod = `${py}-${pad2(pm0 + 1)}`;
+  const previousFullRange = { start: `${prevPeriod}-01`, end: `${prevPeriod}-${pad2(lastDayOfMonth(py, pm0))}` };
+
+  if (currentPeriod === thisMonth) {
+    const day = Math.min(now.getDate(), lastDayOfMonth(py, pm0));
+    return {
+      today, thisMonth, currentPeriod, prevPeriod,
+      compare: {
+        basis: 'month_to_date',
+        currentRange: { start: `${thisMonth}-01`, end: today },
+        previousRange: { start: `${prevPeriod}-01`, end: `${prevPeriod}-${pad2(day)}` },
+        previousFullRange,
+      },
+    };
+  }
+  return {
+    today, thisMonth, currentPeriod, prevPeriod,
+    compare: {
+      basis: 'full_month',
+      currentRange: { start: `${currentPeriod}-01`, end: `${currentPeriod}-${pad2(lastDayOfMonth(cy, cm - 1))}` },
+      previousRange: null,
+      previousFullRange,
+    },
+  };
+}
+
 // ============================================
 // MANAGER ENDPOINTS (for their own dashboard)
 // ============================================
@@ -43,23 +89,38 @@ const router = express.Router();
 router.get('/dashboard', authenticateJWT, authorizeRoles(['manager']), async (req, res) => {
   try {
     const managerId = req.user.id;
-    const { period, startDate, endDate } = req.query;
+    const { period } = req.query;
 
-    // Get current month if no period specified
     const now = new Date();
-    const currentPeriod = period || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { today, thisMonth, prevPeriod, currentPeriod, compare } = dashboardPeriods(now, period);
 
-    // Get summary for current period
-    const currentSummary = await getManagerCommissionSummary(managerId, { periodMonth: currentPeriod });
+    // Current period. Commission rows dated after today (future stays,
+    // memberships…) are not earned yet, so the current month stops at today.
+    const currentSummary = await getManagerCommissionSummary(managerId, {
+      periodMonth: currentPeriod,
+      ...(currentPeriod === thisMonth ? { endDate: today } : {}),
+      asOf: today,
+    });
 
-    // Get summary for previous month for comparison
-    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevPeriod = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-    const prevSummary = await getManagerCommissionSummary(managerId, { periodMonth: prevPeriod });
+    // Previous month — full month (shown as "Prev: …").
+    const prevSummary = await getManagerCommissionSummary(managerId, { periodMonth: prevPeriod, asOf: today });
 
-    // Get YTD summary
+    // Comparison basis: month-to-date vs the same days of the previous month
+    // (e.g. Oct 1–8 vs Sep 1–8). Comparing 8 days with a full month showed ~−70%
+    // every month. For a past period both months are complete.
+    const comparePrevSummary = compare.previousRange
+      ? await getManagerCommissionSummary(managerId, {
+        startDate: compare.previousRange.start,
+        endDate: compare.previousRange.end,
+        asOf: today,
+      })
+      : prevSummary;
+
+    // Year to date: Jan 1 … today (same cut-off as /dashboard and Finances).
     const yearStart = `${now.getFullYear()}-01-01`;
-    const ytdSummary = await getManagerCommissionSummary(managerId, { startDate: yearStart });
+    const ytdSummary = await getManagerCommissionSummary(managerId, { startDate: yearStart, endDate: today, asOf: today });
+
+    const prevCompareEarned = comparePrevSummary.totalEarned;
 
     // Get commission settings
     const settings = await getManagerCommissionSettings(managerId);
@@ -90,9 +151,15 @@ router.get('/dashboard', authenticateJWT, authorizeRoles(['manager']), async (re
           salaryType: 'commission'
         },
         comparison: {
-          earningsChange: currentSummary.totalEarned - prevSummary.totalEarned,
-          earningsChangePercent: prevSummary.totalEarned > 0 
-            ? ((currentSummary.totalEarned - prevSummary.totalEarned) / prevSummary.totalEarned * 100).toFixed(1)
+          // 'month_to_date' = current month up to today vs the same day range of
+          // the previous month; 'full_month' = two complete months (past period).
+          basis: compare.basis,
+          currentRange: compare.currentRange,
+          previousRange: compare.previousRange || compare.previousFullRange,
+          previousEarned: prevCompareEarned,
+          earningsChange: Math.round((currentSummary.totalEarned - prevCompareEarned) * 100) / 100,
+          earningsChangePercent: prevCompareEarned > 0
+            ? ((currentSummary.totalEarned - prevCompareEarned) / prevCompareEarned * 100).toFixed(1)
             : 0
         }
       }

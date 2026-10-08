@@ -1,16 +1,25 @@
+import Decimal from 'decimal.js';
 import { pool } from '../db.js';
 import { cacheService } from './cacheService.js';
 import { deriveLessonAmount, deriveTotalEarnings, toNumber as toNum, partialLessonValue } from '../utils/instructorEarnings.js';
 import { discountSumLateral } from '../utils/discountAmounts.js';
 import { MANAGER_COMMISSION_LIVE_GUARD_SQL } from './managerCommissionService.js';
+import { getFinanceTotals } from './financeTotalsService.js';
+
+// Bookings store a local date + start_hour; "now" is compared in the business timezone.
+const BUSINESS_TZ = process.env.BUSINESS_TIMEZONE || 'Europe/Istanbul';
 
 const UPCOMING_LESSON_STATUSES = ['pending', 'scheduled', 'confirmed', 'in_progress'];
 const ACTIVE_LESSON_STATUSES = ['in_progress', 'active'];
 const COMPLETED_LESSON_STATUSES = ['completed', 'done', 'checked_out'];
 const CANCELLED_LESSON_STATUSES = ['cancelled', 'canceled'];
 
-const ACTIVE_RENTAL_STATUSES = ['active', 'in_progress'];
-const UPCOMING_RENTAL_STATUSES = ['pending', 'reserved', 'scheduled'];
+// Rentals that are out with the customer right now regardless of dates
+// ('overdue' = past end_date, not returned yet).
+const ACTIVE_RENTAL_STATUSES = ['active', 'in_progress', 'overdue'];
+// 'upcoming' is the status the rentals module writes (routes/rentals.js);
+// pending/reserved/scheduled are legacy values kept for old rows.
+const UPCOMING_RENTAL_STATUSES = ['upcoming', 'pending', 'reserved', 'scheduled'];
 const COMPLETED_RENTAL_STATUSES = ['completed', 'returned', 'closed'];
 
 function toNumber(value) {
@@ -86,8 +95,6 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     SELECT
       COUNT(*)::int AS total,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_LESSON_STATUSES)}]) THEN 1 ELSE 0 END)::int AS completed,
-      SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(UPCOMING_LESSON_STATUSES)}]) AND date >= CURRENT_DATE THEN 1 ELSE 0 END)::int AS upcoming,
-      SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(ACTIVE_LESSON_STATUSES)}]) THEN 1 ELSE 0 END)::int AS active,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(CANCELLED_LESSON_STATUSES)}]) THEN 1 ELSE 0 END)::int AS cancelled,
       COALESCE(SUM(duration), 0)::numeric AS total_hours,
       COALESCE(SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_LESSON_STATUSES)}]) THEN duration ELSE 0 END), 0)::numeric AS completed_hours,
@@ -98,6 +105,27 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     FROM bookings
     ${discountSumLateral('bk_disc', 'booking', 'bookings.id')}
     ${bookingConditions.length ? `WHERE ${bookingConditions.join(' AND ')}` : ''}
+  `;
+
+  // Upcoming / running lessons are measured from NOW with no range end: the
+  // dashboard range always ends today, which used to limit "upcoming" to the
+  // rest of today. Lesson start/end are local (date + start_hour).
+  const bookingsNowQuery = `
+    WITH now_local AS (SELECT (NOW() AT TIME ZONE $1) AS ts),
+    b AS (
+      SELECT status,
+             (date + COALESCE(start_hour, 0) * INTERVAL '1 hour') AS starts_at,
+             (date + (COALESCE(start_hour, 0) + COALESCE(duration, 0)) * INTERVAL '1 hour') AS ends_at
+        FROM bookings, now_local
+       WHERE deleted_at IS NULL
+         AND date >= now_local.ts::date - 1
+    )
+    SELECT
+      COUNT(*) FILTER (WHERE b.status = ANY(ARRAY[${toSqlTextArray(UPCOMING_LESSON_STATUSES)}])
+                         AND b.starts_at > now_local.ts)::int AS upcoming,
+      COUNT(*) FILTER (WHERE b.status = ANY(ARRAY[${toSqlTextArray([...UPCOMING_LESSON_STATUSES, ...ACTIVE_LESSON_STATUSES, 'checked-in', 'checked_in'])}])
+                         AND b.starts_at <= now_local.ts AND b.ends_at > now_local.ts)::int AS active
+    FROM b, now_local
   `;
 
   // Rentals are "in" a date window when they overlap it — start_date <= rangeEnd
@@ -117,8 +145,6 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
   const rentalsQuery = `
     SELECT
       COUNT(*)::int AS total,
-      SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(ACTIVE_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS active,
-      SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS upcoming,
       SUM(CASE WHEN status = ANY(ARRAY[${toSqlTextArray(COMPLETED_RENTAL_STATUSES)}]) THEN 1 ELSE 0 END)::int AS completed,
       -- Revenue must exclude cancelled/void rentals: their total_price is retained on
       -- the row (cancel only flips status), and the manager-commission leg already drops
@@ -130,28 +156,16 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     ${rentalConditions.length ? `WHERE ${rentalConditions.join(' AND ')}` : ''}
   `;
 
-  const revenueParams = [];
-  const revenueConditions = ["COALESCE(status, 'completed') NOT IN ('void', 'cancelled', 'pending')"];
-  if (startTimestamp) {
-    revenueParams.push(startTimestamp);
-    revenueConditions.push(`COALESCE(transaction_date, created_at) >= $${revenueParams.length}::timestamptz`);
-  }
-  if (endTimestamp) {
-    revenueParams.push(endTimestamp);
-    revenueConditions.push(`COALESCE(transaction_date, created_at) <= $${revenueParams.length}::timestamptz`);
-  }
-
-  const revenueQuery = `
+  // Active = out right now (an active/overdue status, or a booked rental whose
+  // window contains now); upcoming = booked and starting later, no range end.
+  const RENTAL_ACTIVE_NOW_SQL = `(status = ANY(ARRAY[${toSqlTextArray(ACTIVE_RENTAL_STATUSES)}])
+      OR (status = ANY(ARRAY[${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}]) AND start_date <= NOW() AND end_date >= NOW()))`;
+  const RENTAL_UPCOMING_SQL = `(status = ANY(ARRAY[${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}]) AND start_date > NOW())`;
+  const rentalsNowQuery = `
     SELECT
-      COUNT(*)::int AS total_transactions,
-      COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0)::numeric AS income,
-      COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0)::numeric AS expenses,
-      COALESCE(SUM(amount), 0)::numeric AS net,
-      COALESCE(SUM(CASE WHEN type = 'service_payment' AND amount > 0 THEN amount ELSE 0 END), 0)::numeric AS service_revenue,
-      COALESCE(SUM(CASE WHEN type = 'rental_payment' AND amount > 0 THEN amount ELSE 0 END), 0)::numeric AS rental_revenue,
-      COALESCE(SUM(CASE WHEN entity_type = 'instructor_payment' AND amount < 0 THEN ABS(amount) ELSE 0 END), 0)::numeric AS instructor_payouts
-    FROM transactions
-    WHERE ${revenueConditions.join(' AND ')}
+      COUNT(*) FILTER (WHERE ${RENTAL_ACTIVE_NOW_SQL})::int AS active,
+      COUNT(*) FILTER (WHERE ${RENTAL_UPCOMING_SQL})::int AS upcoming
+    FROM rentals
   `;
 
   const managerCommissionParams = [];
@@ -217,16 +231,20 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     ORDER BY hours DESC
   `;
 
-  // Rental service breakdown: count by service name for active/upcoming rentals
+  // Rental service breakdown: active-now + upcoming rentals by rental service
+  // (rentals.equipment_ids holds rental SERVICE ids). Same "now" definition as
+  // the active/upcoming counts; it used to be empty because rentals with the
+  // real 'upcoming' status were never matched.
   const rentalBreakdownQuery = `
     SELECT
       s.name AS service_name,
       COUNT(*)::int AS count
-    FROM rentals r, LATERAL jsonb_array_elements_text(r.equipment_ids) AS eid(id)
+    FROM (
+      SELECT * FROM rentals
+       WHERE ${RENTAL_ACTIVE_NOW_SQL} OR ${RENTAL_UPCOMING_SQL}
+    ) r, LATERAL jsonb_array_elements_text(r.equipment_ids) AS eid(id)
     LEFT JOIN services s ON s.id::text = eid.id
     WHERE r.equipment_ids IS NOT NULL AND jsonb_array_length(r.equipment_ids) > 0
-      AND r.status = ANY(ARRAY[${toSqlTextArray(ACTIVE_RENTAL_STATUSES)}, ${toSqlTextArray(UPCOMING_RENTAL_STATUSES)}])
-    ${rentalConditions.length ? `AND ${rentalConditions.map(c => c.replace(/\bstart_date\b/g, 'r.start_date').replace(/\bend_date\b/g, 'r.end_date')).join(' AND ')}` : ''}
     GROUP BY s.id, s.name
     ORDER BY count DESC
     LIMIT 15
@@ -270,15 +288,20 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     membershipConditions.push(`mp.purchased_at <= $${membershipParams.length}::timestamptz`);
   }
 
+  // Active members = memberships active right now, whatever their purchase
+  // date; total_purchased = bought inside the selected range ("new in range").
+  const membershipInRange = membershipConditions.length ? membershipConditions.join(' AND ') : 'TRUE';
+  const MEMBER_ACTIVE_SQL = `mp.status = 'active' AND (mp.expires_at IS NULL OR mp.expires_at > NOW())`;
   const membershipQuery = `
     SELECT
       COALESCE(mo.name, 'Unknown') AS offering_name,
-      COUNT(*) FILTER (WHERE mp.status = 'active' AND (mp.expires_at IS NULL OR mp.expires_at > NOW()))::int AS active_count,
-      COUNT(*)::int AS total_purchased
+      COUNT(*) FILTER (WHERE ${MEMBER_ACTIVE_SQL})::int AS active_count,
+      COUNT(*) FILTER (WHERE ${membershipInRange})::int AS total_purchased
     FROM member_purchases mp
     LEFT JOIN member_offerings mo ON mo.id = mp.offering_id
-    ${membershipConditions.length ? `WHERE ${membershipConditions.join(' AND ')}` : ''}
     GROUP BY mo.id, mo.name
+    HAVING COUNT(*) FILTER (WHERE ${MEMBER_ACTIVE_SQL}) > 0
+        OR COUNT(*) FILTER (WHERE ${membershipInRange}) > 0
     ORDER BY active_count DESC, total_purchased DESC
     LIMIT 10
   `;
@@ -349,15 +372,17 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
     WHERE b.instructor_user_id IS NOT NULL AND ${instructorCommConditions.join(' AND ')}
   `;
 
-  const [bookingsResult, rentalsResult, revenueResult, servicesResult, equipmentResult, customersResult, bookingCategoryResult, rentalBreakdownResult, accommodationResult, membershipResult, shopCustomersResult, instructorCommResult, managerCommResult] = await Promise.all([
+  const [bookingsResult, bookingsNowResult, rentalsResult, rentalsNowResult, financeTotals, servicesResult, equipmentResult, customersResult, bookingCategoryResult, rentalBreakdownResult, accommodationResult, membershipResult, shopCustomersResult, instructorCommResult, managerCommResult] = await Promise.all([
     pool.query(bookingsQuery, bookingParams),
+    pool.query(bookingsNowQuery, [BUSINESS_TZ]),
     pool.query(rentalsQuery, rentalParams),
-    pool.query(revenueQuery, revenueParams),
+    pool.query(rentalsNowQuery),
+    getFinanceTotals({ startDate: startDateOnly, endDate: endDateOnly }),
     pool.query(servicesQuery),
     pool.query(equipmentQuery),
     pool.query(customersQuery),
     pool.query(bookingCategoryQuery, bookingParams),
-    pool.query(rentalBreakdownQuery, rentalParams),
+    pool.query(rentalBreakdownQuery),
     pool.query(accommodationQuery, accommodationParams),
     pool.query(membershipQuery, membershipParams),
     pool.query(shopCustomersQuery),
@@ -367,7 +392,8 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
 
   const bookingsRow = bookingsResult.rows[0] || {};
   const rentalsRow = rentalsResult.rows[0] || {};
-  const revenueRow = revenueResult.rows[0] || {};
+  const bookingsNowRow = bookingsNowResult.rows[0] || {};
+  const rentalsNowRow = rentalsNowResult.rows[0] || {};
   const servicesRow = servicesResult.rows[0] || {};
   const equipmentRow = equipmentResult.rows[0] || {};
   const customersRow = customersResult.rows[0] || {};
@@ -432,8 +458,8 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
   const lessons = {
     total: toNumber(bookingsRow.total),
     completed: toNumber(bookingsRow.completed),
-    upcoming: toNumber(bookingsRow.upcoming),
-    active: toNumber(bookingsRow.active),
+    upcoming: toNumber(bookingsNowRow.upcoming),
+    active: toNumber(bookingsNowRow.active),
     cancelled: toNumber(bookingsRow.cancelled),
     totalHours: toNumber(bookingsRow.total_hours),
     completedHours: toNumber(bookingsRow.completed_hours),
@@ -449,8 +475,8 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
 
   const rentals = {
     total: toNumber(rentalsRow.total),
-    active: toNumber(rentalsRow.active),
-    upcoming: toNumber(rentalsRow.upcoming),
+    active: toNumber(rentalsNowRow.active),
+    upcoming: toNumber(rentalsNowRow.upcoming),
     completed: toNumber(rentalsRow.completed),
     totalRevenue: toNumber(rentalsRow.total_revenue),
     paidRevenue: toNumber(rentalsRow.paid_revenue)
@@ -462,16 +488,26 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
   }));
 
   const managerCommissionTotal = toNumber((managerCommResult.rows[0] || {}).total);
+  // Headline money comes from the shared finance totals (same definition as
+  // GET /finances/summary), replacing the legacy `transactions` table that no
+  // code writes any more (it made Net Revenue "0 − manager commission").
+  //   income       = total revenue of services consumed
+  //   expenses     = −(refunds + instructor commission + manager commission), money out
+  //   net          = revenue − refunds − instructor commission − manager commission
+  //                  (the "Net Revenue" of the Finances page and the /dashboard KPI)
+  //   transactions = wallet ledger rows counted by /finances/summary
   const revenue = {
-    transactions: toNumber(revenueRow.total_transactions),
-    income: toNumber(revenueRow.income),
-    expenses: toNumber(revenueRow.expenses),
-    // Net here is the source-of-truth front-desk net: subtract manager commission
-    // (which is owed to the manager and is therefore an expense from the centre's POV).
-    net: toNumber(revenueRow.net) - managerCommissionTotal,
-    serviceRevenue: toNumber(revenueRow.service_revenue),
-    rentalRevenue: toNumber(revenueRow.rental_revenue),
-    instructorPayouts: toNumber(revenueRow.instructor_payouts),
+    transactions: financeTotals.transactions,
+    income: financeTotals.totalRevenue,
+    expenses: new Decimal(financeTotals.refunds).plus(financeTotals.instructorCommission)
+      .plus(financeTotals.managerCommission).negated().toDecimalPlaces(2).toNumber(),
+    net: financeTotals.net,
+    refunds: financeTotals.refunds,
+    serviceRevenue: financeTotals.lessonRevenue,
+    rentalRevenue: financeTotals.rentalRevenue,
+    // Earned by instructors on completed lessons in the range (lesson finance
+    // ledger); previously read from the empty legacy table, so always 0.
+    instructorPayouts: financeTotals.instructorCommission,
     instructorCommissions: totalInstructorCommissions,
     managerCommission: managerCommissionTotal,
     grossLessonRevenue: totalGrossLessonRevenue
@@ -519,6 +555,7 @@ export async function getDashboardSummary({ startDate, endDate } = {}) {
   }));
   const membership = {
     totalActive: membershipRows.reduce((s, m) => s + m.activeCount, 0),
+    newInRange: membershipRows.reduce((s, m) => s + m.totalPurchased, 0),
     offeringBreakdown: membershipRows,
   };
 

@@ -742,7 +742,7 @@
       "startTimeLabel": "Hora de inicio",
       "startTimeRequired": "La hora de inicio es obligatoria (HH:MM)",
       "useDefaultRate": "Tarifa predeterminada",
-      "closedByManagerHint": "Tu responsable cierra la clase cuando termina."
+      "closedByManagerHint": "Tu responsable confirma la clase, registra la llegada del alumno y cierra la clase."
     },
     "groupDetail": {
       "title": "Reserva grupal",

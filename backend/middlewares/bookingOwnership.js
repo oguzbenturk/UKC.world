@@ -348,10 +348,11 @@ export function requireSwapOwnership() {
 
 // ─── Lesson closing (complete / check-out / no-show) is STAFF-ONLY ───────────
 //
-// Owner decision 2026-10-08: instructors run the lesson (check-in stays allowed)
-// but never close it — completing, checking out or marking a no-show is what
-// triggers earnings, commissions and package/billing finalisation, so the
-// manager does it after the lesson ends.
+// Owner decision 2026-10-08: instructors never close a lesson — completing,
+// checking out or marking a no-show is what triggers earnings, commissions and
+// package/billing finalisation, so the manager does it after the lesson ends.
+// Later the same day: check-in and every other status change (confirming
+// included) became staff-only too — see "Lesson status is STAFF-ONLY" below.
 
 export const INSTRUCTOR_CANNOT_COMPLETE = 'INSTRUCTOR_CANNOT_COMPLETE';
 
@@ -414,6 +415,60 @@ export const instructorCannotComplete = (res, fields = ['status']) =>
     fields,
   });
 
+// ─── Lesson status (confirm / check-in / any status change) is STAFF-ONLY ────
+//
+// Owner decision 2026-10-08: an instructor may only BOOK a lesson, and it stays
+// in the pending stage. Confirming it, checking the student in and every later
+// status change is done by staff. (Closing statuses keep their own, more
+// specific error above.)
+
+export const INSTRUCTOR_LESSON_STAFF_ONLY = 'INSTRUCTOR_LESSON_STAFF_ONLY';
+
+/** Check-in columns on bookings — written only by staff. */
+export const CHECKIN_FIELDS = Object.freeze(['checkin_status', 'checkin_time', 'checkin_notes']);
+
+/** Statuses a booking created by an instructor may start in. */
+const PENDING_STAGE_STATUSES = Object.freeze(['pending', 'pending_partner']);
+export const isPendingStageStatus = (status) => PENDING_STAGE_STATUSES.includes(normaliseStatus(status));
+
+/**
+ * PUT /bookings/:id body check for instructor-scoped callers: any change of
+ * `status` or of the check-in columns. Echoing the current value back is
+ * allowed (edit forms send the whole booking). [] = allowed; always [] for
+ * every other role. Run after findInstructorLessonClosingChanges so closing
+ * attempts keep the INSTRUCTOR_CANNOT_COMPLETE code.
+ */
+export function findInstructorLessonStatusChanges(req, currentBooking, body = req.body || {}) {
+  if (!isInstructorScopedRequest(req)) return [];
+  const current = currentBooking || {};
+  const blocked = [];
+  if (body.status != null && body.status !== ''
+      && normaliseStatus(body.status) !== normaliseStatus(current.status)) {
+    blocked.push('status');
+  }
+  if (body.checkin_status != null && body.checkin_status !== ''
+      && normaliseStatus(body.checkin_status) !== normaliseStatus(current.checkin_status || 'pending')) {
+    blocked.push('checkin_status');
+  }
+  if (body.checkin_time != null && body.checkin_time !== ''
+      && !sameInstant(body.checkin_time, current.checkin_time)) {
+    blocked.push('checkin_time');
+  }
+  if (body.checkin_notes != null
+      && String(body.checkin_notes) !== String(current.checkin_notes ?? '')) {
+    blocked.push('checkin_notes');
+  }
+  return blocked;
+}
+
+/** 403 for an instructor-scoped attempt to confirm / check in / change a lesson's status. */
+export const instructorLessonStaffOnly = (res, fields = ['status']) =>
+  res.status(403).json({
+    error: 'Instructors can book lessons as pending only. Your manager confirms lessons and checks students in.',
+    code: INSTRUCTOR_LESSON_STAFF_ONLY,
+    fields,
+  });
+
 // ─── Booking creation by instructor-scoped roles ─────────────────────────────
 //
 // Owner decision 2026-10-08: an instructor may create a booking ONLY for
@@ -441,18 +496,21 @@ const CREATE_SHAPES = {
     students: (b) => [b.student_user_id, ...(b.partner_user_id ? [b.partner_user_id] : [])],
     requireStudents: true,
     checkout: (b) => b.checkout_status,
+    checkinKeys: ['checkin_status', 'checkin_time'],
   },
   calendar: {
     instructorKey: 'instructorId',
     students: (b) => (b.user && typeof b.user === 'object' ? [b.user.id] : []),
     requireStudents: false, // no `user` at all → the route answers 400
     checkout: (b) => b.checkoutStatus ?? b.checkout_status,
+    checkinKeys: ['checkinStatus', 'checkin_status', 'checkinTime', 'checkin_time'],
   },
   group: {
     instructorKey: 'instructor_user_id',
     students: (b) => (Array.isArray(b.participants) ? b.participants.map((p) => p?.userId ?? p?.user_id) : []),
     requireStudents: false, // empty participants → the route answers 400
     checkout: (b) => b.checkout_status,
+    checkinKeys: ['checkin_status', 'checkin_time'],
   },
 };
 
@@ -481,7 +539,10 @@ const existingStudentsOnly = (res) =>
  * participant to be an existing active user (403
  * INSTRUCTOR_EXISTING_STUDENTS_ONLY — no inline new customers or guests),
  * rejects closing statuses / a check-out state (403 INSTRUCTOR_CANNOT_COMPLETE)
- * and staff price overrides (403 INSTRUCTOR_FIELD_FORBIDDEN). On the single
+ * and staff price overrides (403 INSTRUCTOR_FIELD_FORBIDDEN). The booking always
+ * starts in the pending stage: any other status (e.g. 'confirmed',
+ * 'checked-in') is replaced by 'pending' and check-in state is dropped, so a
+ * staff member confirms and checks in. On the single
  * route a client-sent `amount`/`final_amount` is dropped so the server prices
  * the lesson from the service (the calendar route already re-prices).
  */
@@ -508,6 +569,8 @@ export function enforceInstructorBookingCreate(shapeName) {
     if (checkout != null && checkout !== '' && normaliseStatus(checkout) !== 'pending') {
       return instructorCannotComplete(res, ['checkout_status']);
     }
+    if (!isPendingStageStatus(body.status)) body.status = 'pending';
+    shape.checkinKeys.forEach((key) => { delete body[key]; });
 
     const priceOverrides = INSTRUCTOR_CREATE_PRICE_OVERRIDES.filter((f) => {
       const v = body[f];

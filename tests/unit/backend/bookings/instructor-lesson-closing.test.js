@@ -21,7 +21,10 @@ const tok = {};
 const NEW_CUSTOMER_EMAIL = `walkin-${RUN}@closing.test`;
 // idx_bookings_no_overlap is unique per instructor/date/start — one day per fixture
 let day = 0;
-const nextDate = () => `2031-05-${String(++day).padStart(2, '0')}`;
+const nextDate = () => {
+  const d = new Date(Date.UTC(2031, 4, 1 + day++));
+  return d.toISOString().slice(0, 10);
+};
 
 const token = (id, role) =>
   jwt.sign({ id, email: `${role}-${RUN}@closing.test`, role }, process.env.JWT_SECRET || 'plannivo-jwt-secret-key', { expiresIn: '1h' });
@@ -128,6 +131,17 @@ describe('PATCH /api/bookings/:id/status — closing a lesson is staff-only', ()
     expect((await row(id)).status).toBe('confirmed');
   });
 
+  test.each(['confirmed', 'pending', 'checked-in'])(
+    'instructor cannot set "%s" either — every status change is staff-only (403 INSTRUCTOR_LESSON_STAFF_ONLY)',
+    async (status) => {
+      const id = await addBooking(ids.a, { status: 'pending' });
+      const res = await request(app).patch(`/api/bookings/${id}/status`).set(auth(tok.a)).send({ status });
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('INSTRUCTOR_LESSON_STAFF_ONLY');
+      expect((await row(id)).status).toBe('pending');
+    },
+  );
+
   test('manager can complete any lesson', async () => {
     const id = await addBooking(ids.a);
     const res = await request(app).patch(`/api/bookings/${id}/status`).set(auth(tok.manager)).send({ status: 'completed' });
@@ -136,7 +150,7 @@ describe('PATCH /api/bookings/:id/status — closing a lesson is staff-only', ()
   });
 });
 
-describe('PUT /api/bookings/:id — check-out fields are staff-only, check-in is not', () => {
+describe('PUT /api/bookings/:id — status, check-in and check-out are staff-only', () => {
   test.each([
     [{ status: 'completed' }, 'status'],
     [{ status: 'no_show' }, 'status'],
@@ -158,9 +172,26 @@ describe('PUT /api/bookings/:id — check-out fields are staff-only, check-in is
     expect(after.checkout_time).toBeNull();
   });
 
-  test('instructor can still check in on own lesson (status checked-in + check-in fields)', async () => {
+  test.each([
+    [{ status: 'checked-in', checkin_status: 'checked-in', checkin_time: '2031-05-01T09:00:00.000Z' }, 'status'],
+    [{ checkin_status: 'checked-in' }, 'checkin_status'],
+    [{ checkin_time: '2031-05-01T09:00:00.000Z' }, 'checkin_time'],
+    [{ checkin_notes: 'arrived' }, 'checkin_notes'],
+    [{ status: 'confirmed' }, 'status'],
+  ])('instructor cannot check in / change the status of own lesson via PUT %j', async (body, field) => {
+    const id = await addBooking(ids.a, { status: 'pending' });
+    const res = await request(app).put(`/api/bookings/${id}`).set(auth(tok.a)).send(body);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('INSTRUCTOR_LESSON_STAFF_ONLY');
+    expect(res.body.fields).toContain(field);
+    const after = await row(id);
+    expect(after.status).toBe('pending');
+    expect(after.checkin_status).toBe('pending');
+  });
+
+  test('manager can check a student in', async () => {
     const id = await addBooking(ids.a);
-    const res = await request(app).put(`/api/bookings/${id}`).set(auth(tok.a)).send({
+    const res = await request(app).put(`/api/bookings/${id}`).set(auth(tok.manager)).send({
       status: 'checked-in', checkin_status: 'checked-in', checkin_time: new Date().toISOString(),
     });
     expect(res.status).toBe(200);
@@ -169,10 +200,10 @@ describe('PUT /api/bookings/:id — check-out fields are staff-only, check-in is
     expect(after.checkin_status).toBe('checked-in');
   });
 
-  test('echoing the current checkout state back (e.g. a notes edit) is allowed', async () => {
+  test('echoing the current status / check-in / checkout state back (e.g. a notes edit) is allowed', async () => {
     const id = await addBooking(ids.a);
     const res = await request(app).put(`/api/bookings/${id}`).set(auth(tok.a))
-      .send({ notes: 'bring wetsuit', checkout_status: 'pending', status: 'confirmed' });
+      .send({ notes: 'bring wetsuit', checkout_status: 'pending', checkin_status: 'pending', status: 'confirmed' });
     expect(res.status).toBe(200);
   });
 
@@ -236,18 +267,20 @@ describe('Instructor booking creation — own lessons, existing students only', 
     expect(res.body.code).toBe('INSTRUCTOR_FIELD_FORBIDDEN');
   });
 
-  test('POST /bookings/calendar for self with an existing student → 201 (instructor pinned to self)', async () => {
-    const body = calendarBody();
+  test('POST /bookings/calendar for self with an existing student → 201, pending, not checked in', async () => {
+    // A check-in sent by the client is dropped: the lesson starts in the pending stage.
+    const body = calendarBody({ checkinStatus: 'checked-in' });
     delete body.instructorId; // filled in with the caller's id
     const res = await request(app).post('/api/bookings/calendar').set(auth(tok.a)).send(body);
     expect(res.status).toBe(201);
     const { rows: [created] } = await pool.query(
-      'SELECT instructor_user_id, student_user_id, status FROM bookings WHERE id = $1',
+      'SELECT instructor_user_id, student_user_id, status, checkin_status FROM bookings WHERE id = $1',
       [res.body.id || res.body.bookingId],
     );
     expect(created.instructor_user_id).toBe(ids.a);
     expect(created.student_user_id).toBe(ids.student);
-    expect(created.status).not.toBe('completed');
+    expect(created.status).toBe('pending');
+    expect(created.checkin_status).toBe('pending');
   });
 
   test('POST /bookings/group for another instructor → 403 INSTRUCTOR_OWN_BOOKINGS_ONLY', async () => {
@@ -336,5 +369,40 @@ describe('findInstructorLessonClosingChanges / isLessonClosingStatus (unit)', ()
       .toEqual(['status', 'checkout_status', 'checkout_time', 'checkout_notes']);
     const checkIn = { user: { id: 'i1', role: 'instructor' }, body: { status: 'checked-in', checkin_status: 'checked-in' } };
     expect(ownership.findInstructorLessonClosingChanges(checkIn, { status: 'confirmed' })).toEqual([]);
+  });
+});
+
+describe('findInstructorLessonStatusChanges / create coercion (unit)', () => {
+  const current = { status: 'pending', checkin_status: 'pending', checkin_time: null, checkin_notes: null };
+  const instructor = (body) => ({ user: { id: 'i1', role: 'instructor' }, body });
+
+  test('instructor: any status change and check-in fields are blocked; echoes pass', () => {
+    expect(ownership.findInstructorLessonStatusChanges(instructor({
+      status: 'confirmed', checkin_status: 'checked-in', checkin_time: '2031-01-01T09:00:00Z', checkin_notes: 'x', notes: 'n',
+    }), current)).toEqual(['status', 'checkin_status', 'checkin_time', 'checkin_notes']);
+    expect(ownership.findInstructorLessonStatusChanges(instructor({ status: 'pending', checkin_status: 'pending', checkin_notes: '' }), current))
+      .toEqual([]);
+  });
+
+  test('no-op for staff roles', () => {
+    for (const role of ['admin', 'manager', 'owner', 'receptionist', 'front_desk']) {
+      const req = { user: { id: 'x', role }, body: { status: 'checked-in', checkin_status: 'checked-in' } };
+      expect(ownership.findInstructorLessonStatusChanges(req, current)).toEqual([]);
+    }
+  });
+
+  test('create: non-pending status becomes pending and check-in state is dropped', async () => {
+    const req = instructor({ status: 'confirmed', checkinStatus: 'checked-in', checkin_status: 'checked-in', checkinTime: 'x' });
+    let called = false;
+    await ownership.enforceInstructorBookingCreate('calendar')(req, {}, () => { called = true; });
+    expect(called).toBe(true);
+    expect(req.body.status).toBe('pending');
+    expect(req.body).not.toHaveProperty('checkinStatus');
+    expect(req.body).not.toHaveProperty('checkin_status');
+    expect(req.body).not.toHaveProperty('checkinTime');
+
+    const partner = instructor({ status: 'pending_partner' });
+    await ownership.enforceInstructorBookingCreate('calendar')(partner, {}, () => {});
+    expect(partner.body.status).toBe('pending_partner');
   });
 });

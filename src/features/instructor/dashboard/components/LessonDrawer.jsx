@@ -154,18 +154,23 @@ function DrawerBody({ lesson, initialNote, busy, canClose, onCheckIn, onCheckOut
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
         <CheckStatus lesson={lesson} />
-        {/* Closing a lesson (check out) is staff-only; instructors get a hint instead. */}
-        {!done && (checkedIn ? (canClose ? (
-          <button type="button" onClick={() => onCheckOut(lesson)} disabled={busy} className={`${primaryButtonClass} h-11 text-sm`}>
-            {busy ? t('instructor:myDay.actions.saving') : t('instructor:myDay.actions.checkOut')}
+        {/* Check in and check out are staff-only; instructors get a hint instead. */}
+        {!done && !canClose && (
+          <p data-testid={checkedIn ? 'close-hint' : 'checkin-hint'} className="text-sm text-slate-600">
+            {checkedIn ? t('instructor:myDay.closeHint') : t('instructor:myDay.checkInHint')}
+          </p>
+        )}
+        {!done && canClose && (
+          <button
+            type="button"
+            onClick={() => (checkedIn ? onCheckOut(lesson) : onCheckIn(lesson))}
+            disabled={busy}
+            className={`${primaryButtonClass} h-11 text-sm`}
+          >
+            {busy && t('instructor:myDay.actions.saving')}
+            {!busy && (checkedIn ? t('instructor:myDay.actions.checkOut') : t('instructor:myDay.actions.checkIn'))}
           </button>
-        ) : (
-          <p data-testid="close-hint" className="text-sm text-slate-600">{t('instructor:myDay.closeHint')}</p>
-        )) : (
-          <button type="button" onClick={() => onCheckIn(lesson)} disabled={busy} className={`${primaryButtonClass} h-11 text-sm`}>
-            {busy ? t('instructor:myDay.actions.saving') : t('instructor:myDay.actions.checkIn')}
-          </button>
-        ))}
+        )}
       </div>
 
       <section aria-labelledby="drawer-participants">

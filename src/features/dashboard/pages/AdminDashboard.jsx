@@ -1,7 +1,7 @@
 // src/features/dashboard/pages/AdminDashboard.jsx
 import { useState, useCallback, memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Row, Col, Alert, Spin, Button, Tooltip, Modal, Card, Dropdown } from 'antd';
+import { Row, Col, Alert, Spin, Button, Tooltip, Card, Dropdown } from 'antd';
 import {
   SettingOutlined,
   DownOutlined,
@@ -52,11 +52,14 @@ const resolveRange = (dateRange) => {
   return { start, end };
 };
 
-const getCompletionRateLabel = (kpis) => {
+// Completed ÷ (completed + cancelled): lessons still to come (e.g. later today)
+// are not counted as "not completed".
+const getCompletionRateLabel = (kpis, operationalKpis) => {
   const completed = Number(kpis?.completedBookings || 0);
-  const total = Number(kpis?.totalBookings || 0);
-  if (!total) return '—';
-  return `${((completed / total) * 100).toFixed(1)}%`;
+  const cancelled = Number(operationalKpis?.cancelledBookings || 0);
+  const decided = completed + cancelled;
+  if (!decided) return '—';
+  return `${((completed / decided) * 100).toFixed(1)}%`;
 };
 
 const formatCategoryBreakdown = (breakdown) => {
@@ -76,15 +79,19 @@ const formatRentalBreakdown = (breakdown) => {
 };
 
 const getHighlightStats = (kpis, operationalKpis, currencySymbol) => {
-  const completionRate = getCompletionRateLabel(kpis);
+  const completionRate = getCompletionRateLabel(kpis, operationalKpis);
   const categoryLine = formatCategoryBreakdown(operationalKpis?.lessonCategoryBreakdown);
-  const avgVal = Number(kpis?.avgBookingValue || 0);
+  // Average per booking and per lesson hour both come from gross lesson revenue
+  // (completed lessons), so the two lines on this card agree with each other.
+  const completedHours = Number(operationalKpis?.completedHours || 0);
+  const completedCount = Number(kpis?.completedBookings || 0);
+  const grossLessons = Number(operationalKpis?.grossLessonRevenue || 0);
+  const avgVal = completedCount > 0 ? grossLessons / completedCount : 0;
   const avgLine = avgVal > 0 ? `Avg ${currencySymbol}${avgVal.toFixed(0)} / booking` : null;
 
   // Average realised lesson rate = gross lesson revenue ÷ completed lesson hours
   // (same completed-lessons population), shown inside this card so the hours figure
   // ("…h total") and the rate stay consistent on one card.
-  const completedHours = Number(operationalKpis?.completedHours || 0);
   const lessonHourlyRate = completedHours > 0 ? (Number(operationalKpis?.grossLessonRevenue || 0) / completedHours) : 0;
   const rateLine = lessonHourlyRate > 0 ? `${currencySymbol}${lessonHourlyRate.toFixed(2)} / lesson hour` : null;
 
@@ -107,7 +114,7 @@ const getHighlightStats = (kpis, operationalKpis, currencySymbol) => {
   const accUnits = operationalKpis?.accommodationUnitBreakdown || [];
   const accSubtitles = accBookings > 0
     ? [`${accNights} night${accNights !== 1 ? 's' : ''} • ${accUnits.length} unit${accUnits.length !== 1 ? 's' : ''}`]
-    : ['No active bookings'];
+    : ['No stays in this period'];
 
   // Membership
   const memTotal = operationalKpis?.membershipTotal || 0;
@@ -156,7 +163,6 @@ const getHighlightStats = (kpis, operationalKpis, currencySymbol) => {
 };
 
 const initialWidgetVisibility = {
-  revenueBreakdown: true,
   operationalStatus: true,
   people: true,
   revenueTrend: true,
@@ -166,7 +172,13 @@ const initialWidgetVisibility = {
 const getVisibleWidgets = () => {
   try {
     const saved = localStorage.getItem('dashboardWidgetVisibility');
-    return saved ? { ...initialWidgetVisibility, ...JSON.parse(saved) } : initialWidgetVisibility;
+    if (!saved) return initialWidgetVisibility;
+    // Keep only known widgets (e.g. the removed empty "revenueBreakdown" toggle).
+    const parsed = JSON.parse(saved);
+    const known = Object.fromEntries(Object.keys(initialWidgetVisibility)
+      .filter((k) => typeof parsed?.[k] === 'boolean')
+      .map((k) => [k, parsed[k]]));
+    return { ...initialWidgetVisibility, ...known };
   } catch {
     return initialWidgetVisibility;
   }
@@ -256,7 +268,7 @@ const DashboardHeader = memo(({
                <Link to="/rentals" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-violet-400 hover:text-violet-600 transition-colors">
                  <PlusCircleOutlined /> Rental
                </Link>
-               <Link to="/calendar/lessons" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
+               <Link to="/calendars/lessons" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
                  <CalendarOutlined /> Calendar
                </Link>
                <Link to="/proposals" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:border-teal-400 hover:text-teal-600 transition-colors">
@@ -433,17 +445,6 @@ const InsightsRow = memo(({
 
 InsightsRow.displayName = 'InsightsRow';
 
-// Phase 2: Revenue Breakdown Row
-const RevenueBreakdownRow = memo(({ isVisible, kpis, loading, currencySymbol, onShowModal }) => {
-  if (!isVisible) return null;
-
-  return (
-    <Row gutter={[24, 24]}>
-    </Row>
-  );
-});
-RevenueBreakdownRow.displayName = 'RevenueBreakdownRow';
-
 // Phase 2: Operational Status Row
 const OperationalStatusRow = memo(({ isVisible, operationalKpis, kpis, loading, currencySymbol }) => {
   if (!isVisible) return null;
@@ -602,7 +603,6 @@ const DashboardBody = memo(({
   operationalKpis,
   trendData,
   instructorData,
-  onShowModal,
   currencySymbol,
 }) => (
   <div className="relative px-4 py-8 sm:px-6 lg:px-8">
@@ -632,14 +632,6 @@ const DashboardBody = memo(({
             />
           </Card>
         )}
-
-        <RevenueBreakdownRow
-          isVisible={visibleWidgets.revenueBreakdown}
-          kpis={kpis}
-          loading={loading}
-          currencySymbol={currencySymbol}
-          onShowModal={onShowModal}
-        />
 
         <OperationalStatusRow
           isVisible={visibleWidgets.operationalStatus}
@@ -706,17 +698,8 @@ export default function AdminDashboard() {
     fetchAll,
   } = useDashboardData();
 
-  const [modalInfo, setModalInfo] = useState({ visible: false, title: '', content: null });
   const [customizeMode, setCustomizeMode] = useState(false);
   const [visibleWidgets, setVisibleWidgets] = useState(getVisibleWidgets());
-
-  const handleShowModal = useCallback((title, data) => {
-    setModalInfo({ visible: true, title, content: data });
-  }, []);
-
-  const handleCancelModal = useCallback(() => {
-    setModalInfo({ visible: false, title: '', content: null });
-  }, []);
 
   const handleWidgetVisibilityChange = useCallback((widget, isVisible) => {
     setVisibleWidgets(prev => {
@@ -734,8 +717,8 @@ export default function AdminDashboard() {
         startDate = moment();
         endDate = moment();
     } else if (preset === 'week') {
-      startDate = moment().startOf('week');
-      endDate = moment().endOf('week');
+      startDate = moment().startOf('isoWeek');
+      endDate = moment().endOf('isoWeek');
     } else if (preset === 'month') {
       startDate = moment().startOf('month');
       endDate = moment().endOf('month');
@@ -811,7 +794,6 @@ export default function AdminDashboard() {
           operationalKpis={operationalKpis}
           trendData={trendData}
           instructorData={instructorData}
-          onShowModal={handleShowModal}
           currencySymbol={currencySymbol || (businessCurrency === 'TRY' ? '₺' : '€')}
         />
       </div>
@@ -822,26 +804,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <Modal
-        title={modalInfo.title}
-        open={modalInfo.visible}
-        onCancel={handleCancelModal}
-        footer={null}
-        className="modern-modal"
-      >
-        {modalInfo.content && (
-          <div className="space-y-4 pt-4">
-            {Object.entries(modalInfo.content).map(([key, value]) => (
-              <div key={key} className="flex justify-between items-center border-b pb-2">
-                <span className="text-gray-600">{key}</span>
-                <span className="font-semibold text-lg">
-                  {typeof value === 'number' ? formatCurrency(value) : value}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
+
     </div>
   );
 }

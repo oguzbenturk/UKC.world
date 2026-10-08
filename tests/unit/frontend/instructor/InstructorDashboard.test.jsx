@@ -226,7 +226,8 @@ describe('InstructorDashboard ("My day")', () => {
     expect(screen.queryByTestId('attention')).not.toBeInTheDocument();
   });
 
-  it('check-in from the hero calls PUT /bookings/:id with the check-in fields', async () => {
+  it('staff: check-in from the hero calls PUT /bookings/:id with the check-in fields', async () => {
+    authState.role = 'manager';
     renderPage();
     const hero = await screen.findByTestId('next-lesson');
     fireEvent.click(within(hero).getByRole('button', { name: 'Check in' }));
@@ -257,12 +258,18 @@ describe('InstructorDashboard ("My day")', () => {
     expect(apiMock.put).not.toHaveBeenCalled();
   });
 
-  it('instructor drawer still offers Check in for a lesson that has not started', async () => {
+  it('instructor: no Check in anywhere (hero + drawer) — the manager checks the student in', async () => {
     renderPage();
-    fireEvent.click(await screen.findByTestId('timeline-row-b-3'));
+    const hero = await screen.findByTestId('next-lesson');
+    expect(within(hero).queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument();
+    expect(within(hero).getByTestId('checkin-hint')).toHaveTextContent('Your manager checks the student in when the lesson starts.');
+
+    fireEvent.click(screen.getByTestId('timeline-row-b-3'));
     expect(await screen.findByText('Participants (2)')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Check in' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByRole('button', { name: 'Check in' })).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Check out' })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('checkin-hint').length).toBeGreaterThanOrEqual(2);
+    expect(apiMock.put).not.toHaveBeenCalled();
   });
 
   it('staff (manager) viewing the page keeps Check out (status completed + checkout fields)', async () => {

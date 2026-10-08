@@ -13,6 +13,7 @@ import { getManagerDashboard } from '../services/managerCommissionApi';
 import { formatCurrency } from '@/shared/utils/formatters';
 import { useDashboardData } from '@/features/dashboard/hooks/useDashboardData';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
+import { useAuth } from '@/shared/hooks/useAuth';
 import KpiCard from '@/features/dashboard/components/KpiCard';
 import StatBox from '../components/finance/StatBox';
 
@@ -54,10 +55,15 @@ function SectionCard({ title, icon, children, action }) {
 export default function ManagerHomeDashboard() {
   const { t } = useTranslation(['manager', 'proposal']);
   const { businessCurrency, getCurrencySymbol } = useCurrency();
-  const [earningsLoading, setEarningsLoading] = useState(true);
+  const { user } = useAuth();
+  // GET /manager/commissions/dashboard is manager-only (admin gets 403), so the
+  // personal earnings card is only for managers; admins see a short note.
+  const isManager = String(user?.role || '').toLowerCase() === 'manager';
+  const [earningsLoading, setEarningsLoading] = useState(isManager);
   const [earnings, setEarnings] = useState(null);
 
   const fetchEarnings = useCallback(async () => {
+    if (!isManager) return;
     setEarningsLoading(true);
     try {
       const response = await getManagerDashboard();
@@ -67,7 +73,7 @@ export default function ManagerHomeDashboard() {
     } finally {
       setEarningsLoading(false);
     }
-  }, [t]);
+  }, [t, isManager]);
 
   useEffect(() => { fetchEarnings(); }, [fetchEarnings]);
 
@@ -82,6 +88,13 @@ export default function ManagerHomeDashboard() {
   const { currentPeriod, previousPeriod, yearToDate, comparison } = earnings || {};
   const changePercent = parseFloat(comparison?.earningsChangePercent) || 0;
   const isUp = changePercent >= 0;
+  // Commission amounts are stored in their commission currency (EUR today);
+  // format them in the currency the API reports, not a hard-coded one.
+  const earningsCurrency = currentPeriod?.currency || yearToDate?.currency || businessCurrency || 'EUR';
+  // Month-to-date comparisons are against the same days of last month.
+  const compareAmount = comparison?.basis === 'month_to_date'
+    ? comparison?.previousEarned
+    : previousPeriod?.totalEarned;
 
   const lowStock = useMemo(() => {
     const total = operationalKpis?.equipmentTotal || 0;
@@ -118,58 +131,66 @@ export default function ManagerHomeDashboard() {
           </div>
         </div>
 
-        {/* Personal Earnings — Top */}
-        <SectionCard
-          title={t('manager:home.earnings.title', 'My Earnings')}
-          icon={<DollarOutlined className="text-green-500" />}
-          action={
-            <Link
-              to="/manager/finance/earnings"
-              className="text-xs font-medium text-sky-600 hover:text-sky-700 flex items-center gap-1"
-            >
-              {t('manager:home.earnings.viewDetails', 'View earnings details')} <ArrowRightOutlined />
-            </Link>
-          }
-        >
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatBox
-              label={t('manager:dashboard.stats.thisMonth')}
-              value={formatCurrency(currentPeriod?.totalEarned || 0, 'EUR')}
-              sub={t('manager:dashboard.stats.bookingsRentals', {
-                bookings: currentPeriod?.breakdown?.bookings?.count || 0,
-                rentals: currentPeriod?.breakdown?.rentals?.count || 0,
-              })}
-              color="text-green-600"
-              border="border-green-100"
-            />
-            <StatBox
-              label={t('manager:dashboard.stats.pendingPayout')}
-              value={formatCurrency(currentPeriod?.pending?.amount || 0, 'EUR')}
-              sub={t('manager:dashboard.stats.transactions', { count: currentPeriod?.pending?.count || 0 })}
-              color="text-amber-600"
-              border="border-amber-100"
-            />
-            <StatBox
-              label={t('manager:dashboard.stats.yearToDate')}
-              value={formatCurrency(yearToDate?.totalEarned || 0, 'EUR')}
-              sub={`${t('manager:detailPanel.profile.paid', 'Paid')}: ${formatCurrency(yearToDate?.paid?.amount || 0, 'EUR')}`}
-              color="text-blue-600"
-              border="border-blue-100"
-            />
-            <div className={`rounded-xl border ${isUp ? 'border-green-100' : 'border-red-100'} bg-white p-4 min-w-0 shadow-sm`}>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
-                {t('manager:dashboard.stats.vsLastMonth')}
-              </div>
-              <div className={`text-xl font-bold flex items-center gap-1 ${isUp ? 'text-green-600' : 'text-red-500'}`}>
-                {isUp ? <RiseOutlined /> : <FallOutlined />}
-                {isUp ? '+' : ''}{changePercent.toFixed(1)}%
-              </div>
-              <div className="text-[11px] text-gray-400 mt-1 truncate">
-                {t('manager:dashboard.stats.prevMonth', { amount: formatCurrency(previousPeriod?.totalEarned || 0, 'EUR') })}
+        {/* Personal Earnings — Top (managers only: the earnings API is manager-only) */}
+        {isManager ? (
+          <SectionCard
+            title={t('manager:home.earnings.title', 'My Earnings')}
+            icon={<DollarOutlined className="text-green-500" />}
+            action={
+              <Link
+                to="/manager/finance/earnings"
+                className="text-xs font-medium text-sky-600 hover:text-sky-700 flex items-center gap-1"
+              >
+                {t('manager:home.earnings.viewDetails', 'View earnings details')} <ArrowRightOutlined />
+              </Link>
+            }
+          >
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatBox
+                label={t('manager:dashboard.stats.thisMonth')}
+                value={formatCurrency(currentPeriod?.totalEarned || 0, earningsCurrency)}
+                sub={t('manager:dashboard.stats.bookingsRentals', {
+                  bookings: currentPeriod?.breakdown?.bookings?.count || 0,
+                  rentals: currentPeriod?.breakdown?.rentals?.count || 0,
+                })}
+                color="text-green-600"
+                border="border-green-100"
+              />
+              <StatBox
+                label={t('manager:dashboard.stats.pendingPayout')}
+                value={formatCurrency(currentPeriod?.pending?.amount || 0, earningsCurrency)}
+                sub={t('manager:dashboard.stats.transactions', { count: currentPeriod?.pending?.count || 0 })}
+                color="text-amber-600"
+                border="border-amber-100"
+              />
+              <StatBox
+                label={t('manager:dashboard.stats.yearToDate')}
+                value={formatCurrency(yearToDate?.totalEarned || 0, earningsCurrency)}
+                sub={`${t('manager:detailPanel.profile.paid', 'Paid')}: ${formatCurrency(yearToDate?.paid?.amount || 0, earningsCurrency)}`}
+                color="text-blue-600"
+                border="border-blue-100"
+              />
+              <div className={`rounded-xl border ${isUp ? 'border-green-100' : 'border-red-100'} bg-white p-4 min-w-0 shadow-sm`}>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
+                  {t('manager:dashboard.stats.vsLastMonth')}
+                </div>
+                <div className={`text-xl font-bold flex items-center gap-1 ${isUp ? 'text-green-600' : 'text-red-500'}`}>
+                  {isUp ? <RiseOutlined /> : <FallOutlined />}
+                  {isUp ? '+' : ''}{changePercent.toFixed(1)}%
+                </div>
+                <div className="text-[11px] text-gray-400 mt-1 truncate">
+                  {comparison?.basis === 'month_to_date'
+                    ? t('manager:dashboard.stats.prevSameDays', { amount: formatCurrency(compareAmount || 0, earningsCurrency) })
+                    : t('manager:dashboard.stats.prevMonth', { amount: formatCurrency(compareAmount || 0, earningsCurrency) })}
+                </div>
               </div>
             </div>
-          </div>
-        </SectionCard>
+          </SectionCard>
+        ) : (
+          <p data-testid="earnings-managers-only" className="m-0 rounded-2xl border border-slate-100 bg-white px-5 py-4 text-sm text-slate-500 shadow-sm">
+            {t('manager:home.earnings.managersOnly', 'Personal earnings are shown to managers only.')}
+          </p>
+        )}
 
         {/* Quick Links */}
         <SectionCard
@@ -189,12 +210,14 @@ export default function ManagerHomeDashboard() {
               label={t('manager:home.quickLinks.viewCalendar', 'View Calendar')}
               accent="emerald"
             />
-            <QuickLink
-              to="/manager/finance/earnings"
-              icon={<DollarOutlined />}
-              label={t('manager:home.quickLinks.myEarnings', 'My Earnings')}
-              accent="violet"
-            />
+            {isManager && (
+              <QuickLink
+                to="/manager/finance/earnings"
+                icon={<DollarOutlined />}
+                label={t('manager:home.quickLinks.myEarnings', 'My Earnings')}
+                accent="violet"
+              />
+            )}
             <QuickLink
               to="/manager/finance/upcoming"
               icon={<RiseOutlined />}

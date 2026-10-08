@@ -16,7 +16,8 @@ const BookingDetailModal = ({ visible, onClose, bookingId, onBookingUpdated, onB
   const [form] = Form.useForm();
   const { formatCurrency, businessCurrency } = useCurrency();
   const { user } = useAuth();
-  // Completing a lesson is staff-only (backend: 403 INSTRUCTOR_CANNOT_COMPLETE).
+  // Lesson status and check-in are staff-only (backend: 403
+  // INSTRUCTOR_LESSON_STAFF_ONLY / INSTRUCTOR_CANNOT_COMPLETE) — read-only for instructors.
   const canClose = canCloseLessons(user?.role);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -383,9 +384,9 @@ const BookingDetailModal = ({ visible, onClose, bookingId, onBookingUpdated, onB
                 name="status"
                 rules={[{ required: true, message: 'Please select status' }]}
               >
-                <Select>
+                <Select disabled={!canClose}>
                   <Option value="scheduled">Scheduled</Option>
-                  <Option value="completed" disabled={!canClose}>Completed</Option>
+                  <Option value="completed">Completed</Option>
                   <Option value="cancelled">Cancelled</Option>
                 </Select>
               </Form.Item>
@@ -410,7 +411,7 @@ const BookingDetailModal = ({ visible, onClose, bookingId, onBookingUpdated, onB
                 label="Check-in Status"
                 name="checkin_status"
               >
-                <Select>
+                <Select disabled={!canClose}>
                   <Option value="pending">Pending</Option>
                   <Option value="checked-in">Checked In</Option>
                 </Select>

@@ -81,6 +81,15 @@ function ManagerFinanceOverview() {
   }
 
   const { currentPeriod, previousPeriod, yearToDate, comparison } = dashboard || {};
+  // Commission amounts are stored in their commission currency; format them in the
+  // currency the API reports. Month-to-date compares with the same days of last month.
+  const earningsCurrency = currentPeriod?.currency || yearToDate?.currency || 'EUR';
+  const compareAmount = comparison?.basis === 'month_to_date'
+    ? comparison?.previousEarned
+    : previousPeriod?.totalEarned;
+  const compareLabel = comparison?.basis === 'month_to_date'
+    ? t('manager:dashboard.stats.prevSameDays', { amount: formatCurrency(compareAmount || 0, earningsCurrency) })
+    : t('manager:dashboard.stats.prevMonth', { amount: formatCurrency(compareAmount || 0, earningsCurrency) });
   const changePercent = parseFloat(comparison?.earningsChangePercent) || 0;
   const isUp = changePercent >= 0;
   const totalProjected = upcoming?.totalProjected ?? 0;
@@ -121,7 +130,7 @@ function ManagerFinanceOverview() {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <StatBox
           label={t('manager:finance.overview.stats.thisMonthEarned')}
-          value={formatCurrency(currentPeriod?.totalEarned || 0, 'EUR')}
+          value={formatCurrency(currentPeriod?.totalEarned || 0, earningsCurrency)}
           sub={t('manager:dashboard.stats.bookingsRentals', { bookings: currentPeriod?.breakdown?.bookings?.count || 0, rentals: currentPeriod?.breakdown?.rentals?.count || 0 })}
           color="text-green-600"
           border="border-green-100"
@@ -129,7 +138,7 @@ function ManagerFinanceOverview() {
         />
         <StatBox
           label={t('manager:finance.overview.stats.pendingPayout')}
-          value={formatCurrency(currentPeriod?.pending?.amount || 0, 'EUR')}
+          value={formatCurrency(currentPeriod?.pending?.amount || 0, earningsCurrency)}
           sub={t('manager:dashboard.stats.transactions', { count: currentPeriod?.pending?.count || 0 })}
           color="text-amber-600"
           border="border-amber-100"
@@ -137,7 +146,7 @@ function ManagerFinanceOverview() {
         />
         <StatBox
           label={t('manager:finance.overview.stats.projectedUpcoming')}
-          value={formatCurrency(totalProjected, 'EUR')}
+          value={formatCurrency(totalProjected, earningsCurrency)}
           sub={t('manager:finance.overview.stats.projectedSub', { count: upcoming?.items?.length || 0 })}
           color="text-sky-600"
           border="border-sky-100"
@@ -145,8 +154,8 @@ function ManagerFinanceOverview() {
         />
         <StatBox
           label={t('manager:finance.overview.stats.ytd')}
-          value={formatCurrency(yearToDate?.totalEarned || 0, 'EUR')}
-          sub={`${t('manager:detailPanel.profile.paid')}: ${formatCurrency(yearToDate?.paid?.amount || 0, 'EUR')}`}
+          value={formatCurrency(yearToDate?.totalEarned || 0, earningsCurrency)}
+          sub={`${t('manager:detailPanel.profile.paid')}: ${formatCurrency(yearToDate?.paid?.amount || 0, earningsCurrency)}`}
           color="text-blue-600"
           border="border-blue-100"
           icon={<BarChartOutlined className="text-blue-500" />}
@@ -160,12 +169,12 @@ function ManagerFinanceOverview() {
             {isUp ? '+' : ''}{changePercent.toFixed(1)}%
           </div>
           <div className="text-[11px] text-gray-400 mt-1 truncate">
-            {t('manager:dashboard.stats.prevMonth', { amount: formatCurrency(previousPeriod?.totalEarned || 0, 'EUR') })}
+            {compareLabel}
           </div>
         </div>
         <StatBox
           label={t('manager:finance.overview.stats.totalPayoutsReceived')}
-          value={formatCurrency(totalPayoutsReceived, 'EUR')}
+          value={formatCurrency(totalPayoutsReceived, earningsCurrency)}
           sub={t('manager:finance.overview.stats.payoutsSub', { count: paidHistory.length })}
           color="text-indigo-600"
           border="border-indigo-100"
@@ -201,12 +210,12 @@ function ManagerFinanceOverview() {
                   tickLine={false}
                   axisLine={false}
                   stroke="rgba(148,163,184,0.6)"
-                  tickFormatter={(value) => formatCurrency(value, 'EUR')}
+                  tickFormatter={(value) => formatCurrency(value, earningsCurrency)}
                   width={72}
                   fontSize={11}
                 />
                 <Tooltip
-                  formatter={(value) => [formatCurrency(value, 'EUR'), t('manager:finance.overview.trend.label')]}
+                  formatter={(value) => [formatCurrency(value, earningsCurrency), t('manager:finance.overview.trend.label')]}
                   contentStyle={{
                     backgroundColor: 'rgba(255, 255, 255, 0.97)',
                     border: '1px solid #e2e8f0',

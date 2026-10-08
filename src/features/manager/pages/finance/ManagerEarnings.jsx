@@ -87,6 +87,15 @@ function ManagerEarnings() {
   }
 
   const { settings, currentPeriod, previousPeriod, yearToDate, comparison } = dashboardData || {};
+  // Commission amounts are stored in their commission currency; format them in the
+  // currency the API reports. Month-to-date compares with the same days of last month.
+  const earningsCurrency = currentPeriod?.currency || yearToDate?.currency || 'EUR';
+  const compareAmount = comparison?.basis === 'month_to_date'
+    ? comparison?.previousEarned
+    : previousPeriod?.totalEarned;
+  const compareLabel = comparison?.basis === 'month_to_date'
+    ? t('manager:dashboard.stats.prevSameDays', { amount: formatCurrency(compareAmount || 0, earningsCurrency) })
+    : t('manager:dashboard.stats.prevMonth', { amount: formatCurrency(compareAmount || 0, earningsCurrency) });
   const salaryType = settings?.salaryType || 'commission';
   const SALARY_LABELS = {
     commission: { label: t('manager:dashboard.salaryTypes.commission'), color: 'blue', icon: <PercentageOutlined /> },
@@ -155,7 +164,7 @@ function ManagerEarnings() {
                 <Tag color="purple" className="!text-[10px] !leading-4 !px-1 !m-0">Box #{d.storage_unit}</Tag>
               )}
               {storageExcl > 0 && (
-                <span className="text-[10px] text-gray-400">storage {formatCurrency(storageExcl, 'EUR')} excl.</span>
+                <span className="text-[10px] text-gray-400">storage {formatCurrency(storageExcl, earningsCurrency)} excl.</span>
               )}
             </span>
           );
@@ -204,10 +213,10 @@ function ManagerEarnings() {
               </span>
             )}
             {salaryType === 'fixed_per_lesson' && settings?.perLessonAmount > 0 && (
-              <span className="text-xs text-gray-400">{formatCurrency(settings.perLessonAmount, 'EUR')}{t('manager:detailPanel.profile.perLesson')}</span>
+              <span className="text-xs text-gray-400">{formatCurrency(settings.perLessonAmount, earningsCurrency)}{t('manager:detailPanel.profile.perLesson')}</span>
             )}
             {salaryType === 'monthly_salary' && settings?.fixedSalaryAmount > 0 && (
-              <span className="text-xs text-gray-400">{formatCurrency(settings.fixedSalaryAmount, 'EUR')}{t('manager:detailPanel.profile.perMonth')}</span>
+              <span className="text-xs text-gray-400">{formatCurrency(settings.fixedSalaryAmount, earningsCurrency)}{t('manager:detailPanel.profile.perMonth')}</span>
             )}
           </div>
         </div>
@@ -216,22 +225,22 @@ function ManagerEarnings() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatBox
           label={t('manager:dashboard.stats.thisMonth')}
-          value={formatCurrency(currentPeriod?.totalEarned || 0, 'EUR')}
+          value={formatCurrency(currentPeriod?.totalEarned || 0, earningsCurrency)}
           sub={t('manager:dashboard.stats.bookingsRentals', { bookings: currentPeriod?.breakdown?.bookings?.count || 0, rentals: currentPeriod?.breakdown?.rentals?.count || 0 })}
           color="text-green-600"
           border="border-green-100"
         />
         <StatBox
           label={t('manager:dashboard.stats.pendingPayout')}
-          value={formatCurrency(currentPeriod?.pending?.amount || 0, 'EUR')}
+          value={formatCurrency(currentPeriod?.pending?.amount || 0, earningsCurrency)}
           sub={t('manager:dashboard.stats.transactions', { count: currentPeriod?.pending?.count || 0 })}
           color="text-amber-600"
           border="border-amber-100"
         />
         <StatBox
           label={t('manager:dashboard.stats.yearToDate')}
-          value={formatCurrency(yearToDate?.totalEarned || 0, 'EUR')}
-          sub={`${t('manager:detailPanel.profile.paid')}: ${formatCurrency(yearToDate?.paid?.amount || 0, 'EUR')}`}
+          value={formatCurrency(yearToDate?.totalEarned || 0, earningsCurrency)}
+          sub={`${t('manager:detailPanel.profile.paid')}: ${formatCurrency(yearToDate?.paid?.amount || 0, earningsCurrency)}`}
           color="text-blue-600"
           border="border-blue-100"
         />
@@ -242,7 +251,7 @@ function ManagerEarnings() {
             {isUp ? '+' : ''}{changePercent.toFixed(1)}%
           </div>
           <div className="text-[11px] text-gray-400 mt-1 truncate">
-            {t('manager:dashboard.stats.prevMonth', { amount: formatCurrency(previousPeriod?.totalEarned || 0, 'EUR') })}
+            {compareLabel}
           </div>
         </div>
       </div>
@@ -262,7 +271,7 @@ function ManagerEarnings() {
                   <Progress
                     percent={Math.round((cat.amount / maxCatAmount) * 100)}
                     strokeColor={cat.color}
-                    format={() => formatCurrency(cat.amount, 'EUR')}
+                    format={() => formatCurrency(cat.amount, earningsCurrency)}
                     size="small"
                   />
                 </div>
@@ -276,11 +285,11 @@ function ManagerEarnings() {
       {(yearToDate?.totalEarned || 0) > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-green-100 bg-white p-4 text-center">
-            <div className="text-lg font-bold text-green-600">{formatCurrency(yearToDate?.paid?.amount || 0, 'EUR')}</div>
+            <div className="text-lg font-bold text-green-600">{formatCurrency(yearToDate?.paid?.amount || 0, earningsCurrency)}</div>
             <div className="text-xs text-gray-400 mt-1">{t('manager:dashboard.stats.paid_ytd')}</div>
           </div>
           <div className="rounded-xl border border-amber-100 bg-white p-4 text-center">
-            <div className="text-lg font-bold text-amber-600">{formatCurrency(yearToDate?.pending?.amount || 0, 'EUR')}</div>
+            <div className="text-lg font-bold text-amber-600">{formatCurrency(yearToDate?.pending?.amount || 0, earningsCurrency)}</div>
             <div className="text-xs text-gray-400 mt-1">{t('manager:dashboard.stats.pending_ytd')}</div>
           </div>
           <div className="rounded-xl border border-gray-100 bg-white p-4 text-center">
@@ -303,15 +312,15 @@ function ManagerEarnings() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
               <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.beachCommission', { defaultValue: 'Beach-fee commission' })}</div>
-              <div className="text-lg font-bold text-emerald-600">{formatCurrency(membershipDetail.totals.commission, 'EUR')}</div>
+              <div className="text-lg font-bold text-emerald-600">{formatCurrency(membershipDetail.totals.commission, earningsCurrency)}</div>
             </div>
             <div className="rounded-lg border border-gray-100 p-3">
               <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.beachBase', { defaultValue: 'Beach fees (base)' })}</div>
-              <div className="text-lg font-bold text-gray-700">{formatCurrency(membershipDetail.totals.beachBase, 'EUR')}</div>
+              <div className="text-lg font-bold text-gray-700">{formatCurrency(membershipDetail.totals.beachBase, earningsCurrency)}</div>
             </div>
             <div className="rounded-lg border border-gray-100 p-3">
               <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.storageExcluded', { defaultValue: 'Storage (excluded)' })}</div>
-              <div className="text-lg font-bold text-gray-400">{formatCurrency(membershipDetail.totals.storageExcluded, 'EUR')}</div>
+              <div className="text-lg font-bold text-gray-400">{formatCurrency(membershipDetail.totals.storageExcluded, earningsCurrency)}</div>
             </div>
             <div className="rounded-lg border border-gray-100 p-3">
               <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('manager:dashboard.membershipDetail.sold', { defaultValue: 'Memberships sold' })}</div>
@@ -338,9 +347,9 @@ function ManagerEarnings() {
                     ),
                   },
                   { title: t('manager:dashboard.membershipDetail.soldCol', { defaultValue: 'Sold' }), dataIndex: 'count', align: 'center', width: 64 },
-                  { title: t('manager:dashboard.membershipDetail.beachBaseCol', { defaultValue: 'Beach base' }), key: 'beachBase', align: 'right', width: 100, render: (_, r) => <span className="text-gray-500">{formatCurrency(r.beachBase, 'EUR')}</span> },
-                  { title: t('manager:dashboard.membershipDetail.storageExclCol', { defaultValue: 'Storage excl.' }), key: 'se', align: 'right', width: 100, render: (_, r) => (r.storageExcluded > 0 ? <span className="text-gray-400">{formatCurrency(r.storageExcluded, 'EUR')}</span> : '—') },
-                  { title: t('manager:dashboard.history.columns.commission'), key: 'comm', align: 'right', width: 100, render: (_, r) => <span className="font-semibold text-green-600">{formatCurrency(r.commission, 'EUR')}</span> },
+                  { title: t('manager:dashboard.membershipDetail.beachBaseCol', { defaultValue: 'Beach base' }), key: 'beachBase', align: 'right', width: 100, render: (_, r) => <span className="text-gray-500">{formatCurrency(r.beachBase, earningsCurrency)}</span> },
+                  { title: t('manager:dashboard.membershipDetail.storageExclCol', { defaultValue: 'Storage excl.' }), key: 'se', align: 'right', width: 100, render: (_, r) => (r.storageExcluded > 0 ? <span className="text-gray-400">{formatCurrency(r.storageExcluded, earningsCurrency)}</span> : '—') },
+                  { title: t('manager:dashboard.history.columns.commission'), key: 'comm', align: 'right', width: 100, render: (_, r) => <span className="font-semibold text-green-600">{formatCurrency(r.commission, earningsCurrency)}</span> },
                 ]}
               />
             </div>
@@ -357,7 +366,7 @@ function ManagerEarnings() {
                 columns={[
                   { title: t('manager:dashboard.membershipDetail.customer', { defaultValue: 'Customer' }), dataIndex: 'customerName', key: 'cust', ellipsis: true, render: (v) => <span className="text-sm text-gray-700">{v}</span> },
                   { title: t('manager:dashboard.membershipDetail.membershipsCol', { defaultValue: 'Memberships' }), dataIndex: 'count', align: 'center', width: 110 },
-                  { title: t('manager:dashboard.history.columns.commission'), key: 'comm', align: 'right', width: 110, render: (_, r) => <span className="font-semibold text-green-600">{formatCurrency(r.commission, 'EUR')}</span> },
+                  { title: t('manager:dashboard.history.columns.commission'), key: 'comm', align: 'right', width: 110, render: (_, r) => <span className="font-semibold text-green-600">{formatCurrency(r.commission, earningsCurrency)}</span> },
                 ]}
               />
             </div>

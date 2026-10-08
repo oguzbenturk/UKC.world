@@ -27,7 +27,7 @@ async function ensureStudentAccess(client, instructorId, studentId) {
   const studentRes = await client.query(
     `SELECT u.id, u.first_name, u.last_name,
             COALESCE(NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), ''), u.name) AS full_name,
-            u.email, u.phone, u.level, u.notes,
+            u.email, u.phone, u.level, u.notes, u.profile_image_url,
             u.created_at, u.updated_at
        FROM users u
        JOIN roles r ON r.id = u.role_id
@@ -85,6 +85,8 @@ export async function getInstructorStudents(instructorId) {
           b.id,
           b.student_user_id,
           b.duration,
+          b.date,
+          b.start_hour,
           (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) AS lesson_ts
         FROM bookings b
         WHERE b.instructor_user_id = $1
@@ -97,7 +99,10 @@ export async function getInstructorStudents(instructorId) {
           COUNT(ab.id) AS total_lessons,
           COALESCE(SUM(ab.duration), 0) AS total_hours,
           MAX(ab.lesson_ts) FILTER (WHERE ab.lesson_ts < NOW()) AS last_lesson_ts,
-          MIN(ab.lesson_ts) FILTER (WHERE ab.lesson_ts > NOW()) AS upcoming_lesson_ts
+          MIN(ab.lesson_ts) FILTER (WHERE ab.lesson_ts > NOW()) AS upcoming_lesson_ts,
+          (ARRAY_AGG(ab.date::text ORDER BY ab.lesson_ts DESC) FILTER (WHERE ab.lesson_ts < NOW()))[1] AS last_lesson_date,
+          (ARRAY_AGG(ab.date::text ORDER BY ab.lesson_ts ASC) FILTER (WHERE ab.lesson_ts > NOW()))[1] AS next_lesson_date,
+          (ARRAY_AGG(ab.start_hour ORDER BY ab.lesson_ts ASC) FILTER (WHERE ab.lesson_ts > NOW()))[1] AS next_lesson_hour
         FROM active_bookings ab
         GROUP BY ab.student_user_id
       ), progress_counts AS (
@@ -120,10 +125,15 @@ export async function getInstructorStudents(instructorId) {
         u.id AS student_id,
         COALESCE(NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), ''), u.name) AS name,
         u.level AS skill_level,
+        u.profile_image_url AS avatar_url,
+        u.phone,
         ld.total_lessons,
         ld.total_hours,
         to_char(ld.last_lesson_ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_lesson_iso,
         to_char(ld.upcoming_lesson_ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS upcoming_lesson_iso,
+        ld.last_lesson_date,
+        ld.next_lesson_date,
+        ld.next_lesson_hour,
         COALESCE(pc.progress_events,0) AS progress_events,
         pd.pkg_total_hours,
         pd.pkg_used_hours,
@@ -146,10 +156,15 @@ export async function getInstructorStudents(instructorId) {
         studentId: r.student_id,
         name: r.name?.trim() || 'Unnamed',
         skillLevel: r.skill_level || null,
+        avatarUrl: r.avatar_url || null,
+        phone: r.phone || null,
         totalLessonCount: Number(r.total_lessons) || 0,
         totalHours: Number(r.total_hours) || 0,
         lastLessonAt: r.last_lesson_iso || null,
         upcomingLessonAt: r.upcoming_lesson_iso || null,
+        // Plain local date + start hour (no timezone math) for display.
+        lastLessonDate: r.last_lesson_date || null,
+        nextLesson: r.next_lesson_date ? { date: r.next_lesson_date, startHour: r.next_lesson_hour } : null,
         progressPercent: pkgTotal > 0 ? Math.min(100, Math.round((pkgUsed / pkgTotal) * 100)) : 0,
         progressEvents: Number(r.progress_events) || 0,
         packageHours: { totalHours: pkgTotal, usedHours: pkgUsed, remainingHours: pkgRemaining }
@@ -184,7 +199,16 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
                         AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))
                     ),
                   'YYYY-MM-DD"T"HH24:MI:SS"Z"'
-                ) AS next_lesson_iso
+                ) AS next_lesson_iso,
+                (ARRAY_AGG(b.date::text ORDER BY b.date DESC, b.start_hour DESC)
+                  FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) < NOW()
+                            AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))))[1] AS last_lesson_date,
+                (ARRAY_AGG(b.date::text ORDER BY b.date ASC, b.start_hour ASC)
+                  FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()
+                            AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))))[1] AS next_lesson_date,
+                (ARRAY_AGG(b.start_hour ORDER BY b.date ASC, b.start_hour ASC)
+                  FILTER (WHERE (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour')) > NOW()
+                            AND (b.status IS NULL OR b.status NOT IN ('cancelled', 'archived'))))[1] AS next_lesson_hour
            FROM bookings b
           WHERE b.instructor_user_id = $1
             AND b.student_user_id = $2
@@ -227,14 +251,18 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
                   (b.date::timestamptz + (b.start_hour * INTERVAL '1 hour') + (COALESCE(b.duration,1) * INTERVAL '1 hour')) AT TIME ZONE 'UTC',
                   'YYYY-MM-DD"T"HH24:MI:SS"Z"'
                 ) AS end_iso,
+                b.date::text AS date,
+                b.start_hour,
                 b.duration,
-                b.status
+                b.status,
+                s.name AS service_name
            FROM bookings b
+           LEFT JOIN services s ON s.id = b.service_id
           WHERE b.instructor_user_id = $1
             AND b.student_user_id = $2
             AND b.deleted_at IS NULL
           ORDER BY b.date DESC, b.start_hour DESC
-          LIMIT 6`,
+          LIMIT 10`,
         [instructorId, studentId]
       ),
       client.query(
@@ -269,6 +297,7 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         name: studentRow.full_name?.trim() || 'Unnamed',
         email: studentRow.email,
         phone: studentRow.phone,
+        avatarUrl: studentRow.profile_image_url || null,
         level: studentRow.level,
         notes: studentRow.notes,
         createdAt: studentRow.created_at ? studentRow.created_at.toISOString() : null,
@@ -278,7 +307,11 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         totalLessons: Number(statsRow.total_lessons || 0),
         totalHours: Number(statsRow.total_hours || 0),
         lastLessonAt: statsRow.last_lesson_iso || null,
-        nextLessonAt: statsRow.next_lesson_iso || null
+        nextLessonAt: statsRow.next_lesson_iso || null,
+        lastLessonDate: statsRow.last_lesson_date || null,
+        nextLesson: statsRow.next_lesson_date
+          ? { date: statsRow.next_lesson_date, startHour: statsRow.next_lesson_hour }
+          : null
       },
       progress: progressRes.rows.map((row) => ({
         id: row.id,
@@ -306,7 +339,10 @@ export async function getInstructorStudentProfile(instructorId, studentId) {
         startTime: row.start_iso || null,
         endTime: row.end_iso || null,
         durationHours: Number(row.duration || 0),
-        status: row.status || 'pending'
+        status: row.status || 'pending',
+        serviceName: row.service_name || null,
+        date: row.date || null,
+        startHour: row.start_hour ?? null
       })),
       recommendations: recsRes.rows.map(r => ({
         id: r.id, itemType: r.item_type, itemId: r.item_id, itemName: r.item_name,

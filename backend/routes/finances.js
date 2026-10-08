@@ -3683,6 +3683,146 @@ router.get('/wallet-deposits', authenticateJWT, authorizeRoles(['admin', 'manage
   }
 });
 
+// ── Revenue trend (cash basis) ──────────────────────────────────────────────
+//
+// The trend must add up to the SAME total_revenue as GET /summary for the same range
+// and serviceType, so it is built from the summary's revenue legs, bucketed per day:
+// lessons (canonical per-booking derivation), rentals (discount-net, rentals table),
+// accommodation charges, memberships (discount-net) and shop. Wallet deposits are
+// customer funds, not revenue, and package purchases are recognised through lesson
+// consumption — exactly as in /summary.
+
+/** ISO-8601 week number (1–53) of a "YYYY-MM-DD" day. */
+function isoWeekNumber(day) {
+  const d = new Date(`${day}T00:00:00Z`);
+  const weekday = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - weekday);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+/**
+ * Period label for a "YYYY-MM-DD" day — same strings the old SQL produced with
+ * TO_CHAR(date, 'YYYY-MM' | 'YYYY-"W"IW' | 'YYYY-MM-DD').
+ */
+function revenuePeriodKey(day, groupBy = 'day') {
+  if (groupBy === 'month') return day.slice(0, 7);
+  if (groupBy === 'week') return `${day.slice(0, 4)}-W${String(isoWeekNumber(day)).padStart(2, '0')}`;
+  return day.slice(0, 10);
+}
+
+// Which summary legs a serviceType keeps (mirrors the /summary serviceType switch).
+const TREND_LEGS_BY_SERVICE_TYPE = {
+  all: ['lessons', 'rentals', 'accommodation', 'membership', 'shop'],
+  lessons: ['lessons'],
+  rentals: ['rentals'],
+  membership: ['membership'],
+  shop: ['shop'],
+  accommodation: ['accommodation'],
+  events: [],
+};
+
+async function computeRevenueTrend({ dateStart, dateEnd, groupBy = 'day', serviceType }) {
+  const legs = new Set(TREND_LEGS_BY_SERVICE_TYPE[serviceType && serviceType !== 'all' ? serviceType : 'all'] || []);
+  const none = { rows: [] };
+
+  const [lessonFinance, rentalRows, accommodationRows, membershipRows, shopRows] = await Promise.all([
+    legs.has('lessons') ? getLessonFinanceBreakdown({ startDate: dateStart, endDate: dateEnd }) : null,
+
+    // Same filter as /summary query #2; a rental is dated by rental_date, else its
+    // start day clamped into the range (rentals that started before the range but
+    // overlap it are counted once, on the first day of the range).
+    legs.has('rentals') ? pool.query(`
+      SELECT (CASE WHEN rentals.rental_date IS NOT NULL THEN rentals.rental_date
+                   ELSE GREATEST(rentals.start_date::date, $1::date) END)::text AS day,
+        COALESCE(SUM(GREATEST(COALESCE(rentals.total_price, 0) - rt_disc.amt, 0)), 0) AS revenue,
+        COUNT(*) AS item_count
+      FROM rentals
+      ${discountSumLateral('rt_disc', 'rental', 'rentals.id')}
+      WHERE (
+        (rental_date IS NOT NULL AND rental_date >= $1::date AND rental_date <= $2::date)
+        OR (
+          rental_date IS NULL AND (
+            (start_date >= $1::date AND start_date < ($2::date + interval '1 day')) OR
+            (end_date   >= $1::date AND end_date   < ($2::date + interval '1 day')) OR
+            (start_date <  $1::date AND end_date   >  $2::date)
+          )
+        )
+      )
+      AND status IN ('active','upcoming','completed','overdue')
+      GROUP BY 1
+    `, [dateStart, dateEnd]) : none,
+
+    // Same as the accommodation_charges column of /summary query #7.
+    legs.has('accommodation') ? pool.query(`
+      SELECT transaction_date::date::text AS day,
+        COALESCE(SUM(ABS(amount)), 0) AS revenue,
+        COUNT(*) AS item_count
+      FROM wallet_transactions
+      WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
+        AND status = 'completed'
+        AND transaction_type = 'accommodation_charge'
+        AND ${activeFinanceTxnFilter()}
+      GROUP BY 1
+    `, [dateStart, dateEnd]) : none,
+
+    // Same as /summary query #8.
+    legs.has('membership') ? pool.query(`
+      SELECT member_purchases.purchased_at::date::text AS day,
+        COALESCE(SUM(GREATEST(COALESCE(member_purchases.offering_price, 0) - mp_disc.amt, 0)), 0) AS revenue,
+        COUNT(*) AS item_count
+      FROM member_purchases
+      ${discountSumLateral('mp_disc', 'member_purchase', 'member_purchases.id')}
+      WHERE purchased_at >= $1::date AND purchased_at < ($2::date + interval '1 day')
+        AND payment_status = 'completed'
+        AND status <> 'cancelled'
+      GROUP BY 1
+    `, [dateStart, dateEnd]) : none,
+
+    // Same as /summary query #10.
+    legs.has('shop') ? pool.query(`
+      SELECT transaction_date::date::text AS day,
+        COALESCE(SUM(ABS(amount)), 0) AS revenue,
+        COUNT(*) AS item_count
+      FROM wallet_transactions
+      WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
+        AND status = 'completed'
+        AND (
+          transaction_type IN ('product_purchase', 'shop_purchase', 'merchandise_purchase')
+          OR (transaction_type = 'charge' AND description ILIKE '%product%')
+          OR (transaction_type = 'charge' AND description ILIKE '%shop%')
+          OR (transaction_type = 'payment' AND description ILIKE '%shop order%')
+          OR (related_entity_type = 'shop_order')
+        )
+        AND ${activeFinanceTxnFilter()}
+      GROUP BY 1
+    `, [dateStart, dateEnd]) : none,
+  ]);
+
+  const periods = new Map();
+  const add = (day, revenue, count) => {
+    if (!day) return;
+    const key = revenuePeriodKey(String(day).slice(0, 10), groupBy);
+    const p = periods.get(key) || { revenue: new Decimal(0), count: 0 };
+    p.revenue = p.revenue.plus(revenue || 0);
+    p.count += Number(count) || 0;
+    periods.set(key, p);
+  };
+
+  Object.entries(lessonFinance?.byDate || {}).forEach(([day, v]) => add(day, v.revenue, v.count));
+  [rentalRows, accommodationRows, membershipRows, shopRows].forEach((result) => {
+    (result.rows || []).forEach((r) => add(r.day, r.revenue, r.item_count));
+  });
+
+  return Array.from(periods.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([period, p]) => ({
+      period,
+      revenue: p.revenue.toDecimalPlaces(2).toNumber(),
+      transaction_count: p.count,
+    }));
+}
+
 /**
  * GET /api/finances/revenue-analytics
  * Get detailed revenue breakdown and trends
@@ -3735,29 +3875,11 @@ router.get('/revenue-analytics', authenticateJWT, authorizeRoles(['admin', 'mana
     }
     
     if (!useAccrual) {
-      // Cash-based trends from transactions
-      // Use standardized constants
-      const { PAYMENT_TYPES, EXCLUDED_REVENUE_TYPES } = await import('../constants/transactions.js');
-      let includeTypes = PAYMENT_TYPES;
-      if (serviceType && serviceType !== 'all') {
-        const { SERVICE_TYPE_TO_PAYMENT_TYPES } = await import('../constants/transactions.js');
-        includeTypes = SERVICE_TYPE_TO_PAYMENT_TYPES[serviceType] || PAYMENT_TYPES;
-      }
-      const params = [dateStart, dateEnd, includeTypes, EXCLUDED_REVENUE_TYPES];
-      const trendsQuery = `
-        SELECT
-          TO_CHAR(transaction_date, '${dateFormat}') as period,
-          COALESCE(SUM(CASE WHEN transaction_type = ANY($3) THEN ABS(amount) ELSE 0 END), 0) as revenue,
-          COUNT(CASE WHEN transaction_type = ANY($3) THEN 1 END) as transaction_count
-        FROM wallet_transactions
-        WHERE transaction_date >= $1::date AND transaction_date < ($2::date + interval '1 day')
-          AND status = 'completed'
-          AND NOT (transaction_type = ANY($4))
-          AND ${activeFinanceTxnFilter()}
-        GROUP BY TO_CHAR(transaction_date, '${dateFormat}')
-        ORDER BY period
-      `;
-      trendsResult = await pool.query(trendsQuery, params);
+      // Cash-basis trend built from the same revenue legs as /summary, so the points
+      // add up to summary.total_revenue for the same range. (The old version summed
+      // ABS() of a few wallet "payment" rows — mostly negative shop/membership
+      // charges — and ignored lessons, rentals and accommodation entirely.)
+      trendsResult = { rows: await computeRevenueTrend({ dateStart, dateEnd, groupBy, serviceType }) };
     }
     
     // Service performance analytics
@@ -4006,91 +4128,52 @@ router.get('/operational-metrics', authenticateJWT, authorizeRoles(['admin', 'ma
       logger.debug('Rentals table not available for metrics', e);
     }
     
-    // Instructor performance metrics - calculate actual instructor earnings (commission)
-    // Build parameterized date filter for the JOIN clause
-    let instrDateFilter = '';
-    let instrParams = [];
-    if (hasDateRange) {
-      instrDateFilter = 'AND b.date >= $1 AND b.date <= $2';
-      instrParams = [startDate, endDate];
-    }
-    
+    // Instructor performance: commission comes from the instructor_earnings ledger —
+    // the same source as instructor payroll and the "Instructor Payouts" card — so
+    // per-category rates (instructor_category_rates), self-student overrides, package
+    // shares and group scaling are all respected. Only users who actually taught in
+    // the range are listed (managers/instructors with no lessons are left out).
+    // total_revenue keeps its historical name: it is the instructor's commission.
+    const instrStatuses = ['completed', 'done', 'checked_out'];
     const instructorMetricsQuery = `
-      SELECT 
+      WITH lessons AS (
+        SELECT b.instructor_user_id AS instructor_id,
+               COUNT(*) AS total_lessons,
+               COUNT(*) FILTER (WHERE b.status = ANY($1::text[])) AS completed_lessons
+        FROM bookings b
+        WHERE b.deleted_at IS NULL
+          AND b.instructor_user_id IS NOT NULL
+          ${hasDateRange ? 'AND b.date >= $2::date AND b.date <= $3::date' : ''}
+        GROUP BY b.instructor_user_id
+      ),
+      earnings AS (
+        SELECT ie.instructor_id,
+               COALESCE(SUM(ie.total_earnings), 0) AS total_earnings,
+               COUNT(*) AS earning_lessons
+        FROM instructor_earnings ie
+        JOIN bookings b ON b.id = ie.booking_id
+        WHERE b.deleted_at IS NULL
+          AND b.status = ANY($1::text[])
+          ${hasDateRange ? 'AND b.date >= $2::date AND b.date <= $3::date' : ''}
+        GROUP BY ie.instructor_id
+      )
+      SELECT
         u.id,
-        u.name as instructor_name,
-        COUNT(b.id) as total_lessons,
-        COUNT(CASE WHEN b.status = 'completed' THEN 1 END) as completed_lessons,
-        COALESCE(SUM(
-          CASE
-            WHEN b.status = 'completed' THEN
-              CASE
-                WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) * b.duration
-                WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
-                  ((cp.purchase_price / cp.total_hours) * b.duration) *
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
-                WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
-                  (cp.purchase_price / sp.sessions_count) *
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
-                WHEN bcc.commission_type = 'fixed' THEN
-                  COALESCE(bcc.commission_value, 0) * b.duration
-                WHEN isc.commission_type = 'fixed' THEN
-                  COALESCE(isc.commission_value, 0) * b.duration
-                WHEN idc.commission_type = 'fixed' THEN
-                  COALESCE(idc.commission_value, 0) * b.duration
-                WHEN bcc.commission_type = 'percentage' THEN
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 0) / 100
-                WHEN isc.commission_type = 'percentage' THEN
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 0) / 100
-                WHEN idc.commission_type = 'percentage' THEN
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 0) / 100
-                ELSE 0
-              END
-            ELSE 0
-          END
-        ), 0) as total_revenue,
-        COALESCE(AVG(
-          CASE
-            WHEN b.status = 'completed' THEN
-              CASE
-                WHEN b.customer_package_id IS NOT NULL AND COALESCE(bcc.commission_type, isc.commission_type, idc.commission_type) = 'fixed' THEN
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) * b.duration
-                WHEN b.customer_package_id IS NOT NULL AND cp.total_hours > 0 THEN
-                  ((cp.purchase_price / cp.total_hours) * b.duration) *
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
-                WHEN b.customer_package_id IS NOT NULL AND sp.sessions_count > 0 THEN
-                  (cp.purchase_price / sp.sessions_count) *
-                  COALESCE(bcc.commission_value, isc.commission_value, idc.commission_value, 0) / 100
-                WHEN bcc.commission_type = 'fixed' THEN
-                  COALESCE(bcc.commission_value, 0) * b.duration
-                WHEN isc.commission_type = 'fixed' THEN
-                  COALESCE(isc.commission_value, 0) * b.duration
-                WHEN idc.commission_type = 'fixed' THEN
-                  COALESCE(idc.commission_value, 0) * b.duration
-                WHEN bcc.commission_type = 'percentage' THEN
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(bcc.commission_value, 0) / 100
-                WHEN isc.commission_type = 'percentage' THEN
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(isc.commission_value, 0) / 100
-                WHEN idc.commission_type = 'percentage' THEN
-                  COALESCE(NULLIF(b.final_amount, 0), NULLIF(b.amount, 0), 0) * COALESCE(idc.commission_value, 0) / 100
-                ELSE 0
-              END
-          END
-        ), 0) as average_lesson_value
+        u.name AS instructor_name,
+        COALESCE(l.total_lessons, 0) AS total_lessons,
+        COALESCE(l.completed_lessons, 0) AS completed_lessons,
+        COALESCE(e.total_earnings, 0) AS total_revenue,
+        CASE WHEN COALESCE(e.earning_lessons, 0) > 0
+             THEN ROUND(e.total_earnings / e.earning_lessons, 2)
+             ELSE 0 END AS average_lesson_value
       FROM users u
-      LEFT JOIN bookings b ON u.id = b.instructor_user_id ${instrDateFilter} AND b.deleted_at IS NULL
-      LEFT JOIN booking_custom_commissions bcc ON bcc.booking_id = b.id
-      LEFT JOIN instructor_service_commissions isc ON isc.instructor_id = u.id AND isc.service_id = b.service_id
-      LEFT JOIN instructor_default_commissions idc ON idc.instructor_id = u.id
-      LEFT JOIN customer_packages cp ON cp.id = b.customer_package_id
-      LEFT JOIN service_packages sp ON sp.id = cp.service_package_id
-      WHERE u.role_id IN (SELECT id FROM roles WHERE name IN ('instructor', 'manager'))
-      AND u.deleted_at IS NULL
-      GROUP BY u.id, u.name
-      ORDER BY total_revenue DESC
+      LEFT JOIN lessons l ON l.instructor_id = u.id
+      LEFT JOIN earnings e ON e.instructor_id = u.id
+      WHERE u.deleted_at IS NULL
+        AND (COALESCE(l.total_lessons, 0) > 0 OR COALESCE(e.total_earnings, 0) > 0)
+      ORDER BY total_revenue DESC, instructor_name
     `;
-    
+    const instrParams = hasDateRange ? [instrStatuses, startDate, endDate] : [instrStatuses];
     const instructorMetricsResult = await pool.query(instructorMetricsQuery, instrParams);
     
     res.json({
@@ -4412,7 +4495,9 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
 });
 
 export const __testables = {
-  calculateUserBalance
+  calculateUserBalance,
+  computeRevenueTrend,
+  revenuePeriodKey,
 };
 
 // ===========================================================================================

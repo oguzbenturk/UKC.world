@@ -738,7 +738,7 @@
       "startTimeLabel": "Startzeit",
       "startTimeRequired": "Startzeit ist erforderlich (HH:MM)",
       "useDefaultRate": "Standardsatz",
-      "closedByManagerHint": "Die Stunde wird nach dem Ende von der Leitung abgeschlossen."
+      "closedByManagerHint": "Die Leitung bestätigt die Stunde, checkt den Schüler ein und schließt die Stunde ab."
     },
     "groupDetail": {
       "title": "Gruppenbuchung",

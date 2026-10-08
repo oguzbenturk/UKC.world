@@ -745,7 +745,7 @@
       "startTimeLabel": "Başlangıç saati",
       "startTimeRequired": "Başlangıç saati zorunludur (SS:DD)",
       "useDefaultRate": "Varsayılan oran",
-      "closedByManagerHint": "Ders bittikten sonra dersi yöneticiniz kapatır."
+      "closedByManagerHint": "Dersi yöneticiniz onaylar, öğrencinin girişini yapar ve dersi kapatır."
     },
     "groupDetail": {
       "title": "Grup Rezervasyonu",

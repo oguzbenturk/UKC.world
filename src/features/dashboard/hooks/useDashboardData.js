@@ -149,9 +149,9 @@ export const useDashboardData = () => {
   }, [summary, ops]);
 
   // Phase 2: operational KPIs from /api/dashboard/summary
-  // /dashboard/summary already returns rev.net with manager commission subtracted
-  // (see backend/services/dashboardSummaryService.js — `net = SUM(amount) - managerCommissionTotal`),
-  // so we use it as-is. We also expose the manager commission total separately for KPI display.
+  // /dashboard/summary returns rev.net = revenue − refunds − instructor commission −
+  // manager commission (shared financeTotalsService, same as /finances/summary), so we
+  // use it as-is. We also expose the manager commission total separately for KPI display.
   const operationalKpis = useMemo(() => {
     const ds = dashboardSummary || {};
     const lessons = ds.lessons || {};

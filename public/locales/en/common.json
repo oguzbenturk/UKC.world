@@ -741,7 +741,7 @@
       "startTimeLabel": "Start time",
       "startTimeRequired": "Start time is required (HH:MM)",
       "useDefaultRate": "Default rate",
-      "closedByManagerHint": "Your manager closes the lesson after it ends."
+      "closedByManagerHint": "Your manager confirms the lesson, checks the student in and closes the lesson."
     },
     "groupDetail": {
       "title": "Group Booking",

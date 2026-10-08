@@ -742,7 +742,7 @@
       "startTimeLabel": "Heure de début",
       "startTimeRequired": "L'heure de début est obligatoire (HH:MM)",
       "useDefaultRate": "Taux par défaut",
-      "closedByManagerHint": "Votre responsable clôture le cours une fois terminé."
+      "closedByManagerHint": "Votre responsable confirme le cours, enregistre l’arrivée de l’élève et clôture le cours."
     },
     "groupDetail": {
       "title": "Réservation de groupe",

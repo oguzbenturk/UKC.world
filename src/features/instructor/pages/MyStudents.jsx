@@ -1,136 +1,173 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+/**
+ * Instructor "My students" (/instructor/students).
+ * Data: GET /instructors/me/students (backend/services/instructorService.js).
+ *
+ * Search (name / level / phone, "/" to focus on desktop), filter chips with
+ * counts (All · Lesson booked · Low on hours · Inactive), sort, and a list
+ * grouped by the day of the next lesson. Search, filter and sort live in the
+ * URL so the back button from a student profile restores the view.
+ */
+import { useCallback, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useInstructorStudents } from '../hooks/useInstructorStudents';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePullToRefresh } from '@/shared/hooks/usePullToRefresh';
+import { EmptyState, ErrorState, SkeletonBlock } from '../earnings/components/ui';
+import { cardClass, secondaryButtonClass } from '../earnings/components/earningsStyles';
+import { useIsDesktop } from '../earnings/useEarnings';
+import { useChatBridge } from '../dashboard/useDashboard';
+import { FILTERS, SORTS, countByFilter, groupStudents, selectStudents } from '../students/studentsFormat';
+import { studentKeys, useStudentsList } from '../students/useStudents';
+import StudentsToolbar from '../students/components/StudentsToolbar';
+import StudentList from '../students/components/StudentList';
+import { UsersIcon } from '../students/components/StudentsIcons';
 
-const fmtDateTime = (iso) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-const MyStudents = () => {
-  const { t } = useTranslation(['instructor']);
-  const navigate = useNavigate();
-  const { students, loading, error, refetch } = useInstructorStudents();
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState({ field: 'totalHours', dir: 'desc' });
-
-  const filtered = useMemo(() => {
-    let list = students;
-    if (query) {
-      const q = query.toLowerCase();
-      list = list.filter(s =>
-        (s.name || '').toLowerCase().includes(q) ||
-        (s.skillLevel || '').toLowerCase().includes(q)
-      );
-    }
-    const { field, dir } = sort;
-    list = [...list].sort((a, b) => {
-      const av = Number(a[field] ?? 0);
-      const bv = Number(b[field] ?? 0);
-      if (av === bv) return 0;
-      return dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-    });
-    return list;
-  }, [students, query, sort]);
-
-  const toggleSort = (field) => {
-    setSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'desc' });
+function useListParams() {
+  const [params, setParams] = useSearchParams();
+  const query = params.get('q') || '';
+  const filter = FILTERS.includes(params.get('filter')) ? params.get('filter') : 'all';
+  const sort = SORTS.includes(params.get('sort')) ? params.get('sort') : 'next';
+  const set = useCallback((key, value, fallback) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (!value || value === fallback) next.delete(key);
+      else next.set(key, value);
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+  return {
+    query,
+    filter,
+    sort,
+    setQuery: (v) => set('q', v, ''),
+    setFilter: (v) => set('filter', v, 'all'),
+    setSort: (v) => set('sort', v, 'next'),
+    // One update: consecutive setParams calls don't compose.
+    clearSearchAndFilter: () => setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('q');
+      next.delete('filter');
+      return next;
+    }, { replace: true }),
   };
+}
 
+function ListSkeleton({ isDesktop }) {
+  const { t } = useTranslation(['instructor']);
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-6xl">
-      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{t('instructor:myStudents.title')}</h1>
-          <p className="text-slate-600 mt-1 text-sm">{t('instructor:myStudents.subtitle')}</p>
-        </div>
-        <div className="flex gap-3 items-center">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('instructor:myStudents.searchPlaceholder')}
-            className="px-4 py-2 rounded-lg border border-indigo-100 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/70"
-          />
-          <button
-            onClick={refetch}
-            className="px-4 py-2 rounded-md text-sm font-medium bg-sky-600 text-white border border-sky-600 hover:bg-sky-500 transition-colors shadow-sm"
-          >
-            {t('instructor:myStudents.refresh')}
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-0 overflow-hidden shadow-xl">
-        {loading && (
-          <div className="p-6 flex items-center gap-3 text-slate-600"><div className="spinner" /><span>{t('instructor:myStudents.loading')}</span></div>
-        )}
-        {error && (
-          <div className="p-6 text-sm text-red-700 bg-red-50 border-b border-red-200">{error}</div>
-        )}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="p-8 text-center text-slate-500 text-sm">{t('instructor:myStudents.noStudents')}</div>
-        )}
-        {!loading && !error && filtered.length > 0 && (
-          <div className="overflow-auto">
-            <table className="min-w-full text-sm">
-              <thead className="text-xs uppercase tracking-wide text-slate-700 bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left px-4 py-3 font-semibold">{t('instructor:myStudents.columns.student')}</th>
-                  <th className="text-left px-4 py-3 font-semibold">{t('instructor:myStudents.columns.skill')}</th>
-                  <th onClick={() => toggleSort('totalLessonCount')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none">{t('instructor:myStudents.columns.lessons')} {sort.field==='totalLessonCount' ? (sort.dir==='asc'?'▲':'▼') : ''}</th>
-                  <th onClick={() => toggleSort('totalHours')} className="text-left px-4 py-3 font-semibold cursor-pointer select-none">{t('instructor:myStudents.columns.hours')} {sort.field==='totalHours' ? (sort.dir==='asc'?'▲':'▼') : ''}</th>
-                  <th className="text-left px-4 py-3 font-semibold">{t('instructor:myStudents.columns.last')}</th>
-                  <th className="text-left px-4 py-3 font-semibold">{t('instructor:myStudents.columns.next')}</th>
-                  <th className="text-left px-4 py-3 font-semibold w-48">{t('instructor:myStudents.columns.progress')}</th>
-                </tr>
-              </thead>
-              <tbody className="bg-slate-50/60">
-                {filtered.map((s, idx) => (
-                  <tr key={s.studentId} className={`border-b last:border-b-0 border-slate-200/70 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-100/80'}`}>
-                    <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/instructor/students/${s.studentId}`)}
-                        className="hover:underline"
-                      >
-                        {s.name}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{s.skillLevel || '—'}</td>
-                    <td className="px-4 py-3 text-slate-700">{s.totalLessonCount}</td>
-                    <td className="px-4 py-3 text-slate-700">{Number(s.totalHours).toFixed(1)}h</td>
-                    <td className="px-4 py-3 text-slate-500">{fmtDateTime(s.lastLessonAt)}</td>
-                    <td className="px-4 py-3 text-slate-500">{fmtDateTime(s.upcomingLessonAt)}</td>
-                    <td className="px-4 py-3">
-                      {s.packageHours?.totalHours > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-sky-500 transition-all"
-                              style={{ width: `${s.progressPercent}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[10px] uppercase tracking-wide text-slate-500">
-                            <span>{s.progressPercent}%</span>
-                            <span>{t('instructor:myStudents.progressLabel', { remaining: s.packageHours.remainingHours, total: s.packageHours.totalHours })}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 italic">{t('instructor:myStudents.noActivePackage')}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div role="status" aria-live="polite" data-testid="students-skeleton" className={`${cardClass} divide-y divide-slate-100 overflow-hidden`}>
+      <span className="sr-only">{t('instructor:students.loading')}</span>
+      {Array.from({ length: isDesktop ? 8 : 6 }, (_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+          <SkeletonBlock className="h-12 w-12 rounded-2xl" />
+          <div className="flex flex-1 flex-col gap-2">
+            <SkeletonBlock className="h-4 w-40" />
+            <SkeletonBlock className="h-3 w-28" />
           </div>
-        )}
-      </div>
+          <SkeletonBlock className="h-10 w-10 rounded-full" />
+        </div>
+      ))}
     </div>
   );
-};
+}
 
-export default MyStudents;
+function Header({ total, upcoming, isDesktop }) {
+  const { t } = useTranslation(['instructor']);
+  return (
+    <header className={`flex flex-col gap-0.5 ${isDesktop ? '' : 'px-1'}`}>
+      <h1 className="font-duotone-bold-extended text-2xl tracking-tight text-slate-900 lg:text-3xl">{t('instructor:students.title')}</h1>
+      {total != null && (
+        <p className="text-sm text-slate-600 lg:text-base">
+          {total
+            ? [t('instructor:students.summary.total', { count: total }), upcoming ? t('instructor:students.summary.upcoming', { count: upcoming }) : null].filter(Boolean).join(' · ')
+            : t('instructor:students.subtitle')}
+        </p>
+      )}
+    </header>
+  );
+}
+
+export default function MyStudents() {
+  const { t } = useTranslation(['instructor']);
+  const isDesktop = useIsDesktop();
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  const listQuery = useStudentsList();
+  const chat = useChatBridge();
+  const { query, filter, sort, setQuery, setFilter, setSort, clearSearchAndFilter } = useListParams();
+
+  usePullToRefresh(() => queryClient.invalidateQueries({ queryKey: studentKeys.list() }), { threshold: 90, maxScroll: 30 });
+
+  const students = useMemo(() => (Array.isArray(listQuery.data) ? listQuery.data : []), [listQuery.data]);
+  const counts = useMemo(() => countByFilter(students), [students]);
+  const visible = useMemo(() => selectStudents(students, { query, filter, sort }), [students, query, filter, sort]);
+  const groups = useMemo(() => groupStudents(visible, sort), [visible, sort]);
+
+  let body;
+  if (listQuery.isError && !listQuery.data) {
+    body = (
+      <ErrorState
+        title={t('instructor:students.error.title')}
+        body={t('instructor:students.error.body')}
+        retryLabel={t('instructor:students.error.retry')}
+        onRetry={() => listQuery.refetch()}
+      />
+    );
+  } else if (listQuery.isLoading) {
+    body = <ListSkeleton isDesktop={isDesktop} />;
+  } else if (!students.length) {
+    body = (
+      <EmptyState
+        className={`${cardClass} px-6 py-14`}
+        icon={<UsersIcon size={20} />}
+        title={t('instructor:students.empty.title')}
+        hint={t('instructor:students.empty.body')}
+      />
+    );
+  } else if (!visible.length) {
+    body = (
+      <div className={`${cardClass} flex flex-col items-center gap-3 px-6 py-12 text-center`}>
+        <p className="text-sm font-medium text-slate-700">{t('instructor:students.noMatch.title')}</p>
+        <p className="text-xs text-slate-500">{t('instructor:students.noMatch.body')}</p>
+        <button type="button" onClick={clearSearchAndFilter} className={`${secondaryButtonClass} h-10 text-sm`}>
+          {t('instructor:students.noMatch.clear')}
+        </button>
+      </div>
+    );
+  } else {
+    body = (
+      <StudentList
+        groups={groups}
+        isDesktop={isDesktop}
+        sort={sort}
+        onSortChange={setSort}
+        onMessage={chat.messageStudent}
+        opening={chat.openingFor}
+        linkState={{ listSearch: location.search }}
+      />
+    );
+  }
+
+  return (
+    <div
+      data-testid="instructor-students-page"
+      data-layout={isDesktop ? 'desktop' : 'mobile'}
+      className={`mx-auto flex w-full flex-col ${isDesktop ? 'max-w-7xl gap-5 p-6 xl:p-8' : 'max-w-xl gap-3.5 px-4 pb-8 pt-4'}`}
+    >
+      <Header total={listQuery.data ? students.length : null} upcoming={counts.upcoming} isDesktop={isDesktop} />
+      {students.length > 0 && (
+        <StudentsToolbar
+          query={query}
+          onQueryChange={setQuery}
+          filter={filter}
+          onFilterChange={setFilter}
+          sort={sort}
+          onSortChange={setSort}
+          counts={counts}
+          isDesktop={isDesktop}
+        />
+      )}
+      {body}
+    </div>
+  );
+}

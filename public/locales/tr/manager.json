@@ -4,7 +4,8 @@
     "subtitle": "Run your academy and track your earnings.",
     "earnings": {
       "title": "My Earnings",
-      "viewDetails": "View earnings details"
+      "viewDetails": "View earnings details",
+      "managersOnly": "Kişisel kazançlar yalnızca yöneticilere gösterilir."
     },
     "quickLinks": {
       "title": "Quick Links",
@@ -73,6 +74,7 @@
       "transactions": "{{count}} işlem",
       "bookingsRentals": "{{bookings}} rezervasyon · {{rentals}} kiralama",
       "prevMonth": "Önceki: {{amount}}",
+      "prevSameDays": "Geçen ayın aynı günleri: {{amount}}",
       "items": "{{count}} kalem"
     },
     "categoryBreakdown": {

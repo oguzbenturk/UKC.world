@@ -47,6 +47,7 @@ const mockDashboardData = {
     groupServices: 8,
     privateServices: 12,
     completedHours: 170,
+    grossLessonRevenue: 8000,
     lessonCategoryBreakdown: [
       { category: 'kitesurfing', hours: '120', count: '50' },
       { category: 'windsurfing', hours: '50', count: '35' },
@@ -144,7 +145,8 @@ describe('AdminDashboard', () => {
 
   it('shows completion rate and total hours in bookings card', () => {
     renderDashboard();
-    expect(screen.getByText(/85\.0% completion/)).toBeInTheDocument();
+    // 85 completed ÷ (85 completed + 2 cancelled)
+    expect(screen.getByText(/97\.7% completion/)).toBeInTheDocument();
     expect(screen.getByText(/170h total/)).toBeInTheDocument();
   });
 
@@ -161,7 +163,7 @@ describe('AdminDashboard', () => {
     const calendarLink = screen.getByText('Calendar');
     expect(bookingLink.closest('a')).toHaveAttribute('href', '/bookings');
     expect(rentalLink.closest('a')).toHaveAttribute('href', '/rentals');
-    expect(calendarLink.closest('a')).toHaveAttribute('href', '/calendar/lessons');
+    expect(calendarLink.closest('a')).toHaveAttribute('href', '/calendars/lessons');
   });
 
   it('displays the active preset label on the dropdown button', () => {
