@@ -1180,5 +1180,23 @@
     },
     "totalLessonHours": "Toplam Ders Saati",
     "totalLessonHoursTooltip": "Bu pakete dahil ders saati sayısı (isteğe bağlı)"
+  },
+  "staffEarnings": {
+    "title": "Kazançlarım",
+    "availableHint": "Mağazada harcanabilir",
+    "earned": "Kazanılan",
+    "paidOut": "Ödenen",
+    "spentInApp": "Uygulamada harcanan",
+    "deductedLine": "Kesintiler: {{amount}}",
+    "history": "Kazanç geçmişi",
+    "loading": "Yükleniyor…",
+    "empty": "Henüz kazanç yok.",
+    "startNote": "Kazançla ödeme {{date}} tarihinde başladı. Önceki personel alışverişleri elle kapatıldı ve geçmişinde kalır.",
+    "kinds": {
+      "earned": "Kazanç",
+      "paid_out": "Ödeme",
+      "spent": "Uygulamada harcandı",
+      "deducted": "Kesinti"
+    }
   }
 }

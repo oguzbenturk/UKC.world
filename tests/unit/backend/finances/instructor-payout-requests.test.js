@@ -161,8 +161,12 @@ describe('GET /api/instructors/me/earnings-summary', () => {
     expect(s.balances.totalEarned).toBe(550);
     expect(s.balances.paidOutGross).toBeCloseTo(150, 2);
     expect(s.balances.deductionsTotal).toBe(20);
-    expect(s.balances.paidOutNet).toBeCloseTo(130, 2);
-    expect(s.balances.available).toBeCloseTo(420, 2);
+    // A deduction is a charge (owner decision 2026-10-08): it settles earnings
+    // like a payout instead of being netted off the payouts.
+    expect(s.balances.paidOutNet).toBeCloseTo(150, 2);
+    expect(s.balances.settled).toBeCloseTo(170, 2);
+    expect(s.balances.spentInApp).toBe(0);
+    expect(s.balances.available).toBeCloseTo(380, 2); // 550 − 150 paid − 20 deducted
     expect(s.threshold).toEqual({ amount: 200, meets: true, shortfall: 0 });
     expect(s.lastPayout).toMatchObject({ date: '2026-02-15', method: 'cash' });
     expect(s.lastPayout.amount).toBeCloseTo(50, 2);
@@ -206,8 +210,8 @@ describe('GET /api/instructors/me/earnings-activity', () => {
     expect(res.body.total).toBe(7);
     const lessons = res.body.items.filter((i) => i.kind === 'lesson');
     const byDate = Object.fromEntries(lessons.map((l) => [l.date, l.status]));
-    expect(byDate['2026-01-10']).toBe('paid'); // 100 of the 130 net
-    expect(byDate['2026-02-10']).toBe('pending'); // only 30 left
+    expect(byDate['2026-01-10']).toBe('paid'); // 100 of the 170 settled (150 paid + 20 deducted)
+    expect(byDate['2026-02-10']).toBe('pending'); // only 70 left
     expect(byDate['2026-03-05']).toBe('pending');
     expect(byDate[today]).toBe('pending');
     expect(res.body.items[0].date >= res.body.items[res.body.items.length - 1].date).toBe(true);
@@ -278,8 +282,8 @@ describe('payout request lifecycle', () => {
     expect(call.type).toBe('payout_request_created');
     expect(call.roles).toEqual(['admin', 'manager']);
     expect(call.message).toContain('€300.00');
-    expect(call.message).toContain('€420.00');
-    expect(call.data).toMatchObject({ payoutRequestId: firstId, amount: 300, available: 420, cta: { href: '/finance/payout-requests' } });
+    expect(call.message).toContain('€380.00');
+    expect(call.data).toMatchObject({ payoutRequestId: firstId, amount: 300, available: 380, cta: { href: '/finance/payout-requests' } });
     expect(emitSpy).toHaveBeenCalledWith(`user:${ids.a}`, 'payout_request:updated',
       expect.objectContaining({ id: firstId, status: 'pending', instructorId: ids.a, amount: 300 }));
     expect(roleSpy).toHaveBeenCalledWith('admin', 'payout_request:updated', expect.any(Object));
@@ -314,7 +318,7 @@ describe('payout request lifecycle', () => {
     expect(list.status).toBe(200);
     const mine = list.body.find((r) => r.id === firstId);
     expect(mine).toMatchObject({ instructorName: 'Alice Payout', status: 'pending', amount: 300 });
-    expect(mine.available).toBeCloseTo(420, 2);
+    expect(mine.available).toBeCloseTo(380, 2);
   });
 
   test('reject requires a reason, then notifies the instructor', async () => {
@@ -365,9 +369,9 @@ describe('payout request lifecycle', () => {
 
     const summary = await api('get', '/api/instructors/me/earnings-summary?period=all', 'a');
     expect(summary.body.balances.paidOutGross).toBeCloseTo(450, 2);
-    expect(summary.body.balances.paidOutNet).toBeCloseTo(430, 2);
-    expect(summary.body.balances.available).toBeCloseTo(120, 2);
-    expect(summary.body.threshold).toEqual({ amount: 200, meets: false, shortfall: 80 });
+    expect(summary.body.balances.paidOutNet).toBeCloseTo(450, 2);
+    expect(summary.body.balances.available).toBeCloseTo(80, 2); // 550 − 450 − 20
+    expect(summary.body.threshold).toEqual({ amount: 200, meets: false, shortfall: 120 });
     expect(summary.body.lastPayout).toMatchObject({ amount: 300, method: 'bank_transfer', reference: 'TR-123' });
     expect(summary.body.pendingRequest).toBeNull();
 

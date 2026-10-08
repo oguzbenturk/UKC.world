@@ -1156,5 +1156,23 @@
     },
     "totalLessonHours": "Total de horas de clase",
     "totalLessonHoursTooltip": "Número de horas de clase incluidas en este paquete (opcional)"
+  },
+  "staffEarnings": {
+    "title": "Mis ganancias",
+    "availableHint": "Disponible para gastar en la tienda",
+    "earned": "Ganado",
+    "paidOut": "Pagado",
+    "spentInApp": "Gastado en la app",
+    "deductedLine": "Deducciones: {{amount}}",
+    "history": "Historial de ganancias",
+    "loading": "Cargando…",
+    "empty": "Aún no hay ganancias.",
+    "startNote": "El pago con ganancias empezó el {{date}}. Las compras de personal anteriores se liquidaron a mano y siguen en tu historial.",
+    "kinds": {
+      "earned": "Ganado",
+      "paid_out": "Pagado",
+      "spent": "Gastado en la app",
+      "deducted": "Deducción"
+    }
   }
 }

@@ -1166,5 +1166,23 @@
     },
     "totalLessonHours": "Unterrichtsstunden gesamt",
     "totalLessonHoursTooltip": "Anzahl der im Paket enthaltenen Unterrichtsstunden (optional)"
+  },
+  "staffEarnings": {
+    "title": "Meine Einnahmen",
+    "availableHint": "Im Shop ausgebbar",
+    "earned": "Verdient",
+    "paidOut": "Ausgezahlt",
+    "spentInApp": "In der App ausgegeben",
+    "deductedLine": "Abzüge: {{amount}}",
+    "history": "Verlauf der Einnahmen",
+    "loading": "Wird geladen…",
+    "empty": "Noch keine Einnahmen.",
+    "startNote": "Bezahlen mit Einnahmen gibt es seit {{date}}. Frühere Personalkäufe wurden manuell verrechnet und bleiben im Verlauf.",
+    "kinds": {
+      "earned": "Verdient",
+      "paid_out": "Ausgezahlt",
+      "spent": "In der App ausgegeben",
+      "deducted": "Abzug"
+    }
   }
 }

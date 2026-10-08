@@ -1156,5 +1156,23 @@
     },
     "totalLessonHours": "Total des heures de cours",
     "totalLessonHoursTooltip": "Nombre d'heures de cours incluses dans ce forfait (facultatif)"
+  },
+  "staffEarnings": {
+    "title": "Mes gains",
+    "availableHint": "Disponible pour la boutique",
+    "earned": "Gagné",
+    "paidOut": "Versé",
+    "spentInApp": "Dépensé dans l’app",
+    "deductedLine": "Retenues : {{amount}}",
+    "history": "Historique des gains",
+    "loading": "Chargement…",
+    "empty": "Pas encore de gains.",
+    "startNote": "Le paiement avec les gains existe depuis le {{date}}. Les achats du personnel antérieurs ont été réglés à la main et restent dans ton historique.",
+    "kinds": {
+      "earned": "Gagné",
+      "paid_out": "Versé",
+      "spent": "Dépensé dans l’app",
+      "deducted": "Retenue"
+    }
   }
 }

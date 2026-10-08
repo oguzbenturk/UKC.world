@@ -17,7 +17,8 @@
 ## Frontend
 
 ### Rol-bazlı yönlendirme — `DashboardRouter.jsx`
-- `ADMIN_DASHBOARD_ROLES = ['admin','manager','developer','instructor']` → **AdminDashboard** (analitik).
+- `manager` → **ManagerTodayDashboard** (bugün-odaklı yönetici ekranı, aşağıda).
+- `ADMIN_DASHBOARD_ROLES = ['admin','developer','instructor']` → **AdminDashboard** (analitik). Yöneticiler analitik panele "Reports" olarak `/admin/dashboard` üzerinden ulaşır.
 - Diğer/custom roller (örn. `front_desk`, `receptionist`) → **FrontDeskDashboard** (hızlı aksiyon). Bkz. [[Frontend_Shell]] (`resolveLandingRoute`).
 
 ### `AdminDashboard` (analitik odaklı)
@@ -33,8 +34,12 @@
 - Yaklaşan rezervasyonlar + son ödemeler akışı; segmented "Analytics Mode" toggle.
 - Gerçek zamanlı güncelleme: `useDashboardRealTime()`; ödeme başarı callback'i URL param ile.
 
-### `ManagerHomeDashboard`
-- Kişisel kazanç bölümü (bu ay, bekleyen ödeme, YTD, geçen aya % değişim) + "Academy at a Glance" 16 KPI + Inventory Health. API: `GET /api/manager/dashboard` + `/api/dashboard/summary`.
+### `ManagerTodayDashboard` (yönetici "Bugün" ekranı — 2026-10-08)
+- Eski `ManagerHomeDashboard` silindi; `/dashboard` (manager) ve `/manager/dashboard` artık bunu açar. Tasarım: canvas "Manager dashboard — proposal" panoları. Kod: `src/features/manager/pages/ManagerTodayDashboard.jsx` + `src/features/manager/today/` (api, hooks, format, components).
+- Bölümler: selamlama + hızlı aksiyonlar (New booking → `BookingDrawer`), **Needs action** (eğitmenlerin `pending` açtığı dersler — satır içi Confirm / Confirm all, `PATCH /bookings/:id/status`; eğitmensiz dersler + boş eğitmen önerisi; eksik feragatname; kapanmamış dersler; eğitmen ödeme talepleri; 8 saati aşan eğitmen), **Right now** (derste / boşta / sıradaki + rüzgar, eğitmen panosunun `useWindSettings`/`useWindReport`'u), **Instructors today** (08–20 zaman çizelgesi; >10 eğitmen = yoğun sezon → saatlik kapasite çubukları), **Money** (bugün / hafta vs. geçen hafta aynı günler, alacaklar, yönetici komisyonu veya ödeme talepleri), kiralama/konaklama/ekipman şeridi + 8 haftalık gelir trendi, "All reports" → `/admin/dashboard`.
+- API: `GET /api/manager/today[?date=YYYY-MM-DD]` (`backend/routes/managerToday.js`, roller admin/manager/owner/super_admin/developer) → `backend/services/managerTodayService.js`. İşletme saat dilimi (`instructorTodayService` yardımcıları), para Decimal ile; gelir `finances.js` `computeRevenueTrend` (export edildi — `/finances/summary` ile aynı tanım). Sorgular pg havuzunu tüketmemek için iki dalga halinde.
+- React Query anahtarı `['manager-today', date|'today']`, 60 sn'de bir + socket `booking:updated` ile yenilenir. i18n: `manager.json` → `today.*` (6 dil). Testler: `tests/unit/backend/manager/manager-today.test.js`, `tests/unit/frontend/manager/ManagerTodayDashboard.test.jsx`.
+- Ertelenenler: toplu "Rebalance" / "Assign suggested" / "Send all links" / "Check out all" aksiyonları (şimdilik takvim/müşteri bağlantısı), başlık arama çubuğu, Needs action filtre çipleri.
 
 ### Admin sayfaları (`src/features/admin/pages/`)
 - `SparePartsOrders` — yedek parça siparişleri (bkz. [[Products_Shop_Inventory]]).

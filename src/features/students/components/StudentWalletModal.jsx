@@ -6,6 +6,7 @@ import { useWalletTransactions } from '@/shared/hooks/useWalletTransactions';
 import { useRealTimeSync } from '@/shared/hooks/useRealTime';
 import { WalletDepositModal } from '@/features/finances/components/WalletDepositModal';
 import { BankTransferModal } from '@/features/finances/components/BankTransferModal';
+import StaffEarningsPanel from '@/shared/components/wallet/StaffEarningsPanel';
 import PromoCodeInput from '@/shared/components/PromoCodeInput';
 import apiClient from '@/shared/services/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
@@ -53,7 +54,7 @@ const formatTransactionDate = (value) => {
 /* ── Main modal ── */
 const TRANSACTION_LIMIT = 5;
 
-const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance = 0, initialAction }) => {
+const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance = 0, initialAction, earnings = null }) => {
   const { t } = useTranslation(['student']);
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -190,6 +191,9 @@ const StudentWalletModal = ({ open, onClose, currency, balance, pendingBalance =
             </span>
           </div>
         </div>
+
+        {/* ── Staff earnings (instructor / manager only) ── */}
+        <StaffEarningsPanel earnings={earnings} open={open} />
 
         {/* ── Actions ── */}
         <div className="px-6 py-3 border-b border-slate-100 relative">

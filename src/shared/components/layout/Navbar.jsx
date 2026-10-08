@@ -185,6 +185,9 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
     // Fallback: single-currency response
     return resolveWalletBalance(walletSummary, user);
   })();
+  // Instructors / managers: My Wallet also holds the earnings they can spend
+  // (staff wallet). Shown as one spendable total next to "My Wallet".
+  const earningsAvailable = Number(walletSummary?.earnings?.available) || 0;
   
   // Determine display currency: user's preferred currency, NOT wallet's storage currency
   // Priority: user.preferred_currency > userCurrency (from context) > storageCurrency
@@ -211,11 +214,12 @@ export const Navbar = ({ toggleSidebar, toggleSidebarCollapsed }) => {
     if (!isAuthenticated || rawWalletBalance === undefined || rawWalletBalance === null) {
       return undefined;
     }
+    const spendable = rawWalletBalance + earningsAvailable;
     // Convert from storage currency (EUR) to display currency
     if (convertCurrency && displayCurrency !== storageCurrency) {
-      return convertCurrency(rawWalletBalance, storageCurrency, displayCurrency);
+      return convertCurrency(spendable, storageCurrency, displayCurrency);
     }
-    return rawWalletBalance;
+    return spendable;
   })();
 
   const profileImage = getUserProfileImage(user);

@@ -1018,7 +1018,8 @@
     "periodLast6Months": "Son 6 Ay",
     "periodCurrentYear": "Bu Yıl",
     "periodAllTime": "Tüm Zamanlar",
-    "failedToDashboardData": "Dashboard verisi yüklenemedi."
+    "failedToDashboardData": "Dashboard verisi yüklenemedi.",
+    "spentInAppTag": "Uygulamada harcandı"
   },
   "skills": {
     "teachingSkills": "Öğretim Becerileri",
@@ -1142,7 +1143,8 @@
       "card": "Kart",
       "wallet": "Cüzdan",
       "credit_card": "Kredi kartı",
-      "paypal": "PayPal"
+      "paypal": "PayPal",
+      "earnings": "Uygulamada harcandı"
     },
     "rate": {
       "perHour": "{{amount}}/sa",

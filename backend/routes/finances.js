@@ -1569,6 +1569,11 @@ router.post('/accounts/:id/add-funds', authenticateJWT, authorizeRoles(['admin',
       transaction_date
     } = req.body;
 
+    // Staff may not top up their own wallet (owner decision 2026-10-08).
+    if (String(id) === String(req.user?.id)) {
+      return res.status(403).json({ message: 'You cannot add funds to your own wallet', code: 'SELF_WALLET_ADJUST_FORBIDDEN' });
+    }
+
     const numericAmount = Number.parseFloat(amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       return res.status(400).json({ message: 'Amount must be greater than 0' });
@@ -4493,6 +4498,10 @@ router.get('/expenses', authenticateJWT, authorizeRoles(['admin', 'manager']), a
     res.status(500).json({ error: 'Failed to fetch expenses' });
   }
 });
+
+// Shared with the manager "Today" dashboard (managerTodayService): same revenue
+// definition as /summary, per day.
+export { computeRevenueTrend };
 
 export const __testables = {
   calculateUserBalance,

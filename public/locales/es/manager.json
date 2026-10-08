@@ -2278,5 +2278,182 @@
       "commissionRates": "Commission Rates",
       "notSet": "Not set"
     }
+  },
+  "today": {
+    "loading": "Cargando hoy…",
+    "greeting": {
+      "morning": "Buenos días, {{name}}",
+      "afternoon": "Buenas tardes, {{name}}",
+      "evening": "Buenas noches, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Buenos días",
+      "afternoon": "Buenas tardes",
+      "evening": "Buenas noches"
+    },
+    "summary": {
+      "lessons_one": "{{count}} clase",
+      "lessons_other": "{{count}} clases",
+      "instructors_one": "{{count}} instructor",
+      "instructors_other": "{{count}} instructores",
+      "hours": "{{hours}} h",
+      "rentalsOut_one": "{{count}} alquiler fuera",
+      "rentalsOut_other": "{{count}} alquileres fuera",
+      "checkIns_one": "{{count}} entrada de alojamiento",
+      "checkIns_other": "{{count}} entradas de alojamiento"
+    },
+    "actions": {
+      "booking": "Reserva",
+      "rental": "Alquiler",
+      "calendar": "Calendario",
+      "proposal": "Propuesta",
+      "openCalendar": "Abrir calendario",
+      "newRental": "Nuevo alquiler",
+      "newProposal": "Nueva propuesta",
+      "newBooking": "Nueva reserva"
+    },
+    "needsAction": "Pendiente de ti",
+    "items_one": "{{count}} elemento",
+    "items_other": "{{count}} elementos",
+    "allClear": "Todo al día: nada esperándote.",
+    "open": "Abrir",
+    "confirm": "Confirmar",
+    "confirming": "Confirmando…",
+    "confirmLabel": "Confirmar la clase de {{name}}",
+    "bookedBy": "Reservada por {{name}}",
+    "plusOthers_one": "{{name}} +{{count}}",
+    "plusOthers_other": "{{name}} +{{count}}",
+    "unknownStudent": "Alumno",
+    "noInstructor": "sin instructor",
+    "payment": {
+      "paid": "pagada",
+      "package": "pagada · paquete",
+      "unpaid": "{{amount}} sin pagar"
+    },
+    "toConfirm": {
+      "title_one": "{{count}} clase por confirmar · reservada por instructores",
+      "title_other": "{{count}} clases por confirmar · reservadas por instructores",
+      "confirmAll_one": "Confirmar {{count}}",
+      "confirmAll_other": "Confirmar las {{count}}",
+      "more_one": "+ {{count}} más por confirmar",
+      "more_other": "+ {{count}} más por confirmar"
+    },
+    "unassigned": {
+      "title_one": "{{count}} clase sin instructor",
+      "title_other": "{{count}} clases sin instructor",
+      "suggest": "{{name}} está libre",
+      "action": "Asignar"
+    },
+    "waivers": {
+      "title_one": "Falta {{count}} exención",
+      "title_other": "Faltan {{count}} exenciones",
+      "detail": "{{name}} · clase a las {{time}}",
+      "action": "Abrir"
+    },
+    "notClosed": {
+      "title_one": "{{count}} clase terminada sin cerrar",
+      "title_other": "{{count}} clases terminadas sin cerrar",
+      "detail": "{{name}} · terminó {{end}} · {{instructor}}",
+      "action": "Cerrar"
+    },
+    "payouts": {
+      "title_one": "{{count}} solicitud de pago",
+      "title_other": "{{count}} solicitudes de pago",
+      "detail": "{{name}} · {{amount}} en total",
+      "action": "Revisar"
+    },
+    "overbooked": {
+      "title_one": "{{count}} instructor por encima de una jornada",
+      "title_other": "{{count}} instructores por encima de una jornada",
+      "item": "{{name}} {{hours}} h",
+      "action": "Reequilibrar"
+    },
+    "now": {
+      "title": "Ahora mismo",
+      "inLesson": "en clase",
+      "free": "instructores libres",
+      "nextStart": "próximo inicio",
+      "startingNextHour": "empiezan en la próxima hora",
+      "nextLine": "Siguiente: {{time}} · {{name}} · {{instructor}}",
+      "noMore": "No hay más clases hoy.",
+      "freeNames": "Libres ahora: {{names}}",
+      "until": "hasta las {{time}}",
+      "windSpeed": "{{kn}} nudos",
+      "gusts": "rachas {{kn}}",
+      "windUnavailable": "Previsión de viento no disponible",
+      "wind": {
+        "good": "Bueno para clases",
+        "light": "Viento flojo",
+        "strong": "Demasiado fuerte"
+      }
+    },
+    "money": {
+      "title": "Dinero",
+      "today": "Ingresos hoy",
+      "week": "Esta semana",
+      "outstanding": "Pendiente de cobro",
+      "customers_one": "{{count}} cliente",
+      "customers_other": "{{count}} clientes",
+      "myCommission": "Mi comisión · {{month}}",
+      "owed": "{{amount}} pendiente de pago",
+      "payoutRequests": "Solicitudes de pago",
+      "none": "Ninguna pendiente",
+      "delta": "{{pct}} % vs {{label}}",
+      "vsLastWeekday": "el {{day}} pasado",
+      "vsLastWeek": "mismos días de la semana pasada",
+      "noComparison": "Aún sin comparación"
+    },
+    "instructors": {
+      "title": "Instructores hoy",
+      "capacityTitle": "Ocupación por hora",
+      "capacity": "{{booked}} de {{available}} h reservadas · {{pct}} %",
+      "booked": "reservadas",
+      "hours": "{{hours}} h",
+      "dayOff": "libre",
+      "freeAllDay": "libre todo el día",
+      "legend": "Oscuro = en clase · claro = confirmada · discontinuo = pendiente · gris = hecha",
+      "barLabel": "{{name}}: {{hours}} h reservadas",
+      "hourLabel": "{{hour}}:00 — {{busy}} de {{total}} instructores ocupados",
+      "full": "completo",
+      "none": "Aún no hay instructores.",
+      "openTimeline": "Abrir la línea del día →"
+    },
+    "state": {
+      "now": "en clase",
+      "confirmed": "confirmada",
+      "pending": "pendiente",
+      "done": "hecha"
+    },
+    "ops": {
+      "title": "Alquileres, alojamiento y material",
+      "rentalsOut_one": "{{count}} alquiler fuera ahora",
+      "rentalsOut_other": "{{count}} alquileres fuera ahora",
+      "overdue_one": "{{count}} devolución atrasada",
+      "overdue_other": "{{count}} devoluciones atrasadas",
+      "rentalsUpcoming_one": "{{count}} próximo",
+      "rentalsUpcoming_other": "{{count}} próximos",
+      "stays": "Alojamiento hoy",
+      "staysDetail": "{{checkIns}} entradas · {{checkOuts}} salidas · {{occupied}} de {{units}} habitaciones ocupadas",
+      "gear": "Material",
+      "gearOk": "Nada que atender",
+      "needsService_one": "{{count}} necesita revisión",
+      "needsService_other": "{{count}} necesitan revisión",
+      "lowStock_one": "{{count}} con poco stock",
+      "lowStock_other": "{{count}} con poco stock",
+      "trend": "Ingresos · últimas 8 semanas",
+      "trendWeek": "Semana del {{week}}: {{amount}}",
+      "reports": "Todos los informes →"
+    },
+    "toast": {
+      "confirmed_one": "Clase confirmada",
+      "confirmed_other": "{{count}} clases confirmadas",
+      "confirmFailed_one": "No se pudo confirmar {{count}} clase",
+      "confirmFailed_other": "No se pudieron confirmar {{count}} clases"
+    },
+    "error": {
+      "title": "No se pudo cargar hoy",
+      "body": "Revisa tu conexión e inténtalo de nuevo.",
+      "retry": "Reintentar"
+    }
   }
 }

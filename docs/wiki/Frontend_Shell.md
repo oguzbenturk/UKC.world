@@ -65,7 +65,7 @@ ErrorBoundary > AntdApp > Router >
   - `outsider` → `/guest`
   - `student` / `trusted_customer` → `/student/dashboard` (flag açıksa) yoksa `/student`
   - `instructor` → `/instructor/dashboard`
-  - `manager` → `/manager/dashboard`
+  - `manager` → `/manager/dashboard` (`ManagerTodayDashboard`; `/dashboard` de manager için aynı ekranı açar)
   - `admin` / `developer` / **tüm custom roller** → `/dashboard` (bkz. [[Dashboard_Metrics_Admin]])
 - **`/dashboard` özellikle `staffOnly` ile korunur** (sabit rol listesiyle değil): her custom rolün landing'i `/dashboard` olduğundan, rol-listesi guard'ı receptionist/front_desk/izinleri henüz yüklenmemiş kullanıcıları `/dashboard → /login → /dashboard` sonsuz döngüsüne (`history.replaceState > 100x/10sn`) sokuyordu.
 - Catch-all `*` → authenticated ise landing'e, değilse `/`'a yönlendirir.

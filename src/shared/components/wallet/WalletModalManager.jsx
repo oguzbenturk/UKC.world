@@ -144,6 +144,7 @@ const WalletModalManager = () => {
       balance={balance}
       pendingBalance={pendingBalance}
       initialAction={initialAction}
+      earnings={walletSummary?.earnings ?? null}
     />
   );
 };

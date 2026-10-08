@@ -1018,7 +1018,8 @@
     "periodLast6Months": "Últimos 6 meses",
     "periodCurrentYear": "Este año",
     "periodAllTime": "Todo el tiempo",
-    "failedToDashboardData": "No se pudieron cargar los datos del panel."
+    "failedToDashboardData": "No se pudieron cargar los datos del panel.",
+    "spentInAppTag": "Gastado en la app"
   },
   "skills": {
     "teachingSkills": "Habilidades de enseñanza",
@@ -1143,7 +1144,8 @@
       "card": "Tarjeta",
       "wallet": "Monedero",
       "credit_card": "Tarjeta de crédito",
-      "paypal": "PayPal"
+      "paypal": "PayPal",
+      "earnings": "Gastado en la app"
     },
     "rate": {
       "perHour": "{{amount}}/h",

@@ -2278,5 +2278,182 @@
       "commissionRates": "Commission Rates",
       "notSet": "Not set"
     }
+  },
+  "today": {
+    "loading": "Heute wird geladen…",
+    "greeting": {
+      "morning": "Guten Morgen, {{name}}",
+      "afternoon": "Guten Tag, {{name}}",
+      "evening": "Guten Abend, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Guten Morgen",
+      "afternoon": "Guten Tag",
+      "evening": "Guten Abend"
+    },
+    "summary": {
+      "lessons_one": "{{count}} Stunde",
+      "lessons_other": "{{count}} Stunden",
+      "instructors_one": "{{count}} Lehrer",
+      "instructors_other": "{{count}} Lehrer",
+      "hours": "{{hours}} Std.",
+      "rentalsOut_one": "{{count}} Verleih unterwegs",
+      "rentalsOut_other": "{{count}} Verleihe unterwegs",
+      "checkIns_one": "{{count}} Unterkunfts-Check-in",
+      "checkIns_other": "{{count}} Unterkunfts-Check-ins"
+    },
+    "actions": {
+      "booking": "Buchung",
+      "rental": "Verleih",
+      "calendar": "Kalender",
+      "proposal": "Angebot",
+      "openCalendar": "Kalender öffnen",
+      "newRental": "Neuer Verleih",
+      "newProposal": "Neues Angebot",
+      "newBooking": "Neue Buchung"
+    },
+    "needsAction": "Zu erledigen",
+    "items_one": "{{count}} Punkt",
+    "items_other": "{{count}} Punkte",
+    "allClear": "Alles erledigt — nichts wartet auf dich.",
+    "open": "Öffnen",
+    "confirm": "Bestätigen",
+    "confirming": "Wird bestätigt…",
+    "confirmLabel": "Stunde von {{name}} bestätigen",
+    "bookedBy": "Gebucht von {{name}}",
+    "plusOthers_one": "{{name}} +{{count}}",
+    "plusOthers_other": "{{name}} +{{count}}",
+    "unknownStudent": "Schüler",
+    "noInstructor": "kein Lehrer",
+    "payment": {
+      "paid": "bezahlt",
+      "package": "bezahlt · Paket",
+      "unpaid": "{{amount}} offen"
+    },
+    "toConfirm": {
+      "title_one": "{{count}} Stunde zu bestätigen · von Lehrern gebucht",
+      "title_other": "{{count}} Stunden zu bestätigen · von Lehrern gebucht",
+      "confirmAll_one": "{{count}} bestätigen",
+      "confirmAll_other": "Alle {{count}} bestätigen",
+      "more_one": "+ {{count}} weitere zu bestätigen",
+      "more_other": "+ {{count}} weitere zu bestätigen"
+    },
+    "unassigned": {
+      "title_one": "{{count}} Stunde ohne Lehrer",
+      "title_other": "{{count}} Stunden ohne Lehrer",
+      "suggest": "{{name}} ist frei",
+      "action": "Zuweisen"
+    },
+    "waivers": {
+      "title_one": "{{count}} Haftungsverzicht fehlt",
+      "title_other": "{{count}} Haftungsverzichte fehlen",
+      "detail": "{{name}} · Stunde um {{time}}",
+      "action": "Öffnen"
+    },
+    "notClosed": {
+      "title_one": "{{count}} beendete Stunde nicht abgeschlossen",
+      "title_other": "{{count}} beendete Stunden nicht abgeschlossen",
+      "detail": "{{name}} · Ende {{end}} · {{instructor}}",
+      "action": "Auschecken"
+    },
+    "payouts": {
+      "title_one": "{{count}} Auszahlungsanfrage",
+      "title_other": "{{count}} Auszahlungsanfragen",
+      "detail": "{{name}} · insgesamt {{amount}}",
+      "action": "Prüfen"
+    },
+    "overbooked": {
+      "title_one": "{{count}} Lehrer über einen vollen Tag gebucht",
+      "title_other": "{{count}} Lehrer über einen vollen Tag gebucht",
+      "item": "{{name}} {{hours}} Std.",
+      "action": "Ausgleichen"
+    },
+    "now": {
+      "title": "Gerade jetzt",
+      "inLesson": "im Unterricht",
+      "free": "Lehrer frei",
+      "nextStart": "nächster Start",
+      "startingNextHour": "starten in der nächsten Stunde",
+      "nextLine": "Als Nächstes: {{time}} · {{name}} · {{instructor}}",
+      "noMore": "Heute keine weiteren Stunden.",
+      "freeNames": "Jetzt frei: {{names}}",
+      "until": "bis {{time}}",
+      "windSpeed": "{{kn}} kn",
+      "gusts": "Böen {{kn}}",
+      "windUnavailable": "Windvorhersage nicht verfügbar",
+      "wind": {
+        "good": "Gut für Unterricht",
+        "light": "Wenig Wind",
+        "strong": "Zu stark"
+      }
+    },
+    "money": {
+      "title": "Geld",
+      "today": "Umsatz heute",
+      "week": "Diese Woche",
+      "outstanding": "Offene Beträge",
+      "customers_one": "{{count}} Kunde",
+      "customers_other": "{{count}} Kunden",
+      "myCommission": "Meine Provision · {{month}}",
+      "owed": "{{amount}} warten auf Auszahlung",
+      "payoutRequests": "Auszahlungsanfragen",
+      "none": "Keine offen",
+      "delta": "{{pct}} % ggü. {{label}}",
+      "vsLastWeekday": "letztem {{day}}",
+      "vsLastWeek": "gleichen Tagen letzter Woche",
+      "noComparison": "Noch kein Vergleich"
+    },
+    "instructors": {
+      "title": "Lehrer heute",
+      "capacityTitle": "Auslastung pro Stunde",
+      "capacity": "{{booked}} von {{available}} Std. gebucht · {{pct}} %",
+      "booked": "gebucht",
+      "hours": "{{hours}} Std.",
+      "dayOff": "frei",
+      "freeAllDay": "ganztags frei",
+      "legend": "Dunkel = im Unterricht · hell = bestätigt · gestrichelt = ausstehend · grau = erledigt",
+      "barLabel": "{{name}}: {{hours}} Std. gebucht",
+      "hourLabel": "{{hour}}:00 — {{busy}} von {{total}} Lehrern belegt",
+      "full": "voll",
+      "none": "Noch keine Lehrer angelegt.",
+      "openTimeline": "Tageszeitleiste öffnen →"
+    },
+    "state": {
+      "now": "im Unterricht",
+      "confirmed": "bestätigt",
+      "pending": "ausstehend",
+      "done": "erledigt"
+    },
+    "ops": {
+      "title": "Verleih, Unterkünfte & Material",
+      "rentalsOut_one": "{{count}} Verleih gerade unterwegs",
+      "rentalsOut_other": "{{count}} Verleihe gerade unterwegs",
+      "overdue_one": "{{count}} Rückgabe überfällig",
+      "overdue_other": "{{count}} Rückgaben überfällig",
+      "rentalsUpcoming_one": "{{count}} anstehend",
+      "rentalsUpcoming_other": "{{count}} anstehend",
+      "stays": "Unterkünfte heute",
+      "staysDetail": "{{checkIns}} Anreisen · {{checkOuts}} Abreisen · {{occupied}} von {{units}} Zimmern belegt",
+      "gear": "Material",
+      "gearOk": "Nichts zu tun",
+      "needsService_one": "{{count}} braucht Wartung",
+      "needsService_other": "{{count}} brauchen Wartung",
+      "lowStock_one": "{{count}} mit niedrigem Bestand",
+      "lowStock_other": "{{count}} mit niedrigem Bestand",
+      "trend": "Umsatz · letzte 8 Wochen",
+      "trendWeek": "Woche ab {{week}}: {{amount}}",
+      "reports": "Alle Berichte →"
+    },
+    "toast": {
+      "confirmed_one": "Stunde bestätigt",
+      "confirmed_other": "{{count}} Stunden bestätigt",
+      "confirmFailed_one": "{{count}} Stunde konnte nicht bestätigt werden",
+      "confirmFailed_other": "{{count}} Stunden konnten nicht bestätigt werden"
+    },
+    "error": {
+      "title": "Heute konnte nicht geladen werden",
+      "body": "Prüfe deine Verbindung und versuche es erneut.",
+      "retry": "Erneut versuchen"
+    }
   }
 }

@@ -38,6 +38,7 @@ import {
 } from '../services/walletService.js';
 import { refundPayment as iyzicoRefund, verifyPayment } from '../services/paymentGateways/iyzicoGateway.js';
 import { resolveActorId, resolveSystemActorId } from '../utils/auditUtils.js';
+import { getStaffEarningsBalance, getStaffEarningsActivity } from '../services/staffEarningsService.js';
 
 // Phase 2: Rate Limiting (with Phase 3 alert on exceed)
 const depositLimiter = rateLimit({
@@ -101,11 +102,36 @@ router.get('/summary', authenticateJWT, async (req, res) => {
 
     // Also fetch all currency balances so the frontend can aggregate
     const allBalances = await getAllBalances(userId);
-    
-    res.json({ userId, ...summary, balances: allBalances });
+
+    // Instructors / managers: earnings not yet paid out, spendable in the shop
+    // ("Pay with my earnings"). null for every other role. A failure here must
+    // not break the wallet itself.
+    let earnings = null;
+    try {
+      earnings = await getStaffEarningsBalance(userId, { role: req.user?.role });
+    } catch (earningsError) {
+      logger.warn('Failed to load staff earnings for wallet summary', { userId, error: earningsError?.message });
+    }
+
+    res.json({ userId, ...summary, balances: allBalances, earnings });
   } catch (error) {
     logger.error('Failed to fetch wallet summary:', error);
     res.status(500).json({ error: 'Failed to fetch wallet summary' });
+  }
+});
+
+// Earnings movements (earned / paid out / spent in app / deducted) for staff
+// with earnings; [] for everyone else.
+router.get('/earnings-activity', authenticateJWT, async (req, res) => {
+  try {
+    const items = await getStaffEarningsActivity(req.user.id, {
+      role: req.user?.role,
+      limit: req.query.limit,
+    });
+    res.json({ items });
+  } catch (error) {
+    logger.error('Failed to fetch staff earnings activity:', error);
+    res.status(500).json({ error: 'Failed to fetch earnings activity' });
   }
 });
 
@@ -843,10 +869,13 @@ router.post(
   }
 );
 
+// Manual wallet credit/debit. Front desk / receptionist are NOT allowed any
+// more (owner decision 2026-10-08): a desk user could credit any wallet,
+// including their own. Nobody may adjust their OWN wallet here.
 router.post(
   '/manual-adjust',
   authenticateJWT,
-  authorizeRoles(['admin', 'manager', 'owner', 'front_desk', 'receptionist']),
+  authorizeRoles(['admin', 'manager', 'owner']),
   // Admin shop-orders rows carry the customer's wallet balance (settlement hint).
   cacheInvalidationMiddleware(['api:shop:orders:*']),
   async (req, res) => {
@@ -863,6 +892,9 @@ router.post(
       }
 
       const actorId = resolveActorId(req);
+      if (String(userId) === String(req.user?.id)) {
+        return res.status(403).json({ error: 'You cannot adjust your own wallet', code: 'SELF_WALLET_ADJUST_FORBIDDEN' });
+      }
 
       const transaction = await recordTransaction({
         userId,

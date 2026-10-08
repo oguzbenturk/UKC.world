@@ -2278,5 +2278,226 @@
       "commissionRates": "Commission Rates",
       "notSet": "Not set"
     }
+  },
+  "today": {
+    "loading": "Загрузка дня…",
+    "greeting": {
+      "morning": "Доброе утро, {{name}}",
+      "afternoon": "Добрый день, {{name}}",
+      "evening": "Добрый вечер, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Доброе утро",
+      "afternoon": "Добрый день",
+      "evening": "Добрый вечер"
+    },
+    "summary": {
+      "lessons_one": "{{count}} занятие",
+      "lessons_few": "{{count}} занятия",
+      "lessons_many": "{{count}} занятий",
+      "lessons_other": "{{count}} занятия",
+      "instructors_one": "{{count}} инструктор",
+      "instructors_few": "{{count}} инструктора",
+      "instructors_many": "{{count}} инструкторов",
+      "instructors_other": "{{count}} инструктора",
+      "hours": "{{hours}} ч",
+      "rentalsOut_one": "{{count}} прокат выдан",
+      "rentalsOut_few": "{{count}} проката выдано",
+      "rentalsOut_many": "{{count}} прокатов выдано",
+      "rentalsOut_other": "{{count}} проката выдано",
+      "checkIns_one": "{{count}} заезд",
+      "checkIns_few": "{{count}} заезда",
+      "checkIns_many": "{{count}} заездов",
+      "checkIns_other": "{{count}} заезда"
+    },
+    "actions": {
+      "booking": "Запись",
+      "rental": "Прокат",
+      "calendar": "Календарь",
+      "proposal": "Предложение",
+      "openCalendar": "Открыть календарь",
+      "newRental": "Новый прокат",
+      "newProposal": "Новое предложение",
+      "newBooking": "Новая запись"
+    },
+    "needsAction": "Требует внимания",
+    "items_one": "{{count}} пункт",
+    "items_few": "{{count}} пункта",
+    "items_many": "{{count}} пунктов",
+    "items_other": "{{count}} пункта",
+    "allClear": "Всё сделано — ничего не ждёт.",
+    "open": "Открыть",
+    "confirm": "Подтвердить",
+    "confirming": "Подтверждение…",
+    "confirmLabel": "Подтвердить занятие: {{name}}",
+    "bookedBy": "Записал(а) {{name}}",
+    "plusOthers_one": "{{name}} +{{count}}",
+    "plusOthers_few": "{{name}} +{{count}}",
+    "plusOthers_many": "{{name}} +{{count}}",
+    "plusOthers_other": "{{name}} +{{count}}",
+    "unknownStudent": "Ученик",
+    "noInstructor": "без инструктора",
+    "payment": {
+      "paid": "оплачено",
+      "package": "оплачено · пакет",
+      "unpaid": "{{amount}} не оплачено"
+    },
+    "toConfirm": {
+      "title_one": "{{count}} занятие ждёт подтверждения · записали инструкторы",
+      "title_few": "{{count}} занятия ждут подтверждения · записали инструкторы",
+      "title_many": "{{count}} занятий ждут подтверждения · записали инструкторы",
+      "title_other": "{{count}} занятия ждут подтверждения · записали инструкторы",
+      "confirmAll_one": "Подтвердить {{count}}",
+      "confirmAll_few": "Подтвердить все {{count}}",
+      "confirmAll_many": "Подтвердить все {{count}}",
+      "confirmAll_other": "Подтвердить все {{count}}",
+      "more_one": "+ ещё {{count}}",
+      "more_few": "+ ещё {{count}}",
+      "more_many": "+ ещё {{count}}",
+      "more_other": "+ ещё {{count}}"
+    },
+    "unassigned": {
+      "title_one": "{{count}} занятие без инструктора",
+      "title_few": "{{count}} занятия без инструктора",
+      "title_many": "{{count}} занятий без инструктора",
+      "title_other": "{{count}} занятия без инструктора",
+      "suggest": "{{name}} свободен(на)",
+      "action": "Назначить"
+    },
+    "waivers": {
+      "title_one": "Нет {{count}} отказа от претензий",
+      "title_few": "Нет {{count}} отказов от претензий",
+      "title_many": "Нет {{count}} отказов от претензий",
+      "title_other": "Нет {{count}} отказов от претензий",
+      "detail": "{{name}} · занятие в {{time}}",
+      "action": "Открыть"
+    },
+    "notClosed": {
+      "title_one": "{{count}} завершённое занятие не закрыто",
+      "title_few": "{{count}} завершённых занятия не закрыты",
+      "title_many": "{{count}} завершённых занятий не закрыто",
+      "title_other": "{{count}} завершённых занятия не закрыты",
+      "detail": "{{name}} · окончание {{end}} · {{instructor}}",
+      "action": "Закрыть"
+    },
+    "payouts": {
+      "title_one": "{{count}} запрос на выплату",
+      "title_few": "{{count}} запроса на выплату",
+      "title_many": "{{count}} запросов на выплату",
+      "title_other": "{{count}} запроса на выплату",
+      "detail": "{{name}} · всего {{amount}}",
+      "action": "Рассмотреть"
+    },
+    "overbooked": {
+      "title_one": "{{count}} инструктор перегружен",
+      "title_few": "{{count}} инструктора перегружены",
+      "title_many": "{{count}} инструкторов перегружены",
+      "title_other": "{{count}} инструктора перегружены",
+      "item": "{{name}} {{hours}} ч",
+      "action": "Перераспределить"
+    },
+    "now": {
+      "title": "Сейчас",
+      "inLesson": "на занятии",
+      "free": "инструкторов свободно",
+      "nextStart": "следующее начало",
+      "startingNextHour": "начнутся в течение часа",
+      "nextLine": "Далее: {{time}} · {{name}} · {{instructor}}",
+      "noMore": "Сегодня занятий больше нет.",
+      "freeNames": "Свободны сейчас: {{names}}",
+      "until": "до {{time}}",
+      "windSpeed": "{{kn}} уз",
+      "gusts": "порывы {{kn}}",
+      "windUnavailable": "Прогноз ветра недоступен",
+      "wind": {
+        "good": "Подходит для занятий",
+        "light": "Слабый ветер",
+        "strong": "Слишком сильный"
+      }
+    },
+    "money": {
+      "title": "Деньги",
+      "today": "Выручка сегодня",
+      "week": "Эта неделя",
+      "outstanding": "Долги клиентов",
+      "customers_one": "{{count}} клиент",
+      "customers_few": "{{count}} клиента",
+      "customers_many": "{{count}} клиентов",
+      "customers_other": "{{count}} клиента",
+      "myCommission": "Моя комиссия · {{month}}",
+      "owed": "{{amount}} ждут выплаты",
+      "payoutRequests": "Запросы на выплату",
+      "none": "Нет ожидающих",
+      "delta": "{{pct}}% к {{label}}",
+      "vsLastWeekday": "прошлому дню ({{day}})",
+      "vsLastWeek": "тем же дням прошлой недели",
+      "noComparison": "Пока не с чем сравнить"
+    },
+    "instructors": {
+      "title": "Инструкторы сегодня",
+      "capacityTitle": "Загрузка по часам",
+      "capacity": "Занято {{booked}} из {{available}} ч · {{pct}}%",
+      "booked": "занято",
+      "hours": "{{hours}} ч",
+      "dayOff": "выходной",
+      "freeAllDay": "свободен весь день",
+      "legend": "Тёмный = на занятии · светлый = подтверждено · пунктир = ожидает · серый = проведено",
+      "barLabel": "{{name}}: занято {{hours}} ч",
+      "hourLabel": "{{hour}}:00 — занято {{busy}} из {{total}} инструкторов",
+      "full": "полно",
+      "none": "Инструкторы ещё не добавлены.",
+      "openTimeline": "Открыть шкалу дня →"
+    },
+    "state": {
+      "now": "на занятии",
+      "confirmed": "подтверждено",
+      "pending": "ожидает",
+      "done": "проведено"
+    },
+    "ops": {
+      "title": "Прокат, проживание и снаряжение",
+      "rentalsOut_one": "{{count}} прокат выдан",
+      "rentalsOut_few": "{{count}} проката выдано",
+      "rentalsOut_many": "{{count}} прокатов выдано",
+      "rentalsOut_other": "{{count}} проката выдано",
+      "overdue_one": "{{count}} возврат просрочен",
+      "overdue_few": "{{count}} возврата просрочено",
+      "overdue_many": "{{count}} возвратов просрочено",
+      "overdue_other": "{{count}} возврата просрочено",
+      "rentalsUpcoming_one": "{{count}} предстоит",
+      "rentalsUpcoming_few": "{{count}} предстоят",
+      "rentalsUpcoming_many": "{{count}} предстоят",
+      "rentalsUpcoming_other": "{{count}} предстоят",
+      "stays": "Проживание сегодня",
+      "staysDetail": "{{checkIns}} заезд(ов) · {{checkOuts}} выезд(ов) · занято {{occupied}} из {{units}} номеров",
+      "gear": "Снаряжение",
+      "gearOk": "Всё в порядке",
+      "needsService_one": "{{count}} требует обслуживания",
+      "needsService_few": "{{count}} требуют обслуживания",
+      "needsService_many": "{{count}} требуют обслуживания",
+      "needsService_other": "{{count}} требуют обслуживания",
+      "lowStock_one": "{{count}} заканчивается",
+      "lowStock_few": "{{count}} заканчиваются",
+      "lowStock_many": "{{count}} заканчиваются",
+      "lowStock_other": "{{count}} заканчиваются",
+      "trend": "Выручка · последние 8 недель",
+      "trendWeek": "Неделя с {{week}}: {{amount}}",
+      "reports": "Все отчёты →"
+    },
+    "toast": {
+      "confirmed_one": "Занятие подтверждено",
+      "confirmed_few": "Подтверждено {{count}} занятия",
+      "confirmed_many": "Подтверждено {{count}} занятий",
+      "confirmed_other": "Подтверждено {{count}} занятия",
+      "confirmFailed_one": "Не удалось подтвердить {{count}} занятие",
+      "confirmFailed_few": "Не удалось подтвердить {{count}} занятия",
+      "confirmFailed_many": "Не удалось подтвердить {{count}} занятий",
+      "confirmFailed_other": "Не удалось подтвердить {{count}} занятия"
+    },
+    "error": {
+      "title": "Не удалось загрузить день",
+      "body": "Проверьте соединение и попробуйте ещё раз.",
+      "retry": "Повторить"
+    }
   }
 }

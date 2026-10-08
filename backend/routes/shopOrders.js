@@ -19,6 +19,14 @@ import { isStaffNegativeBalanceRole } from '../constants/roles.js';
 import { METHOD_PAYMENT_TX_TYPE } from '../constants/transactions.js';
 import { updateShopOrderItemPrice } from '../services/shopOrderPriceService.js';
 import { applyDiscount, computeDiscountAmount, reverseOpenDiscountCreditsForEntity } from '../services/discountService.js';
+import {
+  getStaffEarningsBalance,
+  lockStaffEarnings,
+  recordEarningsSpend,
+  cancelEarningsSpendsForSource,
+} from '../services/staffEarningsService.js';
+import { STAFF_EARNINGS_PAYMENT_METHOD, STAFF_EARNINGS_WALLET_START, hasStaffEarnings } from '../constants/staffEarnings.js';
+import { businessDate } from '../services/instructorPayoutService.js';
 
 const router = express.Router();
 
@@ -202,8 +210,24 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       return res.status(400).json({ error: 'Order must contain at least one item' });
     }
 
-    if (!payment_method || !['wallet', 'credit_card', 'card', 'cash', 'wallet_hybrid', 'bank_transfer'].includes(payment_method)) {
+    if (!payment_method || !['wallet', 'credit_card', 'card', 'cash', 'wallet_hybrid', 'bank_transfer', STAFF_EARNINGS_PAYMENT_METHOD].includes(payment_method)) {
       return res.status(400).json({ error: 'Invalid payment method' });
+    }
+
+    // "Pay with my earnings" (staff wallet, owner decisions 2026-10-08): only for
+    // instructors/managers buying for THEMSELVES, at normal prices, from the
+    // feature start date on. Balance check + spend row happen in the transaction.
+    const payWithEarnings = payment_method === STAFF_EARNINGS_PAYMENT_METHOD;
+    if (payWithEarnings) {
+      if (String(userId) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Earnings can only pay for your own order', code: 'EARNINGS_SELF_ONLY' });
+      }
+      if (!hasStaffEarnings(req.user.role)) {
+        return res.status(403).json({ error: 'You have no earnings balance', code: 'EARNINGS_NOT_AVAILABLE' });
+      }
+      if (businessDate() < STAFF_EARNINGS_WALLET_START) {
+        return res.status(400).json({ error: 'Paying with earnings is not available yet', code: 'EARNINGS_NOT_AVAILABLE' });
+      }
     }
 
     // Staff "Paid" flow: the customer settled in person (cash / card terminal /
@@ -356,7 +380,8 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
     // Only staff sellers may apply a discount — this is the public customer
     // checkout endpoint too, so a customer must never be able to discount their
     // own order by sending discount_percent.
-    const staffDiscPct = isStaffSeller ? Math.max(0, Math.min(100, Number(discount_percent) || 0)) : 0;
+    // No staff discount when paying with earnings (decision 5: normal prices).
+    const staffDiscPct = (isStaffSeller && !payWithEarnings) ? Math.max(0, Math.min(100, Number(discount_percent) || 0)) : 0;
     const staffDiscountAmount = staffDiscPct > 0 ? computeDiscountAmount(finalAmount, staffDiscPct) : 0;
     const netPayable = Math.round((finalAmount - staffDiscountAmount) * 100) / 100;
     // The gross debit is followed immediately by the discount credit in the same
@@ -451,8 +476,27 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       ? { totalDeductedEUR: hybridWalletDeducted, plan: walletDeductionPlan }
       : null;
 
-    // Allow admin/manager to backdate orders (not receptionists)
-    const orderCreatedAt = (canBackdate && overrideCreatedAt) ? new Date(overrideCreatedAt) : new Date();
+    // Pay with earnings: serialise this staff member's spends, then check the
+    // earnings available (closed lessons / recorded commissions − paid out −
+    // spent − deducted) covers the order. Never lets the balance go below zero.
+    if (payWithEarnings) {
+      await lockStaffEarnings(client, userId);
+      const earnings = await getStaffEarningsBalance(userId, { role: req.user.role, executor: client });
+      const availableEarnings = Number(earnings?.available || 0);
+      if (!earnings || availableEarnings < netPayable - 0.005) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `Not enough earnings. Required: €${netPayable.toFixed(2)}, Available: €${availableEarnings.toFixed(2)}`,
+          code: 'INSUFFICIENT_EARNINGS',
+          available: availableEarnings,
+          required: netPayable,
+        });
+      }
+    }
+
+    // Allow admin/manager to backdate orders (not receptionists) — never for an
+    // earnings purchase (it settles payroll, so its date must be real).
+    const orderCreatedAt = (canBackdate && overrideCreatedAt && !payWithEarnings) ? new Date(overrideCreatedAt) : new Date();
 
     // Deposit fields
     const depositPct = parseInt(deposit_percent, 10) || 0;
@@ -736,6 +780,68 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
       }
     }
 
+    // Paid with staff earnings: the order is paid now; the staff member's wallet
+    // credit never moves. Ledger: zero-delta charge + 'staff_earnings_payment'
+    // pair on the buyer (history shows what was bought and how it was paid; the
+    // payment leg is NOT an income/cash type), plus the spend itself as a staff
+    // payout row (payment_method 'earnings') that settles earnings like a payout.
+    if (payWithEarnings) {
+      await client.query(`
+        UPDATE shop_orders
+        SET status = 'confirmed', payment_status = 'completed', confirmed_at = $2
+        WHERE id = $1
+      `, [order.id, orderCreatedAt]);
+
+      await client.query(`
+        INSERT INTO shop_order_status_history (order_id, previous_status, new_status, changed_by, notes)
+        VALUES ($1, 'pending', 'confirmed', $2, 'Paid with staff earnings')
+      `, [order.id, req.user.id]);
+
+      if (finalAmount > 0) {
+        const now = Date.now();
+        const pairBase = {
+          client,
+          userId,
+          currency: 'EUR',
+          status: 'completed',
+          paymentMethod: STAFF_EARNINGS_PAYMENT_METHOD,
+          relatedEntityType: 'shop_order',
+          createdBy: req.user.id,
+          allowNegative: true,
+          metadata: { orderId: order.id, orderNumber: order.order_number, source: 'shop_order_staff_earnings' }
+        };
+        await recordTransaction({
+          ...pairBase,
+          amount: -finalAmount,
+          transactionType: 'shop_order_charge',
+          direction: 'debit',
+          availableDelta: 0,
+          transactionDate: new Date(now),
+          description: `${itemSummary} - Order #${order.order_number}`
+        });
+        await recordTransaction({
+          ...pairBase,
+          amount: finalAmount,
+          transactionType: 'staff_earnings_payment',
+          direction: 'credit',
+          availableDelta: 0,
+          transactionDate: new Date(now + 1000),
+          description: `Paid with earnings: Order #${order.order_number}`
+        });
+        await recordEarningsSpend({
+          client,
+          userId,
+          role: req.user.role,
+          amount: finalAmount,
+          sourceType: 'shop_order',
+          sourceId: order.id,
+          description: `Spent in app — Shop order #${order.order_number}`,
+          actorId: req.user.id,
+          extraMetadata: { orderNumber: order.order_number },
+        });
+      }
+    }
+
     // Process hybrid wallet+card payment (wallet deduction deferred to callback)
     if (payment_method === 'wallet_hybrid') {
       const cardChargeAmount = Math.max(0, finalAmount - hybridWalletDeducted);
@@ -996,6 +1102,9 @@ router.post('/', authenticateJWT, cacheInvalidationMiddleware(['api:shop:orders:
 
   } catch (error) {
     await client.query('ROLLBACK');
+    if (error?.statusCode === 409 && error?.code === 'EARNINGS_ALREADY_SPENT') {
+      return res.status(409).json({ error: error.message, code: error.code });
+    }
     logger.error('Error creating shop order:', error);
     res.status(500).json({ error: 'Failed to create order' });
   } finally {
@@ -1447,8 +1556,20 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
       }
     }
 
+    // Paid with staff earnings: a refund gives the earnings back (the spend row is
+    // cancelled) — never wallet credit or cash.
+    const refundToEarnings = status === 'refunded'
+      && currentOrder.rows[0].payment_status === 'completed'
+      && currentOrder.rows[0].payment_method === STAFF_EARNINGS_PAYMENT_METHOD;
+    if (refundToEarnings) {
+      await cancelEarningsSpendsForSource(client, {
+        sourceType: 'shop_order', sourceId: orderId, actorId: req.user.id, reason: 'Order refunded',
+      });
+      updateFields.push(`payment_status = 'refunded'`);
+    }
+
     // Handle refund - if payment was completed, refund to wallet
-    if (status === 'refunded' && currentOrder.rows[0].payment_status === 'completed') {
+    if (!refundToEarnings && status === 'refunded' && currentOrder.rows[0].payment_status === 'completed') {
       const order = currentOrder.rows[0];
 
       // Refund the ACTUAL wallet charges per currency (a hybrid order may have debited
@@ -1494,6 +1615,16 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
 
     await client.query('COMMIT');
 
+    // A refunded or cancelled order earns no manager commission (the cancel and
+    // delete routes already did this; the admin status change did not, so a
+    // refunded sale kept paying commission).
+    if ((status === 'refunded' || status === 'cancelled') && previousStatus !== status) {
+      try {
+        const { cancelCommission } = await import('../services/managerCommissionService.js');
+        cancelCommission('shop', orderId, `order_${status}`).catch(() => {});
+      } catch { /* ignore */ }
+    }
+
     const updatedOrder = await getOrderWithItems(orderId);
 
     // Notify the customer about their order status change (fire-and-forget)
@@ -1503,7 +1634,9 @@ router.patch('/:id/status', authenticateJWT, authorizeRoles(['admin', 'manager']
       shipped:    { title: 'Order Shipped', message: `Great news! Your order ${updatedOrder.order_number} has been shipped and is on its way.` },
       delivered:  { title: 'Order Delivered', message: `Your order ${updatedOrder.order_number} has been delivered. Enjoy!` },
       cancelled:  { title: 'Order Cancelled', message: `Your order ${updatedOrder.order_number} has been cancelled.${admin_notes ? ` Note: ${admin_notes}` : ''}` },
-      refunded:   { title: 'Order Refunded', message: `Your order ${updatedOrder.order_number} has been refunded. The amount has been credited to your wallet.` },
+      refunded:   { title: 'Order Refunded', message: updatedOrder.payment_method === STAFF_EARNINGS_PAYMENT_METHOD
+        ? `Your order ${updatedOrder.order_number} has been refunded. The amount is back in your earnings.`
+        : `Your order ${updatedOrder.order_number} has been refunded. The amount has been credited to your wallet.` },
     };
     const notifContent = statusMessages[status];
     if (notifContent && updatedOrder.user_id) {
@@ -1734,8 +1867,16 @@ router.post('/:id/cancel', authenticateJWT, cacheInvalidationMiddleware(['api:sh
       });
     }
 
+    // Paid with staff earnings: cancelling gives the earnings back.
+    const cancelToEarnings = order.payment_status === 'completed' && order.payment_method === STAFF_EARNINGS_PAYMENT_METHOD;
+    if (cancelToEarnings) {
+      await cancelEarningsSpendsForSource(client, {
+        sourceType: 'shop_order', sourceId: orderId, actorId: req.user.id, reason: 'Order cancelled',
+      });
+    }
+
     // Refund if payment was made
-    if (order.payment_status === 'completed') {
+    if (!cancelToEarnings && order.payment_status === 'completed') {
       // Refund the ACTUAL wallet charges per currency, outstanding portion only.
       // Fall back to legacy EUR total only when no wallet charge exists on the ledger.
       const netCharges = await getEntityNetCharges({ client, shopOrderId: orderId });
@@ -1863,7 +2004,14 @@ router.delete('/:id', authenticateJWT, authorizeRoles(['admin', 'manager', 'fron
     // id that no longer exists (staff then had to hand-clean the ledger in the
     // finances UI and routinely missed rows). Skip when the order was already
     // cancelled/refunded — those flows have settled the wallet already.
-    if (order.user_id && order.payment_status === 'completed') {
+    // Paid with staff earnings: deleting the order gives the earnings back.
+    const deleteToEarnings = order.payment_status === 'completed' && order.payment_method === STAFF_EARNINGS_PAYMENT_METHOD;
+    if (deleteToEarnings) {
+      await cancelEarningsSpendsForSource(client, {
+        sourceType: 'shop_order', sourceId: orderId, actorId: req.user.id, reason: 'Order deleted',
+      });
+    }
+    if (!deleteToEarnings && order.user_id && order.payment_status === 'completed') {
       // 1. Reverse any still-open discount-adjustment credit. For a wallet sale
       //    this re-debits the credit so the gross charge can be refunded in full
       //    below; for a cash/card sale it claws back the credit that never had a

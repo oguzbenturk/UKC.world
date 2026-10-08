@@ -1119,7 +1119,8 @@
       "uploadReceiptRequired": "Veuillez télécharger une preuve de paiement (reçu)",
       "uploadFailed": "Échec du téléchargement",
       "orderFailed": "Impossible de passer la commande",
-      "orderError": "Impossible de traiter votre commande. Veuillez réessayer."
+      "orderError": "Impossible de traiter votre commande. Veuillez réessayer.",
+      "insufficientEarnings": "Tes gains disponibles ne couvrent pas cette commande."
     },
     "paymentLabels": {
       "depositCard": "Acompte {{percent}}% ({{amount}}) par carte",
@@ -1129,7 +1130,13 @@
       "wallet": "Portefeuille",
       "creditCard": "Carte de crédit",
       "bankTransferPending": "Virement bancaire (approbation en attente)",
-      "cash": "Espèces à la livraison"
+      "cash": "Espèces à la livraison",
+      "earnings": "Mes gains"
+    },
+    "earnings": {
+      "label": "Payer avec mes gains",
+      "available": "{{amount}} disponibles",
+      "notEnough": "Insuffisant"
     }
   },
   "profile": {

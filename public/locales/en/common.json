@@ -1176,5 +1176,23 @@
     },
     "totalLessonHours": "Total Lesson Hours",
     "totalLessonHoursTooltip": "Number of lesson hours included in this package (optional)"
+  },
+  "staffEarnings": {
+    "title": "My earnings",
+    "availableHint": "Available to spend in the shop",
+    "earned": "Earned",
+    "paidOut": "Paid out",
+    "spentInApp": "Spent in app",
+    "deductedLine": "Deductions: {{amount}}",
+    "history": "Earnings history",
+    "loading": "Loading…",
+    "empty": "No earnings yet.",
+    "startNote": "Paying with earnings started on {{date}}. Earlier staff purchases were settled by hand and stay in your history.",
+    "kinds": {
+      "earned": "Earned",
+      "paid_out": "Paid out",
+      "spent": "Spent in app",
+      "deducted": "Deduction"
+    }
   }
 }

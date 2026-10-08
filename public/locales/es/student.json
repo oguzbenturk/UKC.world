@@ -1119,7 +1119,8 @@
       "uploadReceiptRequired": "Por favor sube una prueba de pago (recibo)",
       "uploadFailed": "Error al subir",
       "orderFailed": "No se pudo realizar el pedido",
-      "orderError": "No se pudo procesar tu pedido. Por favor intenta de nuevo."
+      "orderError": "No se pudo procesar tu pedido. Por favor intenta de nuevo.",
+      "insufficientEarnings": "Tus ganancias disponibles no cubren este pedido."
     },
     "paymentLabels": {
       "depositCard": "Depósito {{percent}}% ({{amount}}) con tarjeta",
@@ -1129,7 +1130,13 @@
       "wallet": "Billetera",
       "creditCard": "Tarjeta de crédito",
       "bankTransferPending": "Transferencia bancaria (aprobación pendiente)",
-      "cash": "Efectivo al recoger"
+      "cash": "Efectivo al recoger",
+      "earnings": "Mis ganancias"
+    },
+    "earnings": {
+      "label": "Pagar con mis ganancias",
+      "available": "{{amount}} disponibles",
+      "notEnough": "Insuficiente"
     }
   },
   "profile": {

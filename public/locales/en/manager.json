@@ -2279,5 +2279,182 @@
       "commissionRates": "Commission Rates",
       "notSet": "Not set"
     }
+  },
+  "today": {
+    "loading": "Loading today…",
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "afternoon": "Good afternoon, {{name}}",
+      "evening": "Good evening, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "summary": {
+      "lessons_one": "{{count}} lesson",
+      "lessons_other": "{{count}} lessons",
+      "instructors_one": "{{count}} instructor",
+      "instructors_other": "{{count}} instructors",
+      "hours": "{{hours}} h",
+      "rentalsOut_one": "{{count}} rental out",
+      "rentalsOut_other": "{{count}} rentals out",
+      "checkIns_one": "{{count}} stay check-in",
+      "checkIns_other": "{{count}} stay check-ins"
+    },
+    "actions": {
+      "booking": "Booking",
+      "rental": "Rental",
+      "calendar": "Calendar",
+      "proposal": "Proposal",
+      "openCalendar": "Open calendar",
+      "newRental": "New rental",
+      "newProposal": "New proposal",
+      "newBooking": "New booking"
+    },
+    "needsAction": "Needs action",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "allClear": "All caught up — nothing waiting for you.",
+    "open": "Open",
+    "confirm": "Confirm",
+    "confirming": "Confirming…",
+    "confirmLabel": "Confirm lesson of {{name}}",
+    "bookedBy": "Booked by {{name}}",
+    "plusOthers_one": "{{name}} +{{count}}",
+    "plusOthers_other": "{{name}} +{{count}}",
+    "unknownStudent": "Student",
+    "noInstructor": "no instructor",
+    "payment": {
+      "paid": "paid",
+      "package": "paid · package",
+      "unpaid": "{{amount}} unpaid"
+    },
+    "toConfirm": {
+      "title_one": "{{count}} lesson to confirm · booked by instructors",
+      "title_other": "{{count}} lessons to confirm · booked by instructors",
+      "confirmAll_one": "Confirm {{count}}",
+      "confirmAll_other": "Confirm all {{count}}",
+      "more_one": "+ {{count}} more to confirm",
+      "more_other": "+ {{count}} more to confirm"
+    },
+    "unassigned": {
+      "title_one": "{{count}} lesson has no instructor",
+      "title_other": "{{count}} lessons have no instructor",
+      "suggest": "{{name}} is free",
+      "action": "Assign"
+    },
+    "waivers": {
+      "title_one": "{{count}} waiver missing",
+      "title_other": "{{count}} waivers missing",
+      "detail": "{{name}} · lesson at {{time}}",
+      "action": "Open"
+    },
+    "notClosed": {
+      "title_one": "{{count}} finished lesson not closed",
+      "title_other": "{{count}} finished lessons not closed",
+      "detail": "{{name}} · ended {{end}} · {{instructor}}",
+      "action": "Check out"
+    },
+    "payouts": {
+      "title_one": "{{count}} payout request",
+      "title_other": "{{count}} payout requests",
+      "detail": "{{name}} · {{amount}} in total",
+      "action": "Review"
+    },
+    "overbooked": {
+      "title_one": "{{count}} instructor booked over a full day",
+      "title_other": "{{count}} instructors booked over a full day",
+      "item": "{{name}} {{hours}} h",
+      "action": "Rebalance"
+    },
+    "now": {
+      "title": "Right now",
+      "inLesson": "in lesson",
+      "free": "instructors free",
+      "nextStart": "next start",
+      "startingNextHour": "start next hour",
+      "nextLine": "Next: {{time}} · {{name}} · {{instructor}}",
+      "noMore": "No more lessons today.",
+      "freeNames": "Free now: {{names}}",
+      "until": "until {{time}}",
+      "windSpeed": "{{kn}} kn",
+      "gusts": "gusts {{kn}}",
+      "windUnavailable": "Wind forecast unavailable",
+      "wind": {
+        "good": "Good for lessons",
+        "light": "Light wind",
+        "strong": "Too strong"
+      }
+    },
+    "money": {
+      "title": "Money",
+      "today": "Revenue today",
+      "week": "This week",
+      "outstanding": "Outstanding",
+      "customers_one": "{{count}} customer",
+      "customers_other": "{{count}} customers",
+      "myCommission": "My commission · {{month}}",
+      "owed": "{{amount}} waiting for payout",
+      "payoutRequests": "Payout requests",
+      "none": "None waiting",
+      "delta": "{{pct}}% vs {{label}}",
+      "vsLastWeekday": "last {{day}}",
+      "vsLastWeek": "same days last week",
+      "noComparison": "No comparison yet"
+    },
+    "instructors": {
+      "title": "Instructors today",
+      "capacityTitle": "Capacity by hour",
+      "capacity": "{{booked}} of {{available}} h booked · {{pct}}%",
+      "booked": "booked",
+      "hours": "{{hours}} h",
+      "dayOff": "day off",
+      "freeAllDay": "free all day",
+      "legend": "Dark = in lesson · light = confirmed · dashed = pending · grey = done",
+      "barLabel": "{{name}}: {{hours}} h booked",
+      "hourLabel": "{{hour}}:00 — {{busy}} of {{total}} instructors busy",
+      "full": "full",
+      "none": "No instructors set up yet.",
+      "openTimeline": "Open day timeline →"
+    },
+    "state": {
+      "now": "in lesson",
+      "confirmed": "confirmed",
+      "pending": "pending",
+      "done": "done"
+    },
+    "ops": {
+      "title": "Rentals, stays & gear",
+      "rentalsOut_one": "{{count}} rental out now",
+      "rentalsOut_other": "{{count}} rentals out now",
+      "overdue_one": "{{count}} return overdue",
+      "overdue_other": "{{count}} returns overdue",
+      "rentalsUpcoming_one": "{{count}} upcoming",
+      "rentalsUpcoming_other": "{{count}} upcoming",
+      "stays": "Stays today",
+      "staysDetail": "{{checkIns}} check-ins · {{checkOuts}} check-outs · {{occupied}} of {{units}} rooms taken",
+      "gear": "Gear",
+      "gearOk": "Nothing needs attention",
+      "needsService_one": "{{count}} needs service",
+      "needsService_other": "{{count}} need service",
+      "lowStock_one": "{{count}} low stock",
+      "lowStock_other": "{{count}} low stock",
+      "trend": "Revenue · last 8 weeks",
+      "trendWeek": "Week of {{week}}: {{amount}}",
+      "reports": "All reports →"
+    },
+    "toast": {
+      "confirmed_one": "Lesson confirmed",
+      "confirmed_other": "{{count}} lessons confirmed",
+      "confirmFailed_one": "{{count}} lesson could not be confirmed",
+      "confirmFailed_other": "{{count}} lessons could not be confirmed"
+    },
+    "error": {
+      "title": "Couldn’t load today",
+      "body": "Check your connection and try again.",
+      "retry": "Try again"
+    }
   }
 }

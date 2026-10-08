@@ -73,16 +73,15 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
         };
       });
 
-      // Deductions are stored NEGATIVE (a clawback), so the balance still owed
-      // must use the SIGNED net (a deduction INCREASES what's owed). This matches
-      // the instructor dashboard (pending = earned − netPayments) and the manager
-      // balances page (balance = earned − SUM(amount)); summing |amount| here made
-      // a deduction lower the balance and disagree with both surfaces.
-      let paidNet = new Decimal(0);   // payments + deductions (signed) → drives balance
+      // A deduction (stored negative) is a CHARGE to the instructor — it lowers
+      // what the school still owes, exactly like a payout (owner decision
+      // 2026-10-08, same rule as managers). So the amount settled is Σ|amount|,
+      // matching the instructor dashboard, the earnings page and the balances list.
+      let paidNet = new Decimal(0);   // payouts + deductions → settled, drives balance
       let paidGross = new Decimal(0); // positive payouts only → "Total Paid Out" KPI
       for (const p of history) {
         const amt = new Decimal(p.amount || 0);
-        paidNet = paidNet.plus(amt);
+        paidNet = paidNet.plus(amt.abs());
         if (amt.greaterThan(0)) paidGross = paidGross.plus(amt);
       }
 
@@ -200,7 +199,7 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
     const cols = ['Date', 'Amount', 'Type', 'Method', 'Notes'];
     const rows = payrollHistory.map(p => [
       p.payment_date ? moment(p.payment_date).format('YYYY-MM-DD') : '—',
-      formatCurrency(p.amount), p.amount >= 0 ? 'Payment' : 'Deduction',
+      formatCurrency(p.amount), p.amount < 0 ? 'Deduction' : (p.payment_method === 'earnings' ? 'Spent in app' : 'Payment'),
       p.payment_method || '—', p.notes || '',
     ]);
     doc.text(`Payment History — ${instructor.name}`, 14, 15);
@@ -322,9 +321,12 @@ const InstructorPayments = forwardRef(({ instructor, onPaymentSuccess, readOnly 
               { title: t('instructor:payroll.columns.date'), dataIndex: 'payment_date', key: 'date', render: v => v ? moment(v).format('YYYY-MM-DD') : '—', width: 110 },
               { title: t('instructor:payroll.columns.amount'), dataIndex: 'amount', key: 'amount', render: v => fmt(v), width: 110 },
               { title: t('instructor:payroll.columns.type'), dataIndex: 'amount', key: 'type', width: 100,
-                render: a => a >= 0
-                  ? <Tag color="green" bordered={false} className="rounded-full m-0">{t('instructor:payroll.paymentTag')}</Tag>
-                  : <Tag color="red" bordered={false} className="rounded-full m-0">{t('instructor:payroll.deductionTag')}</Tag>
+                render: (a, r) => {
+                  if (a < 0) return <Tag color="red" bordered={false} className="rounded-full m-0">{t('instructor:payroll.deductionTag')}</Tag>;
+                  // Purchase in the app paid from earnings (settles earnings like a payout).
+                  if (r.payment_method === 'earnings') return <Tag color="cyan" bordered={false} className="rounded-full m-0">{t('instructor:payroll.spentInAppTag')}</Tag>;
+                  return <Tag color="green" bordered={false} className="rounded-full m-0">{t('instructor:payroll.paymentTag')}</Tag>;
+                }
               },
               { title: t('instructor:payroll.columns.method'), dataIndex: 'payment_method', key: 'method', render: v => v || '—', width: 110 },
               { title: t('instructor:payroll.columns.notes'), dataIndex: 'notes', key: 'notes', ellipsis: true },

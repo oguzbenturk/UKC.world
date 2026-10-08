@@ -9,9 +9,15 @@
 //                 and entity_type instructor_payment (or legacy NULL), status !=
 //                 cancelled — exactly the rows getInstructorPaymentsSummary sums.
 //                 Payments are stored positive, deductions negative.
-//   * paidOutGross = Σ positive rows, deductionsTotal = Σ |negative rows|,
-//     paidOutNet = gross − deductions, available = max(totalEarned − paidOutNet, 0)
-//     (identical to the dashboard's pending = totalEarned − netPayments).
+//   * A deduction is a CHARGE to the instructor (owner decision 2026-10-08,
+//     same as managers): it lowers what the school owes. Payments made with
+//     payment_method 'earnings' are in-app purchases paid from earnings
+//     ("spent in app") — they settle earnings exactly like a cash payout.
+//   * paidOutGross = Σ payout rows (cash + in-app), spentInApp = the in-app part,
+//     deductionsTotal = Σ |deduction rows|, paidOutNet = paidOutGross (kept for
+//     API compatibility), settled = paidOutGross + deductionsTotal,
+//     available = max(totalEarned − settled, 0)
+//     (identical to the dashboard's pending = totalEarned − settledPayments).
 //
 // Money is Decimal.js end-to-end; numbers are produced only at the JSON boundary
 // (2 dp, half-up). Non-EUR wallet rows are converted with currency_settings
@@ -28,6 +34,7 @@ import { invalidateInstructorDashboardCache } from './instructorService.js';
 import { dispatchNotification, dispatchToStaff } from './notificationDispatcherUnified.js';
 import { formatPayoutMoney } from './telegramTemplates/payout.js';
 import socketService from './socketService.js';
+import { STAFF_EARNINGS_PAYMENT_METHOD } from '../constants/staffEarnings.js';
 
 export const BASE_CURRENCY = 'EUR';
 const BUSINESS_TZ = process.env.BUSINESS_TIMEZONE || 'Europe/Istanbul';
@@ -226,13 +233,16 @@ function mapPayoutRow(row, rates) {
   const eur = toBase(raw.abs(), row.currency, rates);
   const metadata = row.metadata || {};
   const isDeduction = row.transaction_type === 'deduction' || raw.lt(0);
+  const method = row.payment_method || metadata.paymentMethod || null;
   return {
     id: row.id,
     kind: isDeduction ? 'deduction' : 'payout',
+    // Purchase in the app paid from earnings (not cash in hand).
+    inApp: !isDeduction && method === STAFF_EARNINGS_PAYMENT_METHOD,
     date: plainDate(row.payment_ts),
     ts: row.payment_ts ? new Date(row.payment_ts).getTime() : 0,
     amount: eur,
-    method: row.payment_method || metadata.paymentMethod || null,
+    method,
     reference: metadata.externalReference || row.reference_number || null,
     description: row.description || null,
     payoutRequestId: metadata.payoutRequestId || null,
@@ -245,14 +255,15 @@ const lessonOrderAsc = (a, b) =>
   || String(a.id).localeCompare(String(b.id));
 
 /**
- * FIFO paid/pending split: net payouts cover the OLDEST earnings first. Walking
+ * FIFO paid/pending split: settled amounts (payouts + deductions) cover the
+ * OLDEST earnings first. Walking
  * lessons oldest → newest, a lesson is 'paid' while the remaining net payout
  * still covers its full amount; the first lesson that is not fully covered and
  * every later lesson are 'pending' (a partially covered lesson stays pending —
  * the leftover simply shows up in `available`). Returns Map(bookingId → status).
  */
-export function deriveFifoStatuses(lessons, paidOutNet) {
-  let remaining = Decimal.max(dec(paidOutNet), 0);
+export function deriveFifoStatuses(lessons, settled) {
+  let remaining = Decimal.max(dec(settled), 0);
   let exhausted = false;
   const statuses = new Map();
   for (const lesson of [...lessons].sort(lessonOrderAsc)) {
@@ -269,11 +280,14 @@ export function deriveFifoStatuses(lessons, paidOutNet) {
 
 export function computeBalances(lessons, payouts) {
   const totalEarned = sum(lessons, (l) => l.amount);
-  const paidOutGross = sum(payouts.filter((p) => p.kind === 'payout'), (p) => p.amount);
+  const payoutRows = payouts.filter((p) => p.kind === 'payout');
+  const paidOutGross = sum(payoutRows, (p) => p.amount);
+  const spentInApp = sum(payoutRows.filter((p) => p.inApp), (p) => p.amount);
   const deductionsTotal = sum(payouts.filter((p) => p.kind === 'deduction'), (p) => p.amount);
-  const paidOutNet = paidOutGross.minus(deductionsTotal);
-  const available = Decimal.max(totalEarned.minus(paidOutNet), 0);
-  return { totalEarned, paidOutGross, deductionsTotal, paidOutNet, available };
+  const paidOutNet = paidOutGross;
+  const settled = paidOutGross.plus(deductionsTotal);
+  const available = Decimal.max(totalEarned.minus(settled), 0);
+  return { totalEarned, paidOutGross, spentInApp, deductionsTotal, paidOutNet, settled, available };
 }
 
 /** Load lessons + payouts (EUR) for one instructor. */
@@ -302,7 +316,9 @@ const balancesJson = (b) => ({
   totalEarned: num(b.totalEarned),
   paidOutNet: num(b.paidOutNet),
   paidOutGross: num(b.paidOutGross),
+  spentInApp: num(b.spentInApp),
   deductionsTotal: num(b.deductionsTotal),
+  settled: num(b.settled),
   available: num(b.available),
 });
 
@@ -426,7 +442,7 @@ export async function getEarningsSummary(instructorId, { period = 'month', today
   }
 
   const threshold = getPayoutThreshold();
-  const lastPayoutRow = payouts.filter((x) => x.kind === 'payout').sort((a, b) => b.ts - a.ts)[0] || null;
+  const lastPayoutRow = payouts.filter((x) => x.kind === 'payout' && !x.inApp).sort((a, b) => b.ts - a.ts)[0] || null;
 
   return {
     period: { key: p.key, start: p.start, end: p.end, label: p.label },
@@ -467,7 +483,7 @@ export async function getEarningsSummary(instructorId, { period = 'month', today
 // ─── Activity ─────────────────────────────────────────────────────────────────
 
 function buildActivityItems({ lessons, payouts, balances }, { start, end, type = 'all', search = '' }) {
-  const statuses = deriveFifoStatuses(lessons, balances.paidOutNet);
+  const statuses = deriveFifoStatuses(lessons, balances.settled);
   const q = String(search || '').trim().toLowerCase();
   const matches = (...fields) => !q || fields.some((f) => f && String(f).toLowerCase().includes(q));
   const items = [];
@@ -501,6 +517,7 @@ function buildActivityItems({ lessons, payouts, balances }, { start, end, type =
       if (x.kind === 'payout') {
         items.push({
           kind: 'payout', id: x.id, date: x.date, amount: num(x.amount), method: x.method,
+          inApp: x.inApp, description: x.inApp ? x.description : undefined,
           reference: x.reference, status: 'paid', _sort: [x.date, 24 + (x.ts % 86_400_000) / 3_600_000],
         });
       } else {

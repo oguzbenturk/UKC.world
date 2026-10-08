@@ -9,6 +9,11 @@ export const walletApi = {
     const { data } = await apiClient.get('/wallet/transactions', { params });
     return data;
   },
+  // Staff with earnings (instructor / manager): earned / paid out / spent / deducted.
+  async fetchEarningsActivity(params = {}) {
+    const { data } = await apiClient.get('/wallet/earnings-activity', { params });
+    return data;
+  },
 };
 
 export default walletApi;

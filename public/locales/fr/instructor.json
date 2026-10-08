@@ -1018,7 +1018,8 @@
     "periodLast6Months": "6 derniers mois",
     "periodCurrentYear": "Cette année",
     "periodAllTime": "Tout le temps",
-    "failedToDashboardData": "Impossible de charger les données du tableau de bord."
+    "failedToDashboardData": "Impossible de charger les données du tableau de bord.",
+    "spentInAppTag": "Dépensé dans l’app"
   },
   "skills": {
     "teachingSkills": "Compétences pédagogiques",
@@ -1143,7 +1144,8 @@
       "card": "Carte",
       "wallet": "Portefeuille",
       "credit_card": "Carte de crédit",
-      "paypal": "PayPal"
+      "paypal": "PayPal",
+      "earnings": "Dépensé dans l’app"
     },
     "rate": {
       "perHour": "{{amount}}/h",

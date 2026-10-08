@@ -1028,7 +1028,8 @@
     "periodLast6Months": "Последние 6 месяцев",
     "periodCurrentYear": "Текущий год",
     "periodAllTime": "За всё время",
-    "failedToDashboardData": "Не удалось загрузить данные панели управления."
+    "failedToDashboardData": "Не удалось загрузить данные панели управления.",
+    "spentInAppTag": "Потрачено в приложении"
   },
   "skills": {
     "teachingSkills": "Педагогические навыки",
@@ -1154,7 +1155,8 @@
       "card": "Карта",
       "wallet": "Кошелёк",
       "credit_card": "Кредитная карта",
-      "paypal": "PayPal"
+      "paypal": "PayPal",
+      "earnings": "Потрачено в приложении"
     },
     "rate": {
       "perHour": "{{amount}}/ч",

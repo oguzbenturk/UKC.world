@@ -505,10 +505,16 @@ export async function getInstructorPayrollHistory(instructorId, options = {}) {
 }
 
 export async function getInstructorPaymentsSummary(instructorId) {
+  // A deduction is a charge to the instructor (owner decision 2026-10-08, same
+  // as managers): payouts AND deductions both settle earnings, so the amount
+  // settled is Σ|amount| — not the signed sum, which made a deduction RAISE the
+  // balance owed. `netPayments` keeps its name for API compatibility but now
+  // means "settled against earnings" (paid + deducted).
   const summaryQuery = `
     SELECT 
-      COALESCE(SUM(amount), 0) AS net_payments,
-      COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS total_paid
+      COALESCE(SUM(ABS(amount)), 0) AS net_payments,
+      COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS total_paid,
+      COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) AS total_deducted
     FROM wallet_transactions
     WHERE user_id = $1
       AND transaction_type IN ('payment', 'deduction')
@@ -536,6 +542,7 @@ export async function getInstructorPaymentsSummary(instructorId) {
   return {
     netPayments: toNumber(summaryRes.rows?.[0]?.net_payments),
     totalPaid: toNumber(summaryRes.rows?.[0]?.total_paid),
+    totalDeducted: toNumber(summaryRes.rows?.[0]?.total_deducted),
     lastPayment: lastPaymentRes.rows?.[0] || null,
   };
 }
@@ -619,7 +626,9 @@ export async function getAllInstructorBalances() {
   const paymentsQuery = `
     SELECT 
       wt.user_id as instructor_id,
-      COALESCE(SUM(wt.amount), 0) as total_paid
+      -- Payouts and deductions (stored negative) both settle earnings.
+      COALESCE(SUM(CASE WHEN wt.amount > 0 THEN wt.amount ELSE 0 END), 0) as total_paid,
+      COALESCE(SUM(CASE WHEN wt.amount < 0 THEN ABS(wt.amount) ELSE 0 END), 0) as total_deducted
     FROM wallet_transactions wt
     JOIN users u ON u.id = wt.user_id
     LEFT JOIN roles r ON r.id = u.role_id
@@ -718,10 +727,12 @@ export async function getAllInstructorBalances() {
       result[id] = { totalEarned: 0, totalPaid: 0, balance: 0 };
     }
     result[id].totalPaid = Number(Number(row.total_paid).toFixed(2));
+    result[id].totalDeducted = Number(Number(row.total_deducted).toFixed(2));
   }
 
   for (const id of Object.keys(result)) {
-    result[id].balance = Number((result[id].totalEarned - result[id].totalPaid).toFixed(2));
+    const deducted = result[id].totalDeducted || 0;
+    result[id].balance = Number((result[id].totalEarned - result[id].totalPaid - deducted).toFixed(2));
   }
 
   /** Instructor-only snapshot before merging manager commissions */
@@ -730,6 +741,7 @@ export async function getAllInstructorBalances() {
     instructorOnly[id] = {
       totalEarned: result[id].totalEarned,
       totalPaid: result[id].totalPaid,
+      totalDeducted: result[id].totalDeducted || 0,
       balance: result[id].balance,
     };
   }
@@ -803,7 +815,7 @@ export async function getAllInstructorBalances() {
     // profile whenever one channel was overpaid (Oğuzhan: list +719 vs
     // profile −200). Pure instructors keep the instructor-only balance.
     const combinedBalance = hasManager
-      ? Number((inst.totalEarned + mEarn - inst.totalPaid - mPaid - mDeducted).toFixed(2))
+      ? Number((inst.totalEarned + mEarn - inst.totalPaid - (inst.totalDeducted || 0) - mPaid - mDeducted).toFixed(2))
       : inst.balance;
 
     merged[id] = {

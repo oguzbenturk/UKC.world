@@ -2278,5 +2278,182 @@
       "commissionRates": "Commission Rates",
       "notSet": "Not set"
     }
+  },
+  "today": {
+    "loading": "Chargement d’aujourd’hui…",
+    "greeting": {
+      "morning": "Bonjour, {{name}}",
+      "afternoon": "Bon après-midi, {{name}}",
+      "evening": "Bonsoir, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Bonjour",
+      "afternoon": "Bon après-midi",
+      "evening": "Bonsoir"
+    },
+    "summary": {
+      "lessons_one": "{{count}} cours",
+      "lessons_other": "{{count}} cours",
+      "instructors_one": "{{count}} moniteur",
+      "instructors_other": "{{count}} moniteurs",
+      "hours": "{{hours}} h",
+      "rentalsOut_one": "{{count}} location en cours",
+      "rentalsOut_other": "{{count}} locations en cours",
+      "checkIns_one": "{{count}} arrivée hébergement",
+      "checkIns_other": "{{count}} arrivées hébergement"
+    },
+    "actions": {
+      "booking": "Réservation",
+      "rental": "Location",
+      "calendar": "Calendrier",
+      "proposal": "Devis",
+      "openCalendar": "Ouvrir le calendrier",
+      "newRental": "Nouvelle location",
+      "newProposal": "Nouveau devis",
+      "newBooking": "Nouvelle réservation"
+    },
+    "needsAction": "À traiter",
+    "items_one": "{{count}} élément",
+    "items_other": "{{count}} éléments",
+    "allClear": "Tout est à jour — rien ne t’attend.",
+    "open": "Ouvrir",
+    "confirm": "Confirmer",
+    "confirming": "Confirmation…",
+    "confirmLabel": "Confirmer le cours de {{name}}",
+    "bookedBy": "Réservé par {{name}}",
+    "plusOthers_one": "{{name}} +{{count}}",
+    "plusOthers_other": "{{name}} +{{count}}",
+    "unknownStudent": "Élève",
+    "noInstructor": "sans moniteur",
+    "payment": {
+      "paid": "payé",
+      "package": "payé · forfait",
+      "unpaid": "{{amount}} impayé"
+    },
+    "toConfirm": {
+      "title_one": "{{count}} cours à confirmer · réservé par les moniteurs",
+      "title_other": "{{count}} cours à confirmer · réservés par les moniteurs",
+      "confirmAll_one": "Confirmer {{count}}",
+      "confirmAll_other": "Tout confirmer ({{count}})",
+      "more_one": "+ {{count}} autre à confirmer",
+      "more_other": "+ {{count}} autres à confirmer"
+    },
+    "unassigned": {
+      "title_one": "{{count}} cours sans moniteur",
+      "title_other": "{{count}} cours sans moniteur",
+      "suggest": "{{name}} est libre",
+      "action": "Attribuer"
+    },
+    "waivers": {
+      "title_one": "{{count}} décharge manquante",
+      "title_other": "{{count}} décharges manquantes",
+      "detail": "{{name}} · cours à {{time}}",
+      "action": "Ouvrir"
+    },
+    "notClosed": {
+      "title_one": "{{count}} cours terminé non clôturé",
+      "title_other": "{{count}} cours terminés non clôturés",
+      "detail": "{{name}} · fini à {{end}} · {{instructor}}",
+      "action": "Clôturer"
+    },
+    "payouts": {
+      "title_one": "{{count}} demande de paiement",
+      "title_other": "{{count}} demandes de paiement",
+      "detail": "{{name}} · {{amount}} au total",
+      "action": "Examiner"
+    },
+    "overbooked": {
+      "title_one": "{{count}} moniteur au-delà d’une journée",
+      "title_other": "{{count}} moniteurs au-delà d’une journée",
+      "item": "{{name}} {{hours}} h",
+      "action": "Rééquilibrer"
+    },
+    "now": {
+      "title": "En ce moment",
+      "inLesson": "en cours",
+      "free": "moniteurs libres",
+      "nextStart": "prochain début",
+      "startingNextHour": "commencent dans l’heure",
+      "nextLine": "Ensuite : {{time}} · {{name}} · {{instructor}}",
+      "noMore": "Plus de cours aujourd’hui.",
+      "freeNames": "Libres maintenant : {{names}}",
+      "until": "jusqu’à {{time}}",
+      "windSpeed": "{{kn}} nœuds",
+      "gusts": "rafales {{kn}}",
+      "windUnavailable": "Prévision de vent indisponible",
+      "wind": {
+        "good": "Bon pour les cours",
+        "light": "Vent faible",
+        "strong": "Trop fort"
+      }
+    },
+    "money": {
+      "title": "Argent",
+      "today": "Recettes du jour",
+      "week": "Cette semaine",
+      "outstanding": "Impayés",
+      "customers_one": "{{count}} client",
+      "customers_other": "{{count}} clients",
+      "myCommission": "Ma commission · {{month}}",
+      "owed": "{{amount}} en attente de paiement",
+      "payoutRequests": "Demandes de paiement",
+      "none": "Aucune en attente",
+      "delta": "{{pct}} % vs {{label}}",
+      "vsLastWeekday": "{{day}} dernier",
+      "vsLastWeek": "mêmes jours la semaine dernière",
+      "noComparison": "Pas encore de comparaison"
+    },
+    "instructors": {
+      "title": "Moniteurs aujourd’hui",
+      "capacityTitle": "Occupation par heure",
+      "capacity": "{{booked}} sur {{available}} h réservées · {{pct}} %",
+      "booked": "réservé",
+      "hours": "{{hours}} h",
+      "dayOff": "repos",
+      "freeAllDay": "libre toute la journée",
+      "legend": "Foncé = en cours · clair = confirmé · pointillé = en attente · gris = terminé",
+      "barLabel": "{{name}} : {{hours}} h réservées",
+      "hourLabel": "{{hour}} h — {{busy}} moniteurs occupés sur {{total}}",
+      "full": "complet",
+      "none": "Aucun moniteur configuré.",
+      "openTimeline": "Ouvrir la chronologie du jour →"
+    },
+    "state": {
+      "now": "en cours",
+      "confirmed": "confirmé",
+      "pending": "en attente",
+      "done": "terminé"
+    },
+    "ops": {
+      "title": "Locations, hébergement et matériel",
+      "rentalsOut_one": "{{count}} location en cours",
+      "rentalsOut_other": "{{count}} locations en cours",
+      "overdue_one": "{{count}} retour en retard",
+      "overdue_other": "{{count}} retours en retard",
+      "rentalsUpcoming_one": "{{count}} à venir",
+      "rentalsUpcoming_other": "{{count}} à venir",
+      "stays": "Hébergement aujourd’hui",
+      "staysDetail": "{{checkIns}} arrivées · {{checkOuts}} départs · {{occupied}} chambres occupées sur {{units}}",
+      "gear": "Matériel",
+      "gearOk": "Rien à signaler",
+      "needsService_one": "{{count}} à entretenir",
+      "needsService_other": "{{count}} à entretenir",
+      "lowStock_one": "{{count}} en stock bas",
+      "lowStock_other": "{{count}} en stock bas",
+      "trend": "Recettes · 8 dernières semaines",
+      "trendWeek": "Semaine du {{week}} : {{amount}}",
+      "reports": "Tous les rapports →"
+    },
+    "toast": {
+      "confirmed_one": "Cours confirmé",
+      "confirmed_other": "{{count}} cours confirmés",
+      "confirmFailed_one": "{{count}} cours n’a pas pu être confirmé",
+      "confirmFailed_other": "{{count}} cours n’ont pas pu être confirmés"
+    },
+    "error": {
+      "title": "Impossible de charger aujourd’hui",
+      "body": "Vérifie ta connexion et réessaie.",
+      "retry": "Réessayer"
+    }
   }
 }

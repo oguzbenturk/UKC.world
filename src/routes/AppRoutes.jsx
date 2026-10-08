@@ -135,7 +135,7 @@ const SpotifyCallback = lazyWithRetry(() => import('../features/settings/pages/S
 const ManagerCommissionSettings = lazyWithRetry(() => import('../features/manager/pages/ManagerCommissionSettings'));
 const ManagerPayroll = lazyWithRetry(() => import('../features/manager/pages/ManagerPayroll'));
 // Manager experience (new) — Home dashboard + dedicated finance hub
-const ManagerHomeDashboard = lazyWithRetry(() => import('@/features/manager/pages/ManagerHomeDashboard'));
+const ManagerTodayDashboard = lazyWithRetry(() => import('@/features/manager/pages/ManagerTodayDashboard'));
 const ManagerFinanceOverview = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerFinanceOverview'));
 const ManagerEarnings = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerEarnings'));
 const ManagerUpcomingIncome = lazyWithRetry(() => import('@/features/manager/pages/finance/ManagerUpcomingIncome'));
@@ -560,7 +560,7 @@ const AppRoutes = () => {
         {/* Legacy redirect: /manager/commissions → /manager/finance/earnings */}
         <Route path="/manager/commissions" element={<Navigate to="/manager/finance/earnings" replace />} />
         {/* Manager-only: dashboard + dedicated finance hub */}
-        <Route path="/manager/dashboard" element={<ManagerHomeDashboard />} />
+        <Route path="/manager/dashboard" element={<ManagerTodayDashboard />} />
         <Route path="/manager/finance" element={<ManagerFinanceLayout />}>
           <Route index element={<ManagerFinanceOverview />} />
           <Route path="earnings" element={<ManagerEarnings />} />

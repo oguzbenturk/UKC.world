@@ -2278,5 +2278,182 @@
       "commissionRates": "Commission Rates",
       "notSet": "Not set"
     }
+  },
+  "today": {
+    "loading": "Bugün yükleniyor…",
+    "greeting": {
+      "morning": "Günaydın, {{name}}",
+      "afternoon": "İyi günler, {{name}}",
+      "evening": "İyi akşamlar, {{name}}"
+    },
+    "greetingNoName": {
+      "morning": "Günaydın",
+      "afternoon": "İyi günler",
+      "evening": "İyi akşamlar"
+    },
+    "summary": {
+      "lessons_one": "{{count}} ders",
+      "lessons_other": "{{count}} ders",
+      "instructors_one": "{{count}} eğitmen",
+      "instructors_other": "{{count}} eğitmen",
+      "hours": "{{hours}} sa",
+      "rentalsOut_one": "{{count}} kiralama dışarıda",
+      "rentalsOut_other": "{{count}} kiralama dışarıda",
+      "checkIns_one": "{{count}} konaklama girişi",
+      "checkIns_other": "{{count}} konaklama girişi"
+    },
+    "actions": {
+      "booking": "Rezervasyon",
+      "rental": "Kiralama",
+      "calendar": "Takvim",
+      "proposal": "Teklif",
+      "openCalendar": "Takvimi aç",
+      "newRental": "Yeni kiralama",
+      "newProposal": "Yeni teklif",
+      "newBooking": "Yeni rezervasyon"
+    },
+    "needsAction": "İlgilenmen gerekenler",
+    "items_one": "{{count}} öğe",
+    "items_other": "{{count}} öğe",
+    "allClear": "Her şey yolunda — bekleyen bir şey yok.",
+    "open": "Aç",
+    "confirm": "Onayla",
+    "confirming": "Onaylanıyor…",
+    "confirmLabel": "{{name}} dersini onayla",
+    "bookedBy": "{{name}} tarafından",
+    "plusOthers_one": "{{name}} +{{count}}",
+    "plusOthers_other": "{{name}} +{{count}}",
+    "unknownStudent": "Öğrenci",
+    "noInstructor": "eğitmen yok",
+    "payment": {
+      "paid": "ödendi",
+      "package": "ödendi · paket",
+      "unpaid": "{{amount}} ödenmedi"
+    },
+    "toConfirm": {
+      "title_one": "Onay bekleyen {{count}} ders · eğitmenlerin oluşturduğu",
+      "title_other": "Onay bekleyen {{count}} ders · eğitmenlerin oluşturduğu",
+      "confirmAll_one": "{{count}} dersi onayla",
+      "confirmAll_other": "Tümünü onayla ({{count}})",
+      "more_one": "+ onay bekleyen {{count}} ders daha",
+      "more_other": "+ onay bekleyen {{count}} ders daha"
+    },
+    "unassigned": {
+      "title_one": "{{count}} dersin eğitmeni yok",
+      "title_other": "{{count}} dersin eğitmeni yok",
+      "suggest": "{{name}} müsait",
+      "action": "Ata"
+    },
+    "waivers": {
+      "title_one": "{{count}} feragatname eksik",
+      "title_other": "{{count}} feragatname eksik",
+      "detail": "{{name}} · ders {{time}}",
+      "action": "Aç"
+    },
+    "notClosed": {
+      "title_one": "Bitmiş {{count}} ders kapatılmadı",
+      "title_other": "Bitmiş {{count}} ders kapatılmadı",
+      "detail": "{{name}} · {{end}} bitti · {{instructor}}",
+      "action": "Çıkış yap"
+    },
+    "payouts": {
+      "title_one": "{{count}} ödeme talebi",
+      "title_other": "{{count}} ödeme talebi",
+      "detail": "{{name}} · toplam {{amount}}",
+      "action": "İncele"
+    },
+    "overbooked": {
+      "title_one": "{{count}} eğitmen tam günden fazla dolu",
+      "title_other": "{{count}} eğitmen tam günden fazla dolu",
+      "item": "{{name}} {{hours}} sa",
+      "action": "Dengele"
+    },
+    "now": {
+      "title": "Şu an",
+      "inLesson": "derste",
+      "free": "müsait eğitmen",
+      "nextStart": "sonraki başlangıç",
+      "startingNextHour": "bir saat içinde başlıyor",
+      "nextLine": "Sıradaki: {{time}} · {{name}} · {{instructor}}",
+      "noMore": "Bugün başka ders yok.",
+      "freeNames": "Şu an müsait: {{names}}",
+      "until": "{{time}} kadar",
+      "windSpeed": "{{kn}} knot",
+      "gusts": "hamle {{kn}}",
+      "windUnavailable": "Rüzgar tahmini yok",
+      "wind": {
+        "good": "Ders için uygun",
+        "light": "Rüzgar zayıf",
+        "strong": "Çok kuvvetli"
+      }
+    },
+    "money": {
+      "title": "Para",
+      "today": "Bugünkü gelir",
+      "week": "Bu hafta",
+      "outstanding": "Alacaklar",
+      "customers_one": "{{count}} müşteri",
+      "customers_other": "{{count}} müşteri",
+      "myCommission": "Komisyonum · {{month}}",
+      "owed": "{{amount}} ödeme bekliyor",
+      "payoutRequests": "Ödeme talepleri",
+      "none": "Bekleyen yok",
+      "delta": "{{label}} göre %{{pct}}",
+      "vsLastWeekday": "geçen {{day}} gününe",
+      "vsLastWeek": "geçen haftanın aynı günlerine",
+      "noComparison": "Henüz karşılaştırma yok"
+    },
+    "instructors": {
+      "title": "Bugün eğitmenler",
+      "capacityTitle": "Saatlik doluluk",
+      "capacity": "{{available}} saatin {{booked}} saati dolu · %{{pct}}",
+      "booked": "dolu",
+      "hours": "{{hours}} sa",
+      "dayOff": "izinli",
+      "freeAllDay": "tüm gün müsait",
+      "legend": "Koyu = derste · açık = onaylı · kesikli = beklemede · gri = bitti",
+      "barLabel": "{{name}}: {{hours}} sa dolu",
+      "hourLabel": "{{hour}}:00 — {{total}} eğitmenden {{busy}} meşgul",
+      "full": "dolu",
+      "none": "Henüz eğitmen tanımlı değil.",
+      "openTimeline": "Gün zaman çizelgesini aç →"
+    },
+    "state": {
+      "now": "derste",
+      "confirmed": "onaylı",
+      "pending": "beklemede",
+      "done": "bitti"
+    },
+    "ops": {
+      "title": "Kiralama, konaklama ve ekipman",
+      "rentalsOut_one": "Şu an {{count}} kiralama dışarıda",
+      "rentalsOut_other": "Şu an {{count}} kiralama dışarıda",
+      "overdue_one": "{{count}} iade gecikmiş",
+      "overdue_other": "{{count}} iade gecikmiş",
+      "rentalsUpcoming_one": "{{count}} yaklaşan",
+      "rentalsUpcoming_other": "{{count}} yaklaşan",
+      "stays": "Bugün konaklama",
+      "staysDetail": "{{checkIns}} giriş · {{checkOuts}} çıkış · {{units}} odadan {{occupied}} dolu",
+      "gear": "Ekipman",
+      "gearOk": "İlgilenilecek bir şey yok",
+      "needsService_one": "{{count}} bakım gerekiyor",
+      "needsService_other": "{{count}} bakım gerekiyor",
+      "lowStock_one": "{{count}} stok azaldı",
+      "lowStock_other": "{{count}} stok azaldı",
+      "trend": "Gelir · son 8 hafta",
+      "trendWeek": "{{week}} haftası: {{amount}}",
+      "reports": "Tüm raporlar →"
+    },
+    "toast": {
+      "confirmed_one": "Ders onaylandı",
+      "confirmed_other": "{{count}} ders onaylandı",
+      "confirmFailed_one": "{{count}} ders onaylanamadı",
+      "confirmFailed_other": "{{count}} ders onaylanamadı"
+    },
+    "error": {
+      "title": "Bugün yüklenemedi",
+      "body": "Bağlantını kontrol edip tekrar dene.",
+      "retry": "Tekrar dene"
+    }
   }
 }

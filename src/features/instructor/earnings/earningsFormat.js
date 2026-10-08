@@ -125,7 +125,7 @@ export const formatRate = (commissionType, rate, money, t) => {
   return t('instructor:earnings.rate.perHour', { amount: money(rate) });
 };
 
-const KNOWN_METHODS = ['bank_transfer', 'cash', 'other', 'card', 'wallet', 'credit_card', 'paypal'];
+const KNOWN_METHODS = ['bank_transfer', 'cash', 'other', 'card', 'wallet', 'credit_card', 'paypal', 'earnings'];
 
 export const formatMethod = (method, t) => {
   if (!method) return '';

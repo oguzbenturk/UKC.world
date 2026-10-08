@@ -14,8 +14,10 @@ import {
   CheckOutlined,
   CopyOutlined,
   InfoCircleOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useWalletSummary } from '@/shared/hooks/useWalletSummary';
 import { useCart } from '@/shared/contexts/CartContext';
 import { useCurrency } from '@/shared/contexts/CurrencyContext';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -102,6 +104,12 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const { cart, getCartTotal, getCartCount, clearCart } = useCart();
   const { formatCurrency, convertCurrency, businessCurrency, userCurrency } = useCurrency();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  // Instructors / managers can pay from earnings not yet paid out (staff wallet).
+  // `earnings` is null for every other role, so the option never shows for them.
+  const { data: walletSummary } = useWalletSummary({ enabled: visible, currency: 'EUR' });
+  const staffEarnings = walletSummary?.earnings || null;
+  const earningsAvailable = Number(staffEarnings?.available) || 0;
 
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [depositMethod, setDepositMethod] = useState('bank_transfer');
@@ -211,6 +219,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   const amountNeeded = finalTotal - (userBalance || 0);
   const canUseHybridWallet = !canAffordWallet && (userBalance || 0) > 0;
 
+  const canAffordEarnings = earningsAvailable >= finalTotal - 0.005;
+
   const depositAmount = parseFloat((finalTotal * DEPOSIT_PERCENT / 100).toFixed(2));
   const remainingAmount = parseFloat((finalTotal - depositAmount).toFixed(2));
   const isDeposit = paymentMethod === 'deposit';
@@ -223,6 +233,11 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
 
     if (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) {
       setError(t('student:checkout.errors.insufficientBalance'));
+      return;
+    }
+
+    if (paymentMethod === 'earnings' && !canAffordEarnings) {
+      setError(t('student:checkout.errors.insufficientEarnings'));
       return;
     }
 
@@ -255,6 +270,7 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         : creditCardHasWallet
           ? t('student:checkout.paymentLabels.creditCardWallet', { wallet: formatCurrency(walletBal, storageCurrency), card: formatCurrency(cardPortion, storageCurrency) })
           : effectiveMethod === 'wallet' ? t('student:checkout.paymentLabels.wallet')
+          : effectiveMethod === 'earnings' ? t('student:checkout.paymentLabels.earnings')
           : effectiveMethod === 'credit_card' ? t('student:checkout.paymentLabels.creditCard')
           : effectiveMethod === 'bank_transfer' ? t('student:checkout.paymentLabels.bankTransferPending')
           : t('student:checkout.paymentLabels.cash');
@@ -352,6 +368,8 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         setSuccess(true);
         setOrderDetails(response.data.order);
         clearCart();
+        // Wallet + earnings figures changed (spend recorded).
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
         if (onSuccess) onSuccess(response.data.order);
       } else {
         setError(response.data.error || t('student:checkout.errors.orderFailed'));
@@ -439,7 +457,9 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
   );
   const isBankTransferDepositDisabled = isDeposit && depositMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0);
   const isBankTransferDirectDisabled = paymentMethod === 'bank_transfer' && (!selectedBankAccountId || fileList.length === 0);
-  const isButtonDisabled = (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet) || !hasCompleteAddress || editingAddress || isBankTransferDepositDisabled || isBankTransferDirectDisabled;
+  const isButtonDisabled = (paymentMethod === 'wallet' && !canAffordWallet && !canUseHybridWallet)
+    || (paymentMethod === 'earnings' && !canAffordEarnings)
+    || !hasCompleteAddress || editingAddress || isBankTransferDepositDisabled || isBankTransferDirectDisabled;
 
   const buttonLabel = isDeposit
     ? t('student:checkout.payDepositButton', { amount: formatDualAmount(depositAmount) })
@@ -449,7 +469,19 @@ const CheckoutModal = ({ visible, onClose, userBalance, onSuccess }) => {
         ? t('student:checkout.payWalletCardButton')
         : t('student:checkout.proceedButton', { amount: formatDualAmount(finalTotal) });
 
+  const earningsRow = staffEarnings ? [{
+    key: 'earnings',
+    icon: <DollarOutlined />,
+    iconColor: canAffordEarnings ? '#00798c' : '#94a3b8',
+    label: t('student:checkout.earnings.label'),
+    sublabel: t('student:checkout.earnings.available', { amount: formatDualAmount(earningsAvailable) }),
+    badge: canAffordEarnings
+      ? null
+      : <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>{t('student:checkout.earnings.notEnough')}</span>,
+  }] : [];
+
   const paymentRows = [
+    ...earningsRow,
     {
       key: 'wallet',
       icon: <WalletOutlined />,

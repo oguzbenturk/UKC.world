@@ -1119,7 +1119,8 @@
       "uploadReceiptRequired": "Bitte laden Sie einen Zahlungsnachweis (Beleg) hoch",
       "uploadFailed": "Hochladen fehlgeschlagen",
       "orderFailed": "Bestellung konnte nicht aufgegeben werden",
-      "orderError": "Ihre Bestellung konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut."
+      "orderError": "Ihre Bestellung konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut.",
+      "insufficientEarnings": "Deine verfügbaren Einnahmen reichen für diese Bestellung nicht."
     },
     "paymentLabels": {
       "depositCard": "Anzahlung {{percent}}% ({{amount}}) per Karte",
@@ -1129,7 +1130,13 @@
       "wallet": "Brieftasche",
       "creditCard": "Kreditkarte",
       "bankTransferPending": "Banküberweisung (Genehmigung ausstehend)",
-      "cash": "Barzahlung bei Abholung"
+      "cash": "Barzahlung bei Abholung",
+      "earnings": "Meine Einnahmen"
+    },
+    "earnings": {
+      "label": "Mit meinen Einnahmen bezahlen",
+      "available": "{{amount}} verfügbar",
+      "notEnough": "Nicht genug"
     }
   },
   "profile": {

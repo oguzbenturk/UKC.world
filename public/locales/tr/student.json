@@ -1119,7 +1119,8 @@
       "uploadReceiptRequired": "Lütfen ödeme kanıtı (makbuz) yükleyin",
       "uploadFailed": "Yükleme başarısız",
       "orderFailed": "Sipariş verilemedi",
-      "orderError": "Siparişiniz işlenemedi. Lütfen tekrar deneyin."
+      "orderError": "Siparişiniz işlenemedi. Lütfen tekrar deneyin.",
+      "insufficientEarnings": "Kullanılabilir kazancın bu siparişi karşılamıyor."
     },
     "paymentLabels": {
       "depositCard": "Depozit %{{percent}} ({{amount}}) Kart ile",
@@ -1129,7 +1130,13 @@
       "wallet": "Cüzdan",
       "creditCard": "Kredi Kartı",
       "bankTransferPending": "Banka Havalesi (onay bekliyor)",
-      "cash": "Teslimatta Nakit"
+      "cash": "Teslimatta Nakit",
+      "earnings": "Kazançlarım"
+    },
+    "earnings": {
+      "label": "Kazançlarımla öde",
+      "available": "{{amount}} kullanılabilir",
+      "notEnough": "Yetersiz"
     }
   },
   "profile": {

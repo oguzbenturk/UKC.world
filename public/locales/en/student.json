@@ -1119,7 +1119,8 @@
       "uploadReceiptRequired": "Please upload a proof of payment (receipt)",
       "uploadFailed": "Upload failed",
       "orderFailed": "Failed to place order",
-      "orderError": "Failed to process your order. Please try again."
+      "orderError": "Failed to process your order. Please try again.",
+      "insufficientEarnings": "Your earnings available do not cover this order."
     },
     "paymentLabels": {
       "depositCard": "Deposit {{percent}}% ({{amount}}) via Card",
@@ -1129,7 +1130,13 @@
       "wallet": "Wallet",
       "creditCard": "Credit Card",
       "bankTransferPending": "Bank Transfer (pending approval)",
-      "cash": "Cash at Pickup"
+      "cash": "Cash at Pickup",
+      "earnings": "My earnings"
+    },
+    "earnings": {
+      "label": "Pay with my earnings",
+      "available": "{{amount}} available",
+      "notEnough": "Not enough"
     }
   },
   "profile": {

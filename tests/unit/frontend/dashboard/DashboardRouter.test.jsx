@@ -6,6 +6,10 @@ vi.mock('@/features/dashboard/pages/AdminDashboard', () => ({
   default: () => <div data-testid="admin-dashboard">Admin Dashboard</div>
 }));
 
+vi.mock('@/features/manager/pages/ManagerTodayDashboard', () => ({
+  default: () => <div data-testid="manager-today-dashboard">Manager Today</div>
+}));
+
 vi.mock('@/features/dashboard/pages/FrontDeskDashboard', () => ({
   default: () => <div data-testid="front-desk-dashboard">Front Desk Dashboard</div>
 }));
@@ -25,10 +29,10 @@ describe('DashboardRouter — role-based routing', () => {
     expect(screen.getByTestId('admin-dashboard')).toBeInTheDocument();
   });
 
-  it('renders AdminDashboard for manager', () => {
+  it('renders the Today dashboard for manager', () => {
     mockUseAuth.mockReturnValue({ user: { role: 'manager' } });
     render(<DashboardRouter />);
-    expect(screen.getByTestId('admin-dashboard')).toBeInTheDocument();
+    expect(screen.getByTestId('manager-today-dashboard')).toBeInTheDocument();
   });
 
   it('renders AdminDashboard for instructor', () => {
@@ -64,6 +68,6 @@ describe('DashboardRouter — role-based routing', () => {
   it('is case-insensitive for role matching', () => {
     mockUseAuth.mockReturnValue({ user: { role: 'MANAGER' } });
     render(<DashboardRouter />);
-    expect(screen.getByTestId('admin-dashboard')).toBeInTheDocument();
+    expect(screen.getByTestId('manager-today-dashboard')).toBeInTheDocument();
   });
 });
