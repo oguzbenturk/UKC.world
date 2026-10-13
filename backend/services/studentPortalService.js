@@ -1103,7 +1103,8 @@ export async function getStudentOverview(studentId, options = {}) {
       skillId: row.skill_id,
       skillName: row.skill_name || 'Skill',
       levelName: row.level_name || null,
-      dateAchieved: row.date_achieved ? row.date_achieved.toISOString().split('T')[0] : null,
+      // DATE columns come back as 'YYYY-MM-DD' strings (db.js type parser 1082)
+      dateAchieved: row.date_achieved ? (row.date_achieved instanceof Date ? row.date_achieved.toISOString().split('T')[0] : String(row.date_achieved).split('T')[0]) : null,
       notes: row.notes || null,
       createdAt: toIso(row.created_at)
     }));

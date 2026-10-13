@@ -117,7 +117,8 @@ export async function getFormAnalytics(formTemplateId, { startDate, endDate } = 
   // Group by date
   const dailyData = {};
   dailyResult.rows.forEach(row => {
-    const dateStr = row.date.toISOString().split('T')[0];
+    // DATE(created_at) comes back as a 'YYYY-MM-DD' string (db.js type parser 1082)
+    const dateStr = row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date).slice(0, 10);
     if (!dailyData[dateStr]) {
       dailyData[dateStr] = { date: dateStr, views: 0, submissions: 0 };
     }

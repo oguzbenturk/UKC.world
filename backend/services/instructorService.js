@@ -14,6 +14,8 @@ const WEEKS_IN_TIMESERIES = 12;
 const DASHBOARD_CACHE_TTL_SECONDS = Number(process.env.INSTRUCTOR_DASHBOARD_TTL || 60);
 
 const dashboardCacheKey = (instructorId) => `instructor:dashboard:${instructorId}`;
+// DATE columns come back as 'YYYY-MM-DD' strings (db.js type parser 1082), not Date objects
+const toDateOnly = (v) => (v ? (v instanceof Date ? v.toISOString().split('T')[0] : String(v).split('T')[0]) : null);
 
 export const invalidateInstructorDashboardCache = async (instructorId) => {
   try {
@@ -523,7 +525,7 @@ export async function getStudentGoals(instructorId, studentId) {
       id: r.id,
       title: r.title,
       description: r.description,
-      targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+      targetDate: toDateOnly(r.target_date),
       status: r.status,
       notes: r.notes,
       createdAt: r.created_at.toISOString(),
@@ -555,7 +557,7 @@ export async function addStudentGoal(instructorId, studentId, payload) {
     const r = rows[0];
     return {
       id: r.id, title: r.title, description: r.description,
-      targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+      targetDate: toDateOnly(r.target_date),
       status: r.status, notes: r.notes,
       createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString()
     };
@@ -592,7 +594,7 @@ export async function updateStudentGoal(instructorId, studentId, goalId, payload
     const r = rows[0];
     return {
       id: r.id, title: r.title, description: r.description,
-      targetDate: r.target_date ? r.target_date.toISOString().split('T')[0] : null,
+      targetDate: toDateOnly(r.target_date),
       status: r.status, notes: r.notes,
       createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString()
     };
