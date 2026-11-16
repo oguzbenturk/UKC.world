@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Plannivo">
+  <defs><linearGradient id="pv-g1" gradientUnits="userSpaceOnUse" x1="114" y1="58" x2="178" y2="150"><stop offset="0" stop-color="#0bb5a6"/><stop offset="1" stop-color="#1e90e8"/></linearGradient></defs>
+  <rect width="256" height="256" rx="56" fill="#073036"/>
+  <path d="M114 58H132A46 46 0 0 1 132 150H114Z" fill="url(#pv-g1)"/>
+  <path d="M96 58H114V180A18 18 0 0 1 96 198A18 18 0 0 1 78 180V76A18 18 0 0 1 96 58Z" fill="#ffffff"/>
+</svg>
